@@ -1,22 +1,56 @@
 <?php
-// turn.php — devolve credenciais TURN efemeras da Cloudflare para o navegador.
+// turn.php — credenciais TURN efemeras da Cloudflare para o navegador.
 //
-// O API token fica SO no servidor, em variavel de ambiente — nunca no cliente, nunca no git.
-// Sem as variaveis configuradas, responde 204 e o app usa apenas STUN (comportamento padrao).
+// Le a config de VARIAVEL DE AMBIENTE ou de um arquivo .env (fora do git).
+// Precedencia: env var real do sistema/php-fpm/Apache > .env.
+// O .env e procurado PRIMEIRO fora do docroot (uma pasta acima) — assim nunca e servido
+// pela web. O segredo fica so no servidor; sem config, responde 204 e o app usa so STUN.
 //
-// Config (na VM):  export CF_TURN_KEY_ID=...   export CF_TURN_API_TOKEN=...   [CF_TURN_TTL=86400]
+// Config:  export CF_TURN_KEY_ID=...  export CF_TURN_API_TOKEN=...  [CF_TURN_TTL=86400]
+//   ou um arquivo .env (veja .env.example).
 
 declare(strict_types=1);
 
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 
-$keyId = getenv('CF_TURN_KEY_ID');
-$token = getenv('CF_TURN_API_TOKEN');
+// --- leitura de config: env var, senao .env ---
+function env_get(string $key): ?string {
+    $v = getenv($key);
+    if ($v !== false && $v !== '') return $v;
+    static $dot = null;
+    if ($dot === null) {
+        $dot = [];
+        // fora do docroot primeiro (recomendado), depois ao lado (exige bloqueio no servidor)
+        foreach ([__DIR__ . '/../.env', __DIR__ . '/.env'] as $p) {
+            if (is_file($p) && is_readable($p)) { $dot = parse_dotenv($p); break; }
+        }
+    }
+    return $dot[$key] ?? null;
+}
+function parse_dotenv(string $path): array {
+    $out = [];
+    foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#') continue;
+        $eq = strpos($line, '=');
+        if ($eq === false) continue;
+        $k = trim(substr($line, 0, $eq));
+        $v = trim(substr($line, $eq + 1));
+        // remove aspas envolventes, se houver
+        $n = strlen($v);
+        if ($n >= 2 && ($v[0] === '"' || $v[0] === "'") && $v[$n - 1] === $v[0]) $v = substr($v, 1, -1);
+        if ($k !== '') $out[$k] = $v;
+    }
+    return $out;
+}
+
+$keyId = env_get('CF_TURN_KEY_ID');
+$token = env_get('CF_TURN_API_TOKEN');
 if (!$keyId || !$token) { http_response_code(204); exit; } // TURN desligado -> cliente cai no STUN
 
 $url  = 'https://rtc.live.cloudflare.com/v1/turn/keys/' . rawurlencode($keyId) . '/credentials/generate-ice-servers';
-$ttl  = (int) (getenv('CF_TURN_TTL') ?: 86400);
+$ttl  = (int) (env_get('CF_TURN_TTL') ?: 86400);
 $body = json_encode(['ttl' => $ttl]);
 $headers = ['Authorization: Bearer ' . $token, 'Content-Type: application/json'];
 

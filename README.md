@@ -69,8 +69,14 @@ nos celulares. Um cria a mesa, os outros escaneiam o QR.
   export CF_TURN_API_TOKEN=seu_api_token   # segredo — nunca commitar
   # opcional: export CF_TURN_TTL=86400
   ```
-  (No php-fpm, defina em `env[...]` no pool; no Apache mod_php, `SetEnv` no vhost.) Sem as
-  variáveis, `turn.php` responde `204` e o app segue **só com STUN**. O cliente busca as
+  (No php-fpm, defina em `env[...]` no pool; no Apache mod_php, `SetEnv` no vhost.)
+
+  Alternativa: um arquivo **`.env`** (copie de `.env.example`). Deixe-o **fora do docroot** —
+  o `turn.php` procura em `../.env` primeiro. ⚠️ Um `.env` dentro do site **é servido pela web**
+  (confirmado no `php -S`); se precisar deixá-lo junto, bloqueie o acesso (`Require all denied`
+  no Apache, `location ~ /\.env { deny all; }` no nginx). Env vars têm precedência sobre o `.env`.
+
+  Sem nenhuma config, `turn.php` responde `204` e o app segue **só com STUN**. O cliente busca as
   credenciais efêmeras em `js/app.js` → `loadIce()` e as passa ao `RTCPeerConnection`.
 
 ## Privacidade

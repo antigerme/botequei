@@ -150,18 +150,35 @@ function bebedeiraItem() {
 }
 
 // ---- Mesa ----
-function enterTable(code, { create = false } = {}) {
+// Busca iceServers no servidor (Cloudflare TURN via turn.php). Se nao configurado
+// (204) ou falhar, cai no STUN publico — o app funciona igual, so sem relay.
+async function loadIce() {
+  const fallback = [{ urls: 'stun:stun.l.google.com:19302' }];
+  try {
+    const r = await fetch('turn.php', { cache: 'no-store' });
+    if (r.status !== 200) return fallback;
+    const d = await r.json();
+    return Array.isArray(d.iceServers) && d.iceServers.length ? d.iceServers : fallback;
+  } catch { return fallback; }
+}
+
+async function enterTable(code, { create = false } = {}) {
   room = code;
   store.setCurrent(room);
   rebuildFrom(store.getEvents(room));
 
   ui.showScreen('table');
   render();
+  if (create) openInvite();
+
+  const iceServers = await loadIce();
+  if (room !== code) return; // usuario ja saiu enquanto buscava as credenciais
 
   mesh = new Mesh({
     room,
     selfId: self,
     name: getName(),
+    iceServers,
     onEvent: onRemoteEvent,
     onPeersChange: () => render(),
     onStatus: () => render(),
@@ -170,7 +187,6 @@ function enterTable(code, { create = false } = {}) {
   mesh.start();
 
   location.hash = '#/mesa?room=' + room;
-  if (create) openInvite();
 }
 
 function leaveTable() {

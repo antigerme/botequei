@@ -1,6 +1,6 @@
 // Service worker do Botequei — cache do "app shell" para abrir offline e instalar como PWA.
 // Importante: nunca intercepta o signaling.php nem requisicoes que nao sejam GET.
-const CACHE = 'botequei-v1';
+const CACHE = 'botequei-v2';
 const SHELL = [
   './',
   'index.html',
@@ -42,8 +42,8 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
 
-  // Sinalizacao e qualquer coisa que nao seja GET: sempre rede, sem cache.
-  if (req.method !== 'GET' || url.pathname.endsWith('signaling.php')) return;
+  // Sinalizacao/TURN e qualquer coisa que nao seja GET: sempre rede, sem cache.
+  if (req.method !== 'GET' || url.pathname.endsWith('signaling.php') || url.pathname.endsWith('turn.php')) return;
   if (url.origin !== self.location.origin) return;
 
   e.respondWith((async () => {

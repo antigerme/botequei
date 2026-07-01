@@ -61,9 +61,17 @@ nos celulares. Um cria a mesa, os outros escaneiam o QR.
 (Apache/Nginx + PHP-FPM, hospedagem compartilhada barata). Basta copiar os arquivos.
 
 - **HTTPS é necessário** em produção (WebRTC e instalação de PWA exigem; `localhost` é isento).
-- **STUN/TURN**: por padrão usa um STUN público do Google pra funcionar entre redes. Em redes
-  muito restritas (NAT simétrico) seria preciso um **TURN** — configurável em `js/mesh.js`
-  (`DEFAULT_ICE`). Na mesma Wi-Fi, conecta sem depender de nada externo.
+- **STUN/TURN**: por padrão usa STUN público e conecta P2P direto na maioria das redes. Para
+  redes restritas (NAT simétrico/CGNAT), há suporte a **Cloudflare TURN** via `turn.php`, ligado
+  por variável de ambiente — o token fica **só no servidor**, nunca no cliente nem no git:
+  ```bash
+  export CF_TURN_KEY_ID=seu_key_id
+  export CF_TURN_API_TOKEN=seu_api_token   # segredo — nunca commitar
+  # opcional: export CF_TURN_TTL=86400
+  ```
+  (No php-fpm, defina em `env[...]` no pool; no Apache mod_php, `SetEnv` no vhost.) Sem as
+  variáveis, `turn.php` responde `204` e o app segue **só com STUN**. O cliente busca as
+  credenciais efêmeras em `js/app.js` → `loadIce()` e as passa ao `RTCPeerConnection`.
 
 ## Privacidade
 
@@ -77,6 +85,7 @@ estado vive nos navegadores.
 index.html            # shell do PWA
 styles.css            # tema "boteco"
 signaling.php         # sinalização WebRTC (arquivo único, sem banco)
+turn.php              # (opcional) credenciais Cloudflare TURN via env var
 manifest.webmanifest  # PWA
 sw.js                 # service worker (offline / instalável)
 icons/                # ícones (icon.svg + PNGs gerados)

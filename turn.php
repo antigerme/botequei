@@ -18,6 +18,10 @@ header('Cache-Control: no-store');
 function env_get(string $key): ?string {
     $v = getenv($key);
     if ($v !== false && $v !== '') return $v;
+    // Apache SetEnv (.htaccess/vhost) chega via $_SERVER — tanto em mod_php quanto em
+    // php-fpm (proxy_fcgi). Por isso checamos $_SERVER/$_ENV alem de getenv().
+    if (!empty($_SERVER[$key])) return (string) $_SERVER[$key];
+    if (!empty($_ENV[$key]))    return (string) $_ENV[$key];
     static $dot = null;
     if ($dot === null) {
         $dot = [];

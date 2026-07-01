@@ -62,19 +62,30 @@ nos celulares. Um cria a mesa, os outros escaneiam o QR.
 
 - **HTTPS é necessário** em produção (WebRTC e instalação de PWA exigem; `localhost` é isento).
 - **STUN/TURN**: por padrão usa STUN público e conecta P2P direto na maioria das redes. Para
-  redes restritas (NAT simétrico/CGNAT), há suporte a **Cloudflare TURN** via `turn.php`, ligado
-  por variável de ambiente — o token fica **só no servidor**, nunca no cliente nem no git:
+  redes restritas (NAT simétrico/CGNAT), há suporte **opcional** a **Cloudflare TURN** via
+  `turn.php`, que lê a config de **`SetEnv`/variável de ambiente** ou de um **`.env`** — o token
+  fica **só no servidor**, nunca no cliente nem no git. Escolha **uma** das formas:
+
+  **a) `.htaccess` — mais fácil (Apache / hospedagem compartilhada).** Copie `.htaccess.example`
+  para `.htaccess` e preencha. O Apache **não serve `.ht*`** por padrão, então o segredo não vaza:
+  ```apache
+  SetEnv CF_TURN_KEY_ID seu_key_id
+  SetEnv CF_TURN_API_TOKEN seu_api_token
+  # SetEnv CF_TURN_TTL 86400
+  ```
+  (Precisa de `AllowOverride` habilitado — padrão na maioria das hospedagens. O `turn.php` lê o
+  `SetEnv` via `$_SERVER`, funcionando tanto em mod_php quanto em php-fpm.)
+
+  **b) Variável de ambiente** (systemd, shell, ou `env[...]` no pool do php-fpm):
   ```bash
   export CF_TURN_KEY_ID=seu_key_id
-  export CF_TURN_API_TOKEN=seu_api_token   # segredo — nunca commitar
-  # opcional: export CF_TURN_TTL=86400
+  export CF_TURN_API_TOKEN=seu_api_token   # opcional: CF_TURN_TTL=86400
   ```
-  (No php-fpm, defina em `env[...]` no pool; no Apache mod_php, `SetEnv` no vhost.)
 
-  Alternativa: um arquivo **`.env`** (copie de `.env.example`). Deixe-o **fora do docroot** —
-  o `turn.php` procura em `../.env` primeiro. ⚠️ Um `.env` dentro do site **é servido pela web**
-  (confirmado no `php -S`); se precisar deixá-lo junto, bloqueie o acesso (`Require all denied`
-  no Apache, `location ~ /\.env { deny all; }` no nginx). Env vars têm precedência sobre o `.env`.
+  **c) Arquivo `.env`** (copie de `.env.example`) — deixe-o **fora do docroot**; o `turn.php`
+  procura em `../.env` primeiro. ⚠️ Um `.env` dentro do site **é servido pela web** (confirmado no
+  `php -S`); se precisar deixá-lo junto, bloqueie (`<Files ".env"> Require all denied` no Apache,
+  `location ~ /\.env { deny all; }` no nginx).
 
   Sem nenhuma config, `turn.php` responde `204` e o app segue **só com STUN**. O cliente busca as
   credenciais efêmeras em `js/app.js` → `loadIce()` e as passa ao `RTCPeerConnection`.

@@ -5,9 +5,10 @@ Thumbs.db
 # Logs
 *.log
 
-# Segredos — nunca comitar (o .env.example fica versionado)
+# Segredos — nunca comitar (os *.example ficam versionados)
 .env
 .env.local
+.htaccess
 
 # Dev / testes
 node_modules

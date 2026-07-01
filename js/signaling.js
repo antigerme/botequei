@@ -72,6 +72,14 @@ export class Signaling {
     if (this._timer) { clearTimeout(this._timer); this._timer = null; }
   }
 
+  // Forca um poll imediato (ex.: ao voltar do bloqueio de tela) e reseta o backoff.
+  poke() {
+    if (!this.polling) return;
+    this.interval = 1000;
+    if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+    this._loop();
+  }
+
   // keepalive: entrega mesmo se a aba estiver fechando.
   leave() {
     try {

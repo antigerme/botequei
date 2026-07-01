@@ -13,7 +13,10 @@ tempo real entre os navegadores. UI em **pt-BR**.
 ## Arquitetura (essencial)
 - **Sem framework, sem build.** HTML + CSS + JS puro (ES modules). Não introduzir bundler/toolchain.
 - **WebRTC full-mesh** (`js/mesh.js`): cada peer conecta a todos. Anti-glare: quem tem `peerId`
-  menor cria a offer. Sem hub central — resiliente à saída de qualquer um.
+  menor cria a offer. Sem hub central — resiliente à saída de qualquer um. **Reconexão
+  automática**: heartbeat (`ping`) detecta queda; o iniciador re-oferta e o outro reconstrói ao
+  receber a offer; `wake()` (chamado no `visibilitychange`/`online`) reconecta e re-sincroniza ao
+  desbloquear a tela.
 - **Sinalização** (`signaling.php` + `js/signaling.js`): PHP único, sem banco. Só troca SDP/ICE
   por polling HTTP com caixa-postal em arquivos temporários (TTL). Guarda só o id opaco do peer —
   nunca consumo/histórico/participantes. Sai do fluxo após o handshake.
@@ -27,7 +30,7 @@ tempo real entre os navegadores. UI em **pt-BR**.
 ## Mapa de arquivos
 - `index.html` — shell (telas via seções `.screen`)
 - `js/app.js` — orquestrador (log, dedup, render, fluxos criar/entrar, `loadIce()`)
-- `js/mesh.js` — WebRTC full-mesh + indicador de conexão (host/srflx/relay via `getStats()`)
+- `js/mesh.js` — WebRTC full-mesh + reconexão automática (heartbeat/`wake()`) + indicador de conexão (host/srflx/relay via `getStats()`)
 - `js/signaling.js` — cliente do `signaling.php` (polling)
 - `js/events.js` — eventos + reducer (CRDT). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
 - `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira

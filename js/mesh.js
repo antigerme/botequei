@@ -2,15 +2,21 @@
 // Sem hub central -> se qualquer um (inclusive quem criou a mesa) sair, os demais seguem.
 //
 // Mensagens no fio (JSON):
-//   { k:'ev',    ev }              -> um evento de dominio (ADD/REMOVE/ITEM)
-//   { k:'sync',  events:[...] }    -> anti-entropy: log completo ao abrir a conexao
+//   { k:'ev',    ev }              -> evento de dominio (ADD/REMOVE/ITEM)
+//   { k:'sync',  events:[...] }    -> anti-entropy: log completo ao (re)conectar
 //   { k:'hello', name }            -> troca de apelido
+//   { k:'ping' }                   -> heartbeat (detecta peer caido antes do timeout do ICE)
 //
-// Anti-glare: dos dois lados, so o de peerId MENOR cria a offer (regra deterministica).
+// Anti-glare / reconexao: dos dois lados, so o de peerId MENOR cria a offer (regra
+// deterministica). Quando cai, o iniciador RE-oferta e o outro lado RECONSTROI ao receber a offer.
 
 import { Signaling } from './signaling.js';
 
 const DEFAULT_ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
+const TICK_MS = 3000;    // heartbeat + verificacao de saude
+const STALE_MS = 12000;  // sem sinal do peer por tanto tempo -> considera caido
+const RETRY_MS = 3000;   // cooldown entre tentativas de reconexao
+const STUCK_MS = 10000;  // handshake que nunca completou -> tenta de novo
 
 export class Mesh {
   constructor(opts) {
@@ -22,8 +28,10 @@ export class Mesh {
     this.onPeersChange = opts.onPeersChange || (() => {});
     this.onStatus = opts.onStatus || (() => {});
     this.getSyncPayload = opts.getSyncPayload || (() => []);
-    this.conns = new Map(); // peerId -> rec
-    this._statsTimer = null;
+    this.conns = new Map();     // peerId -> rec
+    this._retryAt = new Map();  // peerId -> ts da ultima tentativa de reconexao
+    this._present = null;       // Set de peers vistos no ultimo poll do signaling
+    this._timer = null;
     this.sig = new Signaling(this.room, this.self); // signaling nao carrega apelido
   }
 
@@ -31,17 +39,50 @@ export class Mesh {
     const existing = await this.sig.join();
     for (const p of existing) this._ensure(p.peer);
     this.sig.start((m) => this._onSignal(m), (list) => this._onPeers(list));
-    // amostra o tipo de conexao (host/srflx/relay) de cada peer periodicamente
-    this._statsTimer = setInterval(() => this._pollStats(), 3000);
+    this._timer = setInterval(() => this._tick(), TICK_MS);
     this.onPeersChange();
     this.onStatus();
   }
 
+  // Chamado quando a aba volta a ficar visivel (desbloqueou o celular) ou a rede voltou.
+  wake() {
+    this.sig.poke();                       // forca um poll imediato do signaling
+    for (const id of [...this.conns.keys()]) this._maybeConnect(id);
+    for (const [id, rec] of this.conns) {  // re-sincroniza o que estiver aberto (catch-up)
+      if (rec.dc && rec.dc.readyState === 'open') this._raw(id, { k: 'sync', events: this.getSyncPayload() });
+    }
+    this.onStatus();
+  }
+
   _onPeers(list) {
+    this._present = new Set(list.map((p) => p.peer));
     for (const p of list) {
       if (p.peer === this.self) continue;
-      if (!this.conns.get(p.peer)) this._ensure(p.peer); // apelido chega via 'hello' P2P
+      this._maybeConnect(p.peer);
     }
+  }
+
+  // (Re)conecta se necessario. So o iniciador (id menor) dirige a reconexao;
+  // o outro lado reconstroi ao receber a offer (ver _onSignal).
+  _maybeConnect(peerId) {
+    const rec = this.conns.get(peerId);
+    if (!rec) { this._ensure(peerId); return; }
+    if (this.self >= peerId) return; // nao-iniciador espera a offer
+    const st = rec.pc && rec.pc.connectionState;
+    const dead = st === 'failed' || st === 'closed';
+    const stuck = !rec.everReady && Date.now() - rec.createdAt > STUCK_MS;
+    if (dead || stuck) this._retry(peerId);
+  }
+
+  _retry(peerId) {
+    const last = this._retryAt.get(peerId) || 0;
+    if (Date.now() - last < RETRY_MS) return; // cooldown
+    this._retryAt.set(peerId, Date.now());
+    const rec = this.conns.get(peerId);
+    if (rec) { try { rec.pc.close(); } catch { /* ignore */ } this.conns.delete(peerId); }
+    this._ensure(peerId); // recria; se self<peer, ja envia a offer
+    this.onPeersChange();
+    this.onStatus();
   }
 
   _ensure(peerId) {
@@ -52,17 +93,20 @@ export class Mesh {
 
   _create(peerId, name, initiator) {
     const pc = new RTCPeerConnection({ iceServers: this.ice });
-    const rec = { pc, dc: null, name: name || '', ready: false, remoteSet: false, pendingIce: [], initiator, connType: null };
+    const rec = {
+      pc, dc: null, name: name || '', ready: false, everReady: false,
+      remoteSet: false, pendingIce: [], initiator, connType: null,
+      createdAt: Date.now(), lastSeen: Date.now(),
+    };
     this.conns.set(peerId, rec);
 
     pc.onicecandidate = (e) => { if (e.candidate) this.sig.send(peerId, 'ice', e.candidate); };
     pc.onconnectionstatechange = () => {
       const st = pc.connectionState;
-      if (st === 'failed' || st === 'closed' || st === 'disconnected') {
-        rec.ready = false;
-        this.onPeersChange();
-        this.onStatus();
-      }
+      if (st === 'failed' || st === 'closed') { rec.ready = false; this._maybeConnect(peerId); }
+      else if (st === 'disconnected') { rec.ready = false; } // pode recuperar; heartbeat/poll cuidam
+      this.onPeersChange();
+      this.onStatus();
     };
 
     if (initiator) {
@@ -89,6 +133,10 @@ export class Mesh {
     let rec = this.conns.get(from);
     try {
       if (m.type === 'offer') {
+        // (re)conexao: se o pc ja foi usado ou esta quebrado, recria limpo antes de aplicar
+        const st = rec && rec.pc.connectionState;
+        const reuse = rec && (rec.remoteSet || st === 'failed' || st === 'closed' || rec.pc.signalingState !== 'stable');
+        if (reuse) { try { rec.pc.close(); } catch { /* ignore */ } this.conns.delete(from); rec = null; }
         if (!rec) rec = this._create(from, '', false);
         await rec.pc.setRemoteDescription(m.payload);
         rec.remoteSet = true;
@@ -120,6 +168,9 @@ export class Mesh {
     rec.dc = dc;
     dc.onopen = () => {
       rec.ready = true;
+      rec.everReady = true;
+      rec.lastSeen = Date.now();
+      this._retryAt.delete(peerId);
       this._raw(peerId, { k: 'hello', name: this.name });
       this._raw(peerId, { k: 'sync', events: this.getSyncPayload() }); // anti-entropy
       this.onPeersChange();
@@ -127,11 +178,13 @@ export class Mesh {
     };
     dc.onclose = () => { rec.ready = false; this.onPeersChange(); this.onStatus(); };
     dc.onmessage = (e) => {
+      rec.lastSeen = Date.now();
       let msg;
       try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.k === 'ev') this.onEvent(msg.ev, peerId);
       else if (msg.k === 'sync' && Array.isArray(msg.events)) { for (const ev of msg.events) this.onEvent(ev, peerId); }
       else if (msg.k === 'hello') { rec.name = msg.name || rec.name; this.onPeersChange(); }
+      // 'ping' so serve pra atualizar lastSeen (feito acima)
     };
   }
 
@@ -155,7 +208,12 @@ export class Mesh {
 
   peers() {
     const out = [];
-    for (const [id, rec] of this.conns) out.push({ user: id, name: rec.name, online: rec.ready, conn: rec.connType });
+    for (const [id, rec] of this.conns) {
+      out.push({
+        user: id, name: rec.name, online: rec.ready, conn: rec.connType,
+        state: rec.pc ? rec.pc.connectionState : 'closed',
+      });
+    }
     return out;
   }
 
@@ -165,15 +223,41 @@ export class Mesh {
     return n;
   }
 
-  // Amostra o par de candidatos selecionado e classifica: host (direto) / srflx (STUN) / relay (TURN).
-  async _pollStats() {
+  // Timer periodico: heartbeat, deteccao de peer caido, limpeza de quem saiu, tipo de conexao.
+  async _tick() {
     let changed = false;
-    for (const rec of this.conns.values()) {
-      if (!rec.pc || !rec.ready) continue;
-      const t = await this._readConnType(rec.pc);
-      if (t && t !== rec.connType) { rec.connType = t; changed = true; }
+    const now = Date.now();
+
+    for (const [id, rec] of [...this.conns]) {
+      // heartbeat
+      if (rec.dc && rec.dc.readyState === 'open') this._raw(id, { k: 'ping' });
+
+      const st = rec.pc && rec.pc.connectionState;
+      const bad = st === 'failed' || st === 'closed' || st === 'disconnected';
+
+      // peer que saiu (sumiu do signaling) e ja nao esta saudavel -> remove da malha
+      if (this._present && !this._present.has(id) && bad) {
+        try { rec.pc.close(); } catch { /* ignore */ }
+        this.conns.delete(id);
+        this._retryAt.delete(id);
+        changed = true;
+        continue;
+      }
+
+      // sem sinal ha muito tempo (celular travou, wi-fi caiu) -> considera caido e reconecta
+      if (rec.everReady && now - rec.lastSeen > STALE_MS) {
+        if (rec.ready) { rec.ready = false; changed = true; }
+        if (this.self < id) this._retry(id); // iniciador puxa a reconexao
+      }
+
+      // classifica o tipo de conexao (host/srflx/relay)
+      if (rec.ready) {
+        const t = await this._readConnType(rec.pc);
+        if (t && t !== rec.connType) { rec.connType = t; changed = true; }
+      }
     }
-    if (changed) this.onPeersChange();
+
+    if (changed) { this.onPeersChange(); this.onStatus(); }
   }
 
   async _readConnType(pc) {
@@ -194,7 +278,7 @@ export class Mesh {
   }
 
   close() {
-    if (this._statsTimer) { clearInterval(this._statsTimer); this._statsTimer = null; }
+    if (this._timer) { clearInterval(this._timer); this._timer = null; }
     this.sig.leave();
     this.sig.stop();
     for (const rec of this.conns.values()) { try { rec.pc.close(); } catch { /* ignore */ } }

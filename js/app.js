@@ -113,8 +113,18 @@ function render() {
     items,
   });
   renderPeers();
-  const alone = (mesh ? mesh.connectedCount() : 0) === 0;
-  ui.setConn(alone ? 'Você está sozinho na mesa — toque em MESA pra chamar a turma 🍻' : null);
+
+  // Indicador de status da conexão
+  const mp = mesh ? mesh.peers() : [];
+  const known = mp.length;
+  const online = mp.filter((p) => p.online).length;
+  if (known === 0) {
+    ui.setConn('Você está sozinho na mesa — toque em MESA pra chamar a turma 🍻');
+  } else if (online < known) {
+    ui.setConn(`Reconectando… 🟡 (${online}/${known} na mesa)`);
+  } else {
+    ui.setConn(null); // todos conectados
+  }
 }
 
 function renderPeers() {
@@ -283,6 +293,12 @@ function boot() {
   window.addEventListener('pagehide', () => {
     if (room) { store.saveEvents(room, log); if (mesh) mesh.sig.leave(); }
   });
+
+  // ao voltar (desbloqueou a tela / rede voltou / reabriu a aba): reconectar e re-sincronizar
+  const wake = () => { if (!document.hidden && mesh) mesh.wake(); };
+  document.addEventListener('visibilitychange', wake);
+  window.addEventListener('focus', wake);
+  window.addEventListener('online', wake);
 
   // service worker (PWA / offline)
   if ('serviceWorker' in navigator) {

@@ -1,0 +1,17 @@
+# Botequei — exemplo de .htaccess (Apache). Copie para ".htaccess" e preencha.
+#
+# ✅ Vantagem: o Apache, por padrao, NAO serve arquivos .ht* (regra "Require all denied"
+#    da config padrao), entao por o segredo aqui NAO vaza pela web — diferente do .env.
+# ⚠️ Mesmo assim, NAO comite o .htaccess com segredos (ja esta no .gitignore).
+# ⚠️ Precisa de "AllowOverride" habilitado (padrao na maioria das hospedagens compartilhadas).
+
+# --- Credenciais do Cloudflare TURN ---
+# Vao para o ambiente do PHP (lidas pelo turn.php via $_SERVER, em mod_php e php-fpm).
+SetEnv CF_TURN_KEY_ID seu_key_id
+SetEnv CF_TURN_API_TOKEN seu_api_token
+# SetEnv CF_TURN_TTL 86400
+
+# --- Defesa extra: se voce deixar um .env NA pasta do site, bloqueie o acesso web a ele ---
+<Files ".env">
+    Require all denied
+</Files>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#12100b" />
+  <meta name="description" content="Contador de consumo no boteco, em tempo real e sem servidor central. Registre cada rodada em 1 toque." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Botequei" />
+  <title>Botequei 🍺</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ======================= HOME ======================= -->
+  <section class="screen is-active" id="screen-home">
+    <div class="home-hero">
+      <div class="logo">🍺</div>
+      <h1 class="brand">Botequei</h1>
+      <p class="tagline">Ninguém mais perde a conta da rodada.</p>
+    </div>
+
+    <div class="home-card">
+      <label class="field">
+        <span>Seu apelido na mesa</span>
+        <input id="input-name" type="text" inputmode="text" maxlength="20"
+               autocomplete="nickname" placeholder="ex: André" />
+      </label>
+
+      <button class="btn btn-primary btn-lg" id="btn-create">
+        <span class="btn-emoji">➕</span> Criar mesa
+      </button>
+
+      <div class="join-row">
+        <input id="input-code" type="text" inputmode="text" maxlength="8"
+               placeholder="código" class="code-input" autocapitalize="characters" />
+        <button class="btn btn-ghost" id="btn-join-code">Entrar</button>
+      </div>
+    </div>
+
+    <div class="home-history" id="home-history" hidden>
+      <h2>Mesas recentes</h2>
+      <ul id="history-list"></ul>
+    </div>
+
+    <footer class="home-foot">
+      <span id="net-hint">P2P • sem servidor de dados</span>
+    </footer>
+  </section>
+
+  <!-- ======================= MESA ======================= -->
+  <section class="screen" id="screen-table">
+    <header class="topbar">
+      <button class="icon-btn" id="btn-leave" title="Sair da mesa">‹</button>
+      <button class="table-id" id="btn-invite" title="Convidar">
+        <span class="mesa-label">MESA</span>
+        <span class="mesa-code" id="mesa-code">----</span>
+      </button>
+      <div class="topbar-actions">
+        <button class="icon-btn" id="btn-peers" title="Participantes">
+          <span id="peer-count">1</span>👥
+        </button>
+        <button class="icon-btn" id="btn-bebedeira" title="Modo bebedeira">🥴</button>
+      </div>
+    </header>
+
+    <div class="conn-banner" id="conn-banner" hidden></div>
+
+    <div class="totals">
+      <div class="total-block">
+        <span class="total-num" id="my-total">0</span>
+        <span class="total-cap">você</span>
+      </div>
+      <div class="total-sep"></div>
+      <div class="total-block">
+        <span class="total-num" id="table-total">0</span>
+        <span class="total-cap">a mesa</span>
+      </div>
+      <div class="total-block total-money" id="money-block" hidden>
+        <span class="total-num" id="my-money">R$0</span>
+        <span class="total-cap">sua conta</span>
+      </div>
+    </div>
+
+    <div class="items-grid" id="items-grid"><!-- cards via JS --></div>
+
+    <button class="btn btn-ghost btn-additem" id="btn-additem">+ item personalizado</button>
+  </section>
+
+</div>
+
+<!-- ======================= OVERLAYS ======================= -->
+
+<!-- Convite / QR -->
+<div class="overlay" id="overlay-invite" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>Chame a turma</h2>
+    <p class="sheet-sub">Aponte a câmera do celular pro QR ou compartilhe o código.</p>
+    <div class="qr-wrap" id="qr-wrap"></div>
+    <div class="big-code" id="big-code">----</div>
+    <div class="sheet-actions">
+      <button class="btn btn-primary" id="btn-copy-link">Copiar link</button>
+      <button class="btn btn-ghost" id="btn-share" hidden>Compartilhar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Entrar: pedir nome -->
+<div class="overlay" id="overlay-join" hidden>
+  <div class="sheet">
+    <h2>Entrar na mesa <span id="join-code-label"></span></h2>
+    <label class="field">
+      <span>Seu apelido</span>
+      <input id="join-name" type="text" maxlength="20" placeholder="ex: André" />
+    </label>
+    <div class="sheet-actions">
+      <button class="btn btn-primary btn-lg" id="btn-join-confirm">Bora 🍻</button>
+    </div>
+  </div>
+</div>
+
+<!-- Participantes -->
+<div class="overlay" id="overlay-peers" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>Na mesa</h2>
+    <ul class="peers-list" id="peers-list"></ul>
+  </div>
+</div>
+
+<!-- Adicionar item -->
+<div class="overlay" id="overlay-additem" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>Novo item</h2>
+    <div class="emoji-row" id="emoji-row"></div>
+    <label class="field"><span>Nome</span>
+      <input id="add-name" type="text" maxlength="24" placeholder="ex: Caipirinha" /></label>
+    <label class="field"><span>Preço (opcional)</span>
+      <input id="add-price" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0,00" /></label>
+    <div class="sheet-actions">
+      <button class="btn btn-primary btn-lg" id="btn-additem-confirm">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modo bebedeira -->
+<div class="bebedeira" id="bebedeira" hidden>
+  <button class="bebedeira-exit" id="btn-bebedeira-exit">✕</button>
+  <div class="bebedeira-item" id="bebedeira-item">🍺</div>
+  <div class="bebedeira-count" id="bebedeira-count">0</div>
+  <button class="bebedeira-plus" id="bebedeira-plus">+1</button>
+  <div class="bebedeira-hint">segure para −1</div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

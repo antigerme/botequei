@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Botequei">
+  <defs>
+    <linearGradient id="beer" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd463"/>
+      <stop offset="1" stop-color="#e8890b"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#241d12"/>
+      <stop offset="1" stop-color="#12100b"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- alça -->
+  <path d="M356 214 h34 a56 56 0 0 1 0 112 h-34" fill="none" stroke="#f2b02a" stroke-width="34" stroke-linecap="round"/>
+  <!-- corpo -->
+  <rect x="150" y="182" width="208" height="228" rx="28" fill="url(#beer)" stroke="#c8770a" stroke-width="6"/>
+  <!-- espuma -->
+  <g fill="#fbf4e4">
+    <circle cx="186" cy="182" r="40"/>
+    <circle cx="234" cy="164" r="48"/>
+    <circle cx="288" cy="170" r="46"/>
+    <circle cx="332" cy="184" r="40"/>
+    <rect x="150" y="176" width="208" height="34" rx="17"/>
+  </g>
+  <!-- bolhas -->
+  <g fill="#fff5d8" opacity=".5">
+    <circle cx="204" cy="300" r="11"/>
+    <circle cx="250" cy="352" r="8"/>
+    <circle cx="300" cy="292" r="9"/>
+  </g>
+</svg>

@@ -1,0 +1,20 @@
+{
+  "name": "Botequei — contador de boteco",
+  "short_name": "Botequei",
+  "description": "Registre o consumo da mesa em 1 toque, em tempo real e sem servidor central de dados.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#12100b",
+  "theme_color": "#12100b",
+  "categories": ["lifestyle", "social", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

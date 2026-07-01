@@ -1,0 +1,13 @@
+# SO
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Dev / testes
+node_modules/
+test-results/
+playwright-report/
+.playwright/
+/tests/tmp/

@@ -1,1 +1,107 @@
-# botequei
+# 🍺 Botequei
+
+**Contador de consumo pro boteco — registre a rodada em 1 toque, em tempo real, sem servidor central de dados.**
+
+Ninguém mais perde a conta de quantas cervejas rolaram. Cada pessoa usa o próprio
+celular, tudo sincroniza direto **entre os navegadores (peer-to-peer via WebRTC)** e
+**nenhum dado de consumo passa ou fica guardado em servidor**.
+
+---
+
+## Como funciona (arquitetura)
+
+- **PWA** em HTML + CSS + **JavaScript puro** (ES modules), sem framework nem build.
+- **WebRTC `RTCDataChannel`** em **malha completa** (_full-mesh_): cada celular conecta a
+  todos os outros da mesa. Não há hub central — se qualquer um sair (inclusive quem criou a
+  mesa), os demais continuam.
+- **`signaling.php`** (arquivo único, sem framework, sem banco) só ajuda os navegadores a se
+  acharem no começo: troca `offer`/`answer`/ICE por _polling_ HTTP, usando arquivos
+  temporários com TTL curto que se apagam sozinhos. Depois que a conexão P2P sobe, ele **sai
+  do fluxo** — nunca vê nem guarda consumo, histórico ou participantes.
+- **Estado por eventos (CRDT PN-Counter)**: cada `+1`/`-1` é um evento imutável e idempotente.
+  O total é a **soma dos eventos**; como somar é comutativo, todo mundo **converge para o mesmo
+  número** mesmo com atraso, reenvio ou duplicata. Deduplicação por `eventId`.
+- **Anti-entropy + gossip**: ao conectar, os peers trocam o log completo (quem chega atrasado
+  recebe todo o histórico da mesa); eventos novos são reencaminhados, então funcionam mesmo se
+  a malha não estiver 100% completa.
+- **Persistência**: só **localStorage** no próprio aparelho (retomar sessão + histórico de mesas).
+
+```
+navegador A  ⇄  navegador B          (consumo trafega SÓ aqui, P2P)
+     ⇅            ⇅
+        signaling.php  ← só no aperto de mão inicial (SDP/ICE), nada é guardado
+```
+
+## Rodando localmente
+
+Precisa só de **PHP** (8.x). Nenhum `npm install`, nenhum banco.
+
+```bash
+php -S 0.0.0.0:8000
+# abra http://localhost:8000
+```
+
+Para testar com 2 celulares na **mesma Wi-Fi**: descubra o IP da máquina
+(ex.: `192.168.0.10`), rode `php -S 0.0.0.0:8000` e acesse `http://192.168.0.10:8000`
+nos celulares. Um cria a mesa, os outros escaneiam o QR.
+
+## Como usar
+
+1. Ponha seu apelido e toque **Criar mesa**.
+2. Toque em **MESA** pra mostrar o **QR Code** (ou copie o link).
+3. A turma escaneia com a câmera do celular → entra na hora.
+4. **1 toque** no card = +1. **Toque longo** = −1. Vibra e anima na hora.
+5. **🥴 Modo bebedeira**: tela gigante, um botão só, pra quando a noite avançar.
+
+## Deploy
+
+É um site estático + um `signaling.php`. Sobe em **qualquer hospedagem com PHP**
+(Apache/Nginx + PHP-FPM, hospedagem compartilhada barata). Basta copiar os arquivos.
+
+- **HTTPS é necessário** em produção (WebRTC e instalação de PWA exigem; `localhost` é isento).
+- **STUN/TURN**: por padrão usa um STUN público do Google pra funcionar entre redes. Em redes
+  muito restritas (NAT simétrico) seria preciso um **TURN** — configurável em `js/mesh.js`
+  (`DEFAULT_ICE`). Na mesma Wi-Fi, conecta sem depender de nada externo.
+
+## Privacidade
+
+O servidor **não conhece** mesas, consumos, histórico nem quem está na mesa. Ele só
+intermedeia o aperto de mão inicial e esquece tudo (arquivos temporários com TTL). Todo o
+estado vive nos navegadores.
+
+## Estrutura
+
+```
+index.html            # shell do PWA
+styles.css            # tema "boteco"
+signaling.php         # sinalização WebRTC (arquivo único, sem banco)
+manifest.webmanifest  # PWA
+sw.js                 # service worker (offline / instalável)
+icons/                # ícones (icon.svg + PNGs gerados)
+js/
+  app.js              # orquestrador (log, dedup, render, fluxos)
+  events.js           # modelo de eventos + reducer (CRDT)
+  mesh.js             # WebRTC full-mesh
+  signaling.js        # cliente do signaling.php (polling)
+  ui.js               # telas, cards, gestos, vibração, bebedeira
+  store.js            # persistência local
+  identity.js         # id do cliente + apelido + código da mesa
+  catalog.js          # itens padrão (bebidas + petiscos)
+  qr.js               # geração de QR (lib local MIT)
+  vendor/qrcode.js    # qrcode-generator (MIT, Kazuhiko Arase)
+tools/gen_icons.php   # gera os PNGs dos ícones (build, opcional)
+tests/                # testes (ver abaixo)
+```
+
+## Testes
+
+- **Unitário do reducer** (sem dependências):
+  ```bash
+  node tests/reducer.test.mjs
+  ```
+- **Ponta a ponta (2 navegadores, sincronização real via WebRTC)** — opcional, usa Chromium:
+  ```bash
+  php -S 127.0.0.1:8000 &          # servidor
+  npm i playwright-core            # driver (browsers já instalados no ambiente)
+  node tests/e2e.mjs               # cria mesa, entra, valida +1/-1 e anti-entropy
+  ```

@@ -118,17 +118,23 @@ function render() {
 }
 
 function renderPeers() {
-  const online = new Set((mesh ? mesh.peers() : []).filter((p) => p.online).map((p) => p.user));
+  const mp = mesh ? mesh.peers() : [];
+  const online = new Set(mp.filter((p) => p.online).map((p) => p.user));
+  const connBy = new Map(mp.map((p) => [p.user, p.conn]));
   const rows = new Map();
   rows.set(self, {
-    user: self, name: getName() || 'você', online: true,
+    user: self, name: getName() || 'você', online: true, conn: null,
     total: userTotal(state, self), money: userMoney(state, self, resolveItem),
   });
   for (const r of summary(state, resolveItem)) {
-    rows.set(r.user, { ...r, online: r.user === self ? true : online.has(r.user) });
+    rows.set(r.user, {
+      ...r,
+      online: r.user === self ? true : online.has(r.user),
+      conn: r.user === self ? null : (connBy.get(r.user) || null),
+    });
   }
-  if (mesh) for (const p of mesh.peers()) {
-    if (!rows.has(p.user)) rows.set(p.user, { user: p.user, name: p.name, total: 0, money: 0, online: p.online });
+  if (mesh) for (const p of mp) {
+    if (!rows.has(p.user)) rows.set(p.user, { user: p.user, name: p.name, total: 0, money: 0, online: p.online, conn: p.conn || null });
   }
   ui.renderPeers([...rows.values()], self);
 }

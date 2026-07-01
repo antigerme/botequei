@@ -23,6 +23,7 @@ export class Mesh {
     this.onStatus = opts.onStatus || (() => {});
     this.getSyncPayload = opts.getSyncPayload || (() => []);
     this.conns = new Map(); // peerId -> rec
+    this._statsTimer = null;
     this.sig = new Signaling(this.room, this.self); // signaling nao carrega apelido
   }
 
@@ -30,6 +31,8 @@ export class Mesh {
     const existing = await this.sig.join();
     for (const p of existing) this._ensure(p.peer);
     this.sig.start((m) => this._onSignal(m), (list) => this._onPeers(list));
+    // amostra o tipo de conexao (host/srflx/relay) de cada peer periodicamente
+    this._statsTimer = setInterval(() => this._pollStats(), 3000);
     this.onPeersChange();
     this.onStatus();
   }
@@ -49,7 +52,7 @@ export class Mesh {
 
   _create(peerId, name, initiator) {
     const pc = new RTCPeerConnection({ iceServers: this.ice });
-    const rec = { pc, dc: null, name: name || '', ready: false, remoteSet: false, pendingIce: [], initiator };
+    const rec = { pc, dc: null, name: name || '', ready: false, remoteSet: false, pendingIce: [], initiator, connType: null };
     this.conns.set(peerId, rec);
 
     pc.onicecandidate = (e) => { if (e.candidate) this.sig.send(peerId, 'ice', e.candidate); };
@@ -152,7 +155,7 @@ export class Mesh {
 
   peers() {
     const out = [];
-    for (const [id, rec] of this.conns) out.push({ user: id, name: rec.name, online: rec.ready });
+    for (const [id, rec] of this.conns) out.push({ user: id, name: rec.name, online: rec.ready, conn: rec.connType });
     return out;
   }
 
@@ -162,7 +165,36 @@ export class Mesh {
     return n;
   }
 
+  // Amostra o par de candidatos selecionado e classifica: host (direto) / srflx (STUN) / relay (TURN).
+  async _pollStats() {
+    let changed = false;
+    for (const rec of this.conns.values()) {
+      if (!rec.pc || !rec.ready) continue;
+      const t = await this._readConnType(rec.pc);
+      if (t && t !== rec.connType) { rec.connType = t; changed = true; }
+    }
+    if (changed) this.onPeersChange();
+  }
+
+  async _readConnType(pc) {
+    try {
+      const stats = await pc.getStats();
+      let pairId = null;
+      stats.forEach((r) => { if (r.type === 'transport' && r.selectedCandidatePairId) pairId = r.selectedCandidatePairId; });
+      let pair = pairId ? stats.get(pairId) : null;
+      if (!pair) stats.forEach((r) => { if (!pair && r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated) pair = r; });
+      if (!pair) return null;
+      const local = stats.get(pair.localCandidateId);
+      const remote = stats.get(pair.remoteCandidateId);
+      const types = [local && local.candidateType, remote && remote.candidateType];
+      if (types.includes('relay')) return 'relay';
+      if (types.includes('srflx') || types.includes('prflx')) return 'srflx';
+      return 'host';
+    } catch { return null; }
+  }
+
   close() {
+    if (this._statsTimer) { clearInterval(this._statsTimer); this._statsTimer = null; }
     this.sig.leave();
     this.sig.stop();
     for (const rec of this.conns.values()) { try { rec.pc.close(); } catch { /* ignore */ } }

@@ -170,11 +170,25 @@ export function setConn(msg) {
 }
 
 // ---------- Participantes ----------
+const CONN = {
+  host:  { cls: 'c-host',  txt: '🟢 direto' },
+  srflx: { cls: 'c-stun',  txt: '🟡 via STUN' },
+  relay: { cls: 'c-relay', txt: '🟠 via relay' },
+};
+function connBadge(r, selfId) {
+  if (r.user === selfId) return '';
+  const c = CONN[r.conn];
+  return c ? `<span class="peer-conn ${c.cls}">${c.txt}</span>` : '';
+}
+
 export function renderPeers(rows, selfId) {
   el['peers-list'].innerHTML = rows.map((r) => `
     <li class="peer-row">
       <span class="peer-dot ${r.online ? 'on' : ''}"></span>
-      <span class="peer-name">${esc(r.name || 'anônimo')} ${r.user === selfId ? '<span class="peer-you">(você)</span>' : ''}</span>
+      <div class="peer-main">
+        <span class="peer-name">${esc(r.name || 'anônimo')} ${r.user === selfId ? '<span class="peer-you">(você)</span>' : ''}</span>
+        ${connBadge(r, selfId)}
+      </div>
       <span class="peer-total">${r.total}${r.money ? ' · ' + fmtMoney(r.money) : ''}</span>
     </li>`).join('') || '<li class="peer-row">Ninguém ainda 🥲</li>';
 }

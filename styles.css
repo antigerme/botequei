@@ -147,7 +147,9 @@ body {
   border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
 .peer-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
 .peer-dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
-.peer-name { flex: 1; font-weight: 700; }
+.peer-main { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.peer-name { font-weight: 700; }
+.peer-conn { font-size: 11px; color: var(--muted); }
 .peer-total { color: var(--gold); font-weight: 800; }
 .peer-you { font-size: 11px; color: var(--muted); }
 

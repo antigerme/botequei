@@ -60,6 +60,18 @@ nos celulares. Um cria a mesa, os outros escaneiam o QR.
 É um site estático + um `signaling.php`. Sobe em **qualquer hospedagem com PHP**
 (Apache/Nginx + PHP-FPM, hospedagem compartilhada barata). Basta copiar os arquivos.
 
+### Checklist de deploy
+1. **Copie TODOS os arquivos, inclusive a pasta `icons/`.** (Se os ícones derem 404, o favicon e
+   o ícone de instalação do PWA quebram — foi o tropeço mais comum.)
+2. **`.htaccess`**: copie de `.htaccess.example`. Ele já **desliga o `mod_pagespeed`** (que pode
+   quebrar ES modules / service worker) e, se for usar TURN, é onde vão as credenciais (`SetEnv`).
+3. **HTTPS ligado** (Cloudflare já resolve). Não force `http→https` na origem se estiver em
+   Cloudflare **Flexible** (gera loop de redirecionamento).
+4. **Atrás do Cloudflare, purgue o cache** após cada atualização de assets (o CF pode cachear
+   inclusive um 404 antigo de `icons/` ou uma versão velha do `sw.js`).
+5. Confira: `GET /signaling.php?action=peers&room=x` deve responder `{"peers":[]}`, e
+   `GET /turn.php` deve dar `200` (TURN ligado) ou `204` (só STUN).
+
 - **HTTPS é necessário** em produção (WebRTC e instalação de PWA exigem; `localhost` é isento).
 - **STUN/TURN**: por padrão usa STUN público e conecta P2P direto na maioria das redes. Para
   redes restritas (NAT simétrico/CGNAT), há suporte **opcional** a **Cloudflare TURN** via

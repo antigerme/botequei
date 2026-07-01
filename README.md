@@ -72,6 +72,38 @@ nos celulares. Um cria a mesa, os outros escaneiam o QR.
 5. Confira: `GET /signaling.php?action=peers&room=x` deve responder `{"peers":[]}`, e
    `GET /turn.php` deve dar `200` (TURN ligado) ou `204` (só STUN).
 
+### Apache com vhost próprio (RHEL/CentOS)
+Se você controla o vhost (não é hospedagem compartilhada), ponha a config **direto nele**.
+No RHEL o padrão é **`AllowOverride None`**, que faz o `.htaccess` ser **ignorado** — sintomas:
+TURN fica em `204` (o `SetEnv` não é lido) e o PageSpeed não desliga.
+
+```apache
+<VirtualHost *:80>
+    DocumentRoot "/var/www/botequei"
+    ServerName seu.dominio
+
+    <Directory "/var/www/botequei">
+        Require all granted
+        Options -Indexes +FollowSymLinks
+        AllowOverride All          # habilita o .htaccess
+    </Directory>
+
+    # TURN direto no vhost (o .conf não é servido pela web, então não vaza)
+    SetEnv CF_TURN_KEY_ID seu_key_id
+    SetEnv CF_TURN_API_TOKEN seu_token
+    <IfModule pagespeed_module>
+        ModPagespeed off
+    </IfModule>
+</VirtualHost>
+```
+Aplique com `apachectl configtest && systemctl reload httpd`.
+
+**SELinux (RHEL):** o `turn.php` faz uma chamada de saída para a Cloudflare, e o SELinux bloqueia
+conexão de saída do Apache por padrão → o TURN fica `204` **mesmo com as credenciais certas**. Libere:
+```bash
+setsebool -P httpd_can_network_connect on
+```
+
 - **HTTPS é necessário** em produção (WebRTC e instalação de PWA exigem; `localhost` é isento).
 - **STUN/TURN**: por padrão usa STUN público e conecta P2P direto na maioria das redes. Para
   redes restritas (NAT simétrico/CGNAT), há suporte **opcional** a **Cloudflare TURN** via

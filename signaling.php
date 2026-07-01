@@ -66,16 +66,17 @@ function list_peers(string $dir): array {
         if ($now - (int)@filemtime($f) > PRESENCE_TTL) continue;
         $j = json_decode((string)@file_get_contents($f), true);
         if (is_array($j) && isset($j['peer'])) {
-            $peers[] = ['peer' => $j['peer'], 'name' => $j['name'] ?? ''];
+            $peers[] = ['peer' => $j['peer']];
         }
     }
     return $peers;
 }
 
-function touch_presence(string $dir, string $peer, string $name): void {
+// Guarda SO o id opaco do peer (nunca apelido). Apelidos trafegam P2P via 'hello'.
+function touch_presence(string $dir, string $peer): void {
     @file_put_contents(
         $dir . '/peer_' . $peer . '.json',
-        json_encode(['peer' => $peer, 'name' => $name, 'ts' => time()], JSON_UNESCAPED_UNICODE),
+        json_encode(['peer' => $peer, 'ts' => time()]),
         LOCK_EX
     );
 }
@@ -96,9 +97,8 @@ switch ($action) {
     case 'join': {
         $b = body_json();
         $peer = clean((string)($b['peer'] ?? ''));
-        $name = mb_substr((string)($b['name'] ?? ''), 0, 40);
         if ($peer === '') bad('peer obrigatorio');
-        touch_presence($dir, $peer, $name);
+        touch_presence($dir, $peer);
         out(['ok' => true, 'peers' => others(list_peers($dir), $peer)]);
     }
 
@@ -128,11 +128,7 @@ switch ($action) {
         $peer = clean((string)($_GET['peer'] ?? ''));
         if ($peer === '') bad('peer obrigatorio');
 
-        // manter presenca viva enquanto faz poll (preserva o nome ja registrado)
-        $name = '';
-        $pf = $dir . '/peer_' . $peer . '.json';
-        if (is_file($pf)) { $j = json_decode((string)@file_get_contents($pf), true); $name = $j['name'] ?? ''; }
-        touch_presence($dir, $peer, $name);
+        touch_presence($dir, $peer); // manter presenca viva enquanto faz poll
 
         $messages = [];
         $mf = $dir . '/mbox_' . $peer . '.ndjson';

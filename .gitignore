@@ -6,6 +6,7 @@ Thumbs.db
 *.log
 
 # Dev / testes
+node_modules
 node_modules/
 test-results/
 playwright-report/

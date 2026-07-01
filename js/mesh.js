@@ -23,12 +23,12 @@ export class Mesh {
     this.onStatus = opts.onStatus || (() => {});
     this.getSyncPayload = opts.getSyncPayload || (() => []);
     this.conns = new Map(); // peerId -> rec
-    this.sig = new Signaling(this.room, this.self, this.name);
+    this.sig = new Signaling(this.room, this.self); // signaling nao carrega apelido
   }
 
   async start() {
     const existing = await this.sig.join();
-    for (const p of existing) this._ensure(p.peer, p.name);
+    for (const p of existing) this._ensure(p.peer);
     this.sig.start((m) => this._onSignal(m), (list) => this._onPeers(list));
     this.onPeersChange();
     this.onStatus();
@@ -37,16 +37,14 @@ export class Mesh {
   _onPeers(list) {
     for (const p of list) {
       if (p.peer === this.self) continue;
-      const rec = this.conns.get(p.peer);
-      if (!rec) this._ensure(p.peer, p.name);
-      else if (p.name && !rec.name) { rec.name = p.name; this.onPeersChange(); }
+      if (!this.conns.get(p.peer)) this._ensure(p.peer); // apelido chega via 'hello' P2P
     }
   }
 
-  _ensure(peerId, name) {
+  _ensure(peerId) {
     const found = this.conns.get(peerId);
     if (found) return found;
-    return this._create(peerId, name, this.self < peerId);
+    return this._create(peerId, '', this.self < peerId);
   }
 
   _create(peerId, name, initiator) {

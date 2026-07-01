@@ -3,10 +3,9 @@
 // Depois que os DataChannels abrem, o consumo nao passa mais por aqui.
 
 export class Signaling {
-  constructor(room, self, name) {
+  constructor(room, self) {
     this.room = room;
     this.self = self;
-    this.name = name || '';
     this.url = new URL('signaling.php', location.href).href;
     this.polling = false;
     this._timer = null;
@@ -32,10 +31,10 @@ export class Signaling {
     return r.json().catch(() => ({}));
   }
 
-  // Registra presenca e devolve os peers ja presentes.
+  // Registra presenca (so o id opaco) e devolve os peers ja presentes.
   async join() {
     try {
-      const j = await this._post('join', { peer: this.self, name: this.name });
+      const j = await this._post('join', { peer: this.self });
       return j.peers || [];
     } catch {
       return [];

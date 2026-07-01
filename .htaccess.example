@@ -15,3 +15,14 @@ SetEnv CF_TURN_API_TOKEN seu_api_token
 <Files ".env">
     Require all denied
 </Files>
+
+# --- Desligar o mod_pagespeed neste app ---
+# PageSpeed pode quebrar ES modules e o service worker de um PWA. O Botequei ja e enxuto
+# (sem build), entao nao ha o que otimizar. Se o servidor tiver PageSpeed, desligue aqui.
+<IfModule pagespeed_module>
+    ModPagespeed off
+</IfModule>
+
+# --- Bloquear utilitarios de build/testes do acesso web ---
+RedirectMatch 404 ^/tools/
+RedirectMatch 404 ^/tests/

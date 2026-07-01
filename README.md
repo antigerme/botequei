@@ -82,21 +82,26 @@ TURN fica em `204` (o `SetEnv` não é lido) e o PageSpeed não desliga.
     DocumentRoot "/var/www/botequei"
     ServerName seu.dominio
 
+    # habilita o .htaccess e o acesso ao diretorio
     <Directory "/var/www/botequei">
         Require all granted
         Options -Indexes +FollowSymLinks
-        AllowOverride All          # habilita o .htaccess
+        AllowOverride All
     </Directory>
 
-    # TURN direto no vhost (o .conf não é servido pela web, então não vaza)
+    # TURN direto no vhost (o .conf nao e servido pela web, entao nao vaza)
     SetEnv CF_TURN_KEY_ID seu_key_id
     SetEnv CF_TURN_API_TOKEN seu_token
+
+    # desliga o mod_pagespeed neste site
     <IfModule pagespeed_module>
         ModPagespeed off
     </IfModule>
 </VirtualHost>
 ```
 Aplique com `apachectl configtest && systemctl reload httpd`.
+> ⚠️ No Apache, comentários (`#`) ficam **em linha própria** — não coloque `#` no fim de uma
+> diretiva (ex.: `AllowOverride All  # ...` dá `Illegal override option`).
 
 **SELinux (RHEL):** o `turn.php` faz uma chamada de saída para a Cloudflare, e o SELinux bloqueia
 conexão de saída do Apache por padrão → o TURN fica `204` **mesmo com as credenciais certas**. Libere:

@@ -181,4 +181,5 @@ tests/                # testes (ver abaixo)
   php -S 127.0.0.1:8000 &          # servidor
   npm i playwright-core            # driver (browsers já instalados no ambiente)
   node tests/e2e.mjs               # cria mesa, entra, valida +1/-1 e anti-entropy
+  node tests/e2e-reconnect.mjs     # valida reconexão automática (um peer sai e volta)
   ```

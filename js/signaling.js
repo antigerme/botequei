@@ -50,11 +50,14 @@ export class Signaling {
     if (onMessage) this.onMessage = onMessage;
     if (onPeers) this.onPeers = onPeers;
     this.polling = true;
-    this._loop();
+    this._gen = (this._gen || 0) + 1;
+    this._loop(this._gen);
   }
 
-  async _loop() {
-    if (!this.polling) return;
+  // gen invalida loops antigos: sem isso, pokes concorrentes (visibilitychange+focus+online)
+  // criariam varias cadeias de polling paralelas.
+  async _loop(gen) {
+    if (!this.polling || gen !== this._gen) return;
     try {
       const r = await fetch(this._u('poll', { peer: this.self }));
       const j = await r.json();
@@ -64,12 +67,22 @@ export class Signaling {
     } catch {
       this.interval = Math.min(4000, this.interval + 500); // backoff em erro de rede
     }
-    if (this.polling) this._timer = setTimeout(() => this._loop(), this.interval);
+    if (this.polling && gen === this._gen) this._timer = setTimeout(() => this._loop(gen), this.interval);
   }
 
   stop() {
     this.polling = false;
+    this._gen = (this._gen || 0) + 1; // invalida qualquer loop em voo
     if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+  }
+
+  // Forca um poll imediato (ex.: ao voltar do bloqueio de tela) e reseta o backoff.
+  poke() {
+    if (!this.polling) return;
+    this.interval = 1000;
+    if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+    this._gen = (this._gen || 0) + 1;
+    this._loop(this._gen);
   }
 
   // keepalive: entrega mesmo se a aba estiver fechando.

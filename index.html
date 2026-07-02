@@ -19,6 +19,7 @@
 
   <!-- ======================= HOME ======================= -->
   <section class="screen is-active" id="screen-home">
+    <button class="gear" id="btn-settings" title="Configurações">⚙️</button>
     <div class="home-hero">
       <div class="logo">🍺</div>
       <h1 class="brand">Botequei</h1>
@@ -49,7 +50,8 @@
     </div>
 
     <footer class="home-foot">
-      <span id="net-hint">P2P • sem servidor de dados</span>
+      <button class="btn btn-ghost btn-install" id="btn-install" hidden>📲 Instalar o app</button>
+      <span class="seal" id="privacy-seal">🔒 Seus dados nunca saem dos celulares · P2P</span>
     </footer>
   </section>
 
@@ -58,14 +60,12 @@
     <header class="topbar">
       <button class="icon-btn" id="btn-leave" title="Sair da mesa">‹</button>
       <button class="table-id" id="btn-invite" title="Convidar">
-        <span class="mesa-label">MESA</span>
+        <span class="mesa-label" id="table-title">MESA</span>
         <span class="mesa-code" id="mesa-code">----</span>
       </button>
       <div class="topbar-actions">
-        <button class="icon-btn" id="btn-peers" title="Participantes">
-          <span id="peer-count">1</span>👥
-        </button>
-        <button class="icon-btn" id="btn-bebedeira" title="Modo bebedeira">🥴</button>
+        <button class="icon-btn" id="btn-peers" title="Placar"><span id="peer-count">1</span>👥</button>
+        <button class="icon-btn" id="btn-menu" title="Mais">⋯</button>
       </div>
     </header>
 
@@ -87,6 +87,12 @@
       </div>
     </div>
 
+    <div class="action-bar">
+      <button class="chip" id="btn-brinde">🥂 Brinde</button>
+      <button class="chip" id="btn-react">😀 Reagir</button>
+      <button class="chip" id="btn-rodada">🍻 Rodada</button>
+    </div>
+
     <div class="items-grid" id="items-grid"><!-- cards via JS --></div>
 
     <button class="btn btn-ghost btn-additem" id="btn-additem">+ item personalizado</button>
@@ -96,7 +102,7 @@
 
 <!-- ======================= OVERLAYS ======================= -->
 
-<!-- Convite / QR -->
+<!-- Convite / QR + nome da mesa -->
 <div class="overlay" id="overlay-invite" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
@@ -104,33 +110,81 @@
     <p class="sheet-sub">Aponte a câmera do celular pro QR ou compartilhe o código.</p>
     <div class="qr-wrap" id="qr-wrap"></div>
     <div class="big-code" id="big-code">----</div>
+    <label class="field"><span>Nome da mesa (opcional)</span>
+      <div class="name-emoji">
+        <button class="emoji-one" id="table-emoji-btn" title="emoji">🍺</button>
+        <input id="table-name-input" type="text" maxlength="24" placeholder="ex: Mesa do Fundão" />
+      </div>
+    </label>
+    <div class="emoji-row" id="table-emoji-row" hidden></div>
+    <label class="field"><span>PIN (opcional — defina antes da galera entrar)</span>
+      <input id="invite-pin" type="text" inputmode="numeric" maxlength="8" placeholder="ex: 1234" /></label>
     <div class="sheet-actions">
       <button class="btn btn-primary" id="btn-copy-link">Copiar link</button>
-      <button class="btn btn-ghost" id="btn-share" hidden>Compartilhar</button>
+      <button class="btn btn-ghost" id="btn-share-invite" hidden>Compartilhar</button>
+      <button class="btn btn-ghost" id="btn-nfc" hidden>📡 NFC</button>
     </div>
   </div>
 </div>
 
-<!-- Entrar: pedir nome -->
+<!-- Entrar: nome (+ PIN se a mesa pedir) -->
 <div class="overlay" id="overlay-join" hidden>
   <div class="sheet">
     <h2>Entrar na mesa <span id="join-code-label"></span></h2>
-    <label class="field">
-      <span>Seu apelido</span>
-      <input id="join-name" type="text" maxlength="20" placeholder="ex: André" />
-    </label>
+    <label class="field"><span>Seu apelido</span>
+      <input id="join-name" type="text" maxlength="20" placeholder="ex: André" /></label>
+    <label class="field" id="join-pin-field" hidden><span>PIN da mesa</span>
+      <input id="join-pin" type="text" inputmode="numeric" maxlength="8" placeholder="pergunte na mesa" /></label>
     <div class="sheet-actions">
       <button class="btn btn-primary btn-lg" id="btn-join-confirm">Bora 🍻</button>
     </div>
   </div>
 </div>
 
-<!-- Participantes -->
+<!-- Placar / participantes -->
 <div class="overlay" id="overlay-peers" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
-    <h2>Na mesa</h2>
+    <h2>Placar da mesa</h2>
+    <div class="mvp" id="mvp-banner" hidden></div>
     <ul class="peers-list" id="peers-list"></ul>
+    <div class="my-badges" id="my-badges"></div>
+  </div>
+</div>
+
+<!-- Menu (⋯) -->
+<div class="overlay" id="overlay-menu" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>Mesa</h2>
+    <div class="menu-list">
+      <button class="menu-item" id="menu-profile">🎨 Meu perfil</button>
+      <button class="menu-item" id="menu-board">🏆 Placar &amp; conquistas</button>
+      <button class="menu-item" id="menu-bill">💸 Fechar a conta</button>
+      <button class="menu-item" id="menu-prices">💲 Preços do cardápio</button>
+      <button class="menu-item" id="menu-share">📸 Compartilhar a noite</button>
+      <button class="menu-item" id="menu-bebedeira">🥴 Modo bebedeira</button>
+      <button class="menu-item" id="menu-settings">⚙️ Configurações</button>
+    </div>
+  </div>
+</div>
+
+<!-- Perfil -->
+<div class="overlay" id="overlay-profile" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>Meu perfil</h2>
+    <label class="field"><span>Apelido</span>
+      <input id="profile-name" type="text" maxlength="20" placeholder="seu apelido" /></label>
+    <p class="lbl">Cor</p>
+    <div class="swatch-row" id="profile-colors"></div>
+    <p class="lbl">Avatar</p>
+    <div class="emoji-row" id="profile-avatars"></div>
+    <label class="check"><input type="checkbox" id="profile-driver" />
+      <span>🚗 Sou o motorista da rodada (não bebo)</span></label>
+    <div class="sheet-actions">
+      <button class="btn btn-primary btn-lg" id="btn-profile-save">Salvar</button>
+    </div>
   </div>
 </div>
 
@@ -148,6 +202,89 @@
       <button class="btn btn-primary btn-lg" id="btn-additem-confirm">Adicionar</button>
     </div>
   </div>
+</div>
+
+<!-- Fechar a conta -->
+<div class="overlay" id="overlay-bill" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>Fechar a conta</h2>
+    <p class="sheet-sub" id="bill-note"></p>
+    <div class="bill-opts">
+      <label class="check"><input type="checkbox" id="bill-service" checked /><span>Serviço 10%</span></label>
+      <label class="field field-inline"><span>Couvert p/ pessoa</span>
+        <input id="bill-couvert" type="number" inputmode="decimal" min="0" step="1" placeholder="0" /></label>
+      <label class="check"><input type="checkbox" id="bill-equal" /><span>Rachar igual (em vez de por consumo)</span></label>
+    </div>
+    <ul class="bill-list" id="bill-list"></ul>
+    <div class="bill-total" id="bill-total"></div>
+  </div>
+</div>
+
+<!-- Preços do cardápio -->
+<div class="overlay" id="overlay-prices" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>Preços do cardápio</h2>
+    <p class="sheet-sub">Pra dividir a conta por consumo. Fica sincronizado com a mesa.</p>
+    <ul class="price-list" id="price-list"></ul>
+  </div>
+</div>
+
+<!-- PIX -->
+<div class="overlay" id="overlay-pix" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2 id="pix-title">Cobrar no PIX</h2>
+    <div class="qr-wrap" id="pix-qr"></div>
+    <textarea class="pix-code" id="pix-code" readonly rows="3"></textarea>
+    <div class="sheet-actions">
+      <button class="btn btn-primary" id="btn-pix-copy">Copiar código PIX</button>
+    </div>
+  </div>
+</div>
+
+<!-- Configurações -->
+<div class="overlay" id="overlay-settings" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>Configurações</h2>
+    <label class="check"><input type="checkbox" id="set-theme" /><span>☀️ Tema claro</span></label>
+    <label class="check"><input type="checkbox" id="set-bigfont" /><span>🔎 Fonte grande</span></label>
+    <label class="check"><input type="checkbox" id="set-sound" /><span>🔊 Sons</span></label>
+    <label class="field field-inline"><span>🎯 Meta de bebidas (alerta)</span>
+      <input id="set-limit" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" /></label>
+    <label class="field field-inline"><span>💧 Lembrar água a cada</span>
+      <input id="set-water" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" /></label>
+    <p class="lbl">💸 PIX pra dividir a conta (fica só neste aparelho)</p>
+    <label class="field"><span>Sua chave PIX</span>
+      <input id="set-pixkey" type="text" maxlength="77" placeholder="email, telefone, CPF ou aleatória" /></label>
+    <label class="field"><span>Cidade</span>
+      <input id="set-pixcity" type="text" maxlength="15" placeholder="ex: São Paulo" /></label>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="btn-clear-data">🗑️ Apagar dados locais</button>
+    </div>
+    <p class="seal">🔒 Nada disso é enviado a servidor. Tudo vive no seu navegador.</p>
+  </div>
+</div>
+
+<!-- Reações rápidas -->
+<div class="overlay" id="overlay-react" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>Mandar reação</h2>
+    <div class="react-row" id="react-row"></div>
+  </div>
+</div>
+
+<!-- Camada de efeitos (reações flutuantes / feedback +1) -->
+<div class="fx-layer" id="fx-layer" aria-hidden="true"></div>
+
+<!-- Brinde sincronizado -->
+<div class="brinde" id="brinde" hidden>
+  <div class="brinde-emoji">🥂</div>
+  <div class="brinde-count" id="brinde-count">3</div>
+  <div class="brinde-word" id="brinde-word">Preparar…</div>
 </div>
 
 <!-- Modo bebedeira -->

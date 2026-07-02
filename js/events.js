@@ -5,9 +5,11 @@
 // navegadores convergem para o mesmo estado mesmo com atrasos, reenvios ou duplicatas.
 //
 // Tipos de evento:
-//   ADD    -> { type:'ADD',    user, name, item, ts, eventId }   (+1 do item p/ o usuario)
-//   REMOVE -> { type:'REMOVE', user, name, item, ts, eventId }   (-1)
-//   ITEM   -> { type:'ITEM',   def:{id,emoji,name,price}, ts, eventId }  (item personalizado)
+//   ADD     -> { type:'ADD',    user, name, item, ts, eventId }   (+1 do item p/ o usuario)
+//   REMOVE  -> { type:'REMOVE', user, name, item, ts, eventId }   (-1)
+//   ITEM    -> { type:'ITEM',   def:{id,emoji,name,price}, ts, eventId }  (item novo/preco, LWW)
+//   PROFILE -> { type:'PROFILE', user, name, color, emoji, driver, ts, eventId }  (identidade, LWW)
+//   TABLE   -> { type:'TABLE',  title, emoji, ts, eventId }  (nome/emoji da mesa, LWW)
 
 import { clientId, getName } from './identity.js';
 
@@ -17,27 +19,44 @@ export function newEventId() {
 }
 
 // ---- Fabricas (carimbam ts + eventId) ----
-export function makeAdd(item) {
-  return { type: 'ADD', user: clientId(), name: getName(), item, ts: Date.now(), eventId: newEventId() };
+// user/name opcionais: por padrao sou eu; a "rodada" cria ADDs para outros usuarios.
+export function makeAdd(item, user, name) {
+  return { type: 'ADD', user: user || clientId(), name: name !== undefined ? name : getName(), item, ts: Date.now(), eventId: newEventId() };
 }
-export function makeRemove(item) {
-  return { type: 'REMOVE', user: clientId(), name: getName(), item, ts: Date.now(), eventId: newEventId() };
+export function makeRemove(item, user, name) {
+  return { type: 'REMOVE', user: user || clientId(), name: name !== undefined ? name : getName(), item, ts: Date.now(), eventId: newEventId() };
 }
 export function makeItem(def) {
   return { type: 'ITEM', def, ts: Date.now(), eventId: newEventId() };
+}
+export function makeProfile({ color, emoji, driver }) {
+  return { type: 'PROFILE', user: clientId(), name: getName(), color: color || '', emoji: emoji || '', driver: !!driver, ts: Date.now(), eventId: newEventId() };
+}
+export function makeTable({ title, emoji }) {
+  return { type: 'TABLE', title: title || '', emoji: emoji || '', ts: Date.now(), eventId: newEventId() };
 }
 
 // ---- Estado ----
 export function emptyState() {
   return {
-    counts: new Map(), // "user\x00item" -> inteiro (pode ficar negativo transitoriamente)
-    items: new Map(),  // id -> { def, ts }  (itens personalizados, LWW por ts)
-    names: new Map(),  // user -> apelido mais recente visto
-    users: new Set(),  // ids que registraram algo
+    counts: new Map(),   // "user\x00item" -> inteiro (pode ficar negativo transitoriamente)
+    items: new Map(),    // id -> { def, ts }        (itens/precos, LWW por ts)
+    names: new Map(),    // user -> apelido mais recente visto
+    users: new Set(),    // ids que registraram algo ou tem perfil
+    profiles: new Map(), // user -> { def:{name,color,emoji,driver}, ts, eventId }  (LWW)
+    table: null,         // { def:{title,emoji}, ts, eventId }  (LWW)
   };
 }
 
 const ckey = (u, i) => u + '\x00' + i;
+// vence o de maior ts; empate resolvido pelo eventId (deterministico em todos os peers)
+const wins = (cur, ev) => !cur || ev.ts > cur.ts || (ev.ts === cur.ts && ev.eventId > cur.eventId);
+// nome do usuario tambem por LWW (senao a exibicao diverge conforme a ordem de replay)
+function applyName(state, user, name, ev) {
+  if (!name) return;
+  const cur = state.names.get(user);
+  if (wins(cur, ev)) state.names.set(user, { name, ts: ev.ts, eventId: ev.eventId });
+}
 
 // Aplica um evento ja "novo" (a deduplicacao por eventId acontece no log, fora daqui).
 // Retorna true se o evento foi reconhecido/aplicado.
@@ -48,20 +67,31 @@ export function applyEvent(state, ev) {
     case 'REMOVE': {
       if (!ev.user || !ev.item) return false;
       const k = ckey(ev.user, ev.item);
-      const delta = ev.type === 'ADD' ? 1 : -1;
-      state.counts.set(k, (state.counts.get(k) || 0) + delta);
+      state.counts.set(k, (state.counts.get(k) || 0) + (ev.type === 'ADD' ? 1 : -1));
       state.users.add(ev.user);
-      if (ev.name) state.names.set(ev.user, ev.name);
+      applyName(state, ev.user, ev.name, ev);
       return true;
     }
     case 'ITEM': {
       const def = ev.def;
       if (!def || !def.id) return false;
-      const cur = state.items.get(def.id);
-      // last-writer-wins: ts maior vence; empate resolvido por eventId
-      if (!cur || ev.ts > cur.ts || (ev.ts === cur.ts && ev.eventId > cur.eventId)) {
-        state.items.set(def.id, { def, ts: ev.ts, eventId: ev.eventId });
+      if (wins(state.items.get(def.id), ev)) state.items.set(def.id, { def, ts: ev.ts, eventId: ev.eventId });
+      return true;
+    }
+    case 'PROFILE': {
+      if (!ev.user) return false;
+      if (wins(state.profiles.get(ev.user), ev)) {
+        state.profiles.set(ev.user, {
+          def: { name: ev.name || '', color: ev.color || '', emoji: ev.emoji || '', driver: !!ev.driver },
+          ts: ev.ts, eventId: ev.eventId,
+        });
       }
+      state.users.add(ev.user);
+      applyName(state, ev.user, ev.name, ev);
+      return true;
+    }
+    case 'TABLE': {
+      if (wins(state.table, ev)) state.table = { def: { title: ev.title || '', emoji: ev.emoji || '' }, ts: ev.ts, eventId: ev.eventId };
       return true;
     }
     default:
@@ -106,13 +136,33 @@ export function userMoney(state, user, resolveItem) {
   return total;
 }
 
-// Resumo por participante (para historico / painel de participantes).
+export function getProfile(state, user) {
+  const p = state.profiles.get(user);
+  const def = p ? p.def : {};
+  return {
+    name: def.name || (state.names.get(user) || {}).name || '',
+    color: def.color || '',
+    emoji: def.emoji || '',
+    driver: !!def.driver,
+  };
+}
+
+export function tableInfo(state) {
+  return state.table ? state.table.def : { title: '', emoji: '' };
+}
+
+export function isDriver(state, user) {
+  const p = state.profiles.get(user);
+  return !!(p && p.def.driver);
+}
+
+// Resumo por participante (placar, painel, conta, card compartilhavel).
 export function summary(state, resolveItem) {
   const rows = [];
   for (const u of state.users) {
+    const p = getProfile(state, u);
     rows.push({
-      user: u,
-      name: state.names.get(u) || '',
+      user: u, name: p.name, color: p.color, emoji: p.emoji, driver: p.driver,
       total: userTotal(state, u),
       money: userMoney(state, u, resolveItem),
     });

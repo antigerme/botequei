@@ -11,6 +11,9 @@
   "background_color": "#12100b",
   "theme_color": "#12100b",
   "categories": ["lifestyle", "social", "utilities"],
+  "shortcuts": [
+    { "name": "Criar mesa", "short_name": "Nova mesa", "description": "Abrir uma mesa nova", "url": "./?nova=1" }
+  ],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

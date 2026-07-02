@@ -2,6 +2,7 @@
 // Nao guarda estado do dominio — renderiza o "view model" do app.js e dispara handlers.
 
 import { EMOJIS, COLORS, AVATARS } from './catalog.js';
+import { scanQR, scanSupported } from './scan.js';
 
 const $ = (id) => document.getElementById(id);
 let H = {};
@@ -25,6 +26,11 @@ const IDS = [
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
   'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-limit', 'set-water', 'set-pixkey', 'set-pixcity', 'btn-clear-data',
   'overlay-react', 'react-row',
+  'btn-offline-join', 'btn-offline-host',
+  'overlay-offline', 'off-host', 'off-guest',
+  'off-offer-qr', 'off-offer-code', 'btn-off-copy-offer', 'btn-off-scan-answer', 'off-answer-in', 'btn-off-connect',
+  'off-offer-in', 'btn-off-scan-offer', 'btn-off-genanswer', 'off-answer-out', 'off-answer-qr', 'off-answer-code', 'btn-off-copy-answer',
+  'overlay-scan', 'scan-title', 'scan-video', 'scan-hint', 'btn-scan-close',
   'fx-layer', 'brinde', 'brinde-count', 'brinde-word',
   'bebedeira', 'bebedeira-item', 'bebedeira-count', 'bebedeira-plus', 'btn-bebedeira-exit', 'toast',
 ];
@@ -114,6 +120,17 @@ export function init(handlers) {
   el['set-pixkey'].addEventListener('change', () => H.onSetting({ pixKey: el['set-pixkey'].value.trim() }));
   el['set-pixcity'].addEventListener('change', () => H.onSetting({ pixCity: el['set-pixcity'].value.trim() }));
   $('btn-clear-data').addEventListener('click', () => H.onClearData());
+
+  // offline (pareamento por QR/código, sem servidor)
+  el['btn-offline-join'].addEventListener('click', () => H.onOfflineJoin());
+  el['btn-offline-host'].addEventListener('click', () => { closeOverlays(); H.onOfflineHost(); });
+  el['btn-off-copy-offer'].addEventListener('click', () => copyBox('off-offer-code', 'Convite copiado! 📋'));
+  el['btn-off-copy-answer'].addEventListener('click', () => copyBox('off-answer-code', 'Resposta copiada! 📋'));
+  el['btn-off-connect'].addEventListener('click', () => H.onOfflineConnect(el['off-answer-in'].value));
+  el['btn-off-genanswer'].addEventListener('click', () => H.onOfflineGenAnswer(el['off-offer-in'].value));
+  el['btn-off-scan-answer'].addEventListener('click', () => openScanner('Escanear resposta', (txt) => { el['off-answer-in'].value = txt; H.onOfflineConnect(txt); }));
+  el['btn-off-scan-offer'].addEventListener('click', () => openScanner('Escanear convite', (txt) => { el['off-offer-in'].value = txt; H.onOfflineGenAnswer(txt); }));
+  el['btn-scan-close'].addEventListener('click', () => closeOverlays());
 
   // fechar overlays
   document.querySelectorAll('.overlay').forEach((ov) => {
@@ -402,8 +419,58 @@ export function closeBebedeira() { el['bebedeira'].hidden = true; if (H.onBebede
 export function isBebedeira() { return !el['bebedeira'].hidden; }
 export function currentBebedeiraItem() { return bebedeiraItem; }
 
+// ---------- Offline (pareamento por QR/código, sem servidor) ----------
+async function copyBox(id, okMsg) {
+  const v = el[id].value;
+  try { await navigator.clipboard.writeText(v); toast(okMsg || 'Copiado! 📋'); }
+  catch { el[id].focus(); el[id].select(); toast('Selecione e copie o código'); }
+}
+export function openOfflineHost() {
+  el['off-host'].hidden = false; el['off-guest'].hidden = true;
+  el['off-offer-qr'].innerHTML = ''; el['off-offer-code'].value = 'gerando…'; el['off-answer-in'].value = '';
+  el['overlay-offline'].hidden = false;
+}
+export function openOfflineGuest() {
+  el['off-host'].hidden = true; el['off-guest'].hidden = false;
+  el['off-offer-in'].value = ''; el['off-answer-out'].hidden = true;
+  el['off-answer-qr'].innerHTML = ''; el['off-answer-code'].value = '';
+  el['overlay-offline'].hidden = false;
+}
+export function showOfflineOffer(code, qrNode) {
+  el['off-offer-code'].value = code;
+  el['off-offer-qr'].innerHTML = ''; if (qrNode) el['off-offer-qr'].appendChild(qrNode);
+}
+export function showOfflineAnswer(code, qrNode) {
+  el['off-answer-out'].hidden = false;
+  el['off-answer-code'].value = code;
+  el['off-answer-qr'].innerHTML = ''; if (qrNode) el['off-answer-qr'].appendChild(qrNode);
+}
+
+// ---------- Scanner de QR (câmera) ----------
+let activeScan = null;
+export function openScanner(title, onResult) {
+  if (!scanSupported()) { toast('Sem câmera aqui — use o copia-e-cola 🙂'); return; }
+  el['scan-title'].textContent = title || 'Escanear QR';
+  el['scan-hint'].textContent = 'Aponte a câmera pro QR…';
+  el['overlay-scan'].hidden = false;
+  const h = scanQR(el['scan-video']);
+  activeScan = h;
+  h.promise.then((txt) => {
+    activeScan = null; el['overlay-scan'].hidden = true; vibrate(30);
+    if (onResult) onResult(txt);
+  }).catch((e) => {
+    activeScan = null; el['overlay-scan'].hidden = true;
+    if (e && e.name === 'NotAllowedError') toast('Precisa permitir a câmera 📷');
+    else if (e && e.message === 'sem-camera') toast('Sem câmera — use o copia-e-cola 🙂');
+    // cancelamento manual (fechar overlay): silencioso
+  });
+}
+
 // ---------- Overlays / toast ----------
-export function closeOverlays() { document.querySelectorAll('.overlay').forEach((o) => { o.hidden = true; }); }
+export function closeOverlays() {
+  if (activeScan) { activeScan.stop(); activeScan = null; }
+  document.querySelectorAll('.overlay').forEach((o) => { o.hidden = true; });
+}
 let toastTimer = null;
 export function toast(msg) {
   const t = el['toast']; t.onclick = null; t.textContent = msg; t.hidden = false;

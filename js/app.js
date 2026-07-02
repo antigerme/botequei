@@ -11,6 +11,7 @@ import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
 import { makeQR } from './qr.js';
+import { encodeBlob, decodeBlob } from './handshake.js';
 import { shareRecap } from './share.js';
 import { pixPayload } from './pix.js';
 import * as sound from './sound.js';
@@ -33,6 +34,7 @@ let deferredPrompt = null;
 
 const self = clientId();
 let settings = getSettings();
+let offlineWaiting = false;   // convidado esperando o anfitrião ler a resposta (fecha sozinho ao conectar)
 let limitAlerted = false;   // pra a meta alertar uma vez (mesmo se ultrapassar de vez)
 let renderScheduled = false;
 
@@ -252,10 +254,33 @@ async function enterTable(code, { create = false, pin = '' } = {}) {
   location.hash = '#/mesa?room=' + room;
 }
 
+// Entra numa mesa SEM depender de internet/signaling (fluxo do convite offline).
+// ICE vazio => host candidates (mesma Wi-Fi/hotspot). O signaling ainda tenta em 2º
+// plano (falha de boa) — se a internet voltar, a malha se completa sozinha.
+function enterTableOffline(code) {
+  room = code; roomPin = '';
+  store.setCurrent(room);
+  rebuildFrom(store.getEvents(room));
+  ui.showScreen('table');
+  render();
+  startMesh([]);
+  location.hash = '#/mesa?room=' + room;
+}
+
+function onMeshChange() {
+  render();
+  // convidado: assim que a conexão sobe, fecha o painel de pareamento offline sozinho
+  if (offlineWaiting && mesh && mesh.connectedCount() > 0) {
+    offlineWaiting = false;
+    ui.closeOverlays();
+    ui.toast('🎉 Entrou na mesa sem internet!');
+  }
+}
+
 function startMesh(iceServers) {
   mesh = new Mesh({
-    room: sigRoom(room, roomPin), selfId: self, name: getName(), iceServers,
-    onEvent: onRemoteEvent, onFx, onPeersChange: () => render(), onStatus: () => render(),
+    room: sigRoom(room, roomPin), code: room, selfId: self, name: getName(), iceServers,
+    onEvent: onRemoteEvent, onFx, onPeersChange: onMeshChange, onStatus: onMeshChange,
     getSyncPayload: () => log,
   });
   mesh.start();
@@ -285,7 +310,7 @@ function leaveTable() {
   }
   if (mesh) { mesh.close(); mesh = null; }
   store.clearCurrent();
-  room = null; roomPin = ''; myDriver = false; limitAlerted = false;
+  room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false;
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
 }
@@ -301,6 +326,53 @@ function setTable(patch) {
   const cur = tableInfo(state);
   emitLocal(makeTable({ title: patch.title !== undefined ? patch.title : cur.title, emoji: patch.emoji !== undefined ? patch.emoji : cur.emoji }));
   render();
+}
+
+// ---- Pareamento sem internet (QR/código, serverless) ----
+// Anfitrião (já numa mesa): gera o convite (offer com ICE embutido) e espera a resposta.
+async function offlineHost() {
+  if (!mesh || !room) { ui.toast('Entre numa mesa primeiro 🙂'); return; }
+  ui.openOfflineHost();
+  try {
+    const blob = await mesh.createManualOffer();
+    blob.room = room;
+    const code = await encodeBlob(blob);
+    let qr = null; try { qr = makeQR(code); } catch { /* código grande demais p/ QR: fica só o texto */ }
+    ui.showOfflineOffer(code, qr);
+  } catch { ui.toast('Não consegui gerar o convite offline 😕'); }
+}
+// Anfitrião: aplica a resposta do convidado -> conexão P2P sobe.
+async function offlineConnect(text) {
+  const s = (text || '').trim();
+  if (!mesh) { ui.toast('Gere o convite primeiro'); return; }
+  if (!s) { ui.toast('Cole ou escaneie a resposta'); return; }
+  let ans; try { ans = await decodeBlob(s); } catch { ui.toast('Resposta inválida 😕'); return; }
+  try {
+    await mesh.acceptManualAnswer(ans);
+    ui.closeOverlays(); ui.toast('🎉 Conectado sem internet!'); render();
+  } catch { ui.toast('Não consegui conectar 😕'); }
+}
+// Convidado: abre o painel (precisa de apelido).
+function offlineJoin() {
+  if (!getName()) { ui.toast('Bota teu apelido primeiro 😉'); return; }
+  offlineWaiting = false;
+  ui.openOfflineGuest();
+}
+// Convidado: lê o convite, entra na mesa e devolve a resposta (answer com ICE embutido).
+async function offlineGenAnswer(text) {
+  const s = (text || '').trim();
+  if (!getName()) { ui.toast('Bota teu apelido primeiro 😉'); return; }
+  if (!s) { ui.toast('Cole ou escaneie o convite'); return; }
+  let off; try { off = await decodeBlob(s); } catch { ui.toast('Convite inválido 😕'); return; }
+  if (!off || off.t !== 'offer') { ui.toast('Isso não é um convite 😅'); return; }
+  try {
+    if (!mesh) enterTableOffline(off.room || newRoomCode());
+    const ansBlob = await mesh.acceptManualOffer(off);
+    const code = await encodeBlob(ansBlob);
+    let qr = null; try { qr = makeQR(code); } catch { /* só o texto */ }
+    ui.showOfflineAnswer(code, qr);
+    offlineWaiting = true; // ao conectar, o painel fecha sozinho (ver onMeshChange)
+  } catch { ui.toast('Não consegui gerar a resposta 😕'); }
 }
 
 // ---- Conta ----
@@ -392,6 +464,10 @@ const handlers = {
     try { await new window.NDEFReader().write({ records: [{ recordType: 'url', data: inviteUrl() }] }); ui.toast('📡 Aproxime o outro celular'); }
     catch { ui.toast('Não consegui usar o NFC 😕'); }
   },
+  onOfflineHost: offlineHost,
+  onOfflineJoin: offlineJoin,
+  onOfflineGenAnswer: offlineGenAnswer,
+  onOfflineConnect: offlineConnect,
   onOpenHistory: (code) => enterTable(code),
   onOpenSettings: () => ui.fillSettings(settings),
   onSetting: (patch) => { settings = setSettings(patch); ui.applyTheme(settings); sound.setEnabled(settings.sound); if (room) render(); },

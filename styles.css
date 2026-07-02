@@ -248,6 +248,14 @@ body.bigfont .btn, body.bigfont .chip { font-size: 18px; }
 .pix-code { width: 100%; background: var(--card); border: 1.5px solid var(--line); color: var(--cream);
   border-radius: 12px; padding: 12px; font-family: monospace; font-size: 12px; resize: none; -webkit-user-select: all; user-select: all; }
 
+/* Offline (pareamento por QR/código, sem servidor) */
+.btn-offline { font-size: 14px; padding: 12px; opacity: .92; }
+.code-box { width: 100%; background: var(--card); border: 1.5px solid var(--line); color: var(--cream);
+  border-radius: 12px; padding: 10px 12px; font-family: monospace; font-size: 11px; line-height: 1.35;
+  resize: none; word-break: break-all; -webkit-user-select: all; user-select: all; margin-bottom: 8px; }
+.scan-wrap { border-radius: 16px; overflow: hidden; background: #000; margin: 6px 0 4px; aspect-ratio: 1 / 1; }
+.scan-wrap video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
 /* Reações */
 .react-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 .react-row button { font-size: 40px; background: transparent; border: 0; cursor: pointer; }

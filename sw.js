@@ -1,6 +1,6 @@
 // Service worker do Botequei — cache do "app shell" para abrir offline e instalar como PWA.
 // Importante: nunca intercepta o signaling.php nem requisicoes que nao sejam GET.
-const CACHE = 'botequei-v4';
+const CACHE = 'botequei-v5';
 const SHELL = [
   './',
   'index.html',
@@ -25,6 +25,10 @@ const SHELL = [
   'js/achievements.js',
   'js/share.js',
   'js/pix.js',
+  'js/handshake.js',
+  'js/scan.js',
+  // js/vendor/jsqr.js NAO entra no shell: e grande e so usado no fallback de camera (iOS);
+  // carrega sob demanda e o proprio SW cacheia no primeiro uso (runtime).
 ];
 
 self.addEventListener('install', (e) => {

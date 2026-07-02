@@ -6,9 +6,10 @@ tempo real entre os navegadores. UI em **pt-BR**.
 
 ## Rodar / testar
 - **Servidor local:** `php -S 0.0.0.0:8000` (serve tudo; precisa só de **PHP 8.x**, sem npm/banco).
-- **Unit (reducer), sem dependências:** `node tests/reducer.test.mjs`
+- **Unit, sem dependências:** `node tests/reducer.test.mjs` e `node tests/features.test.mjs`.
 - **E2E (2–3 navegadores, WebRTC real):** `npm i playwright-core && node tests/e2e.mjs`
-  (usa o Chromium do ambiente; variáveis `BASE` e `CHROME`).
+  (usa o Chromium do ambiente; variáveis `BASE` e `CHROME`). Também `tests/e2e-reconnect.mjs`
+  (reconexão) e `tests/e2e-offline.mjs` (pareamento por QR/código com o signaling desligado).
 
 ## Arquitetura (essencial)
 - **Sem framework, sem build.** HTML + CSS + JS puro (ES modules). Não introduzir bundler/toolchain.
@@ -20,6 +21,11 @@ tempo real entre os navegadores. UI em **pt-BR**.
 - **Sinalização** (`signaling.php` + `js/signaling.js`): PHP único, sem banco. Só troca SDP/ICE
   por polling HTTP com caixa-postal em arquivos temporários (TTL). Guarda só o id opaco do peer —
   nunca consumo/histórico/participantes. Sai do fluxo após o handshake.
+- **Fallback offline (sem servidor)** (`js/handshake.js` + `js/scan.js`): sem internet, o
+  handshake WebRTC é trocado **fora de banda** por QR/copia-e-cola — offer/answer com os ICE
+  candidates já embutidos (não-trickle; `iceServers: []` → host candidates de LAN/hotspot).
+  Reaproveita o mesmo DataChannel/gossip/anti-entropy; 1 QR por pessoa (quem chega pareia com 1
+  peer e converge). Peers manuais ficam fora da reconexão via signaling (re-pareia com novo QR).
 - **Estado por eventos (CRDT PN-Counter)** (`js/events.js`): eventos imutáveis
   `{type,user,item,ts,eventId}`. Total = soma (comutativa → converge). Dedup por `eventId`.
   Anti-entropy no join (troca o log completo) + gossip (repassa eventos novos).
@@ -32,12 +38,14 @@ tempo real entre os navegadores. UI em **pt-BR**.
 - `js/app.js` — orquestrador (log, dedup, render, fluxos criar/entrar, `loadIce()`)
 - `js/mesh.js` — WebRTC full-mesh + reconexão automática (heartbeat/`wake()`) + indicador de conexão (host/srflx/relay via `getStats()`)
 - `js/signaling.js` — cliente do `signaling.php` (polling)
+- `js/handshake.js` — codec do offer/answer offline (deflate + base64url; puro/isomórfico)
+- `js/scan.js` — leitor de QR por câmera (BarcodeDetector + jsQR); só no fluxo offline
 - `js/events.js` — eventos + reducer (CRDT). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
 - `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira
-- `js/store.js`, `js/identity.js`, `js/catalog.js`, `js/qr.js`, `js/vendor/qrcode.js` (lib MIT)
+- `js/store.js`, `js/identity.js`, `js/catalog.js`, `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)
 - `signaling.php`, `turn.php` — servidor mínimo (handshake / credenciais TURN)
 - `tools/gen_icons.php` — gera os PNGs de `icons/` (build; **não expor na web**)
-- `tests/` — `reducer.test.mjs` (unit) + `e2e.mjs` (Playwright)
+- `tests/` — `reducer.test.mjs` + `features.test.mjs` (unit) · `e2e.mjs` / `e2e-reconnect.mjs` / `e2e-offline.mjs` (Playwright)
 
 ## Convenções / gotchas
 - **URLs sempre relativas** (`new URL('signaling.php', location.href)`, `fetch('turn.php')`,

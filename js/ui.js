@@ -132,6 +132,7 @@ export function init(handlers) {
   $('btn-leave').addEventListener('click', () => actionToast('Sair da mesa?', 'Sair', () => H.onLeave()));
   $('btn-invite').addEventListener('click', () => H.onInvite());
   $('btn-peers').addEventListener('click', () => H.onPeers());
+  $('money-block').addEventListener('click', () => H.onBill()); // tocar na conta abre "Fechar a conta"
   $('btn-menu').addEventListener('click', () => { el['overlay-menu'].hidden = false; });
   $('btn-additem').addEventListener('click', () => openAddItem());
   $('btn-brinde').addEventListener('click', () => H.onBrinde());

@@ -87,6 +87,22 @@ TURN fica em `204` (o `SetEnv` não é lido) e o PageSpeed não desliga.
         Require all granted
         Options -Indexes +FollowSymLinks
         AllowOverride All
+
+        # Cache: os ES modules NAO tem hash no nome. Se o CDN/navegador servir um .js
+        # velho junto de um novo, o app quebra com "does not provide an export named ...".
+        # html/js/css/sw -> "no-cache" (guarda mas SEMPRE revalida: 304 barato, nunca
+        # mistura versoes). Fontes/icones sao estaveis -> cache longo. Precisa do mod_headers.
+        <IfModule mod_headers.c>
+            <FilesMatch "\.(html|webmanifest|js|mjs|css)$">
+                Header set Cache-Control "no-cache"
+            </FilesMatch>
+            <Files "sw.js">
+                Header set Cache-Control "no-cache"
+            </Files>
+            <FilesMatch "\.(woff2|png|svg|ico|jpg|jpeg|webp)$">
+                Header set Cache-Control "public, max-age=604800"
+            </FilesMatch>
+        </IfModule>
     </Directory>
 
     # TURN direto no vhost (o .conf nao e servido pela web, entao nao vaza)
@@ -99,7 +115,9 @@ TURN fica em `204` (o `SetEnv` não é lido) e o PageSpeed não desliga.
     </IfModule>
 </VirtualHost>
 ```
-Aplique com `apachectl configtest && systemctl reload httpd`.
+Aplique com `apachectl configtest && systemctl reload httpd`. Se usar `AllowOverride None`
+(padrão do RHEL), estes headers **precisam** ficar no vhost — o `.htaccess` nem é lido.
+Precisa do `mod_headers` ligado (`a2enmod headers` no Debian; já vem no RHEL).
 > ⚠️ No Apache, comentários (`#`) ficam **em linha própria** — não coloque `#` no fim de uma
 > diretiva (ex.: `AllowOverride All  # ...` dá `Illegal override option`).
 

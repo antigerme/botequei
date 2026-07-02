@@ -44,6 +44,7 @@
       </div>
 
       <button class="btn btn-ghost btn-offline" id="btn-offline-join">📴 Entrar sem internet</button>
+      <button class="btn btn-ghost btn-stats" id="btn-stats">📊 Meus números</button>
     </div>
 
     <div class="home-history" id="home-history" hidden>
@@ -158,17 +159,21 @@
 
 <!-- Menu (⋯) -->
 <div class="overlay" id="overlay-menu" hidden>
-  <div class="sheet">
+  <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
     <h2>Mesa</h2>
     <div class="menu-list">
       <button class="menu-item" id="menu-profile">🎨 Meu perfil</button>
       <button class="menu-item" id="menu-board">🏆 Placar &amp; conquistas</button>
+      <button class="menu-item" id="menu-pace">📈 Meu ritmo</button>
+      <button class="menu-item" id="menu-roulette">🎰 Quem paga a próxima?</button>
       <button class="menu-item" id="menu-bill">💸 Fechar a conta</button>
       <button class="menu-item" id="menu-prices">💲 Preços do cardápio</button>
-      <button class="menu-item" id="menu-share">📸 Compartilhar a noite</button>
-      <button class="menu-item" id="menu-bebedeira">🥴 Modo bebedeira</button>
       <button class="menu-item" id="menu-hh">⏰ Happy hour</button>
+      <button class="menu-item" id="menu-bebedeira">🥴 Modo bebedeira</button>
+      <button class="menu-item" id="menu-ceremony">🏁 Encerrar a noite</button>
+      <button class="menu-item" id="menu-share">📸 Compartilhar a noite</button>
+      <button class="menu-item" id="menu-stats">📊 Meus números</button>
       <button class="menu-item" id="menu-settings">⚙️ Configurações</button>
     </div>
   </div>
@@ -216,13 +221,24 @@
     <h2>Fechar a conta</h2>
     <p class="sheet-sub" id="bill-note"></p>
     <div class="bill-opts">
-      <label class="check"><input type="checkbox" id="bill-service" checked /><span>Serviço 10%</span></label>
+      <div class="tip-row">
+        <span class="lbl">Gorjeta</span>
+        <div class="tip-btns" id="bill-tips">
+          <button type="button" data-tip="0">0%</button>
+          <button type="button" data-tip="5">5%</button>
+          <button type="button" data-tip="10">10%</button>
+          <button type="button" data-tip="15">15%</button>
+        </div>
+      </div>
       <label class="field field-inline"><span>Couvert p/ pessoa</span>
         <input id="bill-couvert" type="number" inputmode="decimal" min="0" step="1" placeholder="0" /></label>
-      <label class="check"><input type="checkbox" id="bill-equal" /><span>Rachar igual (em vez de por consumo)</span></label>
+      <label class="check"><input type="checkbox" id="bill-equal" /><span>Rachar igual (marque quem entra)</span></label>
     </div>
     <ul class="bill-list" id="bill-list"></ul>
     <div class="bill-total" id="bill-total"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-primary" id="btn-bill-share">📸 Mandar no grupo</button>
+    </div>
   </div>
 </div>
 
@@ -261,6 +277,16 @@
       <input id="set-limit" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" /></label>
     <label class="field field-inline"><span>💧 Lembrar água a cada</span>
       <input id="set-water" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" /></label>
+    <label class="check"><input type="checkbox" id="set-nudges" /><span>🐢 Avisos de ritmo (bora uma água?)</span></label>
+    <p class="lbl">📈 Estimar teor alcoólico (opcional, fica só neste aparelho)</p>
+    <label class="field field-inline"><span>⚖️ Peso (kg)</span>
+      <input id="set-weight" type="number" inputmode="numeric" min="0" max="300" step="1" placeholder="0 = não estima" /></label>
+    <label class="field field-inline"><span>👤 Você é</span>
+      <select id="set-sex">
+        <option value="">prefiro não dizer</option>
+        <option value="m">homem</option>
+        <option value="f">mulher</option>
+      </select></label>
     <p class="lbl">💸 PIX pra dividir a conta (fica só neste aparelho)</p>
     <label class="field"><span>Sua chave PIX</span>
       <input id="set-pixkey" type="text" maxlength="77" placeholder="email, telefone, CPF ou aleatória" /></label>
@@ -343,6 +369,68 @@
     <h2 id="scan-title">Escanear QR</h2>
     <div class="scan-wrap"><video id="scan-video" playsinline muted></video></div>
     <p class="sheet-sub" id="scan-hint">Aponte a câmera pro QR…</p>
+  </div>
+</div>
+
+<!-- Meu ritmo (consciência: linha do tempo, ritmo e estimativa de teor alcoólico) -->
+<div class="overlay" id="overlay-pace" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>📈 Meu ritmo</h2>
+    <div class="pace-summary" id="pace-summary">—</div>
+    <div class="pace-meter"><div class="pace-bar" id="pace-bar"></div></div>
+    <p class="pace-label" id="pace-label"></p>
+    <canvas class="pace-chart" id="pace-chart" width="600" height="150"></canvas>
+    <div class="pace-bac" id="pace-bac"></div>
+    <p class="seal">Estimativa leve, não é bafômetro. Bebeu? Não dirija. 🚗🚫</p>
+  </div>
+</div>
+
+<!-- Roleta: quem paga a próxima (sincronizada entre todos) -->
+<div class="overlay" id="overlay-roulette" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>🎰 Quem paga a próxima?</h2>
+    <ul class="roulette-list" id="roulette-list"></ul>
+    <div class="roulette-result" id="roulette-result" hidden></div>
+    <div class="sheet-actions">
+      <button class="btn btn-primary btn-lg" id="btn-roulette-spin">Girar 🎰</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cutucar / desafiar alguém -->
+<div class="overlay" id="overlay-poke" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2 id="poke-title">Cutucar</h2>
+    <div class="poke-actions" id="poke-actions"></div>
+  </div>
+</div>
+
+<!-- Cerimônia de fim de noite (troféus) -->
+<div class="overlay" id="overlay-ceremony" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>🏁 Cerimônia da noite</h2>
+    <p class="sheet-sub">Os troféus da mesa 🏆</p>
+    <ul class="ceremony-list" id="ceremony-list"></ul>
+    <div class="sheet-actions">
+      <button class="btn btn-primary" id="btn-ceremony-share">📸 Compartilhar</button>
+      <button class="btn btn-ghost" id="btn-ceremony-broadcast">📣 Mostrar pra mesa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Meus números (histórico + estatísticas de vida) -->
+<div class="overlay" id="overlay-stats" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>📊 Meus números</h2>
+    <div class="stats-grid" id="stats-grid"></div>
+    <div class="my-badges" id="stats-badges"></div>
+    <h3 class="stats-h3">Suas noites</h3>
+    <ul class="stats-history" id="stats-history"></ul>
   </div>
 </div>
 

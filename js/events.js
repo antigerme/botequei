@@ -40,6 +40,10 @@ export function makeHappyHour({ minutes, startTotal }) {
   const mins = Math.max(1, Math.min(240, Number(minutes) || 30));
   return { type: 'HAPPYHOUR', until: Date.now() + mins * 60000, startTotal: Number(startTotal) || 0, startedBy: clientId(), ts: Date.now(), eventId: newEventId() };
 }
+// "Eu pago pra fulano": marca (ou desmarca) que EU cubro a conta de `to`. LWW por (eu,to).
+export function makePayFor({ to, on }) {
+  return { type: 'PAYFOR', from: clientId(), to, on: !!on, ts: Date.now(), eventId: newEventId() };
+}
 
 // ---- Estado ----
 export function emptyState() {
@@ -51,6 +55,7 @@ export function emptyState() {
     profiles: new Map(), // user -> { def:{name,color,emoji,driver}, ts, eventId }  (LWW)
     table: null,         // { def:{title,emoji}, ts, eventId }  (LWW)
     happy: null,         // { def:{until,startTotal,by}, ts, eventId }  (LWW) — happy hour
+    pays: new Map(),     // "from\x00to" -> { on, from, to, ts, eventId }  (LWW) — "eu pago pra fulano"
   };
 }
 
@@ -102,6 +107,12 @@ export function applyEvent(state, ev) {
     }
     case 'HAPPYHOUR': {
       if (wins(state.happy, ev)) state.happy = { def: { until: Number(ev.until) || 0, startTotal: Number(ev.startTotal) || 0, by: ev.startedBy || '' }, ts: ev.ts, eventId: ev.eventId };
+      return true;
+    }
+    case 'PAYFOR': {
+      if (!ev.from || !ev.to) return false;
+      const k = ev.from + '\x00' + ev.to;
+      if (wins(state.pays.get(k), ev)) state.pays.set(k, { on: !!ev.on, from: ev.from, to: ev.to, ts: ev.ts, eventId: ev.eventId });
       return true;
     }
     default:
@@ -163,6 +174,24 @@ export function tableInfo(state) {
 
 export function happyHour(state) {
   return state.happy ? state.happy.def : null;
+}
+
+// "Eu (from) pago pra (to)" está ativo agora?
+export function paysFor(state, from, to) {
+  const r = state.pays.get(from + '\x00' + to);
+  return !!(r && r.on);
+}
+// Mapa quem-cobre-quem: to -> from. Conflito (dois pagadores) resolvido pelo maior ts.
+export function payerOf(state) {
+  const best = new Map(); // to -> { from, ts }
+  for (const rec of state.pays.values()) {
+    if (!rec.on) continue;
+    const cur = best.get(rec.to);
+    if (!cur || rec.ts > cur.ts) best.set(rec.to, { from: rec.from, ts: rec.ts });
+  }
+  const m = new Map();
+  for (const [to, v] of best) if (v.from !== to) m.set(to, v.from);
+  return m;
 }
 
 export function isDriver(state, user) {

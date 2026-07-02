@@ -3,8 +3,8 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, happyHour } from '../js/events.js';
-import { badgesFor, mvp } from '../js/achievements.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, happyHour, paysFor, payerOf } from '../js/events.js';
+import { badgesFor, mvp, ceremonyAwards } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
 let passed = 0;
@@ -97,6 +97,45 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.strictEqual(hh.until, 1000);
   assert.strictEqual(hh.startTotal, 3);
   ok('happy hour: LWW (maior ts vence)');
+}
+
+// ---------- "Eu pago pra fulano" (PAYFOR, LWW) ----------
+{
+  const s = emptyState();
+  applyEvent(s, { type: 'PAYFOR', from: 'andre', to: 'bia', on: true, ts: 1, eventId: 'pf1' });
+  assert.strictEqual(paysFor(s, 'andre', 'bia'), true);
+  assert.strictEqual(payerOf(s).get('bia'), 'andre');
+  applyEvent(s, { type: 'PAYFOR', from: 'andre', to: 'bia', on: false, ts: 2, eventId: 'pf2' }); // desmarca (ts maior)
+  assert.strictEqual(paysFor(s, 'andre', 'bia'), false);
+  assert.strictEqual(payerOf(s).has('bia'), false);
+  applyEvent(s, { type: 'PAYFOR', from: 'andre', to: 'bia', on: true, ts: 1, eventId: 'pf0' }); // ts menor não revive
+  assert.strictEqual(paysFor(s, 'andre', 'bia'), false);
+  ok('payfor: LWW liga/desliga a cobertura');
+
+  // conflito: dois pagadores pra mesma pessoa → vence o de maior ts
+  const s2 = emptyState();
+  applyEvent(s2, { type: 'PAYFOR', from: 'andre', to: 'ze', on: true, ts: 5, eventId: 'c1' });
+  applyEvent(s2, { type: 'PAYFOR', from: 'bia', to: 'ze', on: true, ts: 9, eventId: 'c2' });
+  assert.strictEqual(payerOf(s2).get('ze'), 'bia');
+  ok('payfor: conflito resolvido pelo maior ts');
+}
+
+// ---------- Cerimônia de troféus ----------
+{
+  const s = emptyState();
+  applyEvent(s, { type: 'PROFILE', user: 'andre', name: 'André', driver: true, ts: 1, eventId: 'pa' });
+  for (let i = 0; i < 4; i++) applyEvent(s, { type: 'ADD', user: 'bia', name: 'Bia', item: 'cerveja', ts: 10 + i, eventId: 'b' + i });
+  applyEvent(s, { type: 'ADD', user: 'bia', name: 'Bia', item: 'dose', ts: 20, eventId: 'bd' });
+  applyEvent(s, { type: 'ADD', user: 'ze', name: 'Zé', item: 'agua', ts: 30, eventId: 'za' });
+  applyEvent(s, { type: 'ADD', user: 'ze', name: 'Zé', item: 'agua', ts: 31, eventId: 'za2' });
+  const ri = (id) => ({ id, price: 0, g: id === 'cerveja' ? 13 : id === 'dose' ? 15 : 0 });
+  const aw = ceremonyAwards(s, ri, { log: [], now: 0 });
+  const byId = Object.fromEntries(aw.map((a) => [a.id, a]));
+  assert.strictEqual(byId.mvp.name, 'Bia');   // maior total, não-motorista
+  assert.strictEqual(byId.agua.name, 'Zé');   // mais águas
+  assert.strictEqual(byId.driver.name, 'André'); // motorista
+  assert.ok(byId.ferro && byId.ferro.name === 'Bia'); // única com destilado
+  ok('cerimônia: MVP, hidratado, motorista, cabeça de ferro');
 }
 
 console.log(`\n${passed} testes de features passaram ✅`);

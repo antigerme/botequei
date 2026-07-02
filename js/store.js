@@ -4,7 +4,8 @@
 
 const K_CURRENT = 'botequei.current';   // { room, createdAt } da mesa aberta
 const K_LOG = (room) => 'botequei.log.' + room;
-const K_HISTORY = 'botequei.history';   // [ { room, at, myTotal, tableTotal, title } ]
+// [ { room, at, myTotal, tableTotal, title, myMoney, durationMs, items:{id:n} } ]
+const K_HISTORY = 'botequei.history';
 
 function readJSON(key, fallback) {
   try {
@@ -46,7 +47,7 @@ export function getHistory() {
 export function pushHistory(entry) {
   const list = getHistory().filter((e) => e.room !== entry.room);
   list.unshift(entry);
-  writeJSON(K_HISTORY, list.slice(0, 12));
+  writeJSON(K_HISTORY, list.slice(0, 60)); // guarda bastante p/ as estatísticas de vida
 }
 export function removeHistory(room) {
   writeJSON(K_HISTORY, getHistory().filter((e) => e.room !== room));

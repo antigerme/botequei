@@ -112,9 +112,9 @@ body::after {
   min-width: 46px; height: 46px; border-radius: 12px; font-size: 20px; cursor: pointer; padding: 0 10px; font-family: var(--hand); }
 .icon-btn:active { transform: scale(.94); }
 #btn-leave { font-family: var(--num); font-size: 30px; line-height: 1; }
-.table-id { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: rgba(255,255,255,.03); border: 2px dashed var(--gold); border-radius: 12px; height: 46px; cursor: pointer; color: var(--cream); }
-.mesa-label { font-size: 10px; letter-spacing: 3px; color: var(--muted); }
+.table-id { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.03); border: 2px dashed var(--gold); border-radius: 12px; height: 46px; padding: 0 12px; overflow: hidden; cursor: pointer; color: var(--cream); }
+.mesa-label { max-width: 100%; font-size: 10px; letter-spacing: 2px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 .mesa-code { font-family: var(--num); font-size: 20px; letter-spacing: 4px; color: var(--gold); line-height: 1; }
 .topbar-actions { display: flex; gap: 8px; }
 
@@ -128,15 +128,18 @@ body::after {
 
 /* ---------- Totais (herói: a mesa) ---------- */
 .totals { display: flex; align-items: flex-end; gap: 16px; padding: 16px 4px 8px; }
-.total-hero { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; border-radius: 14px; padding: 6px 10px; }
+.total-hero { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; border-radius: 14px; padding: 4px 10px 6px; }
 .total-hero .total-cap, .total-hero .total-num { position: relative; z-index: 1; }
-.hero-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; z-index: 0; pointer-events: none;
-  background: linear-gradient(180deg, rgba(244,177,60,.34), rgba(244,177,60,.12));
-  border-top: 3px solid rgba(255,240,200,.6); transition: height .6s cubic-bezier(.3,1.3,.5,1); }
+/* chopp: nível recortado num ::before dentro de uma camada com overflow hidden,
+   pra NÃO cortar o texto do herói (o número/legenda ficam livres, z-index 1) */
+.hero-fill { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; border-radius: 14px; }
+.hero-fill::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: var(--fill, 0);
+  background: linear-gradient(180deg, rgba(244,177,60,.30), rgba(244,177,60,.10));
+  border-top: 3px solid rgba(255,240,200,.55); transition: height .6s cubic-bezier(.3,1.3,.5,1); }
 .total-side { text-align: right; display: flex; flex-direction: column; gap: 4px; }
 .total-num { font-family: var(--num); line-height: .82; color: var(--gold); font-variant-numeric: tabular-nums; }
 .total-cap { font-size: 16px; color: var(--muted); }
-.total-hero .total-num { font-size: 74px; text-shadow: 0 0 22px rgba(244,177,60,.22), 0 2px 0 rgba(0,0,0,.3); }
+.total-hero .total-num { font-size: 72px; line-height: .95; text-shadow: 0 0 22px rgba(244,177,60,.22), 0 2px 0 rgba(0,0,0,.3); }
 .total-side .total-num { font-size: 40px; color: var(--cream); }
 .total-money .total-num { font-size: 26px; color: var(--cream); }
 .total-money { display: flex; align-items: baseline; gap: 8px; justify-content: flex-end; }

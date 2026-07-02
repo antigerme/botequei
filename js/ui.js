@@ -196,7 +196,7 @@ export function renderTable(vm) {
   el['mesa-code'].textContent = vm.code;
   countTo(el['my-total'], vm.myTotal);
   countTo(el['table-total'], vm.tableTotal);
-  if (el['hero-fill']) el['hero-fill'].style.height = (vm.heroFill || 0) + '%';
+  if (el['hero-fill']) el['hero-fill'].style.setProperty('--fill', (vm.heroFill || 0) + '%');
   el['peer-count'].textContent = vm.peerCount;
   el['money-block'].hidden = !vm.showMoney;
   if (vm.showMoney) el['my-money'].textContent = fmtMoney(vm.myMoney);

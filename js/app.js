@@ -6,7 +6,7 @@ import {
   emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable,
   getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver,
 } from './events.js';
-import { badgesFor, mvp, milestoneLine } from './achievements.js';
+import { badgesFor, milestoneLine } from './achievements.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
@@ -33,6 +33,24 @@ let deferredPrompt = null;
 
 const self = clientId();
 let settings = getSettings();
+let limitAlerted = false;   // pra a meta alertar uma vez (mesmo se ultrapassar de vez)
+let renderScheduled = false;
+
+// itens alcoolicos (motorista nao registra esses; contam pro lembrete de agua)
+const ALCOHOL = new Set(['cerveja', 'chopp', 'dose', 'drink']);
+function myAlcohol() { let n = 0; for (const id of ALCOHOL) n += getCount(state, self, id); return n; }
+function leaderName() {
+  let best = null, bestN = -1;
+  for (const u of state.users) { if (isDriver(state, u)) continue; const t = userTotal(state, u); if (t > bestN) { bestN = t; best = u; } }
+  return best ? profOf(best).name : '';
+}
+// coalesce renders (evita re-render por evento durante o sync em massa)
+function scheduleRender() {
+  if (renderScheduled) return;
+  renderScheduled = true;
+  const run = () => { renderScheduled = false; render(); };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run); else setTimeout(run, 16);
+}
 
 // ---- Signaling room (com PIN) ----
 function djb2(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
@@ -76,7 +94,7 @@ function emitLocal(ev) {
 
 // ---- Acoes de consumo ----
 function act(type, item) {
-  if (type === 'ADD' && isDriver(state, self) && !['agua', 'refri'].includes(item)) {
+  if (type === 'ADD' && isDriver(state, self) && ALCOHOL.has(item)) {
     ui.toast('🚗 Você é o motorista! Bora de água ou refri?'); return;
   }
   if (type === 'REMOVE' && getCount(state, self, item) <= 0) { ui.toast('Nada pra tirar aqui 🙂'); return; }
@@ -97,15 +115,21 @@ function undoLast() {
   if (emitLocal(inv)) afterChange(lastAction.item, lastAction.type === 'ADD' ? 'remove' : 'add');
   lastAction = null;
 }
-function afterMyAdd(item) {
+function checkLimit() {
+  if (settings.limit <= 0) return;
   const mine = userTotal(state, self);
-  if (settings.limit > 0 && mine === settings.limit) {
+  if (mine >= settings.limit && !limitAlerted) {
+    limitAlerted = true;
     sound.alarm(); ui.vibrate([100, 50, 100]);
     ui.actionToast(`🎯 Você chegou na meta de ${settings.limit}!`, '🚗 Chamar carro', callCar);
+  } else if (mine < settings.limit) {
+    limitAlerted = false; // desfez e voltou pra baixo -> pode alertar de novo
   }
-  const alcoholic = !['agua', 'refri'].includes(item);
-  if (alcoholic && settings.waterEvery > 0) {
-    const alc = mine - getCount(state, self, 'agua') - getCount(state, self, 'refri');
+}
+function afterMyAdd(item) {
+  checkLimit();
+  if (ALCOHOL.has(item) && settings.waterEvery > 0) {
+    const alc = myAlcohol();
     if (alc > 0 && alc % settings.waterEvery === 0) ui.toast('💧 Hora da água!');
   }
 }
@@ -142,31 +166,33 @@ function onFx(fx) {
 }
 
 // ---- Eventos remotos ----
-function onRemoteEvent(ev, fromPeer) {
+function onRemoteEvent(ev, fromPeer, isSync) {
   if (!ingest(ev)) return;
   if (mesh) mesh.broadcast({ k: 'ev', ev }, fromPeer); // gossip
+  if (ev.type === 'ADD' && ev.user === self) checkLimit(); // alguém somou pra mim (rodada)
+  if (isSync) { scheduleRender(); return; } // catch-up em massa: 1 render, sem efeitos/sons
   if (ev.type === 'ADD' && ev.user !== self) {
     const p = profOf(ev.user);
     ui.floatPlus(`${p.name || 'alguém'} ${resolveItem(ev.item).emoji}+1`, p.color);
     sound.pop();
-    const rows = summary(state, resolveItem);
-    const line = milestoneLine(p.name || 'alguém', userTotal(state, ev.user), rows[0] && rows[0].name);
+    const line = milestoneLine(p.name || 'alguém', userTotal(state, ev.user), leaderName());
     if (line) ui.toast(line);
   }
   if (ev.item) afterChange(ev.item, ev.type === 'REMOVE' ? 'remove' : 'add');
-  else render();
+  else scheduleRender();
 }
 
 function afterChange(item, kind) {
-  render();
+  scheduleRender();
   ui.pulse(item, kind);
-  if (ui.isBebedeira()) ui.updateBebedeira(getCount(state, self, bebedeiraItem()));
+  if (ui.isBebedeira()) ui.updateBebedeira(getCount(state, self, ui.currentBebedeiraItem()));
 }
 
 // ---- Render ----
 function render() {
   if (!room) return;
-  const items = allItems().map((it) => ({
+  const list = allItems();
+  const items = list.map((it) => ({
     id: it.id, emoji: it.emoji, name: it.name,
     qty: itemTotal(state, it.id), sub: `você ${getCount(state, self, it.id)}`,
   }));
@@ -177,7 +203,7 @@ function render() {
     myTotal: userTotal(state, self),
     tableTotal: tableTotal(state),
     peerCount: (mesh ? mesh.connectedCount() : 0) + 1,
-    showMoney: allItems().some((i) => i.price > 0),
+    showMoney: list.some((i) => i.price > 0),
     myMoney: userMoney(state, self, resolveItem),
     items,
   });
@@ -190,7 +216,8 @@ function render() {
 }
 
 function renderPeers() {
-  const rows = summary(state, resolveItem).map((r) => {
+  const base = summary(state, resolveItem); // uma passada só
+  const rows = base.map((r) => {
     const p = profOf(r.user);
     return { ...r, name: p.name, color: p.color, emoji: p.emoji, badges: badgesFor(state, r.user) };
   });
@@ -199,7 +226,8 @@ function renderPeers() {
     const p = profOf(self);
     rows.push({ user: self, name: p.name, color: p.color, emoji: p.emoji, driver: p.driver, total: 0, money: 0, badges: badgesFor(state, self) });
   }
-  ui.renderPeers({ rows, selfId: self, mvp: mvp(state, resolveItem), myBadges: badgesFor(state, self) });
+  const top = base.find((r) => !r.driver && r.total > 0); // MVP derivado (base já vem ordenado)
+  ui.renderPeers({ rows, selfId: self, mvp: top ? { name: profOf(top.user).name, total: top.total } : null, myBadges: badgesFor(state, self) });
 }
 
 function bebedeiraItem() {
@@ -257,7 +285,7 @@ function leaveTable() {
   }
   if (mesh) { mesh.close(); mesh = null; }
   store.clearCurrent();
-  room = null; roomPin = ''; myDriver = false;
+  room = null; roomPin = ''; myDriver = false; limitAlerted = false;
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
 }
@@ -317,7 +345,6 @@ const handlers = {
   onAddItemConfirm: addCustomItem,
   onInvite: openInvite,
   onPeers: () => { renderPeers(); ui.openPeers(); },
-  onMenu: () => {},
   onBrinde, onReact, onRodada: rodada,
   onBrindeGo: () => sound.cheers(),
   onProfile: () => { const p = profOf(self); ui.openProfile({ name: getName(), color: p.color, emoji: p.emoji, driver: myDriver }); },
@@ -347,7 +374,7 @@ const handlers = {
     if (!settings.pixKey) { ui.toast('Configure sua chave PIX nas ⚙️ configurações'); return; }
     const r = (lastBill && lastBill.rows || []).find((x) => x.user === user);
     if (!r) return;
-    const payload = pixPayload({ key: settings.pixKey, name: getName() || 'Recebedor', city: settings.pixCity || 'BRASIL', amount: r.amount, txid: 'BOTEQUEI', description: 'Botequei' });
+    const payload = pixPayload({ key: settings.pixKey, name: getName() || 'Recebedor', city: settings.pixCity || 'BRASIL', amount: r.amount, txid: 'BOTEQUEI' });
     let qrNode; try { qrNode = makeQR(payload); } catch { qrNode = null; }
     ui.openPix({ title: `Cobrar ${r.name || ''}`, code: payload, qrNode });
   },

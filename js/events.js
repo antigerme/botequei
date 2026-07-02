@@ -51,6 +51,12 @@ export function emptyState() {
 const ckey = (u, i) => u + '\x00' + i;
 // vence o de maior ts; empate resolvido pelo eventId (deterministico em todos os peers)
 const wins = (cur, ev) => !cur || ev.ts > cur.ts || (ev.ts === cur.ts && ev.eventId > cur.eventId);
+// nome do usuario tambem por LWW (senao a exibicao diverge conforme a ordem de replay)
+function applyName(state, user, name, ev) {
+  if (!name) return;
+  const cur = state.names.get(user);
+  if (wins(cur, ev)) state.names.set(user, { name, ts: ev.ts, eventId: ev.eventId });
+}
 
 // Aplica um evento ja "novo" (a deduplicacao por eventId acontece no log, fora daqui).
 // Retorna true se o evento foi reconhecido/aplicado.
@@ -63,7 +69,7 @@ export function applyEvent(state, ev) {
       const k = ckey(ev.user, ev.item);
       state.counts.set(k, (state.counts.get(k) || 0) + (ev.type === 'ADD' ? 1 : -1));
       state.users.add(ev.user);
-      if (ev.name) state.names.set(ev.user, ev.name);
+      applyName(state, ev.user, ev.name, ev);
       return true;
     }
     case 'ITEM': {
@@ -81,7 +87,7 @@ export function applyEvent(state, ev) {
         });
       }
       state.users.add(ev.user);
-      if (ev.name) state.names.set(ev.user, ev.name);
+      applyName(state, ev.user, ev.name, ev);
       return true;
     }
     case 'TABLE': {
@@ -134,7 +140,7 @@ export function getProfile(state, user) {
   const p = state.profiles.get(user);
   const def = p ? p.def : {};
   return {
-    name: def.name || state.names.get(user) || '',
+    name: def.name || (state.names.get(user) || {}).name || '',
     color: def.color || '',
     emoji: def.emoji || '',
     driver: !!def.driver,

@@ -33,6 +33,9 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 function cssq(s) { return String(s).replace(/["\\]/g, '\\$&'); }
+// Cor vinda da rede vai para style="background:..."; esc() nao barra ';' de CSS.
+// So aceitamos hex (#abc/#aabbcc/#aabbccdd) ou nome CSS simples; senao, cor padrao.
+function safeColor(c) { return /^#[0-9a-f]{3,8}$|^[a-z]+$/i.test(String(c || '')) ? String(c) : '#333'; }
 function fmtMoney(v) { return 'R$' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
 export function vibrate(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch { /* ignore */ } }
@@ -170,6 +173,8 @@ export function renderTable(vm) {
   for (const it of vm.items) {
     const card = el['items-grid'].querySelector(`[data-item="${cssq(it.id)}"]`);
     if (!card) continue;
+    card.querySelector('.item-emoji').textContent = it.emoji;
+    card.querySelector('.item-name').textContent = it.name;
     card.querySelector('.item-qty').textContent = it.qty;
     card.querySelector('.item-sub').textContent = it.sub;
   }
@@ -177,7 +182,7 @@ export function renderTable(vm) {
 function cardHTML(it) {
   return `<div class="item-card" data-item="${esc(it.id)}">
     <div class="item-qty">${it.qty}</div>
-    <div class="item-emoji">${it.emoji}</div>
+    <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
     <div class="item-sub">${esc(it.sub)}</div>
     <div class="item-plus">+1</div></div>`;
@@ -200,7 +205,7 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
     const badges = (r.badges || []).map((b) => b.emoji).join('');
     return `<li class="peer-row">
       <span class="peer-medal">${medal}</span>
-      <span class="peer-avatar" style="background:${esc(r.color || '#333')}">${r.emoji || '🍺'}</span>
+      <span class="peer-avatar" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
       <div class="peer-main">
         <span class="peer-name">${esc(r.name || 'anônimo')} ${r.user === selfId ? '<span class="peer-you">(você)</span>' : ''} ${r.driver ? '🚗' : ''}</span>
         <span class="peer-badges">${badges}${r.money ? ' · ' + fmtMoney(r.money) : ''}</span>
@@ -278,7 +283,7 @@ function submitAddItem() {
 // ---------- Preços ----------
 export function openPrices(items) {
   el['price-list'].innerHTML = items.map((it) => `<li class="price-row">
-    <span>${it.emoji} ${esc(it.name)}</span>
+    <span>${esc(it.emoji)} ${esc(it.name)}</span>
     <input type="number" inputmode="decimal" min="0" step="0.5" value="${it.price || ''}" data-id="${esc(it.id)}" placeholder="0,00" /></li>`).join('');
   el['price-list'].querySelectorAll('input').forEach((inp) => inp.addEventListener('change', () => H.onPriceChange(inp.dataset.id, inp.value)));
   el['overlay-prices'].hidden = false;
@@ -296,7 +301,7 @@ export function billOptions() {
 export function renderBill(vm) {
   el['bill-note'].textContent = vm.note || '';
   el['bill-list'].innerHTML = vm.rows.map((r) => `<li class="bill-row" data-user="${esc(r.user)}">
-    <span class="peer-avatar" style="background:${esc(r.color || '#333')}">${r.emoji || '🍺'}</span>
+    <span class="peer-avatar" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
     <span class="b-name">${esc(r.name || 'anônimo')}</span>
     <span class="b-amt">${fmtMoney(r.amount)}</span>
     ${vm.canPix && r.amount > 0 && r.user !== vm.selfId ? '<button class="b-pix">PIX</button>' : ''}</li>`).join('');
@@ -395,6 +400,7 @@ export function openBebedeira(vm) {
 export function updateBebedeira(count) { if (!el['bebedeira'].hidden) el['bebedeira-count'].textContent = count; }
 export function closeBebedeira() { el['bebedeira'].hidden = true; if (H.onBebedeiraClose) H.onBebedeiraClose(); }
 export function isBebedeira() { return !el['bebedeira'].hidden; }
+export function currentBebedeiraItem() { return bebedeiraItem; }
 
 // ---------- Overlays / toast ----------
 export function closeOverlays() { document.querySelectorAll('.overlay').forEach((o) => { o.hidden = true; }); }

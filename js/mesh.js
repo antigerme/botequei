@@ -106,6 +106,7 @@ export class Mesh {
       const st = pc.connectionState;
       if (st === 'failed' || st === 'closed') { rec.ready = false; this._maybeConnect(peerId); }
       else if (st === 'disconnected') { rec.ready = false; } // pode recuperar; heartbeat/poll cuidam
+      else if (st === 'connected' && rec.dc && rec.dc.readyState === 'open') { rec.ready = true; } // ICE recuperou sem reabrir o canal
       this.onPeersChange();
       this.onStatus();
     };
@@ -183,7 +184,7 @@ export class Mesh {
       let msg;
       try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.k === 'ev') this.onEvent(msg.ev, peerId);
-      else if (msg.k === 'sync' && Array.isArray(msg.events)) { for (const ev of msg.events) this.onEvent(ev, peerId); }
+      else if (msg.k === 'sync' && Array.isArray(msg.events)) { for (const ev of msg.events) this.onEvent(ev, peerId, true); }
       else if (msg.k === 'hello') { rec.name = msg.name || rec.name; this.onPeersChange(); }
       else if (msg.k === 'fx') this.onFx(msg.fx, peerId);
       // 'ping' so serve pra atualizar lastSeen (feito acima)

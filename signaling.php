@@ -57,6 +57,10 @@ function gc(string $dir): void {
     foreach (glob($dir . '/mbox_*.ndjson') ?: [] as $f) {
         if ($now - (int)@filemtime($f) > MBOX_TTL) @unlink($f);
     }
+    // temporarios orfaos de touch_presence (crash entre write e rename)
+    foreach (glob($dir . '/peer_*.tmp') ?: [] as $f) {
+        if ($now - (int)@filemtime($f) > PRESENCE_TTL) @unlink($f);
+    }
 }
 
 function list_peers(string $dir): array {
@@ -73,12 +77,16 @@ function list_peers(string $dir): array {
 }
 
 // Guarda SO o id opaco do peer (nunca apelido). Apelidos trafegam P2P via 'hello'.
+// Escreve em arquivo temporario + rename (atomico no POSIX): assim list_peers, que le
+// sem lock, nunca pega um JSON pela metade e "perde" um peer momentaneamente.
 function touch_presence(string $dir, string $peer): void {
-    @file_put_contents(
-        $dir . '/peer_' . $peer . '.json',
-        json_encode(['peer' => $peer, 'ts' => time()]),
-        LOCK_EX
-    );
+    $path = $dir . '/peer_' . $peer . '.json';
+    $tmp  = $path . '.' . getmypid() . '.tmp';
+    if (@file_put_contents($tmp, json_encode(['peer' => $peer, 'ts' => time()])) !== false) {
+        @rename($tmp, $path);
+    } else {
+        @unlink($tmp);
+    }
 }
 
 function others(array $peers, string $me): array {

@@ -29,7 +29,7 @@ export function crc16(str) {
 // { key, name, city, amount, txid, description } -> string do Pix Copia e Cola.
 export function pixPayload({ key, name, city, amount, txid, description }) {
   const k = String(key || '').trim();
-  const nm = ascii(name || 'Recebedor').slice(0, 25);
+  const nm = ascii(name || 'Recebedor').slice(0, 25) || 'Recebedor';
   const ct = ascii(city || 'BRASIL').slice(0, 15) || 'BRASIL';
   const mai = tlv('00', 'br.gov.bcb.pix') + tlv('01', k) +
     (description ? tlv('02', ascii(description).slice(0, 40)) : '');

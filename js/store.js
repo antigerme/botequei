@@ -31,7 +31,8 @@ export function clearCurrent() {
 
 // ---- Log de eventos (por mesa) ----
 export function getEvents(room) {
-  return readJSON(K_LOG(room), []);
+  const v = readJSON(K_LOG(room), []);
+  return Array.isArray(v) ? v : [];
 }
 export function saveEvents(room, events) {
   writeJSON(K_LOG(room), events);
@@ -39,7 +40,8 @@ export function saveEvents(room, events) {
 
 // ---- Historico ----
 export function getHistory() {
-  return readJSON(K_HISTORY, []);
+  const v = readJSON(K_HISTORY, []);
+  return Array.isArray(v) ? v : [];
 }
 export function pushHistory(entry) {
   const list = getHistory().filter((e) => e.room !== entry.room);

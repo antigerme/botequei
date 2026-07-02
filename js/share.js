@@ -85,7 +85,10 @@ export async function shareRecap(state, resolveItem) {
       await navigator.share({ files: [file], text, title: 'Botequei' });
       return 'shared';
     }
-  } catch { return 'cancel'; }
+  } catch (e) {
+    // Cancelamento do usuario: encerra. Qualquer outro erro cai para o download abaixo.
+    if (e && e.name === 'AbortError') return 'cancel';
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = 'botequei.png';

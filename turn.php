@@ -82,7 +82,7 @@ if (function_exists('curl_init')) {
         'ignore_errors' => true,
     ]]);
     $res = @file_get_contents($url, false, $ctx);
-    if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $m)) {
+    if (isset($http_response_header[0]) && preg_match('/\s(\d{3})/', $http_response_header[0], $m)) {
         $code = (int) $m[1];
     }
 }

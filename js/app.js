@@ -18,7 +18,7 @@ import * as store from './store.js';
 import { Mesh } from './mesh.js';
 import { makeQR } from './qr.js';
 import { encodeBlob, decodeBlob } from './handshake.js';
-import { shareRecap, shareBill, shareCeremony } from './share.js';
+import { shareRecap, shareBill, shareCeremony, shareRetro } from './share.js';
 import { pixPayload } from './pix.js';
 import * as sound from './sound.js';
 import * as ui from './ui.js';
@@ -94,7 +94,7 @@ function allItems() {
 }
 function profOf(user) {
   const p = getProfile(state, user);
-  return { name: p.name || (user === self ? getName() : ''), color: p.color || autoColor(user), emoji: p.emoji || autoAvatar(user), driver: p.driver };
+  return { name: p.name || (user === self ? getName() : ''), color: p.color || autoColor(user), emoji: p.emoji || autoAvatar(user), driver: p.driver, level: p.level || 0 };
 }
 
 // ---- Log / dedup ----
@@ -357,8 +357,8 @@ function render() {
 
 function renderPresence() {
   const me = profOf(self);
-  const list = [{ user: self, emoji: me.emoji, color: me.color, name: getName() || 'você', online: true, self: true }];
-  if (mesh) for (const p of mesh.peers()) { const pr = profOf(p.user); list.push({ user: p.user, emoji: pr.emoji, color: pr.color, name: pr.name || 'alguém', online: p.online }); }
+  const list = [{ user: self, emoji: me.emoji, color: me.color, name: getName() || 'você', level: me.level, online: true, self: true }];
+  if (mesh) for (const p of mesh.peers()) { const pr = profOf(p.user); list.push({ user: p.user, emoji: pr.emoji, color: pr.color, name: pr.name || 'alguém', level: pr.level, online: p.online }); }
   ui.renderPresence(list);
 }
 
@@ -875,6 +875,37 @@ const handlers = {
   onTournamentReset: () => { store.saveTournament({ name: '', standings: {}, at: 0 }); ui.openTournament({ rank: [] }); ui.toast('Torneio zerado 🆕'); },
   onCard: () => { lastCard = pickCard(pickIndex(1000)); ui.openCard(lastCard); sound.pop(); },
   onCardShow: () => { if (lastCard && mesh) mesh.sendFx({ kind: 'card', emoji: lastCard.emoji, text: lastCard.text }); ui.toast('📣 Carta na mesa!'); },
+  // Passaporte de botecos (check-ins locais, opcionalmente com GPS)
+  onPassport: () => ui.openPassport({ checkins: store.getCheckins(), suggestName: room ? tableInfo(state).title : '' }),
+  onCheckin: (name) => {
+    const nm = ((name || '').trim() || (room ? tableInfo(state).title : '') || 'Boteco').slice(0, 40);
+    const save = (lat, lng) => {
+      store.addCheckin({ name: nm, at: Date.now(), lat, lng });
+      ui.openPassport({ checkins: store.getCheckins() });
+      ui.toast('📍 Check-in salvo!'); sound.pop();
+    };
+    if (navigator.geolocation) {
+      ui.toast('📍 Pegando o local…');
+      navigator.geolocation.getCurrentPosition((pos) => save(pos.coords.latitude, pos.coords.longitude), () => save(null, null), { timeout: 8000 });
+    } else save(null, null);
+  },
+  // Foto da noite: compartilha o arquivo (Web Share) ou baixa (fallback). Fica só local.
+  onPhotoShare: async () => {
+    const ph = ui.currentPhoto();
+    if (!ph) return;
+    try {
+      const blob = await (await fetch(ph.url)).blob();
+      const file = new File([blob], ph.name || 'botequei.jpg', { type: ph.type || blob.type || 'image/jpeg' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Botequei', text: 'Foto da noite 🍺' });
+      } else {
+        const a = document.createElement('a');
+        a.href = ph.url; a.download = ph.name || 'botequei.jpg';
+        document.body.appendChild(a); a.click(); a.remove();
+        ui.toast('Foto salva 📸');
+      }
+    } catch { ui.toast('Não consegui compartilhar 😕'); }
+  },
   onShakeToggle: (on) => { settings = setSettings({ shake: !!on }); if (on) enableShake(); else disableShake(); ui.toast(on ? '📳 Chacoalha pra +1!' : 'Mãos livres desligado'); },
   onTrustContact: () => {
     const digits = (settings.trustPhone || '').replace(/\D/g, '');
@@ -934,7 +965,13 @@ const handlers = {
   onOfflineConnect: offlineConnect,
   onOpenHistory: (code) => enterTable(code),
   onOpenSettings: () => ui.fillSettings(settings),
-  onSetting: (patch) => { settings = setSettings(patch); ui.applyTheme(settings); sound.setEnabled(settings.sound); if (room) render(); },
+  onSetting: (patch) => {
+    settings = setSettings(patch);
+    ui.applyTheme(settings);
+    if ('lang' in patch) ui.applyLang(settings.lang);
+    sound.setEnabled(settings.sound);
+    if (room) render();
+  },
   onClearData: () => {
     for (const k of Object.keys(localStorage)) if (k.startsWith('botequei.')) localStorage.removeItem(k);
     location.reload();
@@ -956,6 +993,7 @@ function parseInvite() {
 function boot() {
   ui.init(handlers);
   ui.applyTheme(settings);
+  ui.applyLang(settings.lang);
   sound.setEnabled(settings.sound);
   if (settings.shake) enableShake();
   ui.setNameInput(getName());
@@ -966,6 +1004,8 @@ function boot() {
     pendingJoin = inv.room; pendingPin = inv.needPin;
     if (getName() && !inv.needPin) enterTable(inv.room);
     else ui.openJoin(inv.room, inv.needPin);
+  } else if (!getName() && !store.getHistory().length) {
+    ui.openWelcome(); // primeiro uso: guia rápido (sem convite pendente)
   }
 
   window.addEventListener('pagehide', () => { if (room) { store.saveEvents(room, log); if (mesh) mesh.sig.leave(); } });

@@ -13,6 +13,7 @@ const DEFAULTS = {
   sex: '',           // 'm'/'f' p/ constante de Widmark ('' = usa média)
   nudges: true,      // avisos de ritmo ("bora uma água?")
   tipPct: 10,        // gorjeta padrão na hora de fechar a conta
+  lang: 'pt',        // idioma do shell ('pt'|'en'|'es'|'auto')
   responsa: false,   // modo responsa: nudges mais firmes e limiares menores
   trustName: '',     // contato de confiança (nome) — pra pedir carona / avisar
   trustPhone: '',    // contato de confiança (telefone, só dígitos) — WhatsApp/ligação

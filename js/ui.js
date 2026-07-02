@@ -128,7 +128,8 @@ export function init(handlers) {
   el['btn-bar'].addEventListener('click', () => H.onBarMode());
   el['btn-passport'].addEventListener('click', () => H.onPassport());
 
-  $('btn-leave').addEventListener('click', () => H.onLeave());
+  // sair da mesa pede confirmação (um toque errado no ‹ não te derruba da mesa)
+  $('btn-leave').addEventListener('click', () => actionToast('Sair da mesa?', 'Sair', () => H.onLeave()));
   $('btn-invite').addEventListener('click', () => H.onInvite());
   $('btn-peers').addEventListener('click', () => H.onPeers());
   $('btn-menu').addEventListener('click', () => { el['overlay-menu'].hidden = false; });

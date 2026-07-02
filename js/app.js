@@ -3,8 +3,8 @@
 import { clientId, getName, setName, newRoomCode } from './identity.js';
 import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar } from './catalog.js';
 import {
-  emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable,
-  getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver,
+  emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour,
+  getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver, happyHour,
 } from './events.js';
 import { badgesFor, milestoneLine } from './achievements.js';
 import { getSettings, setSettings } from './settings.js';
@@ -36,6 +36,7 @@ const self = clientId();
 let settings = getSettings();
 let offlineWaiting = false;   // convidado esperando o anfitrião ler a resposta (fecha sozinho ao conectar)
 let lastTableMilestone = 0;   // comemora a cada 10 rodadas da mesa (marco); sincronizado no sync
+let hhEndedFor = 0;           // 'until' do happy hour cujo fechamento já foi comemorado
 let limitAlerted = false;   // pra a meta alertar uma vez (mesmo se ultrapassar de vez)
 let renderScheduled = false;
 
@@ -85,7 +86,7 @@ function ingest(ev) {
   seen.add(ev.eventId); log.push(ev); applyEvent(state, ev); scheduleSave();
   return true;
 }
-function rebuildFrom(events) { log = []; seen = new Set(); state = emptyState(); for (const ev of events) ingest(ev); lastTableMilestone = Math.floor(tableTotal(state) / 10); }
+function rebuildFrom(events) { log = []; seen = new Set(); state = emptyState(); for (const ev of events) ingest(ev); lastTableMilestone = Math.floor(tableTotal(state) / 10); const hh0 = happyHour(state); hhEndedFor = hh0 && hh0.until <= Date.now() ? hh0.until : 0; }
 function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { if (room) store.saveEvents(room, log); }, 400); }
 
 // evento local: registra + propaga
@@ -150,6 +151,24 @@ function checkTableMilestone() {
     lastTableMilestone = m;
   }
 }
+// Happy hour: atualiza o cronômetro compartilhado e comemora quando fecha.
+function tickHappyHour() {
+  const hh = happyHour(state);
+  const now = Date.now();
+  if (hh && hh.until > now) {
+    const r = hh.until - now;
+    const mm = Math.floor(r / 60000), ss = Math.floor((r % 60000) / 1000);
+    const rounds = Math.max(0, tableTotal(state) - hh.startTotal);
+    ui.setHappyHour(`🍺 HAPPY HOUR · ${mm}:${String(ss).padStart(2, '0')} · ${rounds} rodada${rounds === 1 ? '' : 's'}`);
+  } else {
+    ui.setHappyHour(null);
+    if (hh && hh.until && hhEndedFor !== hh.until) {
+      hhEndedFor = hh.until;
+      const rounds = Math.max(0, tableTotal(state) - hh.startTotal);
+      if (rounds > 0) { ui.celebrate(['🍺', '🏆', '🎉', '🥂']); ui.toast(`🍺 Happy hour fechou: ${rounds} rodada${rounds === 1 ? '' : 's'}!`); }
+    }
+  }
+}
 
 function addCustomItem({ emoji, name, price }) {
   const id = itemIdFromName(name);
@@ -187,6 +206,7 @@ function onFx(fx) {
 function onRemoteEvent(ev, fromPeer, isSync) {
   if (!ingest(ev)) return;
   if (mesh) mesh.broadcast({ k: 'ev', ev }, fromPeer); // gossip
+  if (ev.type === 'HAPPYHOUR' && Number(ev.until) <= Date.now()) hhEndedFor = Number(ev.until); // happy hour já vencido (veio no sync): não comemora
   if (ev.type === 'ADD' && ev.user === self) checkLimit(); // alguém somou pra mim (rodada)
   if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state) / 10); scheduleRender(); return; }
   if (ev.type === 'ADD') checkTableMilestone();
@@ -216,14 +236,16 @@ function render() {
     qty: itemTotal(state, it.id), sub: `você ${getCount(state, self, it.id)}`,
   }));
   const t = tableInfo(state);
+  const tt = tableTotal(state);
   ui.renderTable({
     code: room,
     title: t.title || '',
     myTotal: userTotal(state, self),
-    tableTotal: tableTotal(state),
+    tableTotal: tt,
     peerCount: (mesh ? mesh.connectedCount() : 0) + 1,
     showMoney: list.some((i) => i.price > 0),
     myMoney: userMoney(state, self, resolveItem),
+    heroFill: tt === 0 ? 0 : ((tt - 1) % 10 + 1) / 10 * 100, // nível de chopp: enche a cada 10
     items,
   });
   renderPeers();
@@ -232,6 +254,7 @@ function render() {
   if (mp.length === 0) ui.setConn('Você está sozinho na mesa — toque em MESA pra chamar a turma 🍻');
   else if (online < mp.length) ui.setConn(`Reconectando… 🟡 (${online}/${mp.length} na mesa)`);
   else ui.setConn(null);
+  tickHappyHour();
 }
 
 function renderPeers() {
@@ -327,7 +350,8 @@ function leaveTable() {
   }
   if (mesh) { mesh.close(); mesh = null; }
   store.clearCurrent();
-  room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false; lastTableMilestone = 0;
+  room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false; lastTableMilestone = 0; hhEndedFor = 0;
+  ui.setHappyHour(null);
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
 }
@@ -474,6 +498,13 @@ const handlers = {
   },
   onBebedeira: () => { const id = bebedeiraItem(); ui.openBebedeira({ item: id, emoji: resolveItem(id).emoji, count: getCount(state, self, id) }); },
   onBebedeiraClose: () => render(),
+  onHappyHour: (minutes) => {
+    if (!room) { ui.toast('Entre numa mesa primeiro 🙂'); return; }
+    hhEndedFor = 0;
+    emitLocal(makeHappyHour({ minutes, startTotal: tableTotal(state) }));
+    tickHappyHour();
+    ui.toast(`⏰ Happy hour de ${minutes} min ligado!`);
+  },
   onCopyLink: async () => { try { await navigator.clipboard.writeText(inviteUrl()); ui.toast('Link copiado! 📋'); } catch { ui.toast(inviteUrl()); } },
   onShareInvite: async () => { try { await navigator.share({ title: 'Botequei', text: 'Bora pra mesa!', url: inviteUrl() }); } catch { /* cancelado */ } },
   onNfc: async () => {
@@ -525,8 +556,12 @@ function boot() {
   document.addEventListener('visibilitychange', wake);
   window.addEventListener('focus', wake);
   window.addEventListener('online', wake);
+  // enquanto o usuário não escolher manualmente, segue o tema claro/escuro do sistema
+  try { window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (settings.theme !== 'light' && settings.theme !== 'dark') ui.applyTheme(settings); }); } catch { /* ignore */ }
 
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; ui.showInstall(true); });
+
+  setInterval(() => { if (room) tickHappyHour(); }, 1000);
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 }

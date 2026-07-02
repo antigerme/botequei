@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney } from '../js/events.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, happyHour } from '../js/events.js';
 import { badgesFor, mvp } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
@@ -85,6 +85,18 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   await assert.rejects(() => decodeBlob('não é um código'), 'texto inválido deve lançar');
   await assert.rejects(() => decodeBlob('BQ'), 'código truncado deve lançar');
   ok('handshake: código inválido é rejeitado');
+}
+
+// ---------- Happy hour (LWW) ----------
+{
+  const s = emptyState();
+  assert.strictEqual(happyHour(s), null);
+  applyEvent(s, { type: 'HAPPYHOUR', until: 1000, startTotal: 3, startedBy: 'a', ts: 5, eventId: 'h1' });
+  applyEvent(s, { type: 'HAPPYHOUR', until: 2000, startTotal: 9, startedBy: 'b', ts: 2, eventId: 'h0' }); // ts menor, não vence
+  const hh = happyHour(s);
+  assert.strictEqual(hh.until, 1000);
+  assert.strictEqual(hh.startTotal, 3);
+  ok('happy hour: LWW (maior ts vence)');
 }
 
 console.log(`\n${passed} testes de features passaram ✅`);

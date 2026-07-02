@@ -35,6 +35,11 @@ export function makeProfile({ color, emoji, driver }) {
 export function makeTable({ title, emoji }) {
   return { type: 'TABLE', title: title || '', emoji: emoji || '', ts: Date.now(), eventId: newEventId() };
 }
+// Happy hour: janela cronometrada compartilhada. `until` é timestamp absoluto (ms).
+export function makeHappyHour({ minutes, startTotal }) {
+  const mins = Math.max(1, Math.min(240, Number(minutes) || 30));
+  return { type: 'HAPPYHOUR', until: Date.now() + mins * 60000, startTotal: Number(startTotal) || 0, startedBy: clientId(), ts: Date.now(), eventId: newEventId() };
+}
 
 // ---- Estado ----
 export function emptyState() {
@@ -45,6 +50,7 @@ export function emptyState() {
     users: new Set(),    // ids que registraram algo ou tem perfil
     profiles: new Map(), // user -> { def:{name,color,emoji,driver}, ts, eventId }  (LWW)
     table: null,         // { def:{title,emoji}, ts, eventId }  (LWW)
+    happy: null,         // { def:{until,startTotal,by}, ts, eventId }  (LWW) — happy hour
   };
 }
 
@@ -92,6 +98,10 @@ export function applyEvent(state, ev) {
     }
     case 'TABLE': {
       if (wins(state.table, ev)) state.table = { def: { title: ev.title || '', emoji: ev.emoji || '' }, ts: ev.ts, eventId: ev.eventId };
+      return true;
+    }
+    case 'HAPPYHOUR': {
+      if (wins(state.happy, ev)) state.happy = { def: { until: Number(ev.until) || 0, startTotal: Number(ev.startTotal) || 0, by: ev.startedBy || '' }, ts: ev.ts, eventId: ev.eventId };
       return true;
     }
     default:
@@ -149,6 +159,10 @@ export function getProfile(state, user) {
 
 export function tableInfo(state) {
   return state.table ? state.table.def : { title: '', emoji: '' };
+}
+
+export function happyHour(state) {
+  return state.happy ? state.happy.def : null;
 }
 
 export function isDriver(state, user) {

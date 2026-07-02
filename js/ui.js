@@ -11,21 +11,21 @@ const el = {};
 const IDS = [
   'screen-home', 'screen-table', 'input-name', 'input-code', 'btn-create', 'btn-join-code',
   'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-settings',
-  'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint',
-  'conn-banner', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
+  'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
+  'conn-banner', 'hh-banner', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'btn-brinde', 'btn-react', 'btn-rodada',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
-  'overlay-menu', 'menu-profile', 'menu-board', 'menu-bill', 'menu-prices', 'menu-share', 'menu-bebedeira', 'menu-settings',
+  'overlay-menu', 'menu-profile', 'menu-board', 'menu-bill', 'menu-prices', 'menu-share', 'menu-bebedeira', 'menu-hh', 'menu-settings',
   'overlay-prices', 'price-list',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
   'overlay-additem', 'emoji-row', 'add-name', 'add-price', 'btn-additem-confirm',
   'overlay-bill', 'bill-note', 'bill-service', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
   'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-limit', 'set-water', 'set-pixkey', 'set-pixcity', 'btn-clear-data',
-  'overlay-react', 'react-row',
+  'overlay-react', 'react-row', 'overlay-hh',
   'btn-offline-join', 'btn-offline-host',
   'overlay-offline', 'off-host', 'off-guest',
   'off-offer-qr', 'off-offer-code', 'btn-off-copy-offer', 'btn-off-scan-answer', 'off-answer-in', 'btn-off-connect',
@@ -118,7 +118,9 @@ export function init(handlers) {
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
   $('menu-share').addEventListener('click', () => { closeOverlays(); H.onShareNight(); });
   $('menu-bebedeira').addEventListener('click', () => { closeOverlays(); H.onBebedeira(); });
+  $('menu-hh').addEventListener('click', () => { closeOverlays(); el['overlay-hh'].hidden = false; });
   $('menu-settings').addEventListener('click', () => { closeOverlays(); openSettings(); });
+  el['overlay-hh'].querySelectorAll('button[data-min]').forEach((b) => b.addEventListener('click', () => { H.onHappyHour(Number(b.dataset.min)); closeOverlays(); }));
 
   $('btn-profile-save').addEventListener('click', () => submitProfile());
   $('btn-pix-copy').addEventListener('click', () => H.onPixCopy());
@@ -194,6 +196,7 @@ export function renderTable(vm) {
   el['mesa-code'].textContent = vm.code;
   countTo(el['my-total'], vm.myTotal);
   countTo(el['table-total'], vm.tableTotal);
+  if (el['hero-fill']) el['hero-fill'].style.setProperty('--fill', (vm.heroFill || 0) + '%');
   el['peer-count'].textContent = vm.peerCount;
   el['money-block'].hidden = !vm.showMoney;
   if (vm.showMoney) el['my-money'].textContent = fmtMoney(vm.myMoney);
@@ -235,6 +238,7 @@ export function pulse(itemId, kind) {
   if (!el['bebedeira'].hidden && itemId === bebedeiraItem) { const n = el['bebedeira-count']; n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop'); }
 }
 export function setConn(msg) { const b = el['conn-banner']; if (!msg) { b.hidden = true; return; } b.hidden = false; b.textContent = msg; }
+export function setHappyHour(msg) { const b = el['hh-banner']; if (!msg) { b.hidden = true; return; } b.hidden = false; b.textContent = msg; }
 
 // ---------- Placar / participantes ----------
 export function renderPeers({ rows, selfId, mvp, myBadges }) {
@@ -366,7 +370,7 @@ export function pixCode() { return el['pix-code'].value; }
 // ---------- Configuracoes ----------
 function openSettings() { H.onOpenSettings(); el['overlay-settings'].hidden = false; }
 export function fillSettings(s) {
-  el['set-theme'].checked = s.theme === 'light';
+  el['set-theme'].checked = themeIsLight(s);
   el['set-bigfont'].checked = !!s.bigFont;
   el['set-sound'].checked = !!s.sound;
   el['set-limit'].value = s.limit || '';
@@ -374,8 +378,11 @@ export function fillSettings(s) {
   el['set-pixkey'].value = s.pixKey || '';
   el['set-pixcity'].value = s.pixCity || '';
 }
+function prefersLight() { try { return window.matchMedia('(prefers-color-scheme: light)').matches; } catch { return false; } }
+// 'light'/'dark' = escolha explícita do usuário; qualquer outro valor ('auto') segue o sistema.
+export function themeIsLight(s) { return s.theme === 'light' || (s.theme !== 'dark' && prefersLight()); }
 export function applyTheme(s) {
-  document.body.classList.toggle('light', s.theme === 'light');
+  document.body.classList.toggle('light', themeIsLight(s));
   document.body.classList.toggle('bigfont', !!s.bigFont);
 }
 

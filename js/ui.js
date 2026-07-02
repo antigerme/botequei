@@ -47,7 +47,7 @@ const IDS = [
   'menu-purrinha', 'overlay-purrinha', 'purr-sub', 'purr-pick', 'purr-hands', 'purr-guesses', 'btn-purr-seal',
   'purr-wait', 'purr-waitcount', 'purr-seals', 'purr-result', 'purr-total', 'purr-reveals', 'purr-verdict',
   'btn-purr-again', 'btn-purr-close',
-  'menu-domino', 'overlay-domino', 'btn-dom-close', 'dom-opps', 'dom-turn', 'dom-board', 'dom-result',
+  'menu-domino', 'overlay-domino', 'btn-dom-close', 'dom-opps', 'dom-turn', 'dom-ends', 'dom-board', 'dom-result',
   'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
   'btn-dom-pass', 'btn-dom-again',
   'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
@@ -1091,19 +1091,28 @@ function domHalf(n) {
   for (let i = 0; i < 9; i++) cells += `<i class="dp${on.has(i) ? ' on' : ''}"></i>`;
   return `<span class="dom-half">${cells}</span>`;
 }
-function domTileHTML(a, b, extra) { return `<span class="dom-tile${extra ? ' ' + extra : ''}">${domHalf(a)}${domHalf(b)}</span>`; }
+// pedra: dobra (carroça) fica atravessada (metades empilhadas); na mão fica sempre deitada (flat).
+function domTileHTML(a, b, { flat = false, cls = '' } = {}) {
+  const dbl = (!flat && a === b) ? ' dbl' : '';
+  return `<span class="dom-tile${dbl}${cls ? ' ' + cls : ''}">${domHalf(a)}${domHalf(b)}</span>`;
+}
+function domFace(n) { return `<span class="dom-face">${domHalf(n)}</span>`; }
 let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolha de ponta
 export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }
 export function renderDomino(vm) {
   el['dom-opps'].innerHTML = (vm.opponents || []).map((o) => `<span class="dom-opp${o.isTurn ? ' turn' : ''}">
-    <span class="dom-oav">${esc(o.avatar || '🍺')}</span><span class="dom-oname">${esc(o.name)}</span><span class="dom-ocount">🁫${o.count}</span></span>`).join('');
-  el['dom-board'].innerHTML = (vm.board || []).map((t) => domTileHTML(t.a, t.b)).join('') || '<span class="dom-empty">começando…</span>';
-  el['dom-board'].scrollLeft = el['dom-board'].scrollWidth;
+    <span class="dom-oav">${esc(o.avatar || '🍺')}</span><span class="dom-oname">${esc(o.name)}</span><span class="dom-ocount">🁫 ${o.count}</span></span>`).join('');
   el['dom-turn'].textContent = vm.turn || '';
   el['dom-turn'].className = 'dom-turn' + (vm.myTurn ? ' mine' : '');
+  // banner de pontas abertas (o que dá pra encaixar) — é o que importa pra jogar
+  const hasBoard = (vm.board || []).length > 0;
+  el['dom-ends'].hidden = !hasBoard;
+  if (hasBoard) el['dom-ends'].innerHTML = `<span class="dom-endlbl">pontas</span>${domFace(vm.ends[0])}<span class="dom-endsep">…</span>${domFace(vm.ends[1])}`;
+  // tabuleiro: quebra em linhas (sem scroll horizontal); carroças atravessadas
+  el['dom-board'].innerHTML = (vm.board || []).map((t) => domTileHTML(t.a, t.b)).join('') || '<span class="dom-empty">começando…</span>';
   el['dom-hand'].innerHTML = (vm.hand || []).map((h) => {
     const playable = h.sides.length > 0 && vm.myTurn;
-    return `<button class="dom-htile${playable ? '' : ' dim'}" data-key="${h.key}" data-sides="${h.sides.join('')}"${playable ? '' : ' disabled'}>${domTileHTML(h.a, h.b)}</button>`;
+    return `<button class="dom-htile${playable ? ' can' : ' dim'}" data-key="${h.key}" data-sides="${h.sides.join('')}"${playable ? '' : ' disabled'}>${domTileHTML(h.a, h.b, { flat: true })}</button>`;
   }).join('');
   el['dom-hand'].querySelectorAll('.dom-htile').forEach((b) => b.addEventListener('click', () => {
     const sides = (b.dataset.sides || '').split('').filter(Boolean);

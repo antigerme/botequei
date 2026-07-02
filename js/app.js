@@ -252,8 +252,26 @@ function rodada() {
 // ---- Efeitos sociais ----
 function onBrinde() { ui.brinde(); if (mesh) mesh.sendFx({ kind: 'brinde' }); }
 function onReact(emoji) { ui.floatReaction(emoji); if (mesh) mesh.sendFx({ kind: 'react', emoji }); }
-function onFx(fx) {
+
+// Jogos (dominó/purrinha) precisam que TODA jogada chegue em todo mundo, mesmo se a malha não
+// estiver 100% completa (4 pessoas = 6 links; algum par pode faltar/precisar de TURN). Diferente
+// das reações, essas fx levam um `mid` e são repassadas (gossip) com dedup — igual aos eventos.
+let fxSeq = 0;
+const seenFx = new Set();
+function gameFx(fx) {
+  if (!mesh) return;
+  fx.mid = self + ':' + (fxSeq++);
+  seenFx.add(fx.mid);
+  mesh.sendFx(fx);
+}
+function onFx(fx, fromId) {
   if (!fx) return;
+  // gossip com dedup só pras fx de jogo (têm mid): ignora repetida, repassa a nova pros outros
+  if (fx.mid && (fx.kind === 'domino' || fx.kind === 'purrinha')) {
+    if (seenFx.has(fx.mid)) return;
+    seenFx.add(fx.mid);
+    if (mesh) mesh.broadcast({ k: 'fx', fx }, fromId);
+  }
   if (fx.kind === 'brinde') ui.brinde();
   else if (fx.kind === 'react') ui.floatReaction(fx.emoji || '🍻');
   else if (fx.kind === 'roulette') { if (Array.isArray(fx.entrants)) ui.runRoulette(fx.entrants, fx.winner); }
@@ -503,7 +521,7 @@ function leaveTable() {
   room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false;
   lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastNudge = 0; lastAwards = [];
   prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set(); concernAt = new Map();
-  purr = null; dom = null;
+  purr = null; dom = null; seenFx.clear();
   ui.setHappyHour(null);
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
@@ -677,7 +695,7 @@ function startPurrinha() {
   const entrants = purrEntrants();
   if (entrants.length < 2) { ui.toast('Precisa de pelo menos 2 na mesa 🫲'); return; }
   const gameId = randomNonce().slice(0, 8);
-  if (mesh) mesh.sendFx({ kind: 'purrinha', ph: 'invite', gameId, entrants });
+  gameFx({ kind: 'purrinha', ph: 'invite', gameId, entrants });
   beginPurrinha(gameId, entrants);
 }
 function beginPurrinha(gameId, entrants) {
@@ -693,7 +711,7 @@ async function purrSeal(hand, guess) {
   purr.mine = { hand, guess, nonce, commit };
   purr.commits.set(self, commit);
   purr.phase = 'sealed';
-  if (mesh) mesh.sendFx({ kind: 'purrinha', ph: 'commit', gameId: purr.gameId, from: self, commit });
+  gameFx({ kind: 'purrinha', ph: 'commit', gameId: purr.gameId, from: self, commit });
   sound.pop();
   renderPurrWait();
   maybePurrReveal();
@@ -716,7 +734,7 @@ function maybePurrReveal() {
   if (!exp.every((id) => purr.commits.has(id))) return; // ainda faltam lacres
   if (!purr.reveals.has(self)) {
     purr.reveals.set(self, { ...purr.mine });
-    if (mesh) mesh.sendFx({ kind: 'purrinha', ph: 'reveal', gameId: purr.gameId, from: self, hand: purr.mine.hand, guess: purr.mine.guess, nonce: purr.mine.nonce });
+    gameFx({ kind: 'purrinha', ph: 'reveal', gameId: purr.gameId, from: self, hand: purr.mine.hand, guess: purr.mine.guess, nonce: purr.mine.nonce });
   }
   maybePurrResolve();
 }
@@ -750,7 +768,7 @@ function maybePurrResolve() {
 }
 function cancelPurrinha(broadcast) {
   if (!purr) return;
-  if (broadcast && purr.phase !== 'revealed' && mesh) mesh.sendFx({ kind: 'purrinha', ph: 'cancel', gameId: purr.gameId });
+  if (broadcast && purr.phase !== 'revealed') gameFx({ kind: 'purrinha', ph: 'cancel', gameId: purr.gameId });
   purr = null;
 }
 
@@ -807,7 +825,7 @@ function domBlocked() {
   if (!dom || dom.phase === 'reveal') return;
   dom.phase = 'reveal';
   dom.reveals.set(self, dom.myHand.slice());
-  if (mesh) mesh.sendFx({ kind: 'domino', ph: 'reveal', gameId: dom.gameId, from: self, hand: dom.myHand });
+  gameFx({ kind: 'domino', ph: 'reveal', gameId: dom.gameId, from: self, hand: dom.myHand });
   domResolveBlock();
 }
 function domResolveBlock() {
@@ -825,13 +843,13 @@ function myDomPlay(key, side) {
   if (!dom || dom.over || dom.order[dom.turnIdx] !== self) { ui.toast('Calma, não é sua vez 🙂'); return; }
   const tile = dom.myHand.find((t) => domKey(t) === key);
   if (!tile || !place(dom.chain, dom.ends, tile, side)) { ui.toast('Essa não encaixa aí 🙂'); return; }
-  if (mesh) mesh.sendFx({ kind: 'domino', ph: 'play', gameId: dom.gameId, from: self, tile, side });
+  gameFx({ kind: 'domino', ph: 'play', gameId: dom.gameId, from: self, tile, side });
   domApplyPlay(self, tile, side); sound.pop(); renderDom(); domCelebrate();
 }
 function myDomPass() {
   if (!dom || dom.over || dom.order[dom.turnIdx] !== self) return;
   if (legalMoves(dom.myHand, dom.ends).length) { ui.toast('Você tem encaixe — não pode passar'); return; }
-  if (mesh) mesh.sendFx({ kind: 'domino', ph: 'pass', gameId: dom.gameId, from: self });
+  gameFx({ kind: 'domino', ph: 'pass', gameId: dom.gameId, from: self });
   domApplyPass(self); renderDom(); domCelebrate();
 }
 function domCelebrate() {
@@ -1029,7 +1047,7 @@ const handlers = {
   onDomino: startDomino,
   onDomPlay: (key, side) => myDomPlay(key, side),
   onDomPass: myDomPass,
-  onDomCancel: () => { if (dom && !dom.over && mesh) mesh.sendFx({ kind: 'domino', ph: 'cancel', gameId: dom.gameId }); dom = null; },
+  onDomCancel: () => { if (dom && !dom.over) gameFx({ kind: 'domino', ph: 'cancel', gameId: dom.gameId }); dom = null; },
   onPoke: openPokeFor,
   onPokeSend: sendPoke,
   onCeremony: openCeremony,

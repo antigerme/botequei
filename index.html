@@ -181,6 +181,7 @@
       <p class="menu-sec">Mesa</p>
       <button class="menu-item" id="menu-board">🏆 Placar &amp; conquistas</button>
       <button class="menu-item" id="menu-roulette">🎰 Quem paga a próxima?</button>
+      <button class="menu-item" id="menu-purrinha">🫲 Purrinha</button>
       <button class="menu-item" id="menu-water">💧 Rodada de água</button>
       <button class="menu-item" id="menu-jukebox">🎵 Jukebox</button>
       <button class="menu-item" id="menu-festa">🎉 Modo festa</button>
@@ -608,6 +609,39 @@
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="btn-card-again">🎴 Outra</button>
       <button class="btn btn-primary" id="btn-card-show">📣 Mostrar pra mesa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Purrinha (P2P honesta via commit-reveal) -->
+<div class="overlay" id="overlay-purrinha" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" id="btn-purr-close">✕</button>
+    <h2>🫲 Purrinha</h2>
+    <p class="sheet-sub" id="purr-sub">Escolha sua mão e chute o total da mesa. Tudo lacrado — abre junto.</p>
+
+    <!-- 1) escolher (mão + palpite), lacrar -->
+    <div id="purr-pick">
+      <div class="purr-lbl">Sua mão <small>(palitos escondidos)</small></div>
+      <div class="purr-opts" id="purr-hands"></div>
+      <div class="purr-lbl">Seu palpite do total da mesa</div>
+      <div class="purr-opts purr-opts-wrap" id="purr-guesses"></div>
+      <button class="btn btn-primary btn-lg" id="btn-purr-seal" disabled>🔒 Lacrar</button>
+    </div>
+
+    <!-- 2) aguardando os lacres -->
+    <div id="purr-wait" hidden>
+      <div class="purr-waitbig" id="purr-waitcount">🔒 0/0</div>
+      <div class="purr-waitsub">Esperando a galera lacrar…</div>
+      <ul class="purr-seals" id="purr-seals"></ul>
+    </div>
+
+    <!-- 3) revelação -->
+    <div id="purr-result" hidden>
+      <div class="purr-total" id="purr-total"></div>
+      <ul class="purr-reveals" id="purr-reveals"></ul>
+      <div class="purr-verdict" id="purr-verdict"></div>
+      <button class="btn btn-primary btn-lg" id="btn-purr-again">🫲 Jogar de novo</button>
     </div>
   </div>
 </div>

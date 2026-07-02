@@ -13,6 +13,7 @@ import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro } from './li
 import { levelFor, weeklyChallenges, seasonAward } from './league.js';
 import { mergeNight, rankTournament } from './tournament.js';
 import { pickCard } from './deck.js';
+import { clampHand, maxGuess as purrMax, randomNonce, makeCommit, verifyReveal, resolve as purrResolve } from './purrinha.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
@@ -261,6 +262,12 @@ function onFx(fx) {
   else if (fx.kind === 'waiter') receiveWaiter(fx);
   else if (fx.kind === 'water') { ui.floatReaction('💧'); ui.celebrate(['💧', '💦', '🚰']); ui.toast('💧 Rodada de água na mesa!'); sound.plus(); }
   else if (fx.kind === 'card') { ui.openCard({ emoji: fx.emoji, text: fx.text }); sound.pop(); }
+  else if (fx.kind === 'purrinha') {
+    if (fx.ph === 'invite') { if (!purr || purr.gameId !== fx.gameId) beginPurrinha(fx.gameId, fx.entrants); }
+    else if (fx.ph === 'commit') onPurrCommit(fx);
+    else if (fx.ph === 'reveal') onPurrReveal(fx);
+    else if (fx.ph === 'cancel') { if (purr && purr.gameId === fx.gameId && purr.phase !== 'revealed') { purr = null; ui.closeOverlays(); ui.toast('🫲 Purrinha cancelada'); } }
+  }
 }
 
 // Mãos livres: chacoalhar o celular soma +1 (do item mais consumido). Cooldown + guarda.
@@ -488,6 +495,7 @@ function leaveTable() {
   room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false;
   lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastNudge = 0; lastAwards = [];
   prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set(); concernAt = new Map();
+  purr = null;
   ui.setHappyHour(null);
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
@@ -641,6 +649,101 @@ function doRoulette() {
   const winner = entrants[pickIndex(entrants.length)].user;
   if (mesh) mesh.sendFx({ kind: 'roulette', entrants, winner });
   ui.runRoulette(entrants, winner);
+}
+
+// ---- Purrinha (P2P honesta via commit-reveal; efêmera, não entra no log) ----
+let purr = null; // { gameId, entrants:[{id,name,avatar,color}], mine, commits:Map, reveals:Map, phase, cheats:Set }
+function purrEntrants() {
+  const me = profOf(self);
+  const out = [{ id: self, name: getName() || 'você', avatar: me.emoji, color: me.color }];
+  if (mesh) for (const p of mesh.peers()) if (p.online) { const pr = profOf(p.user); out.push({ id: p.user, name: pr.name || 'alguém', avatar: pr.emoji, color: pr.color }); }
+  return out;
+}
+function purrOnline(id) { if (id === self) return true; if (!mesh) return false; const p = mesh.peers().find((x) => x.user === id); return !!(p && p.online); }
+// só cobra lacre/reveal de quem ainda está online (dropout não trava o jogo)
+function purrExpected() { return purr ? purr.entrants.filter((e) => purrOnline(e.id)).map((e) => e.id) : []; }
+function purrName(id) { return profOf(id).name || (purr.entrants.find((e) => e.id === id) || {}).name || 'alguém'; }
+
+function startPurrinha() {
+  if (!room) { ui.toast('Entre numa mesa 🙂'); return; }
+  const entrants = purrEntrants();
+  if (entrants.length < 2) { ui.toast('Precisa de pelo menos 2 na mesa 🫲'); return; }
+  const gameId = randomNonce().slice(0, 8);
+  if (mesh) mesh.sendFx({ kind: 'purrinha', ph: 'invite', gameId, entrants });
+  beginPurrinha(gameId, entrants);
+}
+function beginPurrinha(gameId, entrants) {
+  purr = { gameId, entrants, mine: null, commits: new Map(), reveals: new Map(), phase: 'pick', cheats: new Set() };
+  ui.openPurrinha({ entrants, maxGuess: purrMax(entrants.length) });
+}
+async function purrSeal(hand, guess) {
+  if (!purr || purr.mine) return;
+  hand = clampHand(hand);
+  guess = Math.max(0, Math.min(purrMax(purr.entrants.length), Math.floor(Number(guess) || 0)));
+  const nonce = randomNonce();
+  const commit = await makeCommit(hand, guess, nonce);
+  purr.mine = { hand, guess, nonce, commit };
+  purr.commits.set(self, commit);
+  purr.phase = 'sealed';
+  if (mesh) mesh.sendFx({ kind: 'purrinha', ph: 'commit', gameId: purr.gameId, from: self, commit });
+  sound.pop();
+  renderPurrWait();
+  maybePurrReveal();
+}
+function renderPurrWait() {
+  if (!purr) return;
+  const exp = purrExpected();
+  const seals = purr.entrants.filter((e) => exp.includes(e.id)).map((e) => ({ name: purrName(e.id), sealed: purr.commits.has(e.id) }));
+  ui.purrinhaSealed({ count: exp.filter((id) => purr.commits.has(id)).length, total: exp.length, seals });
+}
+function onPurrCommit(fx) {
+  if (!purr || fx.gameId !== purr.gameId) return;
+  purr.commits.set(fx.from, fx.commit);
+  if (purr.phase === 'sealed') renderPurrWait();
+  maybePurrReveal();
+}
+function maybePurrReveal() {
+  if (!purr || !purr.mine || purr.phase === 'revealed') return;
+  const exp = purrExpected();
+  if (!exp.every((id) => purr.commits.has(id))) return; // ainda faltam lacres
+  if (!purr.reveals.has(self)) {
+    purr.reveals.set(self, { ...purr.mine });
+    if (mesh) mesh.sendFx({ kind: 'purrinha', ph: 'reveal', gameId: purr.gameId, from: self, hand: purr.mine.hand, guess: purr.mine.guess, nonce: purr.mine.nonce });
+  }
+  maybePurrResolve();
+}
+async function onPurrReveal(fx) {
+  if (!purr || fx.gameId !== purr.gameId) return;
+  const commit = purr.commits.get(fx.from);
+  const good = commit && await verifyReveal({ hand: fx.hand, guess: fx.guess, nonce: fx.nonce, commit });
+  if (!good) { purr.cheats.add(fx.from); ui.toast(`🚫 ${purrName(fx.from)} tentou trapacear na purrinha!`); return; }
+  purr.reveals.set(fx.from, { hand: fx.hand, guess: fx.guess, nonce: fx.nonce });
+  maybePurrReveal();  // o lacre dele pode ter sido o último que faltava pra eu revelar
+  maybePurrResolve();
+}
+function maybePurrResolve() {
+  if (!purr || purr.phase === 'revealed') return;
+  const exp = purrExpected();
+  if (!exp.length || !exp.every((id) => purr.reveals.has(id))) return;
+  purr.phase = 'revealed';
+  const reveals = exp.map((id) => ({ id, hand: purr.reveals.get(id).hand, guess: purr.reveals.get(id).guess }));
+  const r = purrResolve(reveals);
+  const rows = reveals.map((x) => ({
+    name: purrName(x.id), avatar: profOf(x.id).emoji, hand: x.hand, guess: x.guess,
+    isSeer: r.seers.includes(x.id), isLoser: x.id === r.loserId, isSelf: x.id === self,
+  })).sort((a, b) => (b.isSeer - a.isSeer) || (a.isLoser - b.isLoser));
+  let verdict;
+  if (r.loserId === self) verdict = { text: '💸 Você paga a próxima!', kind: 'lose' };
+  else if (r.seers.includes(self)) verdict = { text: '🔮 Você é vidente! Cravou o total.', kind: 'win' };
+  else if (r.loserId) verdict = { text: `💸 ${purrName(r.loserId)} paga a próxima!`, kind: 'other' };
+  else verdict = { text: '🔮 Todo mundo cravou! Ninguém paga 😎', kind: 'win' };
+  ui.purrinhaResult({ total: r.total, rows, verdict });
+  if (verdict.kind === 'win') { sound.cheers(); ui.celebrate(['🔮', '🫲', '🎉', '🍻']); } else { sound.alarm(); ui.vibrate([80, 40, 80]); }
+}
+function cancelPurrinha(broadcast) {
+  if (!purr) return;
+  if (broadcast && purr.phase !== 'revealed' && mesh) mesh.sendFx({ kind: 'purrinha', ph: 'cancel', gameId: purr.gameId });
+  purr = null;
 }
 
 // ---- Cutucar / desafiar ----
@@ -810,6 +913,9 @@ const handlers = {
   onPace: openPace,
   onRoulette: () => { if (!room) { ui.toast('Entre numa mesa 🙂'); return; } ui.openRoulette({ entrants: connectedEntrants() }); },
   onRouletteSpin: doRoulette,
+  onPurrinha: startPurrinha,
+  onPurrSeal: (hand, guess) => purrSeal(hand, guess),
+  onPurrCancel: () => cancelPurrinha(true),
   onPoke: openPokeFor,
   onPokeSend: sendPoke,
   onCeremony: openCeremony,

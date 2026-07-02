@@ -24,32 +24,35 @@
     <div class="home-hero">
       <div class="logo">🍺</div>
       <h1 class="brand">Botequei</h1>
-      <p class="tagline">Ninguém mais perde a conta da rodada.</p>
+      <p class="tagline" data-i18n="tagline">Ninguém mais perde a conta da rodada.</p>
     </div>
 
     <div class="home-card">
       <label class="field">
-        <span>Seu apelido na mesa</span>
+        <span data-i18n="name.label">Seu apelido na mesa</span>
         <input id="input-name" type="text" inputmode="text" maxlength="20"
-               autocomplete="nickname" placeholder="ex: André" />
+               autocomplete="nickname" placeholder="ex: André" data-i18n-ph="name.ph" />
       </label>
 
       <button class="btn btn-primary btn-lg" id="btn-create">
-        <span class="btn-emoji">➕</span> Criar mesa
+        <span class="btn-emoji">➕</span> <span data-i18n="create">Criar mesa</span>
       </button>
 
       <div class="join-row">
         <input id="input-code" type="text" inputmode="text" maxlength="8"
-               placeholder="código" class="code-input" autocapitalize="characters" />
-        <button class="btn btn-ghost" id="btn-join-code">Entrar</button>
+               placeholder="código" class="code-input" autocapitalize="characters" data-i18n-ph="code.ph" />
+        <button class="btn btn-ghost" id="btn-join-code" data-i18n="join">Entrar</button>
       </div>
 
-      <button class="btn btn-ghost btn-offline" id="btn-offline-join">📴 Entrar sem internet</button>
+      <button class="btn btn-ghost btn-offline" id="btn-offline-join" data-i18n="offline">📴 Entrar sem internet</button>
       <div class="home-row">
-        <button class="btn btn-ghost btn-stats" id="btn-stats">📊 Meus números</button>
-        <button class="btn btn-ghost" id="btn-retro">🎞️ Retrô</button>
+        <button class="btn btn-ghost btn-stats" id="btn-stats" data-i18n="stats">📊 Meus números</button>
+        <button class="btn btn-ghost" id="btn-retro" data-i18n="retro">🎞️ Retrô</button>
       </div>
-      <button class="btn btn-ghost" id="btn-bar">🍺 Modo bar</button>
+      <div class="home-row">
+        <button class="btn btn-ghost" id="btn-bar" data-i18n="bar">🍺 Modo bar</button>
+        <button class="btn btn-ghost" id="btn-passport" data-i18n="passport">🗺️ Passaporte</button>
+      </div>
     </div>
 
     <div class="home-history" id="home-history" hidden>
@@ -191,6 +194,7 @@
       <button class="menu-item" id="menu-bill">💸 Fechar a conta</button>
       <button class="menu-item" id="menu-prices">💲 Preços do cardápio</button>
       <p class="menu-sec">Extra</p>
+      <button class="menu-item" id="menu-photo">📷 Foto da noite</button>
       <button class="menu-item" id="menu-share">📸 Compartilhar a noite</button>
       <button class="menu-item" id="menu-settings">⚙️ Configurações</button>
     </div>
@@ -294,16 +298,30 @@
 <div class="overlay" id="overlay-settings" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>Configurações</h2>
-    <label class="check"><input type="checkbox" id="set-theme" /><span>☀️ Tema claro</span></label>
-    <label class="check"><input type="checkbox" id="set-bigfont" /><span>🔎 Fonte grande</span></label>
-    <label class="check"><input type="checkbox" id="set-sound" /><span>🔊 Sons</span></label>
+    <h2 data-i18n="set.title">Configurações</h2>
+    <label class="field field-inline"><span data-i18n="set.theme">Tema</span>
+      <select id="set-theme">
+        <option value="auto">Auto</option>
+        <option value="dark">Escuro (lousa)</option>
+        <option value="light">Claro (kraft)</option>
+        <option value="neon">Neon</option>
+        <option value="retro">Retrô</option>
+      </select></label>
+    <label class="field field-inline"><span data-i18n="set.lang">🌎 Idioma</span>
+      <select id="set-lang">
+        <option value="pt">Português</option>
+        <option value="en">English</option>
+        <option value="es">Español</option>
+        <option value="auto">Auto</option>
+      </select></label>
+    <label class="check"><input type="checkbox" id="set-bigfont" /><span data-i18n="set.bigfont">🔎 Fonte grande</span></label>
+    <label class="check"><input type="checkbox" id="set-sound" /><span data-i18n="set.sound">🔊 Sons</span></label>
     <label class="field field-inline"><span>🎯 Meta de bebidas (alerta)</span>
       <input id="set-limit" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" /></label>
     <label class="field field-inline"><span>💧 Lembrar água a cada</span>
       <input id="set-water" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" /></label>
-    <label class="check"><input type="checkbox" id="set-nudges" /><span>🐢 Avisos de ritmo (bora uma água?)</span></label>
-    <label class="check"><input type="checkbox" id="set-shake" /><span>📳 Chacoalhar o celular pra +1 (mãos livres)</span></label>
+    <label class="check"><input type="checkbox" id="set-nudges" /><span data-i18n="set.nudges">🐢 Avisos de ritmo (bora uma água?)</span></label>
+    <label class="check"><input type="checkbox" id="set-shake" /><span data-i18n="set.shake">📳 Chacoalhar o celular pra +1 (mãos livres)</span></label>
     <p class="lbl">📈 Estimar teor alcoólico (opcional, fica só neste aparelho)</p>
     <label class="field field-inline"><span>⚖️ Peso (kg)</span>
       <input id="set-weight" type="number" inputmode="numeric" min="0" max="300" step="1" placeholder="0 = não estima" /></label>
@@ -590,6 +608,53 @@
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="btn-card-again">🎴 Outra</button>
       <button class="btn btn-primary" id="btn-card-show">📣 Mostrar pra mesa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Passaporte de botecos (check-ins locais) -->
+<div class="overlay" id="overlay-passport" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>🗺️ Passaporte de botecos</h2>
+    <p class="sheet-sub" id="passport-count">Marque os lugares que você já foi. Fica só no seu aparelho.</p>
+    <label class="field"><span>Nome do lugar</span>
+      <div class="join-row">
+        <input id="passport-name" type="text" maxlength="30" placeholder="ex: Bar do Zé" class="code-input" />
+        <button class="btn btn-primary" id="btn-passport-checkin">📍 Check-in</button>
+      </div>
+    </label>
+    <ul class="passport-list" id="passport-list"></ul>
+  </div>
+</div>
+
+<!-- Foto da noite -->
+<div class="overlay" id="overlay-photo" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>📷 Foto da noite</h2>
+    <div class="photo-wrap" id="photo-wrap"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="btn-photo-retake">🔄 Outra</button>
+      <button class="btn btn-primary" id="btn-photo-share">📸 Compartilhar</button>
+    </div>
+  </div>
+</div>
+<input id="photo-input" type="file" accept="image/*" capture="environment" hidden />
+
+<!-- Guia de boas-vindas (primeiro uso) -->
+<div class="overlay" id="overlay-welcome" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2 data-i18n="welcome.title">Bem-vindo ao Botequei! 🍺</h2>
+    <ul class="welcome-list">
+      <li>🍺 <b>1 toque</b> = +1 · <b>segure</b> = −1</li>
+      <li>📴 Tudo é <b>P2P</b>: os dados vivem só nos celulares, sem servidor</li>
+      <li>👥 Crie a mesa e mostre o <b>QR</b> — a galera entra escaneando</li>
+      <li>🛟 Tem <b>consciência</b> (ritmo/teor) e <b>cuidado</b> pra voltar bem</li>
+    </ul>
+    <div class="sheet-actions">
+      <button class="btn btn-primary btn-lg" id="btn-welcome-go">Bora! 🍻</button>
     </div>
   </div>
 </div>

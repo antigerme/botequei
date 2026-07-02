@@ -4,6 +4,7 @@
 import { EMOJIS, COLORS, AVATARS, CATEGORIES, catOf } from './catalog.js';
 import { scanQR, scanSupported } from './scan.js';
 import * as music from './music.js';
+import { t, applyI18n, setLang } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 let H = {};
@@ -11,7 +12,7 @@ const el = {};
 
 const IDS = [
   'screen-home', 'screen-table', 'input-name', 'input-code', 'btn-create', 'btn-join-code',
-  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-bar',
+  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-bar', 'btn-passport',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'btn-brinde', 'btn-react', 'btn-rodada',
@@ -21,14 +22,14 @@ const IDS = [
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
   'overlay-menu', 'menu-profile', 'menu-board', 'menu-pace', 'menu-safe', 'menu-league', 'menu-roulette',
   'menu-water', 'menu-jukebox', 'menu-festa', 'menu-card', 'menu-tournament', 'menu-bill', 'menu-prices',
-  'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-share', 'menu-stats', 'menu-settings',
+  'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list', 'btn-save-menu',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
   'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'btn-additem-confirm',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
   'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-limit', 'set-water', 'set-nudges',
-  'set-weight', 'set-sex', 'set-responsa', 'set-carapp', 'set-trustname', 'set-trustphone',
+  'set-lang', 'set-weight', 'set-sex', 'set-responsa', 'set-carapp', 'set-trustname', 'set-trustphone',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
   'overlay-pace', 'pace-summary', 'pace-bar', 'pace-label', 'pace-chart', 'pace-bac', 'pace-coach',
@@ -43,6 +44,9 @@ const IDS = [
   'set-shake',
   'overlay-tournament', 'tourn-list', 'btn-tourn-add', 'btn-tourn-reset',
   'overlay-card', 'card-draw', 'btn-card-again', 'btn-card-show',
+  'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
+  'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
+  'overlay-welcome', 'btn-welcome-go',
   'overlay-retro', 'retro-slides', 'btn-retro-share',
   'overlay-league', 'league-level', 'league-challenges', 'league-season',
   'overlay-bar', 'bar-code', 'bar-usemenu-field', 'bar-usemenu', 'bar-menu-count', 'btn-bar-open',
@@ -115,6 +119,7 @@ export function init(handlers) {
   el['btn-stats'].addEventListener('click', () => H.onStats());
   el['btn-retro'].addEventListener('click', () => H.onRetro());
   el['btn-bar'].addEventListener('click', () => H.onBarMode());
+  el['btn-passport'].addEventListener('click', () => H.onPassport());
 
   $('btn-leave').addEventListener('click', () => H.onLeave());
   $('btn-invite').addEventListener('click', () => H.onInvite());
@@ -152,6 +157,7 @@ export function init(handlers) {
   $('menu-waiter').addEventListener('click', () => { closeOverlays(); H.onWaiter(); });
   $('menu-bebedeira').addEventListener('click', () => { closeOverlays(); H.onBebedeira(); });
   $('menu-ceremony').addEventListener('click', () => { closeOverlays(); H.onCeremony(); });
+  $('menu-photo').addEventListener('click', () => { closeOverlays(); el['photo-input'].click(); });
   $('menu-share').addEventListener('click', () => { closeOverlays(); H.onShareNight(); });
   $('menu-stats').addEventListener('click', () => { closeOverlays(); H.onStats(); });
   $('menu-settings').addEventListener('click', () => { closeOverlays(); openSettings(); });
@@ -175,6 +181,11 @@ export function init(handlers) {
   el['btn-tourn-reset'].addEventListener('click', () => H.onTournamentReset());
   el['btn-card-again'].addEventListener('click', () => H.onCard());
   el['btn-card-show'].addEventListener('click', () => H.onCardShow());
+  el['btn-passport-checkin'].addEventListener('click', () => H.onCheckin(el['passport-name'].value));
+  el['photo-input'].addEventListener('change', () => showPhoto());
+  el['btn-photo-retake'].addEventListener('click', () => el['photo-input'].click());
+  el['btn-photo-share'].addEventListener('click', () => H.onPhotoShare());
+  el['btn-welcome-go'].addEventListener('click', () => closeOverlays());
 
   $('btn-profile-save').addEventListener('click', () => submitProfile());
   $('btn-pix-copy').addEventListener('click', () => H.onPixCopy());
@@ -188,7 +199,8 @@ export function init(handlers) {
   el['btn-bill-share'].addEventListener('click', () => H.onBillShare());
 
   // configuracoes: aplicar ao mudar
-  el['set-theme'].addEventListener('change', () => H.onSetting({ theme: el['set-theme'].checked ? 'light' : 'dark' }));
+  el['set-theme'].addEventListener('change', () => H.onSetting({ theme: el['set-theme'].value }));
+  el['set-lang'].addEventListener('change', () => H.onSetting({ lang: el['set-lang'].value }));
   el['set-bigfont'].addEventListener('change', () => H.onSetting({ bigFont: el['set-bigfont'].checked }));
   el['set-sound'].addEventListener('change', () => H.onSetting({ sound: el['set-sound'].checked }));
   el['set-limit'].addEventListener('change', () => H.onSetting({ limit: Math.max(0, parseInt(el['set-limit'].value, 10) || 0) }));
@@ -387,7 +399,7 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
     const net = r.user === selfId ? '<span class="peer-net" title="você">📱</span>' : netHTML(r);
     return `<li class="peer-row" data-user="${esc(r.user)}">
       <span class="peer-medal">${medal}</span>
-      <span class="peer-avatar" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
+      <span class="peer-avatar ${frameClass(r.level)}" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
       <button class="peer-main" aria-label="Ver comanda de ${esc(r.name || 'anônimo')}">
         <span class="peer-name">${esc(r.name || 'anônimo')} ${r.level > 1 ? `<span class="lvl-chip">Nv${r.level}</span>` : ''} ${r.user === selfId ? '<span class="peer-you">(você)</span>' : ''} ${r.driver ? '🚗' : ''}</span>
         <span class="peer-badges">${badges}${r.money ? ' · ' + fmtMoney(r.money) : ''}</span>
@@ -556,7 +568,8 @@ export function pixCode() { return el['pix-code'].value; }
 // ---------- Configuracoes ----------
 function openSettings() { H.onOpenSettings(); el['overlay-settings'].hidden = false; }
 export function fillSettings(s) {
-  el['set-theme'].checked = themeIsLight(s);
+  el['set-theme'].value = s.theme || 'auto';
+  el['set-lang'].value = s.lang || 'pt';
   el['set-bigfont'].checked = !!s.bigFont;
   el['set-sound'].checked = !!s.sound;
   el['set-limit'].value = s.limit || '';
@@ -573,12 +586,23 @@ export function fillSettings(s) {
   el['set-pixcity'].value = s.pixCity || '';
 }
 function prefersLight() { try { return window.matchMedia('(prefers-color-scheme: light)').matches; } catch { return false; } }
-// 'light'/'dark' = escolha explícita do usuário; qualquer outro valor ('auto') segue o sistema.
-export function themeIsLight(s) { return s.theme === 'light' || (s.theme !== 'dark' && prefersLight()); }
+// 'auto' segue o sistema (claro/escuro); senão usa o tema escolhido (dark/light/neon/retro).
+function resolveTheme(s) {
+  const th = s.theme || 'auto';
+  if (th === 'auto') return prefersLight() ? 'light' : 'dark';
+  return ['dark', 'light', 'neon', 'retro'].includes(th) ? th : 'dark';
+}
+export function themeIsLight(s) { return resolveTheme(s) === 'light'; }
 export function applyTheme(s) {
-  document.body.classList.toggle('light', themeIsLight(s));
+  const th = resolveTheme(s);
+  document.body.classList.remove('light', 'neon', 'retro');
+  if (th !== 'dark') document.body.classList.add(th);
   document.body.classList.toggle('bigfont', !!s.bigFont);
 }
+// Idioma: aplica o dicionário no shell (elementos com data-i18n).
+export function applyLang(pref) { setLang(pref); applyI18n(); }
+// Moldura do avatar conforme o nível (liga).
+function frameClass(level) { level = Number(level) || 0; return level >= 5 ? 'fr-gold' : level >= 3 ? 'fr-silver' : ''; }
 
 // ---------- Reações ----------
 const REACTIONS = ['🍻', '🔥', '👏', '😂', '❤️', '🤢', '🎉', '🥴'];
@@ -905,7 +929,7 @@ export function renderPresence(list) {
   const others = (list || []).filter((p) => !p.self);
   if (!others.length) { bar.hidden = true; bar.innerHTML = ''; return; }
   bar.hidden = false;
-  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' off'}" title="${esc(p.name || '')}" style="background:${safeColor(p.color)}">${esc(p.emoji || '🍺')}</span>`).join('');
+  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' off'} ${frameClass(p.level)}" title="${esc(p.name || '')}" style="background:${safeColor(p.color)}">${esc(p.emoji || '🍺')}</span>`).join('');
 }
 
 // ---------- Comanda individual ----------
@@ -1041,6 +1065,46 @@ function stopFesta() {
   if (festaRAF) { cancelAnimationFrame(festaRAF); festaRAF = null; }
   music.stop();
 }
+
+// ---------- Passaporte de botecos (check-ins locais) ----------
+export function openPassport(vm) {
+  const list = (vm && vm.checkins) || [];
+  const places = new Set(list.map((c) => c.name || 'Boteco')).size;
+  el['passport-count'].textContent = list.length
+    ? `${list.length} check-in${list.length === 1 ? '' : 's'} · ${places} lugar${places === 1 ? '' : 'es'}`
+    : 'Marque os botecos por onde você passou. Fica só no seu aparelho.';
+  el['passport-list'].innerHTML = list.map((c) => {
+    const d = new Date(c.at);
+    const when = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    const map = (c.lat != null && c.lng != null) ? `https://maps.google.com/?q=${c.lat},${c.lng}` : '';
+    return `<li class="pass-row"><span class="pass-pin">📍</span>
+      <div class="pass-main"><span class="pass-name">${esc(c.name || 'Boteco')}</span><span class="pass-when">${when}</span></div>
+      ${map ? `<a class="pass-map" href="${map}" target="_blank" rel="noopener" aria-label="ver no mapa">🗺️</a>` : ''}</li>`;
+  }).join('') || '<li class="pass-row">Nenhum check-in ainda 🥲</li>';
+  el['passport-name'].value = (vm && vm.suggestName) || '';
+  el['overlay-passport'].hidden = false;
+  setTimeout(() => { try { el['passport-name'].focus(); } catch { /* ignore */ } }, 60);
+}
+
+// ---------- Foto da noite (álbum local) ----------
+let lastPhoto = null;
+function showPhoto() {
+  const f = el['photo-input'].files && el['photo-input'].files[0];
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    lastPhoto = { url: String(rd.result), name: f.name || 'boteco.jpg', type: f.type || 'image/jpeg' };
+    el['photo-wrap'].innerHTML = `<img src="${lastPhoto.url}" alt="foto da noite" />`;
+    el['overlay-photo'].hidden = false;
+    el['photo-input'].value = '';
+  };
+  rd.onerror = () => { toast('Não consegui abrir a foto 😕'); el['photo-input'].value = ''; };
+  rd.readAsDataURL(f);
+}
+export function currentPhoto() { return lastPhoto; }
+
+// ---------- Guia de boas-vindas (primeira vez) ----------
+export function openWelcome() { el['overlay-welcome'].hidden = false; }
 
 // ---------- Overlays / toast ----------
 export function closeOverlays() {

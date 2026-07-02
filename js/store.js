@@ -68,6 +68,11 @@ export function getTournament() {
 }
 export function saveTournament(t) { writeJSON(K_TOURN, t && t.standings ? t : { name: '', standings: {}, at: 0 }); }
 
+// ---- Passaporte de botecos (check-ins locais) ----
+const K_PASS = 'botequei.passport';
+export function getCheckins() { const v = readJSON(K_PASS, []); return Array.isArray(v) ? v : []; }
+export function addCheckin(c) { const list = getCheckins(); list.unshift(c); writeJSON(K_PASS, list.slice(0, 100)); return list; }
+
 // ---- Backup (exportar/importar tudo que é local do Botequei) ----
 export function exportAll() {
   const data = {};

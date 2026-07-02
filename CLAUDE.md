@@ -2,7 +2,8 @@
 
 Contador de consumo de boteco: **PWA mobile-first, peer-to-peer (WebRTC), sem servidor de
 dados**. Cada celular registra consumo (+1 num toque, −1 no toque longo) e tudo sincroniza em
-tempo real entre os navegadores. UI em **pt-BR**.
+tempo real entre os navegadores. UI em **pt-BR** (com pt/en/es via `js/i18n.js`; toasts seguem
+em pt-BR).
 
 ## Rodar / testar
 - **Servidor local:** `php -S 0.0.0.0:8000` (serve tudo; precisa só de **PHP 8.x**, sem npm/banco).
@@ -61,9 +62,17 @@ tempo real entre os navegadores. UI em **pt-BR**.
   `weeklyChallenges` (semana atual + noite em curso) e `seasonAward` (troféu do mês).
 - **Modo bar**: `store.saveBarMenu`/`getBarMenu` guardam o cardápio (defs de `ITEM`) pra reusar;
   ao abrir "mesa do bar" com código fixo, o app re-emite os `ITEM` salvos.
+- **Alcance & cara**: `js/i18n.js` (dicionário pt/en/es + `t`/`applyI18n` sobre `[data-i18n]`/
+  `[data-i18n-ph]` — só o shell; toasts seguem pt-BR); temas **auto/dark/light/neon/retro**
+  (`resolveTheme`/`applyTheme` em `ui.js`, paletas via CSS vars em `body.neon`/`body.retro`);
+  **molduras** de avatar por nível da liga (`frameClass` → `.fr-silver`/`.fr-gold`); **passaporte**
+  de botecos (`store.getCheckins`/`addCheckin` — check-in local, GPS opcional, só no aparelho);
+  **foto da noite** (só preview/compartilhar via Web Share — nada é salvo/enviado) e **guia de
+  boas-vindas** no 1º uso (sem nome nem histórico e sem convite pendente).
 - **Persistência:** só `localStorage` (`js/store.js`; histórico por mesa com meus itens, gasto,
   duração e **`mates`** — quem estava na mesa, p/ o "com quem você mais bebeu"; `exportAll`/
-  `importAll` = backup JSON; `saveBarMenu`/`getBarMenu` = cardápio do bar). Nada central.
+  `importAll` = backup JSON; `saveBarMenu`/`getBarMenu` = cardápio do bar;
+  `getCheckins`/`addCheckin` = passaporte de botecos). Nada central.
 - **Acessibilidade**: diálogos com `role="dialog"`/foco preso/ESC (`setupA11y` em `ui.js`),
   `:focus-visible`, `prefers-reduced-motion` (corta confete/animações), rótulos ARIA.
 - **TURN opcional** (`turn.php`): credenciais efêmeras da Cloudflare, lidas de env var /
@@ -81,7 +90,8 @@ tempo real entre os navegadores. UI em **pt-BR**.
 - `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia/retrô)
 - `js/sound.js` — efeitos (WebAudio) · `js/music.js` — trilha lo-fi procedural + espectro (WebAudio, fora do puro)
 - `js/tournament.js` — placar acumulado da galera (puro) · `js/deck.js` — cartas de desafio (puro)
-- `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, overlays (ritmo/roleta/cutucar/cerimônia/números/conta)
+- `js/i18n.js` — dicionário pt/en/es + `applyI18n` sobre o shell (puro)
+- `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, temas (auto/dark/light/neon/retro), i18n do shell, molduras por nível, overlays (ritmo/roleta/cutucar/cerimônia/números/conta/passaporte/foto/boas-vindas)
 - `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)
 - `signaling.php`, `turn.php` — servidor mínimo (handshake / credenciais TURN)
 - `tools/gen_icons.php` — gera os PNGs de `icons/` (build; **não expor na web**)

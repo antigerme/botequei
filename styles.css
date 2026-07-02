@@ -251,6 +251,28 @@ body.light .sheet { background: linear-gradient(180deg, #fdf6e6, #f2e7cd); }
 body.light .chip, body.light .toast, body.light .fx-plus { background: #fbf2df; }
 body.light .sheet-close { background: var(--card); }
 
+/* Tema neon: balada — roxo profundo + rosa/âmbar elétrico */
+body.neon {
+  --bg: #0c0a1e; --bg-soft: #16112e; --card: #1a1338; --card-hi: #241a4d;
+  --line: #4a2f7a; --chalk-line: rgba(200,160,255,.28); --cream: #f3ebff; --muted: #a79bd0;
+  --gold: #ff5cc8; --gold-deep: #b23c9c;
+}
+body.neon { background:
+  radial-gradient(rgba(180,120,255,.06) .5px, transparent .6px) 0 0 / 7px 7px,
+  radial-gradient(135% 100% at 50% -10%, #1a1140 0%, #0c0a1e 55%, #060418 100%); }
+body.neon .btn-primary { box-shadow: 0 0 16px rgba(255,92,200,.5); }
+body.neon .total-num, body.neon .item-qty { text-shadow: 0 0 14px rgba(255,92,200,.5); }
+
+/* Tema retrô: boteco anos 70 — laranja queimado + madeira */
+body.retro {
+  --bg: #2a1a0e; --bg-soft: #35210f; --card: #3d2712; --card-hi: #4a3016;
+  --line: #6e4a24; --chalk-line: rgba(255,210,150,.3); --cream: #ffe9c9; --muted: #c8a878;
+  --gold: #ff8c1a; --gold-deep: #d46a00;
+}
+body.retro { background:
+  radial-gradient(rgba(255,180,90,.05) .5px, transparent .6px) 0 0 / 7px 7px,
+  radial-gradient(135% 100% at 50% -10%, #3a2410 0%, #2a1a0e 60%, #1a0f06 100%); }
+
 /* Fonte grande (acessibilidade) */
 body.bigfont { font-size: 20px; }
 body.bigfont .item-name { font-size: 22px; }
@@ -582,3 +604,28 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
   #app { max-width: 960px; }
   .items-grid { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* ===================== Leva 6 — molduras, passaporte, foto, boas-vindas ===================== */
+
+/* Molduras do avatar conforme o nível da liga (prata a partir do nv3, ouro do nv5) */
+.peer-avatar.fr-silver, .pres-av.fr-silver { box-shadow: 0 0 0 2px #d3d7de, 0 0 0 4px rgba(211,215,222,.35); }
+.peer-avatar.fr-gold, .pres-av.fr-gold { box-shadow: 0 0 0 2px var(--gold), 0 0 0 4px rgba(244,177,60,.4); }
+
+/* Passaporte de botecos */
+.passport-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px; }
+.pass-row { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.pass-pin { font-size: 20px; flex: none; }
+.pass-main { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.pass-name { font-weight: 400; color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pass-when { font-size: 13px; color: var(--muted); }
+.pass-map { text-decoration: none; font-size: 20px; flex: none; padding: 4px; }
+
+/* Foto da noite (álbum local) */
+.photo-wrap { border-radius: 14px; overflow: hidden; background: var(--card); min-height: 160px; display: grid; place-items: center; }
+.photo-wrap img { display: block; width: 100%; max-height: 60vh; object-fit: contain; }
+.photo-wrap:empty::after { content: "📷"; font-size: 48px; opacity: .5; }
+
+/* Guia de boas-vindas */
+.welcome-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; }
+.welcome-list li { display: flex; gap: 10px; align-items: baseline; font-size: 16px; line-height: 1.35; }
+.welcome-list b { color: var(--gold); }

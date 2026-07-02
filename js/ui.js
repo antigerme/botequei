@@ -1039,9 +1039,15 @@ function purrPhase(which) {
   el['purr-wait'].hidden = which !== 'wait';
   el['purr-result'].hidden = which !== 'result';
 }
+// mão como palitos de verdade (0 = punho fechado)
+function purrSticks(n, sm) {
+  n = Math.max(0, Number(n) || 0);
+  if (n === 0) return `<span class="purr-fist${sm ? ' sm' : ''}">✊</span>`;
+  return `<span class="purr-hsticks${sm ? ' sm' : ''}">${'<i class="pstick"></i>'.repeat(n)}</span>`;
+}
 export function openPurrinha(vm) {
   purrPick = { hand: null, guess: null };
-  el['purr-hands'].innerHTML = [0, 1, 2, 3].map((n) => `<button class="purr-opt" data-hand="${n}">${n}</button>`).join('');
+  el['purr-hands'].innerHTML = [0, 1, 2, 3].map((n) => `<button class="purr-hand" data-hand="${n}"><span class="purr-hvis">${purrSticks(n)}</span><span class="purr-hn">${n}</span></button>`).join('');
   const mg = Math.max(0, vm.maxGuess || 0);
   let gs = '';
   for (let i = 0; i <= mg; i++) gs += `<button class="purr-opt" data-guess="${i}">${i}</button>`;
@@ -1049,7 +1055,7 @@ export function openPurrinha(vm) {
   const sync = () => { el['btn-purr-seal'].disabled = purrPick.hand == null || purrPick.guess == null; };
   el['purr-hands'].querySelectorAll('[data-hand]').forEach((b) => b.addEventListener('click', () => {
     purrPick.hand = Number(b.dataset.hand);
-    el['purr-hands'].querySelectorAll('.purr-opt').forEach((x) => x.classList.toggle('on', x === b));
+    el['purr-hands'].querySelectorAll('.purr-hand').forEach((x) => x.classList.toggle('on', x === b));
     sync();
   }));
   el['purr-guesses'].querySelectorAll('[data-guess]').forEach((b) => b.addEventListener('click', () => {
@@ -1063,18 +1069,21 @@ export function openPurrinha(vm) {
 }
 export function purrinhaSealed(vm) {
   el['purr-waitcount'].textContent = `🔒 ${vm.count}/${vm.total}`;
-  el['purr-seals'].innerHTML = (vm.seals || []).map((s) => `<li class="purr-seal${s.sealed ? ' done' : ''}"><span>${s.sealed ? '🔒' : '⏳'}</span> ${esc(s.name)}</li>`).join('');
+  el['purr-seals'].innerHTML = (vm.seals || []).map((s) => `<li class="purr-seal${s.sealed ? ' done' : ''}">
+    <span class="purr-sav">${esc(s.avatar || '🍺')}</span><span class="purr-sname">${esc(s.name)}</span>
+    <span class="purr-sst">${s.sealed ? '🔒 lacrou' : '⏳ escolhendo…'}</span></li>`).join('');
   purrPhase('wait');
   el['overlay-purrinha'].hidden = false;
 }
 export function purrinhaResult(vm) {
-  el['purr-total'].textContent = `Total da mesa: ${vm.total}`;
+  el['purr-total'].innerHTML = `Total da mesa <b>${vm.total}</b>`;
   el['purr-reveals'].innerHTML = (vm.rows || []).map((r) => {
     const tag = r.isSeer ? '<span class="purr-tag seer">🔮 vidente</span>' : (r.isLoser ? '<span class="purr-tag loser">💸 paga</span>' : '');
     return `<li class="purr-rev${r.isSeer ? ' seer' : ''}${r.isLoser ? ' loser' : ''}">
       <span class="purr-av">${esc(r.avatar || '🍺')}</span>
       <span class="purr-rname">${esc(r.name)}${r.isSelf ? ' <small>(você)</small>' : ''}</span>
-      <span class="purr-nums">✋${r.hand} · 🎯${r.guess}</span>
+      <span class="purr-rhand">${purrSticks(r.hand, true)}</span>
+      <span class="purr-rguess">🎯 ${r.guess}</span>
       ${tag}</li>`;
   }).join('');
   el['purr-verdict'].className = 'purr-verdict ' + (vm.verdict.kind || '');

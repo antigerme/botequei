@@ -546,6 +546,28 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
 .festa-hint { color: var(--muted); font-family: var(--hand); font-size: 18px; }
 .overlay-full .sheet-close { position: absolute; top: calc(16px + var(--safe-t)); right: 18px; z-index: 2; }
 
+/* ===================== Leva 5 (torneio, carta, coach) ===================== */
+
+/* Coach no ritmo */
+.pace-coach { margin-top: 12px; padding: 12px; background: rgba(255, 255, 255, .03); border: 2px dashed var(--chalk-line); border-radius: 14px; }
+.pace-coach:empty { display: none; }
+.coach-head { font-family: var(--hand); font-size: 18px; color: var(--gold); margin-bottom: 6px; }
+.coach-proj { color: var(--cream); font-size: 15px; margin-bottom: 6px; }
+.coach-tip { color: var(--muted); font-size: 15px; padding: 3px 0; }
+
+/* Torneio */
+.tourn-list { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 8px; counter-reset: t; }
+.tourn-row { display: flex; align-items: center; gap: 12px; background: rgba(255, 255, 255, .03); border: 2px dashed var(--chalk-line); border-radius: 12px; padding: 11px 13px; }
+.tourn-medal { font-size: 20px; width: 30px; text-align: center; flex: none; }
+.tourn-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tourn-pts { font-family: var(--num); color: var(--gold); flex: none; }
+.tourn-pts small { font-family: var(--hand); color: var(--muted); }
+
+/* Carta da mesa */
+.card-draw { background: linear-gradient(180deg, rgba(244, 177, 60, .12), rgba(255, 255, 255, .02)); border: 2px dashed var(--gold); border-radius: 16px; padding: 26px 18px; text-align: center; margin: 6px 0 4px; }
+.card-emoji { font-size: 64px; line-height: 1; }
+.card-text { font-family: var(--hand); font-size: 22px; color: var(--cream); margin-top: 10px; }
+
 /* ---------- Telas largas (tablet/desktop): aproveita o espaço ---------- */
 @media (min-width: 720px) {
   #app { max-width: 760px; }

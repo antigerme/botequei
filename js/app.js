@@ -8,9 +8,11 @@ import {
   paysFor, payerOf, songs,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
-import { paceInfo, timeline, estimateBAC, lastDrinkAt, hydration, driveVerdict } from './stats.js';
+import { paceInfo, timeline, estimateBAC, lastDrinkAt, hydration, driveVerdict, projectAt, coachTips } from './stats.js';
 import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro } from './lifestats.js';
 import { levelFor, weeklyChallenges, seasonAward } from './league.js';
+import { mergeNight, rankTournament } from './tournament.js';
+import { pickCard } from './deck.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
@@ -52,6 +54,8 @@ let sessionMates = new Set(); // nomes que apareceram na mesa (p/ "com quem voc�
 let pendingBarMenu = false;  // ao abrir "mesa do bar", carrega o cardápio salvo
 let lastRetro = null;        // dados da última retrospectiva (p/ compartilhar)
 let concernAt = new Map();   // cooldown do "cuida do fulano" por pessoa
+let lastCard = null;         // última carta sorteada (p/ mostrar pra mesa)
+let shakeHandler = null, shakeLast = 0; // mãos livres (chacoalhar pra +1)
 
 // itens alcoolicos (motorista nao registra esses; contam pro lembrete de agua)
 const ALCOHOL = new Set(['cerveja', 'chopp', 'dose', 'drink']);
@@ -256,7 +260,29 @@ function onFx(fx) {
   else if (fx.kind === 'ceremony') { if (Array.isArray(fx.awards)) ui.openCeremony({ awards: fx.awards }); }
   else if (fx.kind === 'waiter') receiveWaiter(fx);
   else if (fx.kind === 'water') { ui.floatReaction('💧'); ui.celebrate(['💧', '💦', '🚰']); ui.toast('💧 Rodada de água na mesa!'); sound.plus(); }
+  else if (fx.kind === 'card') { ui.openCard({ emoji: fx.emoji, text: fx.text }); sound.pop(); }
 }
+
+// Mãos livres: chacoalhar o celular soma +1 (do item mais consumido). Cooldown + guarda.
+function enableShake() {
+  if (shakeHandler) return;
+  const attach = () => {
+    shakeHandler = (e) => {
+      const a = e.accelerationIncludingGravity || e.acceleration;
+      if (!a) return;
+      const mag = Math.abs(a.x || 0) + Math.abs(a.y || 0) + Math.abs(a.z || 0);
+      if (mag > 34 && Date.now() - shakeLast > 1200) {
+        shakeLast = Date.now();
+        if (room && !document.querySelector('.overlay:not([hidden])') && !ui.isBebedeira()) act('ADD', bebedeiraItem());
+      }
+    };
+    window.addEventListener('devicemotion', shakeHandler);
+  };
+  if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+    DeviceMotionEvent.requestPermission().then((r) => { if (r === 'granted') attach(); else ui.toast('Precisa permitir o movimento 📳'); }).catch(() => {});
+  } else attach();
+}
+function disableShake() { if (shakeHandler) { window.removeEventListener('devicemotion', shakeHandler); shakeHandler = null; } }
 function receiveWaiter(fx) {
   ui.toast(`🔔 ${fx.fromName || 'Alguém'} chamou o garçom!`);
   sound.alarm(); ui.vibrate([80, 40, 80]); ui.floatReaction('🔔');
@@ -592,7 +618,11 @@ function openPace() {
   const p = paceInfo(log, self, resolveItem, { now });
   const tl = timeline(log, self, resolveItem, { now, buckets: 12 });
   const bac = settings.weightKg > 0 ? estimateBAC(log, self, resolveItem, { now, weightKg: settings.weightKg, sex: settings.sex }) : null;
-  ui.openPace({ count: p.count, spanMs: p.spanMs, recent: p.recent, level: p.level, label: p.label, bars: tl.bars, bac });
+  const hyd = hydration(log, self, resolveItem);
+  const mid = new Date(now); mid.setHours(24, 0, 0, 0); // próxima meia-noite
+  const proj = projectAt(log, self, resolveItem, { now, targetTs: mid.getTime() });
+  const coach = { predicted: p.count > 0 ? proj.predicted : null, tips: coachTips(p, hyd, bac) };
+  ui.openPace({ count: p.count, spanMs: p.spanMs, recent: p.recent, level: p.level, label: p.label, bars: tl.bars, bac, coach });
 }
 
 // ---- Roleta: quem paga a próxima (sincronizada via fx) ----
@@ -832,6 +862,20 @@ const handlers = {
       try { window.open(`https://wa.me/${num}?text=${msg}`, '_blank', 'noopener'); } catch { /* ignore */ }
     }, () => ui.toast('Não consegui a localização 😕'), { timeout: 8000 });
   },
+  onTournament: () => ui.openTournament({ rank: rankTournament(store.getTournament().standings) }),
+  onTournamentAdd: () => {
+    if (!room) { ui.toast('Entre numa mesa 🙂'); return; }
+    const rows = summary(state, resolveItem).map((r) => ({ name: profOf(r.user).name, points: 10 + getCount(state, r.user, 'agua') }));
+    const t = store.getTournament();
+    const merged = { name: t.name || 'Torneio da galera', standings: mergeNight(t.standings, rows), at: Date.now() };
+    store.saveTournament(merged);
+    ui.openTournament({ rank: rankTournament(merged.standings) });
+    ui.toast('🏟️ Noite somada ao torneio!');
+  },
+  onTournamentReset: () => { store.saveTournament({ name: '', standings: {}, at: 0 }); ui.openTournament({ rank: [] }); ui.toast('Torneio zerado 🆕'); },
+  onCard: () => { lastCard = pickCard(pickIndex(1000)); ui.openCard(lastCard); sound.pop(); },
+  onCardShow: () => { if (lastCard && mesh) mesh.sendFx({ kind: 'card', emoji: lastCard.emoji, text: lastCard.text }); ui.toast('📣 Carta na mesa!'); },
+  onShakeToggle: (on) => { settings = setSettings({ shake: !!on }); if (on) enableShake(); else disableShake(); ui.toast(on ? '📳 Chacoalha pra +1!' : 'Mãos livres desligado'); },
   onTrustContact: () => {
     const digits = (settings.trustPhone || '').replace(/\D/g, '');
     if (!digits) { ui.toast('Configure um contato de confiança nas ⚙️'); return; }
@@ -913,6 +957,7 @@ function boot() {
   ui.init(handlers);
   ui.applyTheme(settings);
   sound.setEnabled(settings.sound);
+  if (settings.shake) enableShake();
   ui.setNameInput(getName());
   ui.renderHome(store.getHistory());
 

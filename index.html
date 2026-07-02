@@ -181,6 +181,8 @@
       <button class="menu-item" id="menu-water">💧 Rodada de água</button>
       <button class="menu-item" id="menu-jukebox">🎵 Jukebox</button>
       <button class="menu-item" id="menu-festa">🎉 Modo festa</button>
+      <button class="menu-item" id="menu-card">🃏 Carta da mesa</button>
+      <button class="menu-item" id="menu-tournament">🏟️ Torneio da galera</button>
       <button class="menu-item" id="menu-hh">⏰ Happy hour</button>
       <button class="menu-item" id="menu-waiter">🔔 Chamar o garçom</button>
       <button class="menu-item" id="menu-bebedeira">🥴 Modo bebedeira</button>
@@ -301,6 +303,7 @@
     <label class="field field-inline"><span>💧 Lembrar água a cada</span>
       <input id="set-water" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" /></label>
     <label class="check"><input type="checkbox" id="set-nudges" /><span>🐢 Avisos de ritmo (bora uma água?)</span></label>
+    <label class="check"><input type="checkbox" id="set-shake" /><span>📳 Chacoalhar o celular pra +1 (mãos livres)</span></label>
     <p class="lbl">📈 Estimar teor alcoólico (opcional, fica só neste aparelho)</p>
     <label class="field field-inline"><span>⚖️ Peso (kg)</span>
       <input id="set-weight" type="number" inputmode="numeric" min="0" max="300" step="1" placeholder="0 = não estima" /></label>
@@ -419,6 +422,7 @@
     <p class="pace-label" id="pace-label"></p>
     <canvas class="pace-chart" id="pace-chart" width="600" height="150"></canvas>
     <div class="pace-bac" id="pace-bac"></div>
+    <div class="pace-coach" id="pace-coach"></div>
     <p class="seal">Estimativa leve, não é bafômetro. Bebeu? Não dirija. 🚗🚫</p>
   </div>
 </div>
@@ -560,6 +564,33 @@
     <button class="sheet-close" id="btn-festa-close">✕</button>
     <canvas class="festa-canvas" id="festa-canvas" width="480" height="300"></canvas>
     <p class="festa-hint">🎉 modo festa · trilha lo-fi tocando</p>
+  </div>
+</div>
+
+<!-- Torneio da galera (placar acumulado entre noites) -->
+<div class="overlay" id="overlay-tournament" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>🏟️ Torneio da galera</h2>
+    <p class="sheet-sub">Pontos por <b>aparecer</b> e por <b>se hidratar</b> — não por beber mais. Some cada noite.</p>
+    <ol class="tourn-list" id="tourn-list"></ol>
+    <div class="sheet-actions">
+      <button class="btn btn-primary" id="btn-tourn-add">➕ Somar esta noite</button>
+      <button class="btn btn-ghost" id="btn-tourn-reset">🆕 Recomeçar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Carta da mesa (deck de desafios) -->
+<div class="overlay" id="overlay-card" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>🃏 Carta da mesa</h2>
+    <div class="card-draw" id="card-draw"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="btn-card-again">🎴 Outra</button>
+      <button class="btn btn-primary" id="btn-card-show">📣 Mostrar pra mesa</button>
+    </div>
   </div>
 </div>
 

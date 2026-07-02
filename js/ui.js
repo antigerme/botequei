@@ -20,7 +20,7 @@ const IDS = [
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
   'overlay-menu', 'menu-profile', 'menu-board', 'menu-pace', 'menu-safe', 'menu-league', 'menu-roulette',
-  'menu-water', 'menu-jukebox', 'menu-festa', 'menu-bill', 'menu-prices',
+  'menu-water', 'menu-jukebox', 'menu-festa', 'menu-card', 'menu-tournament', 'menu-bill', 'menu-prices',
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list', 'btn-save-menu',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
@@ -31,7 +31,7 @@ const IDS = [
   'set-weight', 'set-sex', 'set-responsa', 'set-carapp', 'set-trustname', 'set-trustphone',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
-  'overlay-pace', 'pace-summary', 'pace-bar', 'pace-label', 'pace-chart', 'pace-bac',
+  'overlay-pace', 'pace-summary', 'pace-bar', 'pace-label', 'pace-chart', 'pace-bac', 'pace-coach',
   'overlay-roulette', 'roulette-list', 'roulette-result', 'btn-roulette-spin',
   'overlay-poke', 'poke-title', 'poke-actions',
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
@@ -40,6 +40,9 @@ const IDS = [
   'overlay-safe', 'safe-verdict', 'safe-rows', 'btn-safe-car', 'btn-safe-trust', 'btn-safe-home',
   'overlay-jukebox', 'jukebox-input', 'btn-jukebox-add', 'jukebox-list',
   'overlay-festa', 'festa-canvas', 'btn-festa-close',
+  'set-shake',
+  'overlay-tournament', 'tourn-list', 'btn-tourn-add', 'btn-tourn-reset',
+  'overlay-card', 'card-draw', 'btn-card-again', 'btn-card-show',
   'overlay-retro', 'retro-slides', 'btn-retro-share',
   'overlay-league', 'league-level', 'league-challenges', 'league-season',
   'overlay-bar', 'bar-code', 'bar-usemenu-field', 'bar-usemenu', 'bar-menu-count', 'btn-bar-open',
@@ -141,6 +144,8 @@ export function init(handlers) {
   $('menu-water').addEventListener('click', () => { closeOverlays(); H.onWaterRound(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
   $('menu-festa').addEventListener('click', () => { closeOverlays(); openFesta(); });
+  $('menu-card').addEventListener('click', () => { closeOverlays(); H.onCard(); });
+  $('menu-tournament').addEventListener('click', () => { closeOverlays(); H.onTournament(); });
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
   $('menu-hh').addEventListener('click', () => { closeOverlays(); el['overlay-hh'].hidden = false; });
@@ -166,6 +171,10 @@ export function init(handlers) {
   el['btn-safe-home'].addEventListener('click', () => H.onGoHome());
   el['btn-jukebox-add'].addEventListener('click', () => submitSong());
   el['btn-festa-close'].addEventListener('click', () => closeOverlays());
+  el['btn-tourn-add'].addEventListener('click', () => H.onTournamentAdd());
+  el['btn-tourn-reset'].addEventListener('click', () => H.onTournamentReset());
+  el['btn-card-again'].addEventListener('click', () => H.onCard());
+  el['btn-card-show'].addEventListener('click', () => H.onCardShow());
 
   $('btn-profile-save').addEventListener('click', () => submitProfile());
   $('btn-pix-copy').addEventListener('click', () => H.onPixCopy());
@@ -185,6 +194,7 @@ export function init(handlers) {
   el['set-limit'].addEventListener('change', () => H.onSetting({ limit: Math.max(0, parseInt(el['set-limit'].value, 10) || 0) }));
   el['set-water'].addEventListener('change', () => H.onSetting({ waterEvery: Math.max(0, parseInt(el['set-water'].value, 10) || 0) }));
   el['set-nudges'].addEventListener('change', () => H.onSetting({ nudges: el['set-nudges'].checked }));
+  el['set-shake'].addEventListener('change', () => H.onShakeToggle(el['set-shake'].checked));
   el['set-weight'].addEventListener('change', () => H.onSetting({ weightKg: Math.max(0, Math.min(300, parseInt(el['set-weight'].value, 10) || 0)) }));
   el['set-sex'].addEventListener('change', () => H.onSetting({ sex: el['set-sex'].value }));
   el['set-responsa'].addEventListener('change', () => H.onSetting({ responsa: el['set-responsa'].checked }));
@@ -552,6 +562,7 @@ export function fillSettings(s) {
   el['set-limit'].value = s.limit || '';
   el['set-water'].value = s.waterEvery || '';
   el['set-nudges'].checked = s.nudges !== false;
+  el['set-shake'].checked = !!s.shake;
   el['set-weight'].value = s.weightKg || '';
   el['set-sex'].value = s.sex || '';
   el['set-responsa'].checked = !!s.responsa;
@@ -747,6 +758,13 @@ export function openPace(vm) {
       ${vm.bac.canDrive ? '' : '<div class="bac-drive">🚗🚫 nem pensar em dirigir</div>'}`;
   } else {
     el['pace-bac'].innerHTML = '<div class="bac-lbl">Quer estimar teu teor alcoólico? Bota teu peso nas ⚙️ configurações.</div>';
+  }
+  if (vm.coach) {
+    const proj = vm.coach.predicted != null ? `<div class="coach-proj">🔮 No seu ritmo, ~<b>${vm.coach.predicted}</b> até a meia-noite</div>` : '';
+    const tips = (vm.coach.tips || []).map((t) => `<div class="coach-tip">${esc(t)}</div>`).join('');
+    el['pace-coach'].innerHTML = `<div class="coach-head">🧠 Coach do boteco</div>${proj}${tips}`;
+  } else {
+    el['pace-coach'].innerHTML = '';
   }
   el['overlay-pace'].hidden = false;
 }
@@ -956,6 +974,22 @@ export function openBar(vm) {
   el['bar-menu-count'].textContent = n;
   el['bar-usemenu'].checked = n > 0;
   el['overlay-bar'].hidden = false;
+}
+
+// ---------- Torneio da galera ----------
+export function openTournament(vm) {
+  el['tourn-list'].innerHTML = (vm.rank || []).map((r, i) => `<li class="tourn-row">
+    <span class="tourn-medal">${['🥇', '🥈', '🥉'][i] || (i + 1 + 'º')}</span>
+    <span class="tourn-name">${esc(r.name)}</span>
+    <span class="tourn-pts">${r.points} pts <small>· ${r.nights} noite${r.nights === 1 ? '' : 's'}</small></span></li>`).join('')
+    || '<li class="tourn-row">Sem torneio ainda — some a primeira noite! 🏟️</li>';
+  el['overlay-tournament'].hidden = false;
+}
+
+// ---------- Carta da mesa (deck) ----------
+export function openCard(vm) {
+  el['card-draw'].innerHTML = `<div class="card-emoji">${esc(vm.emoji || '🃏')}</div><div class="card-text">${esc(vm.text || '')}</div>`;
+  el['overlay-card'].hidden = false;
 }
 
 // ---------- Jukebox ----------

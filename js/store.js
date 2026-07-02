@@ -60,6 +60,14 @@ export function saveBarMenu(defs) { writeJSON(K_BARMENU, Array.isArray(defs) ? d
 export function getBarMenu() { const v = readJSON(K_BARMENU, []); return Array.isArray(v) ? v : []; }
 export function hasBarMenu() { return getBarMenu().length > 0; }
 
+// ---- Torneio local (placar acumulado da galera) ----
+const K_TOURN = 'botequei.tournament';
+export function getTournament() {
+  const v = readJSON(K_TOURN, null);
+  return v && typeof v === 'object' && v.standings ? v : { name: '', standings: {}, at: 0 };
+}
+export function saveTournament(t) { writeJSON(K_TOURN, t && t.standings ? t : { name: '', standings: {}, at: 0 }); }
+
 // ---- Backup (exportar/importar tudo que é local do Botequei) ----
 export function exportAll() {
   const data = {};

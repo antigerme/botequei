@@ -1,0 +1,87 @@
+name: CI
+
+# Rede de segurança antes de qualquer coisa cair em produção (o main faz deploy atrás do
+# Cloudflare). Roda nos PRs pro main e nos pushes pro main. Sem segredos: o app é buildless,
+# P2P e o turn.php responde 204 sem config.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (sintaxe + ESLint de correção)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: node --check (sintaxe de todo JS)
+        run: |
+          for f in js/*.js js/vendor/*.js sw.js tests/*.mjs eslint.config.mjs; do
+            echo "check $f"; node --check "$f"
+          done
+      - name: "ESLint (só bug: no-undef, no-dupe-keys, código morto)"
+        run: npx --yes eslint@9 .
+
+  audit:
+    name: Auditoria estática + PHP lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Auditoria (import/export, shell do SW + CACHE, IDS, i18n)
+        run: node tests/audit.mjs
+      - name: PHP lint (signaling.php / turn.php)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq php-cli
+          for f in *.php; do echo "php -l $f"; php -l "$f"; done
+
+  unit:
+    name: Testes unitários (puros)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: reducer + features + stats
+        run: |
+          node tests/reducer.test.mjs
+          node tests/features.test.mjs
+          node tests/stats.test.mjs
+
+  e2e:
+    name: E2E (WebRTC real, Chromium headless)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: PHP
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq php-cli
+      - name: Playwright + Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i --no-save playwright@1.48.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium
+      - name: Sobe o servidor e roda os E2E
+        run: |
+          php -S 127.0.0.1:8000 >/tmp/php.log 2>&1 &
+          sleep 1
+          export BASE=http://127.0.0.1:8000
+          export CHROME="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
+          echo "Chromium: $CHROME"
+          node tests/e2e.mjs
+          node tests/e2e-features.mjs
+          node tests/e2e-reconnect.mjs
+          node tests/e2e-offline.mjs

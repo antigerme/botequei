@@ -1,10 +1,10 @@
 // Camada de apresentacao: telas, cards, gestos, efeitos sociais, placar, conta, configs.
 // Nao guarda estado do dominio — renderiza o "view model" do app.js e dispara handlers.
 
-import { EMOJIS, COLORS, AVATARS, CATEGORIES, catOf } from './catalog.js';
+import { EMOJIS, COLORS, AVATARS, CATEGORIES } from './catalog.js';
 import { scanQR, scanSupported } from './scan.js';
 import * as music from './music.js';
-import { t, applyI18n, setLang } from './i18n.js';
+import { applyI18n, setLang } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 let H = {};

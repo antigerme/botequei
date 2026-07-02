@@ -14,8 +14,6 @@ const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 const CHROME = process.env.CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const T = 25000;
 
-const qty = (item) => `document.querySelector('.item-card[data-item="${item}"] .item-qty')?.textContent`;
-
 async function main() {
   const browser = await chromium.launch({
     executablePath: CHROME,

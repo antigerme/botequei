@@ -13,8 +13,11 @@ import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro } from './li
 import { levelFor, weeklyChallenges, seasonAward } from './league.js';
 import { mergeNight, rankTournament } from './tournament.js';
 import { pickCard } from './deck.js';
-import { clampHand, maxGuess as purrMax, randomNonce, makeCommit, verifyReveal, resolve as purrResolve } from './purrinha.js';
-import { dealHands, opening, legalMoves, place, pipCount, tileKey as domKey, rngFrom } from './domino.js';
+import { clampHand, maxGuess as purrMax, randomNonce, makeCommit, verifyReveal, resolve as purrResolve, sha256Hex } from './purrinha.js';
+import {
+  dealHands, opening, legalMoves, place, pipCount, tileKey as domKey, rngFrom, shuffle, FULL_SET,
+  deckCommit, handCommit, combineSeeds, cutDeck, dealFromDeck, verifyDeal,
+} from './domino.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
@@ -293,6 +296,14 @@ function onFx(fx, fromId) {
     else if (fx.ph === 'pass') onDomPass(fx);
     else if (fx.ph === 'reveal') onDomReveal(fx);
     else if (fx.ph === 'cancel') { if (dom && dom.gameId === fx.gameId && !dom.over) { dom = null; ui.closeOverlays(); ui.toast('🁫 Dominó cancelado'); } }
+    else if (fx.ph === 'vsetup') onVsetup(fx);
+    else if (fx.ph === 'vseed') onVseed(fx);
+    else if (fx.ph === 'vgo') onVgo(fx);
+    else if (fx.ph === 'vseedrev') onVseedrev(fx);
+    else if (fx.ph === 'vdeal') onVdeal(fx);
+    else if (fx.ph === 'vhand') onVhand(fx);
+    else if (fx.ph === 'vopen') onVopen(fx);
+    else if (fx.ph === 'vopenhand') onVopenhand(fx);
   }
 }
 
@@ -521,7 +532,7 @@ function leaveTable() {
   room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false;
   lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastNudge = 0; lastAwards = [];
   prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set(); concernAt = new Map();
-  purr = null; dom = null; seenFx.clear();
+  purr = null; dom = null; dv = null; seenFx.clear();
   ui.setHappyHour(null);
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
@@ -799,6 +810,9 @@ function beginDomino(d) {
     gameId: d.gameId, players: order.length, order, idxOf: new Map(order.map((id, i) => [id, i])),
     chain: [], ends: [null, null], counts: { ...d.counts }, myHand: (d.hand || []).map((t) => t.slice()),
     turnIdx: 0, passes: 0, over: false, winner: null, reason: null, phase: 'play', reveals: new Map(),
+    // mesa verificada (só preenchido no modo verificado)
+    verified: !!d.verified, isHost: !!d.isHost, vinfo: d.vinfo || null,
+    initialHand: (d.hand || []).map((t) => t.slice()), opens: {}, audit: null, auditStarted: false,
   };
   domApplyPlay(d.starter, d.firstTile, 'L'); // abertura forçada (maior carroça)
   ui.openDomino();
@@ -853,7 +867,9 @@ function myDomPass() {
   domApplyPass(self); renderDom(); domCelebrate();
 }
 function domCelebrate() {
-  if (!dom || !dom.over || dom.cheered) return;
+  if (!dom || !dom.over) return;
+  if (dom.verified) domStartAudit(); // mesa verificada: dispara a auditoria no fim
+  if (dom.cheered) return;
   dom.cheered = true;
   if (dom.winner === self) { sound.cheers(); ui.celebrate(['🁫', '🎉', '🍻', '🏆']); } else { sound.alarm(); ui.vibrate([80, 40, 80]); }
 }
@@ -867,11 +883,122 @@ function renderDom() {
   const opponents = dom.order.filter((id) => id !== self).map((id) => ({ name: domName(id), avatar: profOf(id).emoji, count: dom.counts[id] || 0, isTurn: !dom.over && dom.order[dom.turnIdx] === id }));
   let result = null;
   if (dom.over) { const wn = dom.winner === self ? 'Você' : domName(dom.winner); result = dom.reason === 'batida' ? `${wn} bateu! 🁫` : `Trancou 🔒 — ${wn} fez menos pontos`; }
+  let verified = null;
+  if (dom.verified) {
+    if (dom.audit) verified = dom.audit.ok ? { ok: true, text: '🔒✅ Mesa verificada — embaralho auditado, limpo' } : { ok: false, text: '🚫 ' + dom.audit.reason };
+    else if (dom.over) verified = { ok: null, text: '🔒 Auditando o embaralho…' };
+    else verified = { ok: null, text: '🔒 Mesa verificada' };
+  }
   ui.renderDomino({
     board: dom.chain.map((t) => ({ a: t[0], b: t[1] })), ends: dom.ends, hand, opponents,
     turn: dom.over ? '' : (myTurn ? 'Sua vez!' : `Vez de ${domName(dom.order[dom.turnIdx])}`),
-    myTurn, canPass: myTurn && moves.length === 0, over: dom.over, iWon: dom.winner === self, result,
+    myTurn, canPass: myTurn && moves.length === 0, over: dom.over, iWon: dom.winner === self, result, verified,
   });
+}
+
+// ---- Dominó: MESA VERIFICADA (commit-to-deck + corte coletivo + auditoria no fim) ----
+// Handshake antes do jogo: todos lacram um seed (commit) → revelam → o corte coletivo σ sai dos
+// seeds; o dono lacra o baralho antes de ver σ (não mira num baralho favorável) e entrega cada
+// mão com um lacre que o dono confere na hora. No fim, o baralho é revelado e todos AUDITAM.
+let dv = null;
+async function startDominoVerified() {
+  if (!room) { ui.toast('Entre numa mesa 🙂'); return; }
+  const order = domEntrants();
+  if (order.length < 2 || order.length > 4) { ui.toast('Dominó é de 2 a 4 pessoas 🙂'); return; }
+  const gameId = 'dv' + cryptoSeed();
+  const deck = shuffle(FULL_SET, rngFrom(cryptoSeed())); // baralho do dono (secreto até o fim)
+  const salt = randomNonce(); const mySeed = randomNonce();
+  const dc = await deckCommit(deck, salt); const mySc = await sha256Hex(mySeed);
+  dv = { gameId, order, host: true, deck, salt, mySeed, deckCommit: dc, seeds: { [self]: mySeed }, seedCommits: { [self]: mySc }, phase: 'commit', began: false };
+  ui.openDomino(); renderVwait();
+  gameFx({ kind: 'domino', ph: 'vsetup', gameId, order, deckCommit: dc });
+  gameFx({ kind: 'domino', ph: 'vseed', gameId, from: self, sc: mySc });
+}
+async function onVsetup(fx) {
+  if (dv && dv.gameId === fx.gameId) return;
+  const mySeed = randomNonce(); const mySc = await sha256Hex(mySeed);
+  dv = { gameId: fx.gameId, order: fx.order, host: false, deckCommit: fx.deckCommit, mySeed, seeds: { [self]: mySeed }, seedCommits: { [self]: mySc }, phase: 'commit', began: false };
+  ui.openDomino(); renderVwait();
+  gameFx({ kind: 'domino', ph: 'vseed', gameId: fx.gameId, from: self, sc: mySc });
+}
+function onVseed(fx) {
+  if (!dv || dv.gameId !== fx.gameId) return;
+  dv.seedCommits[fx.from] = fx.sc; renderVwait();
+  if (dv.host && dv.phase === 'commit' && dv.order.every((id) => dv.seedCommits[id])) {
+    dv.phase = 'reveal';
+    gameFx({ kind: 'domino', ph: 'vgo', gameId: dv.gameId });
+    gameFx({ kind: 'domino', ph: 'vseedrev', gameId: dv.gameId, from: self, seed: dv.mySeed });
+  }
+}
+function onVgo(fx) {
+  if (!dv || dv.gameId !== fx.gameId || dv.host || dv.phase !== 'commit') return;
+  dv.phase = 'reveal';
+  gameFx({ kind: 'domino', ph: 'vseedrev', gameId: dv.gameId, from: self, seed: dv.mySeed });
+}
+async function onVseedrev(fx) {
+  if (!dv || dv.gameId !== fx.gameId) return;
+  dv.seeds[fx.from] = fx.seed; renderVwait(); // guarda sempre (converge); valida vs commit na auditoria
+  if (dv.host && dv.phase === 'reveal' && dv.order.every((id) => dv.seeds[id])) { dv.phase = 'dealt'; await hostDealVerified(); }
+}
+async function hostDealVerified() {
+  const R = await combineSeeds(dv.seeds);
+  const F = cutDeck(dv.deck, R);
+  const { hands } = dealFromDeck(F, dv.order.length);
+  const op = opening(hands);
+  const counts = {}, handCommits = {}, salts = {};
+  for (let k = 0; k < dv.order.length; k++) { counts[dv.order[k]] = hands[k].length; salts[k] = randomNonce(); handCommits[dv.order[k]] = await handCommit(hands[k], salts[k]); }
+  // vdeal carrega os seeds/lacres (autoritativo, completo) — a auditoria fica auto-contida e não
+  // depende do que cada peer juntou do gossip; o cross-check vs o que o peer coletou pega adulteração.
+  const pub = { kind: 'domino', ph: 'vdeal', gameId: dv.gameId, order: dv.order, starter: dv.order[op.player], firstTile: op.tile, counts, deckCommit: dv.deckCommit, handCommits, seeds: dv.seeds, seedCommits: dv.seedCommits };
+  gameFx(pub);
+  for (let k = 0; k < dv.order.length; k++) {
+    const id = dv.order[k];
+    if (id === self) beginDomino({ ...pub, hand: hands[k], verified: true, isHost: true, vinfo: { deckCommit: dv.deckCommit, handCommits, seeds: dv.seeds, seedCommits: dv.seedCommits, mySalt: salts[k], deck: dv.deck, salt: dv.salt } });
+    else if (mesh) mesh.sendTo(id, { k: 'fx', fx: { kind: 'domino', ph: 'vhand', gameId: dv.gameId, hand: hands[k], salt: salts[k] } });
+  }
+}
+function onVdeal(fx) { if (!dv || dv.gameId !== fx.gameId || dv.host) return; dv.deal = fx; tryBeginVerified(); }
+function onVhand(fx) { if (!dv || dv.gameId !== fx.gameId) return; dv.hand = fx.hand; dv.mySalt = fx.salt; tryBeginVerified(); }
+async function tryBeginVerified() {
+  if (!dv || dv.began || !dv.deal || !dv.hand) return;
+  dv.began = true;
+  const d = dv.deal;
+  if ((await handCommit(dv.hand, dv.mySalt)) !== d.handCommits[self]) ui.toast('🚫 Sua mão não bate com o lacre da mesa!');
+  beginDomino({ ...d, hand: dv.hand, verified: true, isHost: false, vinfo: { deckCommit: d.deckCommit, handCommits: d.handCommits, seeds: d.seeds, seedCommits: d.seedCommits, mySalt: dv.mySalt } });
+}
+// No fim: cada um revela a mão INICIAL que recebeu; o dono revela o baralho; todos auditam.
+function domStartAudit() {
+  if (!dom || !dom.over || !dom.verified || dom.auditStarted) return;
+  dom.auditStarted = true;
+  dom.opens[self] = { hand: dom.initialHand, salt: dom.vinfo.mySalt };
+  gameFx({ kind: 'domino', ph: 'vopenhand', gameId: dom.gameId, from: self, hand: dom.initialHand, salt: dom.vinfo.mySalt });
+  if (dom.isHost) { dom.revealedDeck = dom.vinfo.deck; dom.revealedSalt = dom.vinfo.salt; gameFx({ kind: 'domino', ph: 'vopen', gameId: dom.gameId, deck: dom.vinfo.deck, salt: dom.vinfo.salt }); }
+  tryAudit();
+}
+function onVopen(fx) { if (!dom || dom.gameId !== fx.gameId) return; dom.revealedDeck = fx.deck; dom.revealedSalt = fx.salt; domStartAudit(); tryAudit(); }
+function onVopenhand(fx) { if (!dom || dom.gameId !== fx.gameId) return; dom.opens[fx.from] = { hand: fx.hand, salt: fx.salt }; domStartAudit(); tryAudit(); }
+async function tryAudit() {
+  if (!dom || !dom.verified || dom.audit || !dom.revealedDeck) return;
+  if (!dom.order.every((id) => dom.opens[id])) return; // espera o baralho + todas as mãos reveladas
+  const fail = (reason) => { dom.audit = { ok: false, reason }; renderDom(); ui.toast('🚫 ' + reason); };
+  const seeds = dom.vinfo.seeds || {}, seedCommits = dom.vinfo.seedCommits || {};
+  // cross-check (best-effort): os seeds/lacres do vdeal batem com os que EU coletei direto no handshake?
+  if (dv) for (const id of dom.order) {
+    if (dv.seedCommits && dv.seedCommits[id] && dv.seedCommits[id] !== seedCommits[id]) return fail(`o dono trocou o lacre de seed de ${domName(id)}`);
+    if (dv.seeds && dv.seeds[id] && dv.seeds[id] !== seeds[id]) return fail(`o dono trocou o seed de ${domName(id)}`);
+  }
+  for (const id of dom.order) { // cada um revelou a mesma mão que lacrou?
+    if ((await handCommit(dom.opens[id].hand, dom.opens[id].salt)) !== dom.vinfo.handCommits[id]) return fail(`${domName(id)} revelou mão diferente do lacre`);
+  }
+  const initialHands = dom.order.map((id) => dom.opens[id].hand);
+  dom.audit = await verifyDeal({ deck: dom.revealedDeck, salt: dom.revealedSalt, deckCommit: dom.vinfo.deckCommit, seeds, seedCommits, players: dom.order.length, initialHands });
+  renderDom();
+  ui.toast(dom.audit.ok ? '🔒✅ Mesa auditada — embaralho limpo!' : `🚫 ${dom.audit.reason}`);
+}
+function renderVwait() {
+  if (!dv || dv.began) return;
+  const have = dv.phase === 'commit' ? Object.keys(dv.seedCommits).length : Object.keys(dv.seeds).length;
+  ui.dominoSetup(`🔒 Mesa verificada — ${dv.phase === 'commit' ? 'trocando os lacres' : 'revelando os cortes'} (${have}/${dv.order.length})…`);
 }
 
 // ---- Cutucar / desafiar ----
@@ -1044,7 +1171,7 @@ const handlers = {
   onPurrinha: startPurrinha,
   onPurrSeal: (hand, guess) => purrSeal(hand, guess),
   onPurrCancel: () => cancelPurrinha(true),
-  onDomino: startDomino,
+  onDomino: () => (settings.domVerified ? startDominoVerified() : startDomino()),
   onDomPlay: (key, side) => myDomPlay(key, side),
   onDomPass: myDomPass,
   onDomCancel: () => { if (dom && !dom.over) gameFx({ kind: 'domino', ph: 'cancel', gameId: dom.gameId }); dom = null; },

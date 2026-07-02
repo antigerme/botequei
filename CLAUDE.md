@@ -65,7 +65,16 @@ em pt-BR).
   tabuleiro é reconstruído igual em todos). Bate quem esvazia a mão; se trancar (todos passam), cada
   um revela a mão e ganha a menor soma (`pipCount`). Trust: só o embaralho confia em quem dá as
   cartas (igual na vida real); durante a partida, trapaça não cola. Pedras desenhadas com pips no
-  `ui.js`. Efêmero, não entra no log.
+  `ui.js` (carroça atravessada; tabuleiro quebra linha, sem scroll). Efêmero, não entra no log.
+- **Mesa verificada** (opcional, `settings.domVerified`): endurece o embaralho do dominó com
+  **commit-to-deck + corte coletivo** (`verifyDeal` em `domino.js`, puro/testado). Handshake antes
+  do jogo (fases `vsetup`/`vseed`/`vgo`/`vseedrev`/`vdeal`/`vhand`): todos lacram um seed
+  (commit-reveal) → o **corte coletivo** σ sai dos seeds; o dono lacra o baralho **antes** de ver σ
+  (não mira num baralho favorável) e entrega cada mão com um lacre que o dono confere na hora. No
+  fim (`vopen`/`vopenhand`), o baralho é revelado e **todos auditam** (lacre bate, é permutação das
+  28, corte confere, mãos batem) — trapaça no deal é **pega** (badge 🔒✅/🚫). Só o dono ainda vê
+  as mãos (tirar isso = mental poker, pesado demais). Jogadas de jogo vão por **gossip com dedup**
+  (`gameFx`) pra chegar em todos mesmo com malha incompleta (4 pessoas = 6 links).
 - **Competição & coach (puro)**: `js/tournament.js` (placar acumulado por pessoa entre noites —
   pontos por aparecer + hidratar, não por beber mais), `js/deck.js` (cartas de desafio) e o coach
   em `js/stats.js` (`projectAt` = previsão de ritmo até a meia-noite, `coachTips`). Mãos livres:

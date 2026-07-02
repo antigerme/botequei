@@ -731,3 +731,13 @@ body.light .dom-board-wrap { background: linear-gradient(180deg, #2f6b45, #24553
 .dom-result { text-align: center; font-size: 22px; padding: 16px; border-radius: 12px; background: var(--card); margin: 8px 0; }
 .dom-result.win { color: var(--gold); background: rgba(244,177,60,.12); }
 #btn-dom-pass { margin-top: 12px; }
+/* mesa verificada */
+.dom-verified { text-align: center; font-size: 13px; padding: 6px 10px; border-radius: 999px; margin-bottom: 10px;
+  background: rgba(244,177,60,.14); color: var(--gold); }
+.dom-verified.ok { background: rgba(127,201,138,.16); color: var(--ok); }
+.dom-verified.bad { background: rgba(232,115,95,.16); color: var(--danger); }
+.dom-setup { text-align: center; padding: 34px 12px; }
+.dom-setup-spin { font-size: 46px; animation: dompulse 1.2s ease-in-out infinite; }
+.dom-setup-msg { margin-top: 14px; color: var(--muted); font-size: 16px; }
+@keyframes dompulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .dom-setup-spin { animation: none; } }

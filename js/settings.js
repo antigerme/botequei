@@ -18,6 +18,7 @@ const DEFAULTS = {
   trustName: '',     // contato de confiança (nome) — pra pedir carona / avisar
   trustPhone: '',    // contato de confiança (telefone, só dígitos) — WhatsApp/ligação
   carApp: 'uber',    // app de carro preferido ('uber' | '99')
+  domVerified: false, // dominó "mesa verificada": embaralho auditável (commit-to-deck + corte coletivo)
 };
 
 export function getSettings() {

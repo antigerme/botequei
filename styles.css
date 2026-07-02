@@ -763,5 +763,10 @@ body.light .dom-board-wrap { background: linear-gradient(180deg, #2f6b45, #24553
 .dom-setup { text-align: center; padding: 34px 12px; }
 .dom-setup-spin { font-size: 46px; animation: dompulse 1.2s ease-in-out infinite; }
 .dom-setup-msg { margin-top: 14px; color: var(--muted); font-size: 16px; }
+/* escolha do modo ao começar (partida normal x mesa verificada) */
+.dom-start { display: flex; flex-direction: column; align-items: stretch; gap: 12px; padding: 20px 6px; }
+.dom-start-q { font-size: 18px; color: var(--cream); margin-bottom: 4px; text-align: center; }
+.dom-start-alt { font-size: 15px; }
+.dom-start-note { font-size: 13px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
 @keyframes dompulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.9); } }
 @media (prefers-reduced-motion: reduce) { .dom-setup-spin { animation: none; } }

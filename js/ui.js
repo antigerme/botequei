@@ -41,7 +41,7 @@ const IDS = [
   'overlay-safe', 'safe-verdict', 'safe-rows', 'btn-safe-car', 'btn-safe-trust', 'btn-safe-home',
   'overlay-jukebox', 'jukebox-input', 'btn-jukebox-add', 'jukebox-list',
   'overlay-festa', 'festa-canvas', 'btn-festa-close',
-  'set-shake', 'set-domverified',
+  'set-shake',
   'overlay-tournament', 'tourn-list', 'btn-tourn-add', 'btn-tourn-reset',
   'overlay-card', 'card-draw', 'btn-card-again', 'btn-card-show',
   'menu-purrinha', 'overlay-purrinha', 'purr-sub', 'purr-pick', 'purr-hands', 'purr-guesses', 'btn-purr-seal',
@@ -225,7 +225,6 @@ export function init(handlers) {
   el['set-water'].addEventListener('change', () => H.onSetting({ waterEvery: Math.max(0, parseInt(el['set-water'].value, 10) || 0) }));
   el['set-nudges'].addEventListener('change', () => H.onSetting({ nudges: el['set-nudges'].checked }));
   el['set-shake'].addEventListener('change', () => H.onShakeToggle(el['set-shake'].checked));
-  el['set-domverified'].addEventListener('change', () => H.onSetting({ domVerified: el['set-domverified'].checked }));
   el['set-weight'].addEventListener('change', () => H.onSetting({ weightKg: Math.max(0, Math.min(300, parseInt(el['set-weight'].value, 10) || 0)) }));
   el['set-sex'].addEventListener('change', () => H.onSetting({ sex: el['set-sex'].value }));
   el['set-responsa'].addEventListener('change', () => H.onSetting({ responsa: el['set-responsa'].checked }));
@@ -595,7 +594,6 @@ export function fillSettings(s) {
   el['set-water'].value = s.waterEvery || '';
   el['set-nudges'].checked = s.nudges !== false;
   el['set-shake'].checked = !!s.shake;
-  el['set-domverified'].checked = !!s.domVerified;
   el['set-weight'].value = s.weightKg || '';
   el['set-sex'].value = s.sex || '';
   el['set-responsa'].checked = !!s.responsa;
@@ -1121,6 +1119,20 @@ function domFitBoard() {
 }
 let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolha de ponta
 export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }
+// escolha do modo na hora de começar (quem inicia decide) — antes era um toggle escondido no menu
+export function dominoStartChoice() {
+  el['dom-setup'].innerHTML = `<div class="dom-start">
+    <p class="dom-start-q">Como quer jogar?</p>
+    <button class="btn btn-primary btn-lg" id="btn-dom-start">▶️ Começar partida</button>
+    <button class="btn btn-ghost dom-start-alt" id="btn-dom-start-verified">🔒 Mesa verificada</button>
+    <p class="dom-start-note">A mesa verificada audita o embaralho no fim (trava trapaça no deal). Começa uns segundos depois.</p>
+  </div>`;
+  el['dom-setup'].querySelector('#btn-dom-start').onclick = () => H.onDomStart(false);
+  el['dom-setup'].querySelector('#btn-dom-start-verified').onclick = () => H.onDomStart(true);
+  el['dom-setup'].hidden = false;
+  el['dom-game'].hidden = true;
+  el['overlay-domino'].hidden = false;
+}
 // tela de espera do handshake da mesa verificada (antes do jogo começar)
 export function dominoSetup(msg) {
   el['dom-setup'].innerHTML = `<div class="dom-setup-spin">🔒</div><div class="dom-setup-msg">${esc(msg)}</div>`;

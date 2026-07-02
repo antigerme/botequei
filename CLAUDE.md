@@ -49,6 +49,12 @@ em pt-BR).
   convergem), **cutucar/desafiar** (`to`/`from`, só o alvo reage), **cerimônia** (mostrar troféus
   pra mesa), **chamar o garçom** (`waiter`), **rodada de água** (`water`) e **carta da mesa**
   (`card` — deck de desafios). Nada disso persiste.
+- **Purrinha (jogo P2P honesto)** (`js/purrinha.js`, puro): sem "banca" central, cada um esconde a
+  mão (0–3) e o palpite do total. Protocolo **commit-reveal** por fx (`kind:'purrinha'`, fases
+  `invite`/`commit`/`reveal`/`cancel`): manda-se só o lacre `SHA-256(mão:palpite:segredo)`; quando
+  todos lacram, revela-se junto e cada peer **confere** o lacre (ninguém muda a mão depois de ver os
+  chutes) e **apura igual** (`resolve` é determinístico → converge). Quem crava o total é vidente;
+  quem chuta mais longe paga. Efêmero, não entra no log. Dropout (peer offline) não trava a rodada.
 - **Competição & coach (puro)**: `js/tournament.js` (placar acumulado por pessoa entre noites —
   pontos por aparecer + hidratar, não por beber mais), `js/deck.js` (cartas de desafio) e o coach
   em `js/stats.js` (`projectAt` = previsão de ritmo até a meia-noite, `coachTips`). Mãos livres:
@@ -99,6 +105,7 @@ em pt-BR).
 - `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia/retrô)
 - `js/sound.js` — efeitos (WebAudio) · `js/music.js` — trilha lo-fi procedural + espectro (WebAudio, fora do puro)
 - `js/tournament.js` — placar acumulado da galera (puro) · `js/deck.js` — cartas de desafio (puro)
+- `js/purrinha.js` — jogo da purrinha: commit-reveal (SHA-256) + apuração determinística (puro)
 - `js/i18n.js` — dicionário pt/en/es + `applyI18n` sobre o shell (puro)
 - `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, temas (auto/dark/light/neon/retro), i18n do shell, molduras por nível, overlays (ritmo/roleta/cutucar/cerimônia/números/conta/passaporte/foto/boas-vindas)
 - `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)

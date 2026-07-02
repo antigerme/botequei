@@ -629,3 +629,35 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
 .welcome-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; }
 .welcome-list li { display: flex; gap: 10px; align-items: baseline; font-size: 16px; line-height: 1.35; }
 .welcome-list b { color: var(--gold); }
+
+/* ===================== Purrinha (commit-reveal) ===================== */
+.purr-lbl { margin: 14px 0 8px; font-size: 14px; color: var(--muted); }
+.purr-lbl small { opacity: .8; }
+.purr-opts { display: flex; gap: 8px; }
+.purr-opts-wrap { flex-wrap: wrap; }
+.purr-opt { min-width: 52px; min-height: 52px; flex: 0 0 auto; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--card); color: var(--cream); font-family: var(--num); font-size: 24px; cursor: pointer; }
+.purr-opt.on { background: var(--gold); color: #241a08; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(244,177,60,.28); }
+#btn-purr-seal { margin-top: 18px; }
+.purr-waitbig { font-family: var(--num); font-size: 44px; text-align: center; color: var(--gold); margin-top: 10px; }
+.purr-waitsub { text-align: center; color: var(--muted); margin-bottom: 12px; }
+.purr-seals { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.purr-seal { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; color: var(--muted); }
+.purr-seal.done { color: var(--cream); border-color: var(--gold); }
+.purr-total { font-family: var(--num); font-size: 26px; color: var(--gold); text-align: center; margin: 4px 0 12px; }
+.purr-reveals { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.purr-rev { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 12px; }
+.purr-rev.seer { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(244,177,60,.22); }
+.purr-rev.loser { border-color: var(--danger); }
+.purr-av { font-size: 22px; flex: none; }
+.purr-rname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.purr-nums { font-family: var(--num); color: var(--cream); font-size: 18px; letter-spacing: .5px; }
+.purr-tag { font-size: 12px; border-radius: 999px; padding: 2px 8px; flex: none; }
+.purr-tag.seer { background: rgba(244,177,60,.2); color: var(--gold); }
+.purr-tag.loser { background: rgba(232,115,95,.2); color: var(--danger); }
+.purr-verdict { margin-top: 16px; text-align: center; font-size: 20px; padding: 12px; border-radius: 12px; background: var(--card); }
+.purr-verdict.win { color: var(--gold); background: rgba(244,177,60,.12); }
+.purr-verdict.lose { color: var(--danger); background: rgba(232,115,95,.12); }
+#btn-purr-again { margin-top: 14px; }

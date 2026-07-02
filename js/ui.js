@@ -44,6 +44,9 @@ const IDS = [
   'set-shake',
   'overlay-tournament', 'tourn-list', 'btn-tourn-add', 'btn-tourn-reset',
   'overlay-card', 'card-draw', 'btn-card-again', 'btn-card-show',
+  'menu-purrinha', 'overlay-purrinha', 'purr-sub', 'purr-pick', 'purr-hands', 'purr-guesses', 'btn-purr-seal',
+  'purr-wait', 'purr-waitcount', 'purr-seals', 'purr-result', 'purr-total', 'purr-reveals', 'purr-verdict',
+  'btn-purr-again', 'btn-purr-close',
   'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
   'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
   'overlay-welcome', 'btn-welcome-go',
@@ -146,6 +149,7 @@ export function init(handlers) {
   $('menu-safe').addEventListener('click', () => { closeOverlays(); H.onSafe(); });
   $('menu-league').addEventListener('click', () => { closeOverlays(); H.onLeague(); });
   $('menu-roulette').addEventListener('click', () => { closeOverlays(); H.onRoulette(); });
+  $('menu-purrinha').addEventListener('click', () => { closeOverlays(); H.onPurrinha(); });
   $('menu-water').addEventListener('click', () => { closeOverlays(); H.onWaterRound(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
   $('menu-festa').addEventListener('click', () => { closeOverlays(); openFesta(); });
@@ -181,6 +185,9 @@ export function init(handlers) {
   el['btn-tourn-reset'].addEventListener('click', () => H.onTournamentReset());
   el['btn-card-again'].addEventListener('click', () => H.onCard());
   el['btn-card-show'].addEventListener('click', () => H.onCardShow());
+  el['btn-purr-seal'].addEventListener('click', () => { if (purrPick.hand != null && purrPick.guess != null) H.onPurrSeal(purrPick.hand, purrPick.guess); });
+  el['btn-purr-again'].addEventListener('click', () => H.onPurrinha());
+  el['btn-purr-close'].addEventListener('click', () => { H.onPurrCancel(); closeOverlays(); });
   el['btn-passport-checkin'].addEventListener('click', () => H.onCheckin(el['passport-name'].value));
   el['photo-input'].addEventListener('change', () => showPhoto());
   el['btn-photo-retake'].addEventListener('click', () => el['photo-input'].click());
@@ -1014,6 +1021,57 @@ export function openTournament(vm) {
 export function openCard(vm) {
   el['card-draw'].innerHTML = `<div class="card-emoji">${esc(vm.emoji || '🃏')}</div><div class="card-text">${esc(vm.text || '')}</div>`;
   el['overlay-card'].hidden = false;
+}
+
+// ---------- Purrinha (commit-reveal; 3 fases: escolher / aguardar / revelar) ----------
+let purrPick = { hand: null, guess: null };
+function purrPhase(which) {
+  el['purr-pick'].hidden = which !== 'pick';
+  el['purr-wait'].hidden = which !== 'wait';
+  el['purr-result'].hidden = which !== 'result';
+}
+export function openPurrinha(vm) {
+  purrPick = { hand: null, guess: null };
+  el['purr-hands'].innerHTML = [0, 1, 2, 3].map((n) => `<button class="purr-opt" data-hand="${n}">${n}</button>`).join('');
+  const mg = Math.max(0, vm.maxGuess || 0);
+  let gs = '';
+  for (let i = 0; i <= mg; i++) gs += `<button class="purr-opt" data-guess="${i}">${i}</button>`;
+  el['purr-guesses'].innerHTML = gs;
+  const sync = () => { el['btn-purr-seal'].disabled = purrPick.hand == null || purrPick.guess == null; };
+  el['purr-hands'].querySelectorAll('[data-hand]').forEach((b) => b.addEventListener('click', () => {
+    purrPick.hand = Number(b.dataset.hand);
+    el['purr-hands'].querySelectorAll('.purr-opt').forEach((x) => x.classList.toggle('on', x === b));
+    sync();
+  }));
+  el['purr-guesses'].querySelectorAll('[data-guess]').forEach((b) => b.addEventListener('click', () => {
+    purrPick.guess = Number(b.dataset.guess);
+    el['purr-guesses'].querySelectorAll('.purr-opt').forEach((x) => x.classList.toggle('on', x === b));
+    sync();
+  }));
+  el['btn-purr-seal'].disabled = true;
+  purrPhase('pick');
+  el['overlay-purrinha'].hidden = false;
+}
+export function purrinhaSealed(vm) {
+  el['purr-waitcount'].textContent = `🔒 ${vm.count}/${vm.total}`;
+  el['purr-seals'].innerHTML = (vm.seals || []).map((s) => `<li class="purr-seal${s.sealed ? ' done' : ''}"><span>${s.sealed ? '🔒' : '⏳'}</span> ${esc(s.name)}</li>`).join('');
+  purrPhase('wait');
+  el['overlay-purrinha'].hidden = false;
+}
+export function purrinhaResult(vm) {
+  el['purr-total'].textContent = `Total da mesa: ${vm.total}`;
+  el['purr-reveals'].innerHTML = (vm.rows || []).map((r) => {
+    const tag = r.isSeer ? '<span class="purr-tag seer">🔮 vidente</span>' : (r.isLoser ? '<span class="purr-tag loser">💸 paga</span>' : '');
+    return `<li class="purr-rev${r.isSeer ? ' seer' : ''}${r.isLoser ? ' loser' : ''}">
+      <span class="purr-av">${esc(r.avatar || '🍺')}</span>
+      <span class="purr-rname">${esc(r.name)}${r.isSelf ? ' <small>(você)</small>' : ''}</span>
+      <span class="purr-nums">✋${r.hand} · 🎯${r.guess}</span>
+      ${tag}</li>`;
+  }).join('');
+  el['purr-verdict'].className = 'purr-verdict ' + (vm.verdict.kind || '');
+  el['purr-verdict'].textContent = vm.verdict.text;
+  purrPhase('result');
+  el['overlay-purrinha'].hidden = false;
 }
 
 // ---------- Jukebox ----------

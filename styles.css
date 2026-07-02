@@ -685,39 +685,50 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
 #btn-purr-again { margin-top: 14px; }
 
 /* ===================== Dominó ===================== */
-.dom-opps { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; justify-content: center; }
+#overlay-domino .sheet { display: flex; flex-direction: column; }
+#dom-game { display: flex; flex-direction: column; min-height: 0; }
+.dom-opps { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; justify-content: center; flex: none; }
 .dom-opp { display: flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--line);
-  border-radius: 999px; padding: 4px 10px; font-size: 14px; }
+  border-radius: 999px; padding: 4px 10px; font-size: 14px; transition: transform .15s, box-shadow .15s; }
 .dom-opp.turn { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(244,177,60,.25); }
+.dom-opp.played { animation: domplayed 1.6s ease-out; }
+@keyframes domplayed { 0% { transform: scale(1); box-shadow: 0 0 0 2px var(--gold), 0 0 12px rgba(244,177,60,.6); }
+  30% { transform: scale(1.08); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244,177,60,0); } }
 .dom-oav { font-size: 16px; }
 .dom-ocount { font-family: var(--num); color: var(--gold); white-space: nowrap; }
-.dom-turn { text-align: center; font-size: 18px; color: var(--muted); margin: 6px 0 8px; min-height: 22px; }
+.dom-turn { text-align: center; font-size: 18px; color: var(--muted); margin: 6px 0 8px; min-height: 22px; flex: none; }
 .dom-turn.mine { color: var(--gold); }
-/* pontas abertas: o que dá pra encaixar (destaque) */
-.dom-ends { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; }
-.dom-endlbl { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
-.dom-endsep { color: var(--muted); letter-spacing: 2px; }
-.dom-face { display: inline-flex; background: linear-gradient(180deg, #fbf3e0, #ecdcbb); border: 1px solid #7a6642;
-  border-radius: 7px; padding: 3px; box-shadow: 0 2px 4px rgba(0,0,0,.3); }
-.dom-face .dom-half { width: 30px; height: 30px; }
-/* a "mesa" (feltro) */
+/* a "mesa" (feltro) — o tabuleiro escala pra caber TUDO numa linha só (sem wrap, sem scroll) */
 .dom-board-wrap { background: linear-gradient(180deg, #23492f, #1a3623); border: 1px solid rgba(0,0,0,.35);
-  border-radius: 14px; padding: 12px 10px; margin-bottom: 14px; box-shadow: inset 0 2px 10px rgba(0,0,0,.35); }
+  border-radius: 14px; padding: 10px; margin-bottom: 14px; box-shadow: inset 0 2px 10px rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center; overflow: hidden; height: 104px; }
 body.light .dom-board-wrap { background: linear-gradient(180deg, #2f6b45, #245536); }
-.dom-board { display: flex; flex-wrap: wrap; gap: 6px 5px; align-items: center; justify-content: center; min-height: 52px; }
-.dom-empty { color: rgba(255,255,255,.7); font-size: 14px; margin: 12px auto; }
+.dom-board { display: inline-flex; flex-wrap: nowrap; gap: 5px; align-items: center; transform-origin: center; will-change: transform; }
+.dom-empty { color: rgba(255,255,255,.7); font-size: 14px; }
 /* pedra: metades com pips, marfim com leve 3D */
-.dom-tile { display: inline-flex; background: linear-gradient(180deg, #fbf3e0, #ecdcbb); border: 1px solid #6b5836;
+.dom-tile { position: relative; display: inline-flex; background: linear-gradient(180deg, #fbf3e0, #ecdcbb); border: 1px solid #6b5836;
   border-radius: 6px; flex: none; box-shadow: 0 2px 3px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.55); }
 .dom-tile.dbl { flex-direction: column; } /* carroça atravessada */
+.dom-tile.open { animation: domopen 1.9s ease-in-out infinite; } /* pontas abertas pulsam (sem banner) */
+.dom-tile.just { animation: domplace .45s ease-out; box-shadow: 0 0 0 2px var(--gold), 0 0 10px rgba(244,177,60,.7); z-index: 1; }
+@keyframes domopen { 0%, 100% { box-shadow: 0 0 0 2px rgba(244,177,60,.3), 0 2px 3px rgba(0,0,0,.35); }
+  50% { box-shadow: 0 0 0 3px rgba(244,177,60,.75), 0 0 8px rgba(244,177,60,.4); } }
+@keyframes domplace { 0% { transform: scale(1.55); } 60% { transform: scale(.94); } 100% { transform: scale(1); } }
+/* avatar de quem jogou a peça, some sozinho */
+.dom-played-av { position: absolute; top: -9px; right: -9px; width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 13px; background: var(--gold); box-shadow: 0 1px 4px rgba(0,0,0,.5);
+  z-index: 3; animation: domchip 3s ease-out forwards; }
+@keyframes domchip { 0% { transform: scale(0); } 14% { transform: scale(1.18); } 28% { transform: scale(1); }
+  78% { opacity: 1; } 100% { opacity: 0; transform: scale(.9); } }
 .dom-half { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
   width: 24px; height: 24px; padding: 4px; gap: 1px; box-sizing: content-box; }
 .dom-tile > .dom-half:first-child { border-right: 2px solid rgba(70,55,30,.5); }
 .dom-tile.dbl > .dom-half:first-child { border-right: none; border-bottom: 2px solid rgba(70,55,30,.5); }
 .dp { border-radius: 50%; place-self: center; width: 100%; height: 100%; max-width: 6px; max-height: 6px; }
 .dp.on { background: #241a08; box-shadow: inset 0 0 1px rgba(0,0,0,.4); }
-.dom-face .dp, .dom-htile .dp { max-width: 7px; max-height: 7px; }
+.dom-htile .dp { max-width: 7px; max-height: 7px; }
 /* minha mão */
+#dom-hand-wrap { flex: none; }
 .dom-hand-lbl { font-size: 13px; color: var(--muted); margin-bottom: 8px; text-align: center; }
 .dom-hand { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .dom-htile { padding: 3px; border: 2px solid transparent; border-radius: 9px; background: none; cursor: pointer; line-height: 0; transition: transform .08s; }
@@ -731,6 +742,19 @@ body.light .dom-board-wrap { background: linear-gradient(180deg, #2f6b45, #24553
 .dom-result { text-align: center; font-size: 22px; padding: 16px; border-radius: 12px; background: var(--card); margin: 8px 0; }
 .dom-result.win { color: var(--gold); background: rgba(244,177,60,.12); }
 #btn-dom-pass { margin-top: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .dom-tile.open, .dom-tile.just, .dom-played-av, .dom-opp.played { animation: none; }
+}
+/* PAISAGEM: o tabuleiro vira o protagonista (ocupa a altura), controles compactos em volta */
+@media (orientation: landscape) {
+  #overlay-domino .sheet { max-width: 96vw; width: 96vw; height: 96vh; max-height: 96vh; }
+  #dom-game { flex: 1; }
+  .dom-board-wrap { flex: 1; height: auto; min-height: 0; margin-bottom: 8px; }
+  .dom-opps { margin-bottom: 4px; }
+  .dom-turn { margin: 2px 0 4px; }
+  .dom-hand { max-height: 26vh; overflow-y: auto; }
+  .dom-hand-lbl { margin-bottom: 4px; }
+}
 /* mesa verificada */
 .dom-verified { text-align: center; font-size: 13px; padding: 6px 10px; border-radius: 999px; margin-bottom: 10px;
   background: rgba(244,177,60,.14); color: var(--gold); }

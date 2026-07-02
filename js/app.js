@@ -823,6 +823,7 @@ function domApplyPlay(fromId, tile, side) {
   const placed = place(dom.chain, dom.ends, tile, side);
   if (!placed) return false; // jogada ilegal — ignora (jogada pública não confia no remetente)
   dom.chain = placed.chain; dom.ends = placed.ends; dom.passes = 0;
+  dom.lastBy = fromId; dom.lastSide = side; // quem jogou a última peça (e em que ponta) → feedback
   dom.counts[fromId] = Math.max(0, (dom.counts[fromId] || 0) - 1);
   if (fromId === self) { const k = domKey(tile); const i = dom.myHand.findIndex((t) => domKey(t) === k); if (i >= 0) dom.myHand.splice(i, 1); }
   if (dom.counts[fromId] <= 0) { dom.over = true; dom.winner = fromId; dom.reason = 'batida'; }
@@ -880,7 +881,11 @@ function renderDom() {
   const sidesByKey = new Map();
   for (const m of moves) { const k = domKey(m.tile); if (!sidesByKey.has(k)) sidesByKey.set(k, []); sidesByKey.get(k).push(m.side); }
   const hand = dom.myHand.map((t) => ({ key: domKey(t), a: t[0], b: t[1], sides: sidesByKey.get(domKey(t)) || [] }));
-  const opponents = dom.order.filter((id) => id !== self).map((id) => ({ name: domName(id), avatar: profOf(id).emoji, count: dom.counts[id] || 0, isTurn: !dom.over && dom.order[dom.turnIdx] === id }));
+  const opponents = dom.order.filter((id) => id !== self).map((id) => ({ name: domName(id), avatar: profOf(id).emoji, count: dom.counts[id] || 0, isTurn: !dom.over && dom.order[dom.turnIdx] === id, justPlayed: id === dom.lastBy }));
+  // feedback de quem jogou a última peça: índice da peça no tabuleiro (ponta L=0, R=última) + avatar
+  const lastPlayIdx = (dom.lastBy && dom.chain.length) ? (dom.lastSide === 'L' ? 0 : dom.chain.length - 1) : -1;
+  const lastPlayAvatar = dom.lastBy ? profOf(dom.lastBy).emoji : '';
+  const lastPlayName = dom.lastBy ? (dom.lastBy === self ? 'Você' : domName(dom.lastBy)) : '';
   let result = null;
   if (dom.over) { const wn = dom.winner === self ? 'Você' : domName(dom.winner); result = dom.reason === 'batida' ? `${wn} bateu! 🁫` : `Trancou 🔒 — ${wn} fez menos pontos`; }
   let verified = null;
@@ -893,6 +898,7 @@ function renderDom() {
     board: dom.chain.map((t) => ({ a: t[0], b: t[1] })), ends: dom.ends, hand, opponents,
     turn: dom.over ? '' : (myTurn ? 'Sua vez!' : `Vez de ${domName(dom.order[dom.turnIdx])}`),
     myTurn, canPass: myTurn && moves.length === 0, over: dom.over, iWon: dom.winner === self, result, verified,
+    lastPlayIdx, lastPlayAvatar, lastPlayName,
   });
 }
 

@@ -143,7 +143,11 @@ body::after {
 .total-hero .total-num { font-size: 72px; line-height: .95; text-shadow: 0 0 22px rgba(244,177,60,.22), 0 2px 0 rgba(0,0,0,.3); }
 .total-side .total-num { font-size: 40px; color: var(--cream); }
 .total-money .total-num { font-size: 26px; color: var(--cream); }
-.total-money { display: flex; align-items: baseline; gap: 8px; justify-content: flex-end; }
+/* a conta é um botão: tocar abre "Fechar a conta" */
+.total-money { display: flex; align-items: baseline; gap: 8px; justify-content: flex-end;
+  background: none; border: none; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.total-money::after { content: '›'; align-self: center; color: var(--gold); font-size: 22px; line-height: 1; opacity: .75; }
+.total-money:active { opacity: .6; }
 
 /* ---------- Grid de itens (coasters de giz) ---------- */
 .items-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-top: 4px; }

@@ -27,6 +27,7 @@ export class Mesh {
     this.onEvent = opts.onEvent || (() => {});
     this.onPeersChange = opts.onPeersChange || (() => {});
     this.onStatus = opts.onStatus || (() => {});
+    this.onFx = opts.onFx || (() => {}); // efeitos efemeros (reacoes, brinde) — nao persistem
     this.getSyncPayload = opts.getSyncPayload || (() => []);
     this.conns = new Map();     // peerId -> rec
     this._retryAt = new Map();  // peerId -> ts da ultima tentativa de reconexao
@@ -184,6 +185,7 @@ export class Mesh {
       if (msg.k === 'ev') this.onEvent(msg.ev, peerId);
       else if (msg.k === 'sync' && Array.isArray(msg.events)) { for (const ev of msg.events) this.onEvent(ev, peerId); }
       else if (msg.k === 'hello') { rec.name = msg.name || rec.name; this.onPeersChange(); }
+      else if (msg.k === 'fx') this.onFx(msg.fx, peerId);
       // 'ping' so serve pra atualizar lastSeen (feito acima)
     };
   }
@@ -205,6 +207,9 @@ export class Mesh {
   }
 
   sendTo(id, obj) { this._raw(id, obj); }
+
+  // Efeito efemero (reacao, brinde, cutucada) para todos — nao entra no log.
+  sendFx(fx) { this.broadcast({ k: 'fx', fx }); }
 
   peers() {
     const out = [];

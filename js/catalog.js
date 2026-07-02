@@ -19,6 +19,28 @@ export const EMOJIS = [
   '🧀', '🥓', '🍗', '🥜', '🫒', '🍤', '🥟', '🍢',
 ];
 
+// Identidade visual dos participantes (cor + avatar).
+export const COLORS = [
+  '#e8890b', '#e0533d', '#6fcf6f', '#4a9df0', '#b06fe0',
+  '#f0c04a', '#f06fa5', '#3fb7b7', '#8fb04a', '#d97a3a',
+];
+export const AVATARS = [
+  '🍺', '😎', '🤠', '🦁', '🐯', '🐸', '🦊', '🐼',
+  '🐷', '🐵', '🦄', '🐙', '🌵', '🎸', '👽', '🤖',
+];
+
+// Escolhe cor/avatar deterministicos a partir do id (ate a pessoa personalizar).
+export function autoColor(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return COLORS[h % COLORS.length];
+}
+export function autoAvatar(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 37 + id.charCodeAt(i)) >>> 0;
+  return AVATARS[h % AVATARS.length];
+}
+
 const DEFAULT_IDS = new Set(DEFAULT_ITEMS.map((i) => i.id));
 
 export function isDefault(id) {

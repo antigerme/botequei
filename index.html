@@ -177,7 +177,7 @@
       <button class="menu-item" id="menu-pace">📈 Meu ritmo</button>
       <button class="menu-item" id="menu-safe">🛟 Tô de boa?</button>
       <button class="menu-item" id="menu-stats">📊 Meus números</button>
-      <button class="menu-item" id="menu-league">🏆 Liga &amp; desafios</button>
+      <button class="menu-item" id="menu-league">🎖️ Liga &amp; desafios</button>
       <p class="menu-sec">Jogos</p>
       <button class="menu-item" id="menu-roulette">🎰 Quem paga a próxima?</button>
       <button class="menu-item" id="menu-purrinha">🫲 Purrinha</button>
@@ -302,6 +302,7 @@
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="set.title">Configurações</h2>
+    <p class="menu-sec">🎨 Aparência</p>
     <label class="field field-inline"><span data-i18n="set.theme">Tema</span>
       <select id="set-theme">
         <option value="auto">Auto</option>
@@ -318,15 +319,17 @@
         <option value="auto">Auto</option>
       </select></label>
     <label class="check"><input type="checkbox" id="set-bigfont" /><span data-i18n="set.bigfont">🔎 Fonte grande</span></label>
+    <p class="menu-sec">🔊 Som &amp; vibração</p>
     <label class="check"><input type="checkbox" id="set-sound" /><span data-i18n="set.sound">🔊 Sons</span></label>
+    <label class="check"><input type="checkbox" id="set-shake" /><span data-i18n="set.shake">📳 Chacoalhar o celular pra +1 (mãos livres)</span></label>
+    <p class="menu-sec">🎯 Consciência</p>
     <label class="field field-inline"><span>🎯 Meta de bebidas (alerta)</span>
       <input id="set-limit" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" /></label>
     <label class="field field-inline"><span>💧 Lembrar água a cada</span>
       <input id="set-water" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" /></label>
     <label class="check"><input type="checkbox" id="set-nudges" /><span data-i18n="set.nudges">🐢 Avisos de ritmo (bora uma água?)</span></label>
-    <label class="check"><input type="checkbox" id="set-shake" /><span data-i18n="set.shake">📳 Chacoalhar o celular pra +1 (mãos livres)</span></label>
-    <label class="check"><input type="checkbox" id="set-domverified" /><span>🔒 Dominó: mesa verificada (embaralho auditável)</span></label>
-    <p class="lbl">📈 Estimar teor alcoólico (opcional, fica só neste aparelho)</p>
+    <label class="check"><input type="checkbox" id="set-responsa" /><span>🛟 Modo responsa (avisos mais firmes)</span></label>
+    <p class="lbl">📈 Peso e sexo estimam o teor alcoólico — fica só neste aparelho</p>
     <label class="field field-inline"><span>⚖️ Peso (kg)</span>
       <input id="set-weight" type="number" inputmode="numeric" min="0" max="300" step="1" placeholder="0 = não estima" /></label>
     <label class="field field-inline"><span>👤 Você é</span>
@@ -335,20 +338,21 @@
         <option value="m">homem</option>
         <option value="f">mulher</option>
       </select></label>
-    <label class="check"><input type="checkbox" id="set-responsa" /><span>🛟 Modo responsa (avisos mais firmes)</span></label>
-    <p class="lbl">🚗 Se precisar de carona / carro (fica só neste aparelho)</p>
+    <p class="menu-sec">🎮 Jogos</p>
+    <label class="check"><input type="checkbox" id="set-domverified" /><span>🔒 Dominó: mesa verificada (embaralho auditável)</span></label>
+    <p class="menu-sec">🚗 Carona / carro</p>
     <label class="field field-inline"><span>App de carro</span>
       <select id="set-carapp"><option value="uber">Uber</option><option value="99">99</option></select></label>
     <label class="field"><span>Contato de confiança (nome)</span>
       <input id="set-trustname" type="text" maxlength="20" placeholder="ex: Mãe, Bea" /></label>
     <label class="field"><span>Telefone dele(a) — WhatsApp</span>
       <input id="set-trustphone" type="tel" inputmode="tel" maxlength="20" placeholder="ex: 11 99999-9999" /></label>
-    <p class="lbl">💸 PIX pra dividir a conta (fica só neste aparelho)</p>
+    <p class="menu-sec">💸 PIX pra dividir</p>
     <label class="field"><span>Sua chave PIX</span>
       <input id="set-pixkey" type="text" maxlength="77" placeholder="email, telefone, CPF ou aleatória" /></label>
     <label class="field"><span>Cidade</span>
       <input id="set-pixcity" type="text" maxlength="15" placeholder="ex: São Paulo" /></label>
-    <p class="lbl">💾 Backup (leve seus dados pra outro aparelho)</p>
+    <p class="menu-sec">💾 Backup &amp; dados</p>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="btn-export-data">⬇️ Exportar</button>
       <button class="btn btn-ghost" id="btn-import-data">⬆️ Importar</button>
@@ -542,7 +546,7 @@
 <div class="overlay" id="overlay-league" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>🏆 Liga &amp; desafios</h2>
+    <h2>🎖️ Liga &amp; desafios</h2>
     <div class="league-level" id="league-level"></div>
     <h3 class="stats-h3">Desafios da semana</h3>
     <ul class="league-challenges" id="league-challenges"></ul>

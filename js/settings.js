@@ -9,6 +9,10 @@ const DEFAULTS = {
   waterEvery: 0,     // lembrete de agua a cada N bebidas (0 = desligado)
   pixKey: '',        // chave PIX do recebedor (pra dividir a conta)
   pixCity: '',       // cidade do recebedor (BR Code)
+  weightKg: 0,       // peso p/ estimativa de teor alcoólico (0 = não estima; tudo local)
+  sex: '',           // 'm'/'f' p/ constante de Widmark ('' = usa média)
+  nudges: true,      // avisos de ritmo ("bora uma água?")
+  tipPct: 10,        // gorjeta padrão na hora de fechar a conta
 };
 
 export function getSettings() {

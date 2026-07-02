@@ -3,16 +3,19 @@
 import { clientId, getName, setName, newRoomCode } from './identity.js';
 import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar } from './catalog.js';
 import {
-  emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour,
+  emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor,
   getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver, happyHour,
+  paysFor, payerOf,
 } from './events.js';
-import { badgesFor, milestoneLine } from './achievements.js';
+import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
+import { paceInfo, timeline, estimateBAC } from './stats.js';
+import { lifeStats, lifeBadges } from './lifestats.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
 import { makeQR } from './qr.js';
 import { encodeBlob, decodeBlob } from './handshake.js';
-import { shareRecap } from './share.js';
+import { shareRecap, shareBill, shareCeremony } from './share.js';
 import { pixPayload } from './pix.js';
 import * as sound from './sound.js';
 import * as ui from './ui.js';
@@ -29,6 +32,7 @@ let pendingPin = false;   // o convite pediu PIN?
 let saveTimer = null;
 let lastAction = null;    // { type, item } para o "desfazer"
 let lastBill = null;
+let lastAwards = [];      // troféus da última cerimônia (p/ compartilhar / mostrar pra mesa)
 let myDriver = false;
 let deferredPrompt = null;
 
@@ -39,6 +43,8 @@ let lastTableMilestone = 0;   // comemora a cada 10 rodadas da mesa (marco); sin
 let hhEndedFor = 0;           // 'until' do happy hour cujo fechamento já foi comemorado
 let limitAlerted = false;   // pra a meta alertar uma vez (mesmo se ultrapassar de vez)
 let renderScheduled = false;
+let sessionStart = 0;        // quando entrei nesta mesa (p/ duração no histórico)
+let lastNudge = 0;           // cooldown do aviso de ritmo
 
 // itens alcoolicos (motorista nao registra esses; contam pro lembrete de agua)
 const ALCOHOL = new Set(['cerveja', 'chopp', 'dose', 'drink']);
@@ -136,7 +142,18 @@ function afterMyAdd(item) {
     const alc = myAlcohol();
     if (alc > 0 && alc % settings.waterEvery === 0) ui.toast('💧 Hora da água!');
   }
+  checkPace();
   checkTableMilestone();
+}
+// Aviso gentil de ritmo (Dir. consciência): quando a última hora esquenta, sugere uma água.
+function checkPace() {
+  if (settings.nudges === false) return;
+  const p = paceInfo(log, self, resolveItem, { now: Date.now() });
+  if (p.level === 'alto' && Date.now() - lastNudge > 240000) {
+    lastNudge = Date.now();
+    ui.toast('🐢 Tá voando! Bora uma água? 💧');
+    sound.alarm();
+  }
 }
 function callCar() { try { window.open('https://m.uber.com/ul/', '_blank', 'noopener'); } catch { /* ignore */ } }
 // Marco da mesa: a cada 10 rodadas, joga confete + aviso. Reajusta se desfizerem.
@@ -200,6 +217,19 @@ function onFx(fx) {
   if (!fx) return;
   if (fx.kind === 'brinde') ui.brinde();
   else if (fx.kind === 'react') ui.floatReaction(fx.emoji || '🍻');
+  else if (fx.kind === 'roulette') { if (Array.isArray(fx.entrants)) ui.runRoulette(fx.entrants, fx.winner); }
+  else if (fx.kind === 'poke') { if (fx.to === self) receivePoke(fx); }
+  else if (fx.kind === 'challenge') { if (fx.to === self) receiveChallenge(fx); }
+  else if (fx.kind === 'ceremony') { if (Array.isArray(fx.awards)) ui.openCeremony({ awards: fx.awards }); }
+}
+function receivePoke(fx) {
+  ui.toast(`👉 ${fx.fromName || 'Alguém'} te cutucou!`);
+  sound.poke(); ui.vibrate([30, 40, 30]); ui.floatReaction('👉');
+}
+function receiveChallenge(fx) {
+  const it = resolveItem(fx.item || 'dose');
+  sound.challenge(); ui.vibrate([60, 40, 60, 40, 60]);
+  ui.actionToast(`🥃 ${fx.fromName || 'Alguém'} te desafiou: ${it.emoji} ${it.name}!`, 'Aceitar 😈', () => act('ADD', fx.item || 'dose'), 7000);
 }
 
 // ---- Eventos remotos ----
@@ -280,7 +310,7 @@ function bebedeiraItem() {
 
 // ---- Mesa ----
 async function enterTable(code, { create = false, pin = '' } = {}) {
-  room = code; roomPin = pin;
+  room = code; roomPin = pin; sessionStart = Date.now();
   store.setCurrent(room);
   rebuildFrom(store.getEvents(room));
   ui.showScreen('table');
@@ -298,7 +328,7 @@ async function enterTable(code, { create = false, pin = '' } = {}) {
 // ICE vazio => host candidates (mesma Wi-Fi/hotspot). O signaling ainda tenta em 2º
 // plano (falha de boa) — se a internet voltar, a malha se completa sozinha.
 function enterTableOffline(code) {
-  room = code; roomPin = '';
+  room = code; roomPin = ''; sessionStart = Date.now();
   store.setCurrent(room);
   rebuildFrom(store.getEvents(room));
   ui.showScreen('table');
@@ -343,14 +373,28 @@ async function loadIce() {
   } catch { return fallback; }
 }
 
+function myItems() {
+  const m = {};
+  for (const it of allItems()) { const n = getCount(state, self, it.id); if (n > 0) m[it.id] = n; }
+  return m;
+}
 function leaveTable() {
   if (room) {
     store.saveEvents(room, log);
-    store.pushHistory({ room, at: Date.now(), myTotal: userTotal(state, self), tableTotal: tableTotal(state) });
+    const t = tableInfo(state);
+    store.pushHistory({
+      room, at: Date.now(),
+      myTotal: userTotal(state, self), tableTotal: tableTotal(state),
+      myMoney: userMoney(state, self, resolveItem),
+      title: t.title || '',
+      items: myItems(),
+      durationMs: sessionStart ? Date.now() - sessionStart : 0,
+    });
   }
   if (mesh) { mesh.close(); mesh = null; }
   store.clearCurrent();
-  room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false; lastTableMilestone = 0; hhEndedFor = 0;
+  room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false;
+  lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastNudge = 0; lastAwards = [];
   ui.setHappyHour(null);
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
@@ -417,23 +461,115 @@ async function offlineGenAnswer(text) {
 }
 
 // ---- Conta ----
+function itemizeFor(user) {
+  const out = [];
+  for (const it of allItems()) { const n = getCount(state, user, it.id); if (n > 0) out.push({ emoji: it.emoji, n }); }
+  return out;
+}
 function computeBill() {
-  const o = ui.billOptions();
+  const o = ui.billOptions();               // { tipPct, couvert, equal, excluded:[] }
   const rows = summary(state, resolveItem);
-  const N = rows.length || 1;
-  const sumConsumo = rows.reduce((a, r) => a + r.money, 0);
-  const mult = o.service ? 1.1 : 1;
+  const excluded = new Set(o.excluded || []);
+  const included = (u) => !excluded.has(u);
+  const tipMult = 1 + (Math.max(0, o.tipPct) || 0) / 100;
+  if (o.tipPct !== settings.tipPct) settings = setSettings({ tipPct: o.tipPct }); // lembra a gorjeta escolhida
+
+  // base de consumo por pessoa (rateio igual entre os incluídos, ou por consumo real)
+  const base = new Map();
+  if (o.equal) {
+    const inc = rows.filter((r) => included(r.user));
+    const pool = rows.reduce((a, r) => a + r.money, 0);
+    const per = inc.length ? pool / inc.length : 0;
+    for (const r of rows) base.set(r.user, included(r.user) ? per : 0);
+  } else {
+    for (const r of rows) base.set(r.user, r.money);
+  }
+  // gorjeta sobre o consumo + couvert por pessoa incluída
+  const amount = new Map();
+  for (const r of rows) amount.set(r.user, base.get(r.user) * tipMult + (included(r.user) ? o.couvert : 0));
+
+  // "eu pago pra fulano": cada coberto vai pro pagador raiz (resolve cadeias, evita loop)
+  const covers = payerOf(state);            // to -> from
+  const rootPayer = (u) => { const seen = new Set(); let cur = u; while (covers.has(cur) && !seen.has(cur)) { seen.add(cur); cur = covers.get(cur); } return cur; };
+  const final = new Map(amount);
+  for (const r of rows) {
+    if (!covers.has(r.user)) continue;
+    const root = rootPayer(r.user);
+    if (root !== r.user && final.has(root)) { final.set(root, final.get(root) + amount.get(r.user)); final.set(r.user, 0); }
+  }
+
   const out = rows.map((r) => {
     const p = profOf(r.user);
-    const consumo = o.equal ? sumConsumo / N : r.money;
-    return { user: r.user, name: p.name, color: p.color, emoji: p.emoji, amount: consumo * mult + o.couvert };
+    const from = covers.get(r.user);
+    return {
+      user: r.user, name: p.name, color: p.color, emoji: p.emoji,
+      amount: Math.max(0, final.get(r.user) || 0),
+      items: itemizeFor(r.user),
+      coveredByName: from ? (profOf(from).name || 'alguém') : '',
+      iPayThem: paysFor(state, self, r.user),
+      included: included(r.user),
+      isSelf: r.user === self,
+    };
   });
-  return { rows: out, total: out.reduce((a, r) => a + r.amount, 0), hasPrices: allItems().some((i) => i.price > 0) };
+  return { rows: out, total: out.reduce((a, r) => a + r.amount, 0), equal: o.equal, hasPrices: allItems().some((i) => i.price > 0) };
 }
 function renderBill() {
   const b = computeBill(); lastBill = b;
-  const note = b.hasPrices ? 'Divisão por consumo — ajuste as opções.' : 'Sem preços nos itens: use “rachar igual” ou couvert.';
-  ui.renderBill({ rows: b.rows, total: b.total, note, canPix: !!settings.pixKey, selfId: self });
+  const note = b.hasPrices ? 'Por consumo — 🙌 = eu pago; ou rache igual.' : 'Sem preços: use “rachar igual” ou o couvert.';
+  ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self });
+}
+
+// ---- Meu ritmo (consciência) ----
+function openPace() {
+  const now = Date.now();
+  const p = paceInfo(log, self, resolveItem, { now });
+  const tl = timeline(log, self, resolveItem, { now, buckets: 12 });
+  const bac = settings.weightKg > 0 ? estimateBAC(log, self, resolveItem, { now, weightKg: settings.weightKg, sex: settings.sex }) : null;
+  ui.openPace({ count: p.count, spanMs: p.spanMs, recent: p.recent, level: p.level, label: p.label, bars: tl.bars, bac });
+}
+
+// ---- Roleta: quem paga a próxima (sincronizada via fx) ----
+function connectedEntrants() {
+  const me = profOf(self);
+  const out = [{ user: self, name: getName() || 'você', avatar: me.emoji, color: me.color, isSelf: true }];
+  if (mesh) for (const p of mesh.peers()) if (p.online) { const pr = profOf(p.user); out.push({ user: p.user, name: pr.name || 'alguém', avatar: pr.emoji, color: pr.color }); }
+  return out;
+}
+function pickIndex(n) {
+  try { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0] % n; } catch { return Math.floor(Date.now()) % n; }
+}
+function doRoulette() {
+  const entrants = connectedEntrants();
+  if (entrants.length < 2) { ui.toast('Precisa de pelo menos 2 na mesa 🙂'); return; }
+  const winner = entrants[pickIndex(entrants.length)].user;
+  if (mesh) mesh.sendFx({ kind: 'roulette', entrants, winner });
+  ui.runRoulette(entrants, winner);
+}
+
+// ---- Cutucar / desafiar ----
+function openPokeFor(user) {
+  const items = ['dose', 'cerveja', 'drink'].map((id) => { const d = resolveItem(id); return { id, emoji: d.emoji, name: d.name }; });
+  ui.openPoke({ user, name: profOf(user).name || 'alguém', items });
+}
+function sendPoke(user, kind, item) {
+  if (!mesh) { ui.toast('Sozinho na mesa 🙂'); return; }
+  const fromName = getName() || 'alguém';
+  if (kind === 'challenge') { mesh.sendFx({ kind: 'challenge', to: user, from: self, fromName, item: item || 'dose' }); sound.challenge(); ui.toast('🥃 Desafio enviado 😈'); }
+  else { mesh.sendFx({ kind: 'poke', to: user, from: self, fromName }); sound.poke(); ui.toast('👉 Cutucada enviada!'); }
+}
+
+// ---- Cerimônia de fim de noite ----
+function openCeremony() {
+  lastAwards = ceremonyAwards(state, resolveItem, { log, now: Date.now() });
+  ui.openCeremony({ awards: lastAwards });
+}
+
+// ---- Meus números ----
+function openStats() {
+  const hist = store.getHistory();
+  const s = lifeStats(hist, { now: Date.now() });
+  const favDef = s.favDrink ? resolveItem(s.favDrink) : null;
+  ui.openStats({ stats: s, badges: lifeBadges(s), history: hist, favEmoji: favDef ? favDef.emoji : '', favName: favDef ? favDef.name : '' });
 }
 
 // ---- Handlers ----
@@ -475,8 +611,15 @@ const handlers = {
     roomPin = pin; restartMesh(); openInvite();
     ui.toast(pin ? '🔒 PIN ativado nesta mesa' : 'PIN removido');
   },
-  onBill: () => { ui.openBill(); renderBill(); },
+  onBill: () => { ui.openBill({ tipPct: settings.tipPct }); renderBill(); },
   onBillChange: renderBill,
+  onBillShare: async () => {
+    if (!lastBill) renderBill();
+    const t = tableInfo(state);
+    const res = await shareBill(lastBill, (t.emoji ? t.emoji + ' ' : '') + (t.title || 'A conta')).catch(() => 'error');
+    if (res === 'download') ui.toast('Imagem salva 📸'); else if (res === 'error') ui.toast('Não consegui gerar 😕');
+  },
+  onPayFor: (user, on) => { emitLocal(makePayFor({ to: user, on })); renderBill(); },
   onPrices: () => ui.openPrices(allItems()),
   onPriceChange: (id, price) => {
     const it = resolveItem(id);
@@ -496,6 +639,20 @@ const handlers = {
     const res = await shareRecap(state, resolveItem).catch(() => 'error');
     if (res === 'download') ui.toast('Imagem salva 📸'); else if (res === 'error') ui.toast('Não consegui gerar 😕');
   },
+  onPace: openPace,
+  onRoulette: () => { if (!room) { ui.toast('Entre numa mesa 🙂'); return; } ui.openRoulette({ entrants: connectedEntrants() }); },
+  onRouletteSpin: doRoulette,
+  onPoke: openPokeFor,
+  onPokeSend: sendPoke,
+  onCeremony: openCeremony,
+  onCeremonyShare: async () => {
+    const t = tableInfo(state);
+    const res = await shareCeremony(lastAwards, (t.emoji ? t.emoji + ' ' : '') + (t.title || 'Cerimônia')).catch(() => 'error');
+    if (res === 'download') ui.toast('Imagem salva 📸'); else if (res === 'error') ui.toast('Não consegui gerar 😕');
+  },
+  onCeremonyBroadcast: () => { if (mesh) mesh.sendFx({ kind: 'ceremony', awards: lastAwards }); ui.toast('📣 Mandado pra mesa!'); },
+  onStats: openStats,
+  onSfx: (kind) => { if (typeof sound[kind] === 'function') sound[kind](); },
   onBebedeira: () => { const id = bebedeiraItem(); ui.openBebedeira({ item: id, emoji: resolveItem(id).emoji, count: getCount(state, self, id) }); },
   onBebedeiraClose: () => render(),
   onHappyHour: (minutes) => {

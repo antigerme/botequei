@@ -10,7 +10,7 @@ const el = {};
 
 const IDS = [
   'screen-home', 'screen-table', 'input-name', 'input-code', 'btn-create', 'btn-join-code',
-  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-settings',
+  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-settings', 'btn-stats',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'btn-brinde', 'btn-react', 'btn-rodada',
@@ -18,14 +18,21 @@ const IDS = [
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
-  'overlay-menu', 'menu-profile', 'menu-board', 'menu-bill', 'menu-prices', 'menu-share', 'menu-bebedeira', 'menu-hh', 'menu-settings',
+  'overlay-menu', 'menu-profile', 'menu-board', 'menu-pace', 'menu-roulette', 'menu-bill', 'menu-prices',
+  'menu-hh', 'menu-bebedeira', 'menu-ceremony', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
   'overlay-additem', 'emoji-row', 'add-name', 'add-price', 'btn-additem-confirm',
-  'overlay-bill', 'bill-note', 'bill-service', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total',
+  'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
-  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-limit', 'set-water', 'set-pixkey', 'set-pixcity', 'btn-clear-data',
+  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-limit', 'set-water', 'set-nudges',
+  'set-weight', 'set-sex', 'set-pixkey', 'set-pixcity', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
+  'overlay-pace', 'pace-summary', 'pace-bar', 'pace-label', 'pace-chart', 'pace-bac',
+  'overlay-roulette', 'roulette-list', 'roulette-result', 'btn-roulette-spin',
+  'overlay-poke', 'poke-title', 'poke-actions',
+  'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
+  'overlay-stats', 'stats-grid', 'stats-badges', 'stats-history',
   'btn-offline-join', 'btn-offline-host',
   'overlay-offline', 'off-host', 'off-guest',
   'off-offer-qr', 'off-offer-code', 'btn-off-copy-offer', 'btn-off-scan-answer', 'off-answer-in', 'btn-off-connect',
@@ -92,6 +99,7 @@ export function init(handlers) {
   el['input-name'].addEventListener('change', () => H.onName(el['input-name'].value));
   el['btn-settings'].addEventListener('click', () => openSettings());
   el['btn-install'].addEventListener('click', () => H.onInstall());
+  el['btn-stats'].addEventListener('click', () => H.onStats());
 
   $('btn-leave').addEventListener('click', () => H.onLeave());
   $('btn-invite').addEventListener('click', () => H.onInvite());
@@ -114,22 +122,33 @@ export function init(handlers) {
   // menu
   $('menu-profile').addEventListener('click', () => { closeOverlays(); H.onProfile(); });
   $('menu-board').addEventListener('click', () => { closeOverlays(); H.onPeers(); });
+  $('menu-pace').addEventListener('click', () => { closeOverlays(); H.onPace(); });
+  $('menu-roulette').addEventListener('click', () => { closeOverlays(); H.onRoulette(); });
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
-  $('menu-share').addEventListener('click', () => { closeOverlays(); H.onShareNight(); });
-  $('menu-bebedeira').addEventListener('click', () => { closeOverlays(); H.onBebedeira(); });
   $('menu-hh').addEventListener('click', () => { closeOverlays(); el['overlay-hh'].hidden = false; });
+  $('menu-bebedeira').addEventListener('click', () => { closeOverlays(); H.onBebedeira(); });
+  $('menu-ceremony').addEventListener('click', () => { closeOverlays(); H.onCeremony(); });
+  $('menu-share').addEventListener('click', () => { closeOverlays(); H.onShareNight(); });
+  $('menu-stats').addEventListener('click', () => { closeOverlays(); H.onStats(); });
   $('menu-settings').addEventListener('click', () => { closeOverlays(); openSettings(); });
   el['overlay-hh'].querySelectorAll('button[data-min]').forEach((b) => b.addEventListener('click', () => { H.onHappyHour(Number(b.dataset.min)); closeOverlays(); }));
+
+  // roleta / cerimônia
+  el['btn-roulette-spin'].addEventListener('click', () => H.onRouletteSpin());
+  el['btn-ceremony-share'].addEventListener('click', () => H.onCeremonyShare());
+  el['btn-ceremony-broadcast'].addEventListener('click', () => H.onCeremonyBroadcast());
 
   $('btn-profile-save').addEventListener('click', () => submitProfile());
   $('btn-pix-copy').addEventListener('click', () => H.onPixCopy());
 
-  // conta: recalcular ao mudar opcoes
-  ['bill-service', 'bill-couvert', 'bill-equal'].forEach((id) => {
+  // conta: recalcular ao mudar opcoes + presets de gorjeta + compartilhar
+  ['bill-couvert', 'bill-equal'].forEach((id) => {
     el[id].addEventListener('change', () => H.onBillChange());
     el[id].addEventListener('input', () => H.onBillChange());
   });
+  el['bill-tips'].querySelectorAll('button[data-tip]').forEach((b) => b.addEventListener('click', () => { billTip = Number(b.dataset.tip) || 0; markTip(); H.onBillChange(); }));
+  el['btn-bill-share'].addEventListener('click', () => H.onBillShare());
 
   // configuracoes: aplicar ao mudar
   el['set-theme'].addEventListener('change', () => H.onSetting({ theme: el['set-theme'].checked ? 'light' : 'dark' }));
@@ -137,6 +156,9 @@ export function init(handlers) {
   el['set-sound'].addEventListener('change', () => H.onSetting({ sound: el['set-sound'].checked }));
   el['set-limit'].addEventListener('change', () => H.onSetting({ limit: Math.max(0, parseInt(el['set-limit'].value, 10) || 0) }));
   el['set-water'].addEventListener('change', () => H.onSetting({ waterEvery: Math.max(0, parseInt(el['set-water'].value, 10) || 0) }));
+  el['set-nudges'].addEventListener('change', () => H.onSetting({ nudges: el['set-nudges'].checked }));
+  el['set-weight'].addEventListener('change', () => H.onSetting({ weightKg: Math.max(0, Math.min(300, parseInt(el['set-weight'].value, 10) || 0)) }));
+  el['set-sex'].addEventListener('change', () => H.onSetting({ sex: el['set-sex'].value }));
   el['set-pixkey'].addEventListener('change', () => H.onSetting({ pixKey: el['set-pixkey'].value.trim() }));
   el['set-pixcity'].addEventListener('change', () => H.onSetting({ pixCity: el['set-pixcity'].value.trim() }));
   $('btn-clear-data').addEventListener('click', () => H.onClearData());
@@ -179,7 +201,7 @@ export function renderHome(history) {
   if (el['home-hint']) el['home-hint'].hidden = !empty;
   if (empty) { box.hidden = true; ul.innerHTML = ''; return; }
   box.hidden = false;
-  ul.innerHTML = history.map((h) => {
+  ul.innerHTML = history.slice(0, 6).map((h) => {
     const d = new Date(h.at);
     const when = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     return `<li class="hist-item" data-room="${esc(h.room)}">
@@ -249,15 +271,21 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
   el['peers-list'].innerHTML = rows.map((r) => {
     const medal = (!r.driver && r.total > 0) ? (medals[rank++] || '') : '';
     const badges = (r.badges || []).map((b) => b.emoji).join('');
-    return `<li class="peer-row">
+    return `<li class="peer-row" data-user="${esc(r.user)}">
       <span class="peer-medal">${medal}</span>
       <span class="peer-avatar" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
       <div class="peer-main">
         <span class="peer-name">${esc(r.name || 'anônimo')} ${r.user === selfId ? '<span class="peer-you">(você)</span>' : ''} ${r.driver ? '🚗' : ''}</span>
         <span class="peer-badges">${badges}${r.money ? ' · ' + fmtMoney(r.money) : ''}</span>
       </div>
+      ${r.user !== selfId ? '<button class="peer-poke" title="cutucar / desafiar">👉</button>' : ''}
       <span class="peer-total">${r.total}</span></li>`;
   }).join('') || '<li class="peer-row">Ninguém ainda 🥲</li>';
+  el['peers-list'].querySelectorAll('.peer-poke').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const li = b.closest('.peer-row');
+    if (li) H.onPoke(li.dataset.user);
+  }));
   el['my-badges'].innerHTML = (myBadges || []).map((b) => `<span class="badge">${b.emoji} ${esc(b.name)}</span>`).join('');
 }
 export function openPeers() { el['overlay-peers'].hidden = false; }
@@ -336,24 +364,52 @@ export function openPrices(items) {
 }
 
 // ---------- Conta ----------
-export function openBill() { el['overlay-bill'].hidden = false; }
+let billTip = 10;                 // gorjeta escolhida (%)
+let billExcluded = new Set();     // quem ficou de fora do "rachar igual"
+function markTip() {
+  el['bill-tips'].querySelectorAll('button[data-tip]').forEach((b) => b.classList.toggle('sel', Number(b.dataset.tip) === billTip));
+}
+export function openBill(vm) {
+  billExcluded = new Set();
+  if (vm && Number.isFinite(vm.tipPct)) billTip = vm.tipPct;
+  markTip();
+  el['overlay-bill'].hidden = false;
+}
 export function billOptions() {
   return {
-    service: el['bill-service'].checked,
+    tipPct: billTip,
     couvert: Math.max(0, parseFloat(String(el['bill-couvert'].value).replace(',', '.')) || 0),
     equal: el['bill-equal'].checked,
+    excluded: [...billExcluded],
   };
 }
 export function renderBill(vm) {
   el['bill-note'].textContent = vm.note || '';
-  el['bill-list'].innerHTML = vm.rows.map((r) => `<li class="bill-row" data-user="${esc(r.user)}">
-    <span class="peer-avatar" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
-    <span class="b-name">${esc(r.name || 'anônimo')}</span>
-    <span class="b-amt">${fmtMoney(r.amount)}</span>
-    ${vm.canPix && r.amount > 0 && r.user !== vm.selfId ? '<button class="b-pix">PIX</button>' : ''}</li>`).join('');
+  const equal = !!vm.equal;
+  el['bill-list'].innerHTML = vm.rows.map((r) => {
+    const items = (r.items || []).map((it) => `${esc(it.emoji)}${it.n}`).join(' ');
+    const sel = equal ? `<input type="checkbox" class="b-sel" ${r.included ? 'checked' : ''} aria-label="incluir na divisão" />` : '';
+    const right = r.coveredByName
+      ? `<span class="b-covered">🙌 ${esc(r.coveredByName)}</span>`
+      : `<span class="b-amt">${fmtMoney(r.amount)}</span>`;
+    const pix = (vm.canPix && r.amount > 0 && !r.isSelf && !r.coveredByName) ? '<button class="b-pix">PIX</button>' : '';
+    const pay = r.isSelf ? '' : `<button class="b-pay ${r.iPayThem ? 'on' : ''}" title="eu pago pra essa pessoa">🙌</button>`;
+    return `<li class="bill-row" data-user="${esc(r.user)}">
+      ${sel}
+      <span class="peer-avatar" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
+      <div class="b-main">
+        <span class="b-name">${esc(r.name || 'anônimo')}${r.isSelf ? ' <span class="peer-you">(você)</span>' : ''}</span>
+        <span class="b-items">${items}</span>
+      </div>
+      ${right}
+      <span class="b-actions">${pay}${pix}</span>
+    </li>`;
+  }).join('');
   el['bill-list'].querySelectorAll('.bill-row').forEach((li) => {
-    const btn = li.querySelector('.b-pix');
-    if (btn) btn.addEventListener('click', () => H.onPix(li.dataset.user));
+    const u = li.dataset.user;
+    const pixb = li.querySelector('.b-pix'); if (pixb) pixb.addEventListener('click', () => H.onPix(u));
+    const payb = li.querySelector('.b-pay'); if (payb) payb.addEventListener('click', () => H.onPayFor(u, !payb.classList.contains('on')));
+    const selb = li.querySelector('.b-sel'); if (selb) selb.addEventListener('change', () => { if (selb.checked) billExcluded.delete(u); else billExcluded.add(u); H.onBillChange(); });
   });
   el['bill-total'].textContent = 'Total: ' + fmtMoney(vm.total);
 }
@@ -375,6 +431,9 @@ export function fillSettings(s) {
   el['set-sound'].checked = !!s.sound;
   el['set-limit'].value = s.limit || '';
   el['set-water'].value = s.waterEvery || '';
+  el['set-nudges'].checked = s.nudges !== false;
+  el['set-weight'].value = s.weightKg || '';
+  el['set-sex'].value = s.sex || '';
   el['set-pixkey'].value = s.pixKey || '';
   el['set-pixcity'].value = s.pixCity || '';
 }
@@ -513,6 +572,153 @@ export function openScanner(title, onResult) {
     else if (e && e.message === 'sem-camera') toast('Sem câmera — use o copia-e-cola 🙂');
     // cancelamento manual (fechar overlay): silencioso
   });
+}
+
+// ---------- Meu ritmo (consciência) ----------
+function fmtDur(ms) {
+  const m = Math.round((ms || 0) / 60000);
+  if (m < 60) return m + 'min';
+  const h = Math.floor(m / 60), mm = m % 60;
+  return mm ? `${h}h${String(mm).padStart(2, '0')}` : `${h}h`;
+}
+function roundRectPath(g, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  g.beginPath(); g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function drawChart(canvas, bars) {
+  const g = canvas.getContext('2d');
+  const W = canvas.width, Hh = canvas.height;
+  g.clearRect(0, 0, W, Hh);
+  const light = document.body.classList.contains('light');
+  if (!bars || !bars.length) {
+    g.fillStyle = light ? 'rgba(60,40,10,.45)' : 'rgba(255,240,200,.45)';
+    g.font = '20px system-ui, sans-serif'; g.textAlign = 'center';
+    g.fillText('sem bebidas ainda', W / 2, Hh / 2);
+    return;
+  }
+  const max = Math.max(1, ...bars);
+  const n = bars.length, gap = 6;
+  const bw = (W - gap * (n + 1)) / n;
+  g.fillStyle = light ? '#c8811f' : '#f4b13c';
+  for (let i = 0; i < n; i++) {
+    const h = Math.round((bars[i] / max) * (Hh - 20));
+    if (h <= 0) continue;
+    roundRectPath(g, gap + i * (bw + gap), Hh - 4 - h, bw, h, 4);
+    g.fill();
+  }
+}
+export function openPace(vm) {
+  el['pace-summary'].innerHTML = `<strong>${vm.count}</strong> bebida${vm.count === 1 ? '' : 's'} em ${fmtDur(vm.spanMs)}`;
+  el['pace-bar'].style.width = Math.min(100, (vm.recent / 6) * 100) + '%';
+  el['pace-bar'].className = 'pace-bar lvl-' + vm.level;
+  el['pace-label'].textContent = `${vm.label} · ${vm.recent} na última hora`;
+  drawChart(el['pace-chart'], vm.bars || []);
+  if (vm.bac) {
+    const sober = vm.bac.soberInMs > 0 ? ` · zera em ~${fmtDur(vm.bac.soberInMs)}` : '';
+    el['pace-bac'].innerHTML = `<div class="bac-big">${vm.bac.bac.toFixed(2)} <small>g/L</small></div>
+      <div class="bac-lbl">${vm.bac.label}${sober}</div>
+      ${vm.bac.canDrive ? '' : '<div class="bac-drive">🚗🚫 nem pensar em dirigir</div>'}`;
+  } else {
+    el['pace-bac'].innerHTML = '<div class="bac-lbl">Quer estimar teu teor alcoólico? Bota teu peso nas ⚙️ configurações.</div>';
+  }
+  el['overlay-pace'].hidden = false;
+}
+
+// ---------- Roleta: quem paga a próxima ----------
+let rouletteRunning = false;
+export function openRoulette(vm) {
+  const entrants = (vm && vm.entrants) || [];
+  el['roulette-result'].hidden = true;
+  el['btn-roulette-spin'].disabled = entrants.length < 2 || rouletteRunning;
+  el['roulette-list'].innerHTML = entrants.map((e, i) => `<li class="roul-item" data-i="${i}">
+    <span class="peer-avatar" style="background:${safeColor(e.color)}">${esc(e.avatar || '🍺')}</span>
+    <span class="roul-name">${esc(e.name || 'anônimo')}${e.isSelf ? ' <span class="peer-you">(você)</span>' : ''}</span></li>`).join('')
+    || '<li class="roul-item">Ninguém conectado pra sortear 🥲</li>';
+  el['overlay-roulette'].hidden = false;
+}
+// Anima o giro terminando no vencedor (mesma lista/vencedor em todos os aparelhos → sincronizado).
+export function runRoulette(entrants, winnerUser) {
+  if (rouletteRunning || !entrants || !entrants.length) return;
+  openRoulette({ entrants });
+  const items = [...el['roulette-list'].querySelectorAll('.roul-item')];
+  const n = entrants.length;
+  let winIdx = entrants.findIndex((e) => e.user === winnerUser);
+  if (winIdx < 0) winIdx = 0;
+  const steps = 3 * n + winIdx; // algumas voltas + parar no vencedor
+  const highlight = (idx) => items.forEach((it, i) => it.classList.toggle('on', i === idx % n));
+  rouletteRunning = true;
+  el['btn-roulette-spin'].disabled = true;
+  let s = 0;
+  const step = () => {
+    highlight(s);
+    if (H.onSfx) H.onSfx('tick'); vibrate(8);
+    s++;
+    if (s <= steps) {
+      const remaining = steps - s;
+      setTimeout(step, remaining < n ? 90 + (n - remaining) * 45 : 70); // desacelera no fim
+    } else {
+      highlight(steps);
+      const w = entrants[winIdx];
+      el['roulette-result'].hidden = false;
+      el['roulette-result'].innerHTML = `🎰 <strong>${esc(w.name || 'alguém')}</strong> paga a próxima! 🍻`;
+      rouletteRunning = false;
+      el['btn-roulette-spin'].disabled = false;
+      if (H.onSfx) H.onSfx('win'); vibrate([60, 40, 120]);
+      celebrate(['🎉', '🎰', '🍻', '🥂']);
+    }
+  };
+  step();
+}
+
+// ---------- Cutucar / desafiar ----------
+export function openPoke(vm) {
+  el['poke-title'].textContent = 'Provocar ' + (vm.name || 'alguém');
+  const btns = ['<button class="btn btn-primary poke-btn" data-kind="poke">👉 Cutucar</button>'];
+  for (const it of (vm.items || [])) {
+    btns.push(`<button class="btn btn-ghost poke-btn" data-kind="challenge" data-item="${esc(it.id)}">${esc(it.emoji)} Desafiar: ${esc(it.name)}</button>`);
+  }
+  el['poke-actions'].innerHTML = btns.join('');
+  el['poke-actions'].querySelectorAll('.poke-btn').forEach((b) => b.addEventListener('click', () => {
+    H.onPokeSend(vm.user, b.dataset.kind, b.dataset.item || '');
+    closeOverlays();
+  }));
+  el['overlay-poke'].hidden = false;
+}
+
+// ---------- Cerimônia de troféus ----------
+export function openCeremony(vm) {
+  const list = (vm && vm.awards) || [];
+  el['ceremony-list'].innerHTML = list.length ? list.map((a) => `<li class="ceremony-row">
+    <span class="cer-emoji">${esc(a.emoji || '🏅')}</span>
+    <div class="cer-main"><span class="cer-title">${esc(a.title)}</span>
+    <span class="cer-name">${esc(a.name || 'anônimo')}${a.detail ? ` · ${esc(a.detail)}` : ''}</span></div></li>`).join('')
+    : '<li class="ceremony-row">Ninguém pontuou ainda 🥲</li>';
+  el['overlay-ceremony'].hidden = false;
+  if (list.length) { celebrate(['🏆', '🎉', '🥇', '🍻', '✨']); if (H.onSfx) H.onSfx('fanfare'); }
+}
+
+// ---------- Meus números (estatísticas de vida) ----------
+export function openStats(vm) {
+  const s = vm.stats || {};
+  const cell = (v, l, wide) => `<div class="stat-cell${wide ? ' wide' : ''}"><span class="stat-v">${v}</span><span class="stat-l">${esc(l)}</span></div>`;
+  let html = cell(s.nights || 0, 'noites')
+    + cell(s.totalDrinks || 0, 'rodadas')
+    + cell((s.avgPerNight || 0).toFixed(1), 'média/noite')
+    + cell(s.thisMonth || 0, 'este mês')
+    + cell(s.record ? s.record.total : 0, 'recorde')
+    + cell('🔥' + (s.streakWeeks || 0), 'semanas');
+  if (s.favDrink) html += cell(vm.favEmoji || '🍺', 'favorita: ' + (vm.favName || s.favDrink), true);
+  if (s.totalSpent > 0) html += cell(fmtMoney(s.totalSpent), 'já torrado 💸', true);
+  el['stats-grid'].innerHTML = html;
+  el['stats-badges'].innerHTML = (vm.badges || []).map((b) => `<span class="badge">${b.emoji} ${esc(b.name)}</span>`).join('') || '<span class="seal">Suas conquistas aparecem aqui 🏅</span>';
+  el['stats-history'].innerHTML = (vm.history || []).slice(0, 12).map((h) => {
+    const d = new Date(h.at);
+    const when = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    return `<li><span>${esc(h.title || h.room)} <small>· ${when}</small></span><small>você ${h.myTotal || 0} · mesa ${h.tableTotal || 0}</small></li>`;
+  }).join('') || '<li>Sem noites ainda — bora criar a primeira? 🍻</li>';
+  el['overlay-stats'].hidden = false;
 }
 
 // ---------- Overlays / toast ----------

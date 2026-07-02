@@ -6,10 +6,12 @@ tempo real entre os navegadores. UI em **pt-BR**.
 
 ## Rodar / testar
 - **Servidor local:** `php -S 0.0.0.0:8000` (serve tudo; precisa só de **PHP 8.x**, sem npm/banco).
-- **Unit, sem dependências:** `node tests/reducer.test.mjs` e `node tests/features.test.mjs`.
+- **Unit, sem dependências:** `node tests/reducer.test.mjs`, `node tests/features.test.mjs` e
+  `node tests/stats.test.mjs` (ritmo/BAC + estatísticas de vida).
 - **E2E (2–3 navegadores, WebRTC real):** `npm i playwright-core && node tests/e2e.mjs`
   (usa o Chromium do ambiente; variáveis `BASE` e `CHROME`). Também `tests/e2e-reconnect.mjs`
-  (reconexão) e `tests/e2e-offline.mjs` (pareamento por QR/código com o signaling desligado).
+  (reconexão), `tests/e2e-offline.mjs` (pareamento por QR/código com o signaling desligado) e
+  `tests/e2e-features.mjs` (roleta sincronizada, cutucada, PAYFOR e estatísticas).
 
 ## Arquitetura (essencial)
 - **Sem framework, sem build.** HTML + CSS + JS puro (ES modules). Não introduzir bundler/toolchain.
@@ -28,8 +30,18 @@ tempo real entre os navegadores. UI em **pt-BR**.
   peer e converge). Peers manuais ficam fora da reconexão via signaling (re-pareia com novo QR).
 - **Estado por eventos (CRDT PN-Counter)** (`js/events.js`): eventos imutáveis
   `{type,user,item,ts,eventId}`. Total = soma (comutativa → converge). Dedup por `eventId`.
-  Anti-entropy no join (troca o log completo) + gossip (repassa eventos novos).
-- **Persistência:** só `localStorage` (`js/store.js`). Nada central.
+  Anti-entropy no join (troca o log completo) + gossip (repassa eventos novos). LWW (ts→eventId)
+  p/ ITEM/PROFILE/TABLE/HAPPYHOUR/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
+- **Efeitos efêmeros (não entram no log)** via `mesh.sendFx` → `onFx`: brinde, reação, **roleta**
+  ("quem paga a próxima" — o iniciador sorteia e manda `{entrants,winner}`, todos animam igual e
+  convergem), **cutucar/desafiar** (`to`/`from`, só o alvo reage) e **cerimônia** (mostrar troféus
+  pra mesa). Nada disso persiste — é só show ao vivo.
+- **Consciência & estatísticas (puro)**: `js/stats.js` (ritmo da última hora, linha do tempo e
+  estimativa de teor alcoólico por Widmark — precisa de peso/sexo locais; **não é bafômetro**) e
+  `js/lifestats.js` (média/recorde/mês/bebida favorita/streak de semanas + conquistas de vida),
+  derivados do log / do histórico local. Gramas de álcool por item ficam no `catalog.js` (`g`).
+- **Persistência:** só `localStorage` (`js/store.js`; histórico enxuto por mesa com meus itens,
+  gasto e duração p/ as estatísticas). Nada central.
 - **TURN opcional** (`turn.php`): credenciais efêmeras da Cloudflare, lidas de env var /
   `$_SERVER` (Apache `SetEnv`) / `.env`. Token **só no servidor**. Sem config → responde 204 → STUN.
 
@@ -40,12 +52,14 @@ tempo real entre os navegadores. UI em **pt-BR**.
 - `js/signaling.js` — cliente do `signaling.php` (polling)
 - `js/handshake.js` — codec do offer/answer offline (deflate + base64url; puro/isomórfico)
 - `js/scan.js` — leitor de QR por câmera (BarcodeDetector + jsQR); só no fluxo offline
-- `js/events.js` — eventos + reducer (CRDT). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
-- `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira
-- `js/store.js`, `js/identity.js`, `js/catalog.js`, `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)
+- `js/events.js` — eventos + reducer (CRDT, inclui PAYFOR). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
+- `js/stats.js` — ritmo/linha do tempo/BAC (puro) · `js/lifestats.js` — estatísticas de vida + streak (puro)
+- `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia)
+- `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, overlays (ritmo/roleta/cutucar/cerimônia/números/conta)
+- `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)
 - `signaling.php`, `turn.php` — servidor mínimo (handshake / credenciais TURN)
 - `tools/gen_icons.php` — gera os PNGs de `icons/` (build; **não expor na web**)
-- `tests/` — `reducer.test.mjs` + `features.test.mjs` (unit) · `e2e.mjs` / `e2e-reconnect.mjs` / `e2e-offline.mjs` (Playwright)
+- `tests/` — `reducer.test.mjs` + `features.test.mjs` + `stats.test.mjs` (unit) · `e2e.mjs` / `e2e-reconnect.mjs` / `e2e-offline.mjs` / `e2e-features.mjs` (Playwright)
 
 ## Convenções / gotchas
 - **URLs sempre relativas** (`new URL('signaling.php', location.href)`, `fetch('turn.php')`,
@@ -57,4 +71,7 @@ tempo real entre os navegadores. UI em **pt-BR**.
   `.htaccess.example` já desliga.
 - **Deploy = copiar TODOS os arquivos, inclusive `icons/`.** Atrás do Cloudflare, **purgue o
   cache** após atualizar assets.
-- Antes de commitar mudança de lógica, rode `node tests/reducer.test.mjs` e o `tests/e2e.mjs`.
+- **BAC é estimativa local, não bafômetro** — sempre com o aviso de não dirigir; peso/sexo ficam só no aparelho.
+- Ao mexer no `ui.js`, todo id novo precisa entrar no array `IDS` (senão `ui.init` quebra ao amarrar o listener).
+- Ao adicionar `js/*.js` do shell, atualize a lista do `sw.js` **e** bump o `CACHE` (`botequei-vN`).
+- Antes de commitar mudança de lógica, rode os unit (`reducer`/`features`/`stats`) e o `tests/e2e.mjs`.

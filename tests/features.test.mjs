@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, happyHour, paysFor, payerOf } from '../js/events.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, happyHour, paysFor, payerOf, songs } from '../js/events.js';
 import { badgesFor, mvp, ceremonyAwards } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
@@ -136,6 +136,19 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.strictEqual(byId.driver.name, 'André'); // motorista
   assert.ok(byId.ferro && byId.ferro.name === 'Bia'); // única com destilado
   ok('cerimônia: MVP, hidratado, motorista, cabeça de ferro');
+}
+
+// ---------- Jukebox (fila de músicas) ----------
+{
+  const s = emptyState();
+  applyEvent(s, { type: 'SONG', user: 'a', name: 'André', title: 'Evidências', url: '', ts: 2, eventId: 's2' });
+  applyEvent(s, { type: 'SONG', user: 'b', name: 'Bia', title: 'Tim Maia', url: 'x', ts: 1, eventId: 's1' });
+  const q = songs(s);
+  assert.strictEqual(q.length, 2);
+  assert.strictEqual(q[0].title, 'Tim Maia'); // ordena por ts do pedido
+  assert.strictEqual(q[1].name, 'André');
+  assert.strictEqual(applyEvent(s, { type: 'SONG', user: 'c', title: '', ts: 3, eventId: 's3' }), false); // sem título é ignorado
+  ok('jukebox: fila acumula e ordena por pedido');
 }
 
 console.log(`\n${passed} testes de features passaram ✅`);

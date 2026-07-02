@@ -32,11 +32,15 @@ tempo real entre os navegadores. UI em **pt-BR**.
   `{type,user,item,ts,eventId}`. Total = soma (comutativa → converge). Dedup por `eventId`.
   Anti-entropy no join (troca o log completo) + gossip (repassa eventos novos). LWW (ts→eventId)
   p/ ITEM/PROFILE/TABLE/HAPPYHOUR/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
-  O `PROFILE` também leva o **nível** (liga) pra galera ver no placar.
+  O `PROFILE` também leva o **nível** (liga) pra galera ver no placar. `SONG` (jukebox) **acumula**
+  (não é LWW) — a fila de músicas da mesa.
 - **Efeitos efêmeros (não entram no log)** via `mesh.sendFx` → `onFx`: brinde, reação, **roleta**
   ("quem paga a próxima" — o iniciador sorteia e manda `{entrants,winner}`, todos animam igual e
   convergem), **cutucar/desafiar** (`to`/`from`, só o alvo reage), **cerimônia** (mostrar troféus
-  pra mesa) e **chamar o garçom** (`waiter`). Nada disso persiste — é só show ao vivo.
+  pra mesa), **chamar o garçom** (`waiter`) e **rodada de água** (`water`). Nada disso persiste.
+- **Clima & cuidado**: `js/music.js` (trilha lo-fi **procedural** via WebAudio, sem arquivo — igual
+  ao `sound.js` — + `spectrum()` pro visualizador do "modo festa"). "Cuida do fulano" deriva o ritmo
+  de um peer do log compartilhado (`paceInfo`, sem expor BAC); "me leva pra casa" usa GPS → WhatsApp.
 - **Presença ao vivo**: `render()` desenha a barra de avatares (self + peers, `mesh.peers()`);
   `onMeshChange` faz o diff de quem entrou/saiu (toast) e o placar mostra a qualidade da conexão
   por pessoa (host/srflx/relay). Tocar num nome no placar abre a **comanda** daquela pessoa.
@@ -70,6 +74,7 @@ tempo real entre os navegadores. UI em **pt-BR**.
 - `js/events.js` — eventos + reducer (CRDT, inclui PAYFOR). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
 - `js/stats.js` — ritmo/linha do tempo/BAC/última dose/hidratação (puro) · `js/lifestats.js` — estatísticas de vida + streak + retrô (puro) · `js/league.js` — nível/XP/desafios/troféu (puro)
 - `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia/retrô)
+- `js/sound.js` — efeitos (WebAudio) · `js/music.js` — trilha lo-fi procedural + espectro (WebAudio, fora do puro)
 - `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, overlays (ritmo/roleta/cutucar/cerimônia/números/conta)
 - `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)
 - `signaling.php`, `turn.php` — servidor mínimo (handshake / credenciais TURN)

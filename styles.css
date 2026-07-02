@@ -526,6 +526,26 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 /* Chip de nível no placar */
 .lvl-chip { font-family: var(--num); font-size: 12px; background: rgba(244, 177, 60, .2); color: var(--gold); border-radius: 999px; padding: 1px 7px; }
 
+/* ===================== Leva 4 (jukebox, modo festa) ===================== */
+
+.jukebox-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; max-height: 50vh; overflow-y: auto; }
+.jbx-row { display: flex; align-items: center; gap: 12px; background: rgba(255, 255, 255, .03); border: 2px dashed var(--chalk-line); border-radius: 12px; padding: 10px 13px; }
+.jbx-n { font-family: var(--num); color: var(--gold); width: 22px; text-align: center; flex: none; }
+.jbx-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.jbx-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jbx-by { font-size: 13px; color: var(--muted); }
+.jbx-play { background: rgba(255, 255, 255, .05); border: 2px dashed var(--chalk-line); border-radius: 10px; width: 42px; height: 42px; font-size: 18px; cursor: pointer; flex: none; }
+
+/* Modo festa (overlay full-screen com visualizador) */
+.overlay-full { align-items: stretch; }
+.festa-inner { position: relative; width: 100%; min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: radial-gradient(120% 90% at 50% 0%, #23301a, #0b0e07); }
+body.light .festa-inner { background: radial-gradient(120% 90% at 50% 0%, #fdf6e6, #ece0c7); }
+.festa-canvas { width: min(92vw, 560px); height: auto; aspect-ratio: 8 / 5; background: rgba(0, 0, 0, .18); border: 2px dashed var(--chalk-line); border-radius: 16px; }
+body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
+.festa-hint { color: var(--muted); font-family: var(--hand); font-size: 18px; }
+.overlay-full .sheet-close { position: absolute; top: calc(16px + var(--safe-t)); right: 18px; z-index: 2; }
+
 /* ---------- Telas largas (tablet/desktop): aproveita o espaço ---------- */
 @media (min-width: 720px) {
   #app { max-width: 760px; }

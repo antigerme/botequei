@@ -3,9 +3,9 @@
 import { clientId, getName, setName, newRoomCode } from './identity.js';
 import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar, catOf } from './catalog.js';
 import {
-  emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor,
+  emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor, makeSong,
   getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver, happyHour,
-  paysFor, payerOf,
+  paysFor, payerOf, songs,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
 import { paceInfo, timeline, estimateBAC, lastDrinkAt, hydration, driveVerdict } from './stats.js';
@@ -51,6 +51,7 @@ let presenceSeeded = false;  // 1ª passada de presença só semeia (sem toast)
 let sessionMates = new Set(); // nomes que apareceram na mesa (p/ "com quem você mais bebeu")
 let pendingBarMenu = false;  // ao abrir "mesa do bar", carrega o cardápio salvo
 let lastRetro = null;        // dados da última retrospectiva (p/ compartilhar)
+let concernAt = new Map();   // cooldown do "cuida do fulano" por pessoa
 
 // itens alcoolicos (motorista nao registra esses; contam pro lembrete de agua)
 const ALCOHOL = new Set(['cerveja', 'chopp', 'dose', 'drink']);
@@ -164,6 +165,26 @@ function checkPace() {
     sound.alarm();
   }
 }
+// "Cuida do fulano": o ritmo de um peer é derivável do log compartilhado (sem expor BAC).
+function maybeConcern(user) {
+  const p = paceInfo(log, user, resolveItem, { now: Date.now() });
+  if (p.level !== 'alto') return;
+  if (Date.now() - (concernAt.get(user) || 0) < 300000) return; // 5 min por pessoa
+  concernAt.set(user, Date.now());
+  ui.toast(`🫶 Fica de olho no ${profOf(user).name || 'pessoal'} — tá num ritmo forte.`);
+}
+// Rodada de água coletiva: +1 água pra todo mundo online + animação sincronizada.
+function waterRound() {
+  const targets = [{ user: self, name: getName() }];
+  if (mesh) for (const p of mesh.peers()) if (p.online) targets.push({ user: p.user, name: profOf(p.user).name });
+  let n = 0;
+  for (const t of targets) if (emitLocal(makeAdd('agua', t.user, t.name))) n++;
+  if (mesh) mesh.sendFx({ kind: 'water' });
+  ui.floatReaction('💧'); ui.floatReaction('💦'); sound.plus();
+  ui.celebrate(['💧', '💦', '🚰', '🫗']);
+  afterChange('agua', 'add');
+  ui.toast(n > 1 ? `💧 Rodada de água! +1 pra ${n}` : '💧 Bebeu água! 👏');
+}
 function callCar() {
   const url = settings.carApp === '99' ? 'https://99app.com/' : 'https://m.uber.com/ul/';
   try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
@@ -234,6 +255,7 @@ function onFx(fx) {
   else if (fx.kind === 'challenge') { if (fx.to === self) receiveChallenge(fx); }
   else if (fx.kind === 'ceremony') { if (Array.isArray(fx.awards)) ui.openCeremony({ awards: fx.awards }); }
   else if (fx.kind === 'waiter') receiveWaiter(fx);
+  else if (fx.kind === 'water') { ui.floatReaction('💧'); ui.celebrate(['💧', '💦', '🚰']); ui.toast('💧 Rodada de água na mesa!'); sound.plus(); }
 }
 function receiveWaiter(fx) {
   ui.toast(`🔔 ${fx.fromName || 'Alguém'} chamou o garçom!`);
@@ -257,12 +279,14 @@ function onRemoteEvent(ev, fromPeer, isSync) {
   if (ev.type === 'ADD' && ev.user === self) checkLimit(); // alguém somou pra mim (rodada)
   if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state) / 10); scheduleRender(); return; }
   if (ev.type === 'ADD') checkTableMilestone();
+  if (ev.type === 'SONG') ui.renderJukebox(songs(state));
   if (ev.type === 'ADD' && ev.user !== self) {
     const p = profOf(ev.user);
     ui.floatPlus(`${p.name || 'alguém'} ${resolveItem(ev.item).emoji}+1`, p.color);
     sound.pop();
     const line = milestoneLine(p.name || 'alguém', userTotal(state, ev.user), leaderName());
     if (line) ui.toast(line);
+    maybeConcern(ev.user); // "cuida do fulano": ritmo do peer é derivável do log compartilhado
   }
   if (ev.item) afterChange(ev.item, ev.type === 'REMOVE' ? 'remove' : 'add');
   else scheduleRender();
@@ -437,7 +461,7 @@ function leaveTable() {
   store.clearCurrent();
   room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false;
   lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastNudge = 0; lastAwards = [];
-  prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set();
+  prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set(); concernAt = new Map();
   ui.setHappyHour(null);
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
@@ -785,6 +809,29 @@ const handlers = {
     ui.toast(defs.length ? `💾 Cardápio salvo (${defs.length} itens)` : 'Adicione itens/preços antes 🙂');
   },
   onCallCar: callCar,
+  onWaterRound: () => { if (!room) { ui.toast('Entre numa mesa 🙂'); return; } waterRound(); },
+  onJukebox: () => { if (!room) { ui.toast('Entre numa mesa 🙂'); return; } ui.openJukebox({ songs: songs(state) }); },
+  onSongAdd: (title) => {
+    if (!room) return;
+    if (emitLocal(makeSong({ title }))) { ui.renderJukebox(songs(state)); ui.toast('🎵 Na fila!'); }
+  },
+  onSongPlay: (song) => {
+    if (!song) return;
+    const url = song.url && /^https?:\/\//.test(song.url) ? song.url : 'https://music.youtube.com/search?q=' + encodeURIComponent(song.title);
+    try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
+  },
+  onGoHome: () => {
+    const digits = (settings.trustPhone || '').replace(/\D/g, '');
+    if (!digits) { ui.toast('Configure um contato de confiança nas ⚙️'); return; }
+    const num = digits.length <= 11 ? '55' + digits : digits;
+    if (!navigator.geolocation) { ui.toast('Sem GPS neste aparelho 😕'); return; }
+    ui.toast('📍 Pegando sua localização…');
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const map = `https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`;
+      const msg = encodeURIComponent(`Oi${settings.trustName ? ' ' + settings.trustName : ''}! Tô voltando do bar, minha localização: ${map} . Fica de olho, tá? 🙏`);
+      try { window.open(`https://wa.me/${num}?text=${msg}`, '_blank', 'noopener'); } catch { /* ignore */ }
+    }, () => ui.toast('Não consegui a localização 😕'), { timeout: 8000 });
+  },
   onTrustContact: () => {
     const digits = (settings.trustPhone || '').replace(/\D/g, '');
     if (!digits) { ui.toast('Configure um contato de confiança nas ⚙️'); return; }

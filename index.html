@@ -178,6 +178,9 @@
       <p class="menu-sec">Mesa</p>
       <button class="menu-item" id="menu-board">🏆 Placar &amp; conquistas</button>
       <button class="menu-item" id="menu-roulette">🎰 Quem paga a próxima?</button>
+      <button class="menu-item" id="menu-water">💧 Rodada de água</button>
+      <button class="menu-item" id="menu-jukebox">🎵 Jukebox</button>
+      <button class="menu-item" id="menu-festa">🎉 Modo festa</button>
       <button class="menu-item" id="menu-hh">⏰ Happy hour</button>
       <button class="menu-item" id="menu-waiter">🔔 Chamar o garçom</button>
       <button class="menu-item" id="menu-bebedeira">🥴 Modo bebedeira</button>
@@ -492,6 +495,7 @@
       <button class="btn btn-primary" id="btn-safe-car">🚗 Chamar carro</button>
       <button class="btn btn-ghost" id="btn-safe-trust" hidden>🆘 Contato</button>
     </div>
+    <button class="btn btn-ghost" id="btn-safe-home" hidden>🏠 Me leva pra casa (manda minha localização)</button>
     <p class="seal">Estimativa local, não é bafômetro. Bebeu? Não dirija. 🚗🚫</p>
   </div>
 </div>
@@ -533,6 +537,29 @@
       <button class="btn btn-primary btn-lg" id="btn-bar-open">Abrir mesa do bar 🍺</button>
     </div>
     <p class="seal">Salve o cardápio na mesa em 💲 Preços → “Salvar como cardápio do bar”.</p>
+  </div>
+</div>
+
+<!-- Jukebox da mesa (fila de músicas, sincronizada) -->
+<div class="overlay" id="overlay-jukebox" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>🎵 Jukebox da mesa</h2>
+    <p class="sheet-sub">Peça a próxima — a fila aparece pra todo mundo. Toca abrindo no seu app de música.</p>
+    <div class="join-row">
+      <input id="jukebox-input" type="text" maxlength="60" placeholder="música / artista" class="code-input" />
+      <button class="btn btn-primary" id="btn-jukebox-add">Pedir</button>
+    </div>
+    <ul class="jukebox-list" id="jukebox-list"></ul>
+  </div>
+</div>
+
+<!-- Modo festa (visualizador + trilha lo-fi procedural) -->
+<div class="overlay overlay-full" id="overlay-festa" hidden>
+  <div class="festa-inner">
+    <button class="sheet-close" id="btn-festa-close">✕</button>
+    <canvas class="festa-canvas" id="festa-canvas" width="480" height="300"></canvas>
+    <p class="festa-hint">🎉 modo festa · trilha lo-fi tocando</p>
   </div>
 </div>
 

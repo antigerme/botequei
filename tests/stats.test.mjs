@@ -3,9 +3,11 @@
 
 import assert from 'node:assert';
 import { DEFAULT_ITEMS, catOf, CATEGORIES } from '../js/catalog.js';
-import { paceInfo, timeline, estimateBAC, lastDrinkAt, hydration, driveVerdict } from '../js/stats.js';
+import { paceInfo, timeline, estimateBAC, lastDrinkAt, hydration, driveVerdict, projectAt, coachTips } from '../js/stats.js';
 import { weekStreak, lifeStats, lifeBadges, monthlyTrend, weekdayInsight, topMate, retro } from '../js/lifestats.js';
 import { levelFor, weeklyChallenges, seasonAward } from '../js/league.js';
+import { mergeNight, rankTournament } from '../js/tournament.js';
+import { CARDS, pickCard } from '../js/deck.js';
 
 let passed = 0;
 const ok = (n) => { console.log('  ✓ ' + n); passed++; };
@@ -223,6 +225,47 @@ const H = 3600000;
   assert.strictEqual(r.nights, 1);
   assert.strictEqual(r.topMate.name, 'Bia');
   ok('retro: agrega noites + parceiro de rolê');
+}
+
+// ---------- Coach: projeção + dicas ----------
+{
+  const H = 3600000, now = 2 * H;
+  // 3 bebidas na última hora, 4 no total
+  const log = [ADD('me', 'cerveja', 0), ADD('me', 'cerveja', now - 1800000), ADD('me', 'cerveja', now - 600000), ADD('me', 'cerveja', now - 60000)];
+  const pr = projectAt(log, 'me', resolve, { now, targetTs: now + 2 * H });
+  assert.strictEqual(pr.count, 4);
+  assert.strictEqual(pr.perHour, 3);
+  assert.strictEqual(pr.predicted, 10); // 4 + 3/h × 2h
+  ok('coach: projeta pelo ritmo da última hora');
+
+  assert.ok(coachTips({ level: 'alto' }, null, null)[0].includes('pausa'));
+  assert.ok(coachTips({ level: 'calmo' }, { level: 'low', alc: 3 }, null).some((t) => t.includes('água')));
+  assert.deepStrictEqual(coachTips({ level: 'calmo' }, { level: 'good', alc: 2 }, { bac: 0 }), ['👌 Tá tranquilo. Aproveita e curte!']);
+  ok('coach: dicas conforme ritmo/hidratação/BAC');
+}
+
+// ---------- Torneio ----------
+{
+  let s = mergeNight({}, [{ name: 'André', points: 12 }, { name: 'Bia', points: 20 }]);
+  s = mergeNight(s, [{ name: 'André', points: 30 }, { name: 'Zé', points: 5 }, { name: '', points: 9 }]);
+  assert.strictEqual(s['André'].points, 42);
+  assert.strictEqual(s['André'].nights, 2);
+  assert.strictEqual(s['Bia'].nights, 1);
+  assert.ok(!('' in s)); // nome vazio ignorado
+  const rank = rankTournament(s);
+  assert.strictEqual(rank[0].name, 'André'); // 42 > 20 > 5
+  assert.strictEqual(rank[2].name, 'Zé');
+  ok('torneio: acumula pontos/noites e ranqueia');
+}
+
+// ---------- Deck de desafios ----------
+{
+  assert.ok(CARDS.length >= 8);
+  assert.strictEqual(pickCard(0), CARDS[0]);
+  assert.strictEqual(pickCard(CARDS.length), CARDS[0]); // dá a volta
+  assert.strictEqual(pickCard(-1), CARDS[CARDS.length - 1]);
+  assert.ok(CARDS.every((c) => c.emoji && c.text));
+  ok('deck: sorteio dá a volta e cartas são válidas');
 }
 
 console.log(`\n${passed} testes de stats/lifestats passaram ✅`);

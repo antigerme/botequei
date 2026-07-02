@@ -37,7 +37,12 @@ tempo real entre os navegadores. UI em **pt-BR**.
 - **Efeitos efêmeros (não entram no log)** via `mesh.sendFx` → `onFx`: brinde, reação, **roleta**
   ("quem paga a próxima" — o iniciador sorteia e manda `{entrants,winner}`, todos animam igual e
   convergem), **cutucar/desafiar** (`to`/`from`, só o alvo reage), **cerimônia** (mostrar troféus
-  pra mesa), **chamar o garçom** (`waiter`) e **rodada de água** (`water`). Nada disso persiste.
+  pra mesa), **chamar o garçom** (`waiter`), **rodada de água** (`water`) e **carta da mesa**
+  (`card` — deck de desafios). Nada disso persiste.
+- **Competição & coach (puro)**: `js/tournament.js` (placar acumulado por pessoa entre noites —
+  pontos por aparecer + hidratar, não por beber mais), `js/deck.js` (cartas de desafio) e o coach
+  em `js/stats.js` (`projectAt` = previsão de ritmo até a meia-noite, `coachTips`). Mãos livres:
+  `devicemotion` soma +1 ao chacoalhar (settings `shake`).
 - **Clima & cuidado**: `js/music.js` (trilha lo-fi **procedural** via WebAudio, sem arquivo — igual
   ao `sound.js` — + `spectrum()` pro visualizador do "modo festa"). "Cuida do fulano" deriva o ritmo
   de um peer do log compartilhado (`paceInfo`, sem expor BAC); "me leva pra casa" usa GPS → WhatsApp.
@@ -75,6 +80,7 @@ tempo real entre os navegadores. UI em **pt-BR**.
 - `js/stats.js` — ritmo/linha do tempo/BAC/última dose/hidratação (puro) · `js/lifestats.js` — estatísticas de vida + streak + retrô (puro) · `js/league.js` — nível/XP/desafios/troféu (puro)
 - `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia/retrô)
 - `js/sound.js` — efeitos (WebAudio) · `js/music.js` — trilha lo-fi procedural + espectro (WebAudio, fora do puro)
+- `js/tournament.js` — placar acumulado da galera (puro) · `js/deck.js` — cartas de desafio (puro)
 - `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, overlays (ritmo/roleta/cutucar/cerimônia/números/conta)
 - `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)
 - `signaling.php`, `turn.php` — servidor mínimo (handshake / credenciais TURN)

@@ -97,6 +97,24 @@ export function hydration(log, user, resolve) {
   return { water, alc, ratio, level, label };
 }
 
+// Coach: projeta quantas bebidas você terá até `targetTs` mantendo o ritmo da última hora.
+export function projectAt(log, user, resolve, { now, targetTs }) {
+  const p = paceInfo(log, user, resolve, { now });
+  const hours = Math.max(0, (Number(targetTs) - now) / 3600000);
+  return { predicted: Math.round(p.count + p.recent * hours), perHour: p.recent, count: p.count };
+}
+
+// Coach: dicas contextuais a partir do ritmo, hidratação e BAC (tudo já calculado).
+export function coachTips(pace, hyd, bac) {
+  const tips = [];
+  if (pace && pace.level === 'alto') tips.push('🐢 Tá acelerado — dá uma pausa e manda uma água.');
+  else if (pace && pace.level === 'medio') tips.push('🙂 Ritmo bom. Intercalar com água segura bem a noite.');
+  if (hyd && hyd.level === 'low' && hyd.alc > 0) tips.push('🥵 Pouca água pro tanto que rolou — bebe uma agora.');
+  if (bac && bac.bac >= 0.3) tips.push('🚗🚫 Nesse teor, nem pensar em dirigir. Já combina a volta.');
+  if (!tips.length) tips.push('👌 Tá tranquilo. Aproveita e curte!');
+  return tips;
+}
+
 // Veredito "dá pra dirigir?" a partir do BAC estimado (objeto de estimateBAC ou null).
 // Brasil: tolerância praticamente zero — por isso o texto é conservador.
 export function driveVerdict(bac) {

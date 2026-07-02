@@ -4,16 +4,21 @@
 import qrcode from './vendor/qrcode.js';
 
 // Retorna um <svg> pronto para inserir no DOM.
+// Tenta nivel de correcao 'M' e, se o conteudo for grande (convite offline com SDP),
+// cai para 'L' e versoes maiores — ate a 40 — pra ainda gerar um QR escaneavel.
 export function makeQR(text, margin = 2) {
   let qr = null;
-  for (const type of [0, 4, 6, 8, 10, 13, 16, 20]) {
-    try {
-      qr = qrcode(type, 'M');
-      qr.addData(text);
-      qr.make();
-      break;
-    } catch {
-      qr = null;
+  outer:
+  for (const ecl of ['M', 'L']) {
+    for (const type of [0, 4, 6, 8, 10, 13, 16, 20, 25, 30, 35, 40]) {
+      try {
+        qr = qrcode(type, ecl);
+        qr.addData(text);
+        qr.make();
+        break outer;
+      } catch {
+        qr = null;
+      }
     }
   }
   if (!qr) throw new Error('Conteúdo grande demais para o QR');

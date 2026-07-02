@@ -42,6 +42,8 @@
                placeholder="código" class="code-input" autocapitalize="characters" />
         <button class="btn btn-ghost" id="btn-join-code">Entrar</button>
       </div>
+
+      <button class="btn btn-ghost btn-offline" id="btn-offline-join">📴 Entrar sem internet</button>
     </div>
 
     <div class="home-history" id="home-history" hidden>
@@ -124,6 +126,7 @@
       <button class="btn btn-ghost" id="btn-share-invite" hidden>Compartilhar</button>
       <button class="btn btn-ghost" id="btn-nfc" hidden>📡 NFC</button>
     </div>
+    <button class="btn btn-ghost btn-offline" id="btn-offline-host">📴 Sem internet? Parear por QR</button>
   </div>
 </div>
 
@@ -274,6 +277,56 @@
     <button class="sheet-close" data-close>✕</button>
     <h2>Mandar reação</h2>
     <div class="react-row" id="react-row"></div>
+  </div>
+</div>
+
+<!-- Parear sem internet: handshake WebRTC por QR/código, 100% serverless -->
+<div class="overlay" id="overlay-offline" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>Parear sem internet</h2>
+    <p class="sheet-sub">Mesma Wi-Fi ou hotspot de alguém — sem internet, sem servidor. 1 QR por pessoa.</p>
+
+    <!-- ANFITRIÃO: mostra o convite, lê a resposta -->
+    <div class="off-panel" id="off-host" hidden>
+      <p class="lbl">1 · Mostre este QR pra quem vai entrar (ou copie o código):</p>
+      <div class="qr-wrap" id="off-offer-qr"></div>
+      <textarea class="code-box" id="off-offer-code" readonly rows="2"></textarea>
+      <button class="btn btn-ghost" id="btn-off-copy-offer">Copiar convite</button>
+      <p class="lbl">2 · Depois, leia a resposta do convidado:</p>
+      <div class="sheet-actions">
+        <button class="btn btn-primary" id="btn-off-scan-answer">📷 Escanear resposta</button>
+      </div>
+      <textarea class="code-box" id="off-answer-in" rows="2" placeholder="ou cole a resposta aqui"></textarea>
+      <button class="btn btn-primary btn-lg" id="btn-off-connect">Conectar 🍻</button>
+    </div>
+
+    <!-- CONVIDADO: lê o convite, devolve a resposta -->
+    <div class="off-panel" id="off-guest" hidden>
+      <p class="lbl">1 · Leia o convite de quem já está na mesa:</p>
+      <div class="sheet-actions">
+        <button class="btn btn-primary" id="btn-off-scan-offer">📷 Escanear convite</button>
+      </div>
+      <textarea class="code-box" id="off-offer-in" rows="2" placeholder="ou cole o convite aqui"></textarea>
+      <button class="btn btn-primary btn-lg" id="btn-off-genanswer">Gerar resposta</button>
+      <div id="off-answer-out" hidden>
+        <p class="lbl">2 · Mostre esta resposta de volta (QR ou código):</p>
+        <div class="qr-wrap" id="off-answer-qr"></div>
+        <textarea class="code-box" id="off-answer-code" readonly rows="2"></textarea>
+        <button class="btn btn-ghost" id="btn-off-copy-answer">Copiar resposta</button>
+        <p class="sheet-sub">Assim que ele ler, você entra na mesa. 🍻</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scanner de QR pela câmera -->
+<div class="overlay" id="overlay-scan" hidden>
+  <div class="sheet">
+    <button class="sheet-close" id="btn-scan-close">✕</button>
+    <h2 id="scan-title">Escanear QR</h2>
+    <div class="scan-wrap"><video id="scan-video" playsinline muted></video></div>
+    <p class="sheet-sub" id="scan-hint">Aponte a câmera pro QR…</p>
   </div>
 </div>
 

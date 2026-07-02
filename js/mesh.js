@@ -21,6 +21,7 @@ const STUCK_MS = 10000;  // handshake que nunca completou -> tenta de novo
 export class Mesh {
   constructor(opts) {
     this.room = opts.room;
+    this.code = opts.code || opts.room; // codigo de exibicao da mesa (p/ o convite offline)
     this.self = opts.selfId;
     this.name = opts.name || '';
     this.ice = opts.iceServers || DEFAULT_ICE;
@@ -68,6 +69,7 @@ export class Mesh {
   _maybeConnect(peerId) {
     const rec = this.conns.get(peerId);
     if (!rec) { this._ensure(peerId); return; }
+    if (rec.manual) return; // pareado por QR: sem signaling, a reconexao e refeita a mao
     if (this.self >= peerId) return; // nao-iniciador espera a offer
     const st = rec.pc && rec.pc.connectionState;
     const dead = st === 'failed' || st === 'closed';
@@ -97,6 +99,7 @@ export class Mesh {
     const rec = {
       pc, dc: null, name: name || '', ready: false, everReady: false,
       remoteSet: false, pendingIce: [], initiator, connType: null,
+      manual: false, id: peerId,
       createdAt: Date.now(), lastSeen: Date.now(),
     };
     this.conns.set(peerId, rec);
@@ -112,10 +115,10 @@ export class Mesh {
     };
 
     if (initiator) {
-      this._setupDC(peerId, pc.createDataChannel('botequei', { ordered: true }));
+      this._setupDC(rec, pc.createDataChannel('botequei', { ordered: true }));
       this._makeOffer(peerId);
     } else {
-      pc.ondatachannel = (e) => this._setupDC(peerId, e.channel);
+      pc.ondatachannel = (e) => this._setupDC(rec, e.channel);
     }
     return rec;
   }
@@ -164,17 +167,97 @@ export class Mesh {
     }
   }
 
-  _setupDC(peerId, dc) {
-    const rec = this.conns.get(peerId);
+  // ---- Pareamento manual (out-of-band): QR / copia-e-cola, SEM signaling ----
+  // O offer/answer levam os ICE candidates ja embutidos (nao-trickle). iceServers vazio =>
+  // so host candidates (mesma Wi-Fi ou hotspot de alguem) — exatamente o cenario offline.
+  _createManualPC(initiator) {
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    const rec = {
+      pc, dc: null, name: '', ready: false, everReady: false,
+      remoteSet: false, pendingIce: [], initiator, connType: null,
+      manual: true, id: null,
+      createdAt: Date.now(), lastSeen: Date.now(),
+    };
+    pc.onconnectionstatechange = () => {
+      const st = pc.connectionState;
+      if (st === 'failed' || st === 'closed' || st === 'disconnected') rec.ready = false;
+      else if (st === 'connected' && rec.dc && rec.dc.readyState === 'open') rec.ready = true;
+      this.onPeersChange();
+      this.onStatus();
+    };
+    return rec;
+  }
+
+  // Espera a coleta de ICE terminar (ou um teto de tempo) pra embutir os candidates no SDP.
+  _waitGather(pc, ms = 2500) {
+    if (pc.iceGatheringState === 'complete') return Promise.resolve();
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return; done = true;
+        pc.removeEventListener('icegatheringstatechange', check);
+        resolve();
+      };
+      const check = () => { if (pc.iceGatheringState === 'complete') finish(); };
+      pc.addEventListener('icegatheringstatechange', check);
+      setTimeout(finish, ms);
+    });
+  }
+
+  // Anfitriao: gera o offer (com ICE embutido). Guarda a conexao ate a resposta chegar.
+  async createManualOffer() {
+    if (this._pendingOffer) { try { this._pendingOffer.pc.close(); } catch { /* ignore */ } }
+    const rec = this._createManualPC(true);
+    this._setupDC(rec, rec.pc.createDataChannel('botequei', { ordered: true }));
+    await rec.pc.setLocalDescription(await rec.pc.createOffer());
+    await this._waitGather(rec.pc);
+    this._pendingOffer = rec;
+    return { v: 1, t: 'offer', from: this.self, name: this.name, room: this.code, sdp: rec.pc.localDescription };
+  }
+
+  // Anfitriao: aplica a resposta do convidado -> a conexao sobe e o DataChannel abre.
+  async acceptManualAnswer(ans) {
+    const rec = this._pendingOffer;
+    if (!rec) throw new Error('nenhum convite pendente');
+    if (!ans || ans.t !== 'answer' || !ans.from || !ans.sdp) throw new Error('resposta inválida');
+    const old = this.conns.get(ans.from);
+    if (old && old !== rec) { try { old.pc.close(); } catch { /* ignore */ } }
+    rec.id = ans.from; rec.name = ans.name || '';
+    this.conns.set(ans.from, rec);
+    this._pendingOffer = null;
+    await rec.pc.setRemoteDescription(ans.sdp);
+    rec.remoteSet = true;
+    this.onPeersChange();
+    return ans.from;
+  }
+
+  // Convidado: aplica o offer e devolve o answer (com ICE embutido) pra mostrar de volta.
+  async acceptManualOffer(off) {
+    if (!off || off.t !== 'offer' || !off.from || !off.sdp) throw new Error('convite inválido');
+    const old = this.conns.get(off.from);
+    if (old) { try { old.pc.close(); } catch { /* ignore */ } this.conns.delete(off.from); }
+    const rec = this._createManualPC(false);
+    rec.id = off.from; rec.name = off.name || '';
+    rec.pc.ondatachannel = (e) => this._setupDC(rec, e.channel);
+    this.conns.set(off.from, rec);
+    await rec.pc.setRemoteDescription(off.sdp);
+    rec.remoteSet = true;
+    await rec.pc.setLocalDescription(await rec.pc.createAnswer());
+    await this._waitGather(rec.pc);
+    this.onPeersChange();
+    return { v: 1, t: 'answer', from: this.self, name: this.name, sdp: rec.pc.localDescription };
+  }
+
+  _setupDC(rec, dc) {
     if (!rec) return;
     rec.dc = dc;
     dc.onopen = () => {
       rec.ready = true;
       rec.everReady = true;
       rec.lastSeen = Date.now();
-      this._retryAt.delete(peerId);
-      this._raw(peerId, { k: 'hello', name: this.name });
-      this._raw(peerId, { k: 'sync', events: this.getSyncPayload() }); // anti-entropy
+      this._retryAt.delete(rec.id);
+      this._raw(rec.id, { k: 'hello', name: this.name });
+      this._raw(rec.id, { k: 'sync', events: this.getSyncPayload() }); // anti-entropy
       this.onPeersChange();
       this.onStatus();
     };
@@ -183,10 +266,10 @@ export class Mesh {
       rec.lastSeen = Date.now();
       let msg;
       try { msg = JSON.parse(e.data); } catch { return; }
-      if (msg.k === 'ev') this.onEvent(msg.ev, peerId);
-      else if (msg.k === 'sync' && Array.isArray(msg.events)) { for (const ev of msg.events) this.onEvent(ev, peerId, true); }
+      if (msg.k === 'ev') this.onEvent(msg.ev, rec.id);
+      else if (msg.k === 'sync' && Array.isArray(msg.events)) { for (const ev of msg.events) this.onEvent(ev, rec.id, true); }
       else if (msg.k === 'hello') { rec.name = msg.name || rec.name; this.onPeersChange(); }
-      else if (msg.k === 'fx') this.onFx(msg.fx, peerId);
+      else if (msg.k === 'fx') this.onFx(msg.fx, rec.id);
       // 'ping' so serve pra atualizar lastSeen (feito acima)
     };
   }
@@ -235,6 +318,25 @@ export class Mesh {
     const now = Date.now();
 
     for (const [id, rec] of [...this.conns]) {
+      // Pareado por QR (offline): sem signaling pra reconectar. Mantem heartbeat/status;
+      // se cair de vez (failed/closed), some da malha (re-pareia com novo QR).
+      if (rec.manual) {
+        if (rec.dc && rec.dc.readyState === 'open') this._raw(id, { k: 'ping' });
+        const mst = rec.pc && rec.pc.connectionState;
+        if (mst === 'failed' || mst === 'closed') {
+          try { rec.pc.close(); } catch { /* ignore */ }
+          this.conns.delete(id);
+          changed = true;
+          continue;
+        }
+        if (rec.everReady && now - rec.lastSeen > STALE_MS && rec.ready) { rec.ready = false; changed = true; }
+        if (rec.ready) {
+          const t = await this._readConnType(rec.pc);
+          if (t && t !== rec.connType) { rec.connType = t; changed = true; }
+        }
+        continue;
+      }
+
       // heartbeat
       if (rec.dc && rec.dc.readyState === 'open') this._raw(id, { k: 'ping' });
 
@@ -287,6 +389,7 @@ export class Mesh {
     if (this._timer) { clearInterval(this._timer); this._timer = null; }
     this.sig.leave();
     this.sig.stop();
+    if (this._pendingOffer) { try { this._pendingOffer.pc.close(); } catch { /* ignore */ } this._pendingOffer = null; }
     for (const rec of this.conns.values()) { try { rec.pc.close(); } catch { /* ignore */ } }
     this.conns.clear();
   }

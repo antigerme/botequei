@@ -5,6 +5,7 @@ import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
 import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney } from '../js/events.js';
 import { badgesFor, mvp } from '../js/achievements.js';
+import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
 let passed = 0;
 const ok = (n) => { console.log('  ✓ ' + n); passed++; };
@@ -70,6 +71,20 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   const ri = (id) => ({ id, price: 0 });
   assert.strictEqual(mvp(s, ri).name, 'Bia'); // André é motorista -> fora do MVP
   ok('MVP: ignora motorista');
+}
+
+// ---------- Handshake offline (codec do offer/answer, sem servidor) ----------
+{
+  const sdp = 'v=0\r\no=- 1 2 IN IP4 0.0.0.0\r\n' + 'a=candidate:x 1 udp 1 10.0.0.1 5000 typ host\r\n'.repeat(30);
+  const blob = { v: 1, t: 'offer', from: 'abc-123', name: 'André 🍺', room: '7XQF', sdp: { type: 'offer', sdp } };
+  const code = await encodeBlob(blob);
+  assert.strictEqual(code.slice(0, 2), 'BQ');
+  assert.deepStrictEqual(await decodeBlob(code), blob);
+  ok('handshake: round-trip preserva offer/answer (com SDP+ICE)');
+
+  await assert.rejects(() => decodeBlob('não é um código'), 'texto inválido deve lançar');
+  await assert.rejects(() => decodeBlob('BQ'), 'código truncado deve lançar');
+  ok('handshake: código inválido é rejeitado');
 }
 
 console.log(`\n${passed} testes de features passaram ✅`);

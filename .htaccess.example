@@ -23,6 +23,27 @@ SetEnv CF_TURN_API_TOKEN seu_api_token
     ModPagespeed off
 </IfModule>
 
+# --- Cache: evita "mistura de versoes" dos ES modules atras de CDN (Cloudflare) ---
+# Os modulos NAO tem hash no nome. Se o CDN/navegador servir um .js velho junto de um novo,
+# o app quebra ("does not provide an export named ..."). Solucao: HTML, sw.js, .js e .css
+# usam "no-cache" (pode guardar, mas SEMPRE revalida -> 304 barato, nunca versao velha). O
+# service worker continua guardando tudo pra offline; aqui so garantimos o frescor na rede.
+# Fontes/icones sao estaveis -> cache longo.
+<IfModule mod_headers.c>
+    <FilesMatch "\.(html|webmanifest)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+    <Files "sw.js">
+        Header set Cache-Control "no-cache"
+    </Files>
+    <FilesMatch "\.(js|mjs|css)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+    <FilesMatch "\.(woff2|png|svg|ico|jpg|jpeg|webp)$">
+        Header set Cache-Control "public, max-age=604800"
+    </FilesMatch>
+</IfModule>
+
 # --- Bloquear utilitarios de build/testes do acesso web ---
 RedirectMatch 404 ^/tools/
 RedirectMatch 404 ^/tests/

@@ -38,8 +38,10 @@ const SHELL = [
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    // resiliente: um asset ausente nao derruba a instalacao
-    await Promise.allSettled(SHELL.map((u) => cache.add(u)));
+    // 'reload' fura o HTTP cache do navegador/CDN ao instalar -> nunca grava uma versao velha
+    // de um modulo junto de outra nova (o classico "does not provide an export" atras de CDN).
+    // resiliente: um asset ausente nao derruba a instalacao.
+    await Promise.allSettled(SHELL.map((u) => cache.add(new Request(u, { cache: 'reload' }))));
     // NAO chama skipWaiting aqui: a nova versao espera o usuario aceitar (via mensagem),
     // pra nao trocar o app embaixo de quem esta usando. O app avisa "nova versao".
   })());

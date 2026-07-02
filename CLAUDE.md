@@ -78,7 +78,10 @@ tempo real entre os navegadores. UI em **pt-BR**.
 - **Não rodar `mod_pagespeed`** sobre o app (pode quebrar ES modules / service worker) — o
   `.htaccess.example` já desliga.
 - **Deploy = copiar TODOS os arquivos, inclusive `icons/`.** Atrás do Cloudflare, **purgue o
-  cache** após atualizar assets.
+  cache** após atualizar assets. Os ES modules não têm hash no nome: se o CDN servir um `.js`
+  velho junto de um novo, o app quebra com `does not provide an export named …`. Por isso o
+  `.htaccess.example` manda `Cache-Control: no-cache` p/ html/js/css/sw (revalida sempre) e o
+  `sw.js` faz `cache.add(new Request(u,{cache:'reload'}))` no install (fura o cache ao instalar).
 - **BAC é estimativa local, não bafômetro** — sempre com o aviso de não dirigir; peso/sexo ficam só no aparelho.
 - Ao mexer no `ui.js`, todo id novo precisa entrar no array `IDS` (senão `ui.init` quebra ao amarrar o listener).
 - Ao adicionar `js/*.js` do shell, atualize a lista do `sw.js` **e** bump o `CACHE` (`botequei-vN`).

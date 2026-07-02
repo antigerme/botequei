@@ -431,6 +431,53 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
   background: var(--card); border: 2px dashed var(--chalk-line); border-radius: 12px; padding: 10px 13px; font-size: 15px; }
 .stats-history small { color: var(--muted); }
 
+/* ===================== Leva 2 (presença, categorias, comanda, acessibilidade) ===================== */
+
+/* Foco visível pra quem navega por teclado */
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+
+/* Barra de presença (avatares de quem está na mesa) */
+.presence-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; cursor: pointer; }
+.pres-av { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 15px;
+  box-shadow: 0 0 0 1.5px rgba(242, 234, 214, .4); flex: none; }
+.pres-av.off { filter: grayscale(1); opacity: .45; }
+
+/* Seções do menu */
+.menu-sec { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin: 14px 2px 2px; }
+.menu-sec:first-child { margin-top: 2px; }
+
+/* Cabeçalho de categoria no cardápio */
+.cat-head { grid-column: 1 / -1; font-family: var(--hand); font-size: 15px; color: var(--muted);
+  letter-spacing: .5px; margin: 8px 2px 0; padding-top: 5px; border-top: 1px dashed var(--chalk-line); }
+.cat-head:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+.item-badge { position: absolute; bottom: 9px; left: 12px; font-size: 12px; opacity: .8; }
+
+/* Placar: indicador de conexão por pessoa + nome clicável (abre comanda) */
+.peer-net { font-size: 15px; width: 22px; text-align: center; flex: none; }
+.peer-net.off { opacity: .6; }
+.peer-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  background: none; border: 0; color: inherit; font: inherit; text-align: left; padding: 0; cursor: pointer; }
+
+/* Comanda individual */
+.comanda-list { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 8px; }
+.comanda-row { display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, .03);
+  border: 2px dashed var(--chalk-line); border-radius: 12px; padding: 11px 13px; }
+.comanda-row .c-emoji { font-size: 22px; flex: none; }
+.comanda-row .c-name { flex: 1; min-width: 0; }
+.comanda-row .c-qty { font-family: var(--num); font-size: 22px; color: var(--gold); }
+.comanda-row .c-money { color: var(--muted); font-size: 14px; }
+
+/* Insight das estatísticas */
+.stats-insight { text-align: center; color: var(--muted); font-size: 15px; margin: 6px 2px 0; }
+
+/* Respeita "reduzir movimento" (acessibilidade): corta animações decorativas */
+@media (prefers-reduced-motion: reduce) {
+  .confetti, .fx-float, .fx-plus, .logo, .bebedeira-item, .brinde-emoji, .hh-banner { animation: none !important; }
+  .item-card.pop, .item-card.pop-remove, .bebedeira-plus.pop, .brinde.go .brinde-count { animation: none !important; }
+  .screen.is-active, .sheet, .overlay, .roul-item { animation: none !important; }
+  * { scroll-behavior: auto !important; }
+}
+
 /* ---------- Telas largas (tablet/desktop): aproveita o espaço ---------- */
 @media (min-width: 720px) {
   #app { max-width: 760px; }

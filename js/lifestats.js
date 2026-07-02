@@ -43,6 +43,45 @@ export function lifeStats(history, { now }) {
   };
 }
 
+const MON = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+// Total de bebidas por mês, dos últimos `months` até o atual (mais antigo → recente).
+export function monthlyTrend(history, { now, months = 6 }) {
+  const byKey = {};
+  for (const h of history || []) {
+    if (!h || typeof h.at !== 'number') continue;
+    const d = new Date(h.at);
+    const key = d.getUTCFullYear() * 12 + d.getUTCMonth();
+    byKey[key] = (byKey[key] || 0) + Math.max(0, Number(h.myTotal) || 0);
+  }
+  const base = new Date(now);
+  const baseKey = base.getUTCFullYear() * 12 + base.getUTCMonth();
+  const out = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const key = baseKey - i;
+    out.push({ key, label: MON[((key % 12) + 12) % 12], total: byKey[key] || 0 });
+  }
+  return out;
+}
+
+// Média de bebidas por dia da semana → dia mais leve (best) e mais pesado (worst).
+export function weekdayInsight(history) {
+  const sum = new Array(7).fill(0), cnt = new Array(7).fill(0);
+  for (const h of history || []) {
+    if (!h || typeof h.at !== 'number') continue;
+    const wd = new Date(h.at).getUTCDay();
+    sum[wd] += Math.max(0, Number(h.myTotal) || 0); cnt[wd] += 1;
+  }
+  const days = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+  let best = null, worst = null;
+  for (let i = 0; i < 7; i++) {
+    if (!cnt[i]) continue;
+    const avg = sum[i] / cnt[i];
+    if (!best || avg < best.avg) best = { wd: i, day: days[i], avg };
+    if (!worst || avg > worst.avg) worst = { wd: i, day: days[i], avg };
+  }
+  return { best, worst };
+}
+
 // Conquistas acumuladas (derivadas dos números de vida).
 export function lifeBadges(stats) {
   const b = [];

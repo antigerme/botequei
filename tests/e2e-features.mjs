@@ -45,6 +45,21 @@ async function main() {
     await Promise.all([peers(pageA, 2), peers(pageB, 2)]);
   });
 
+  await step('presença: A mostra os avatares da mesa (self + Bia)', async () => {
+    await pageA.waitForFunction(() => {
+      const b = document.getElementById('presence-bar');
+      return b && !b.hidden && b.querySelectorAll('.pres-av').length >= 2;
+    }, null, { timeout: T });
+  });
+
+  await step('placar mostra indicador de conexão da Bia', async () => {
+    await pageA.click('#btn-peers'); await visible(pageA, 'overlay-peers');
+    const hasNet = await pageA.evaluate(() => [...document.querySelectorAll('#peers-list .peer-row')]
+      .some((r) => !r.querySelector('.peer-you') && (r.querySelector('.peer-net')?.textContent || '').trim().length > 0));
+    if (!hasNet) throw new Error('sem indicador de conexão no placar');
+    await closeAll(pageA);
+  });
+
   // consumo p/ dar substância à conta/estatísticas
   await pageA.click('.item-card[data-item="cerveja"]');
   await pageB.click('.item-card[data-item="cerveja"]');

@@ -2,9 +2,9 @@
 // Rodar: node tests/stats.test.mjs
 
 import assert from 'node:assert';
-import { DEFAULT_ITEMS } from '../js/catalog.js';
+import { DEFAULT_ITEMS, catOf, CATEGORIES } from '../js/catalog.js';
 import { paceInfo, timeline, estimateBAC } from '../js/stats.js';
-import { weekStreak, lifeStats, lifeBadges } from '../js/lifestats.js';
+import { weekStreak, lifeStats, lifeBadges, monthlyTrend, weekdayInsight } from '../js/lifestats.js';
 
 let passed = 0;
 const ok = (n) => { console.log('  ✓ ' + n); passed++; };
@@ -122,6 +122,45 @@ const H = 3600000;
   assert.ok(!ids.includes('goer15')); // < 15 noites
   assert.ok(ids.includes('rec10') && ids.includes('streak3') && ids.includes('d100'));
   ok('lifeBadges: destrava conforme os números');
+}
+
+// ---------- Categorias do cardápio ----------
+{
+  assert.strictEqual(catOf({ cat: 'destilado' }), 'destilado');
+  assert.strictEqual(catOf({ cat: 'xxx' }), 'outros'); // categoria desconhecida cai em "outros"
+  assert.strictEqual(catOf({}), 'outros');
+  assert.strictEqual(CATEGORIES[CATEGORIES.length - 1].id, 'outros');
+  assert.strictEqual(DEFAULT_ITEMS.find((i) => i.id === 'dose').cat, 'destilado');
+  ok('categorias: catOf normaliza e itens padrão têm categoria');
+}
+
+// ---------- Tendência mensal ----------
+{
+  const now = Date.UTC(2026, 6, 15); // jul/2026
+  const hist = [
+    { at: now, myTotal: 5 },
+    { at: Date.UTC(2026, 5, 10), myTotal: 3 },  // jun
+    { at: Date.UTC(2026, 4, 1), myTotal: 2 },   // mai
+    { at: Date.UTC(2026, 0, 1), myTotal: 99 },  // jan (fora da janela de 3)
+  ];
+  const t = monthlyTrend(hist, { now, months: 3 });
+  assert.deepStrictEqual(t.map((x) => x.label), ['mai', 'jun', 'jul']);
+  assert.deepStrictEqual(t.map((x) => x.total), [2, 3, 5]);
+  ok('tendência mensal: soma por mês, janela e ordem certas');
+}
+
+// ---------- Insight por dia da semana ----------
+{
+  const hist = [
+    { at: Date.UTC(2026, 0, 6), myTotal: 1 },   // mesma semana-dia
+    { at: Date.UTC(2026, 0, 13), myTotal: 3 },  // +7 dias => mesmo dia da semana (média 2)
+    { at: Date.UTC(2026, 0, 3), myTotal: 10 },  // outro dia (média 10)
+  ];
+  const ins = weekdayInsight(hist);
+  assert.strictEqual(ins.best.avg, 2);
+  assert.strictEqual(ins.worst.avg, 10);
+  assert.notStrictEqual(ins.best.wd, ins.worst.wd);
+  ok('insight: dia mais leve vs mais pesado por média');
 }
 
 console.log(`\n${passed} testes de stats/lifestats passaram ✅`);

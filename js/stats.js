@@ -63,6 +63,49 @@ export function timeline(log, user, resolve, { now, buckets = 12 }) {
   return { bars: bars.map((n) => Math.max(0, n)), firstTs: fa, bucketMs };
 }
 
+// Quanto tempo desde a última bebida alcoólica: { ts, agoMs } ou null se não bebeu.
+export function lastDrinkAt(log, user, resolve, { now }) {
+  let last = -1;
+  for (const ev of log || []) {
+    if (ev.user !== user || ev.type !== 'ADD') continue;
+    if (alcoholG(resolve(ev.item)) <= 0) continue;
+    const ts = Number(ev.ts) || 0;
+    if (ts > last) last = ts;
+  }
+  return last < 0 ? null : { ts: last, agoMs: Math.max(0, now - last) };
+}
+
+// Hidratação: quantas águas vs bebidas alcoólicas + razão e rótulo.
+export function hydration(log, user, resolve) {
+  let water = 0, alc = 0;
+  for (const ev of log || []) {
+    if (ev.user !== user) continue;
+    const sign = ev.type === 'ADD' ? 1 : ev.type === 'REMOVE' ? -1 : 0;
+    if (!sign) continue;
+    const def = resolve(ev.item);
+    if (alcoholG(def) > 0) alc += sign;
+    else if (def && def.id === 'agua') water += sign;
+  }
+  water = Math.max(0, water); alc = Math.max(0, alc);
+  const ratio = alc > 0 ? water / alc : (water > 0 ? 1 : 0);
+  let level = 'none', label = '🙂 Sem álcool ainda';
+  if (alc > 0) {
+    if (ratio >= 0.5) { level = 'good'; label = '💧 Bem hidratado'; }
+    else if (ratio >= 0.25) { level = 'mid'; label = '💧 Dá pra melhorar'; }
+    else { level = 'low'; label = '🥵 Bebe uma água!'; }
+  }
+  return { water, alc, ratio, level, label };
+}
+
+// Veredito "dá pra dirigir?" a partir do BAC estimado (objeto de estimateBAC ou null).
+// Brasil: tolerância praticamente zero — por isso o texto é conservador.
+export function driveVerdict(bac) {
+  if (!bac) return { level: 'unknown', title: 'Sem estimativa', advice: 'Bota teu peso nas ⚙️ configurações pra estimar.' };
+  if (bac.bac < 0.02) return { level: 'ok', title: '🟢 Provavelmente de boa', advice: 'Mesmo assim: no Brasil o limite é ~zero. Na menor dúvida, não dirija.' };
+  if (bac.bac < 0.2) return { level: 'wait', title: '🟡 Melhor esperar', advice: 'A estimativa está acima de zero. Dá um tempo antes de pensar em volante.' };
+  return { level: 'no', title: '🔴 Nem pensar em dirigir', advice: 'Chama um carro ou teu contato de confiança. Não vale o risco.' };
+}
+
 // Estimativa de teor alcoólico (g/L) pela fórmula de Widmark. Precisa do peso; sem ele → null.
 // r: fator de distribuição (0.68 h / 0.55 m / 0.60 média). β: metabolismo ~0.15 g/L por hora.
 export function estimateBAC(log, user, resolve, { now, weightKg, sex }) {

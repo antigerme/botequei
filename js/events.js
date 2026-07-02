@@ -29,8 +29,8 @@ export function makeRemove(item, user, name) {
 export function makeItem(def) {
   return { type: 'ITEM', def, ts: Date.now(), eventId: newEventId() };
 }
-export function makeProfile({ color, emoji, driver }) {
-  return { type: 'PROFILE', user: clientId(), name: getName(), color: color || '', emoji: emoji || '', driver: !!driver, ts: Date.now(), eventId: newEventId() };
+export function makeProfile({ color, emoji, driver, level }) {
+  return { type: 'PROFILE', user: clientId(), name: getName(), color: color || '', emoji: emoji || '', driver: !!driver, level: Number(level) || 0, ts: Date.now(), eventId: newEventId() };
 }
 export function makeTable({ title, emoji }) {
   return { type: 'TABLE', title: title || '', emoji: emoji || '', ts: Date.now(), eventId: newEventId() };
@@ -93,7 +93,7 @@ export function applyEvent(state, ev) {
       if (!ev.user) return false;
       if (wins(state.profiles.get(ev.user), ev)) {
         state.profiles.set(ev.user, {
-          def: { name: ev.name || '', color: ev.color || '', emoji: ev.emoji || '', driver: !!ev.driver },
+          def: { name: ev.name || '', color: ev.color || '', emoji: ev.emoji || '', driver: !!ev.driver, level: Number(ev.level) || 0 },
           ts: ev.ts, eventId: ev.eventId,
         });
       }
@@ -165,6 +165,7 @@ export function getProfile(state, user) {
     color: def.color || '',
     emoji: def.emoji || '',
     driver: !!def.driver,
+    level: Number(def.level) || 0,
   };
 }
 

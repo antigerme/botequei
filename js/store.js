@@ -54,6 +54,12 @@ export function removeHistory(room) {
   localStorage.removeItem(K_LOG(room));
 }
 
+// ---- Modo bar: cardápio salvo (itens + preços) pra reusar em novas mesas ----
+const K_BARMENU = 'botequei.barmenu';
+export function saveBarMenu(defs) { writeJSON(K_BARMENU, Array.isArray(defs) ? defs : []); }
+export function getBarMenu() { const v = readJSON(K_BARMENU, []); return Array.isArray(v) ? v : []; }
+export function hasBarMenu() { return getBarMenu().length > 0; }
+
 // ---- Backup (exportar/importar tudo que é local do Botequei) ----
 export function exportAll() {
   const data = {};

@@ -8,8 +8,9 @@ import {
   paysFor, payerOf,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
-import { paceInfo, timeline, estimateBAC } from './stats.js';
-import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight } from './lifestats.js';
+import { paceInfo, timeline, estimateBAC, lastDrinkAt, hydration, driveVerdict } from './stats.js';
+import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro } from './lifestats.js';
+import { levelFor, weeklyChallenges, seasonAward } from './league.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
@@ -47,6 +48,9 @@ let sessionStart = 0;        // quando entrei nesta mesa (p/ duração no histó
 let lastNudge = 0;           // cooldown do aviso de ritmo
 let prevOnline = new Set();  // presença: quem estava online (p/ avisar entrou/saiu)
 let presenceSeeded = false;  // 1ª passada de presença só semeia (sem toast)
+let sessionMates = new Set(); // nomes que apareceram na mesa (p/ "com quem você mais bebeu")
+let pendingBarMenu = false;  // ao abrir "mesa do bar", carrega o cardápio salvo
+let lastRetro = null;        // dados da última retrospectiva (p/ compartilhar)
 
 // itens alcoolicos (motorista nao registra esses; contam pro lembrete de agua)
 const ALCOHOL = new Set(['cerveja', 'chopp', 'dose', 'drink']);
@@ -147,17 +151,23 @@ function afterMyAdd(item) {
   checkPace();
   checkTableMilestone();
 }
-// Aviso gentil de ritmo (Dir. consciência): quando a última hora esquenta, sugere uma água.
+// Aviso de ritmo. No "modo responsa" fica mais firme: dispara já no ritmo médio e insiste mais.
 function checkPace() {
   if (settings.nudges === false) return;
   const p = paceInfo(log, self, resolveItem, { now: Date.now() });
-  if (p.level === 'alto' && Date.now() - lastNudge > 240000) {
+  const firm = !!settings.responsa;
+  const trigger = firm ? (p.level === 'alto' || p.level === 'medio') : p.level === 'alto';
+  const cooldown = firm ? 150000 : 240000;
+  if (trigger && Date.now() - lastNudge > cooldown) {
     lastNudge = Date.now();
-    ui.toast('🐢 Tá voando! Bora uma água? 💧');
+    ui.toast(firm ? '🛟 Segura o ritmo! Manda uma água agora. 💧' : '🐢 Tá voando! Bora uma água? 💧');
     sound.alarm();
   }
 }
-function callCar() { try { window.open('https://m.uber.com/ul/', '_blank', 'noopener'); } catch { /* ignore */ } }
+function callCar() {
+  const url = settings.carApp === '99' ? 'https://99app.com/' : 'https://m.uber.com/ul/';
+  try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
+}
 // Marco da mesa: a cada 10 rodadas, joga confete + aviso. Reajusta se desfizerem.
 function checkTableMilestone() {
   const total = tableTotal(state);
@@ -309,7 +319,7 @@ function renderPeers() {
   const rows = base.map((r) => {
     const p = profOf(r.user);
     const net = nets.get(r.user);
-    return { ...r, name: p.name, color: p.color, emoji: p.emoji, badges: badgesFor(state, r.user), online: net ? net.online : undefined, conn: net ? net.conn : null };
+    return { ...r, name: p.name, color: p.color, emoji: p.emoji, level: p.level, badges: badgesFor(state, r.user), online: net ? net.online : undefined, conn: net ? net.conn : null };
   });
   // garante que eu apareço mesmo sem ter consumido
   if (!rows.some((r) => r.user === self)) {
@@ -328,12 +338,13 @@ function bebedeiraItem() {
 
 // ---- Mesa ----
 async function enterTable(code, { create = false, pin = '' } = {}) {
-  room = code; roomPin = pin; sessionStart = Date.now();
+  room = code; roomPin = pin; sessionStart = Date.now(); sessionMates = new Set();
   store.setCurrent(room);
   rebuildFrom(store.getEvents(room));
   ui.showScreen('table');
   render();
   if (create) openInvite();
+  if (pendingBarMenu) { pendingBarMenu = false; loadBarMenu(); }
 
   const iceServers = await loadIce();
   if (room !== code) return;
@@ -346,7 +357,7 @@ async function enterTable(code, { create = false, pin = '' } = {}) {
 // ICE vazio => host candidates (mesma Wi-Fi/hotspot). O signaling ainda tenta em 2º
 // plano (falha de boa) — se a internet voltar, a malha se completa sozinha.
 function enterTableOffline(code) {
-  room = code; roomPin = ''; sessionStart = Date.now();
+  room = code; roomPin = ''; sessionStart = Date.now(); sessionMates = new Set();
   store.setCurrent(room);
   rebuildFrom(store.getEvents(room));
   ui.showScreen('table');
@@ -369,6 +380,7 @@ function onMeshChange() {
 function diffPresence() {
   if (!mesh) return;
   const cur = new Set(mesh.peers().filter((p) => p.online).map((p) => p.user));
+  for (const u of cur) { const n = profOf(u).name; if (n) sessionMates.add(n); } // "com quem você bebeu"
   if (!presenceSeeded) { prevOnline = cur; presenceSeeded = true; return; }
   for (const u of cur) if (!prevOnline.has(u)) { ui.toast(`🍻 ${profOf(u).name || 'Alguém'} entrou!`); sound.pop(); }
   for (const u of prevOnline) if (!cur.has(u)) ui.toast(`👋 ${profOf(u).name || 'Alguém'} saiu`);
@@ -384,7 +396,7 @@ function startMesh(iceServers) {
   });
   mesh.start();
   // publica meu perfil (cor/avatar) pra galera
-  emitLocal(makeProfile({ color: settings.profColor || autoColor(self), emoji: settings.profEmoji || autoAvatar(self), driver: myDriver }));
+  emitLocal(makeProfile({ color: settings.profColor || autoColor(self), emoji: settings.profEmoji || autoAvatar(self), driver: myDriver, level: myLevel() }));
 }
 
 function restartMesh() {
@@ -417,6 +429,7 @@ function leaveTable() {
       myMoney: userMoney(state, self, resolveItem),
       title: t.title || '',
       items: myItems(),
+      mates: [...sessionMates],
       durationMs: sessionStart ? Date.now() - sessionStart : 0,
     });
   }
@@ -424,7 +437,7 @@ function leaveTable() {
   store.clearCurrent();
   room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false;
   lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastNudge = 0; lastAwards = [];
-  prevOnline = new Set(); presenceSeeded = false;
+  prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set();
   ui.setHappyHour(null);
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
@@ -616,6 +629,62 @@ function openComanda(user) {
   ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user), money: userMoney(state, user, resolveItem) });
 }
 
+function fmtAgo(ms) {
+  const m = Math.round((ms || 0) / 60000);
+  if (m < 1) return 'agora há pouco';
+  if (m < 60) return `há ${m} min`;
+  const h = Math.floor(m / 60);
+  return `há ${h}h${String(m % 60).padStart(2, '0')}`;
+}
+function myLevel() { return levelFor(lifeStats(store.getHistory(), { now: Date.now() })).level; }
+
+// ---- Tô de boa? (segurança) ----
+function openSafe() {
+  const now = Date.now();
+  const bac = settings.weightKg > 0 ? estimateBAC(log, self, resolveItem, { now, weightKg: settings.weightKg, sex: settings.sex }) : null;
+  const ld = lastDrinkAt(log, self, resolveItem, { now });
+  const hyd = hydration(log, self, resolveItem);
+  ui.openSafe({
+    verdict: driveVerdict(bac),
+    bacText: bac ? `${bac.bac.toFixed(2)} g/L · ${bac.label}` : 'defina seu peso nas ⚙️',
+    lastText: ld ? fmtAgo(ld.agoMs) : '',
+    hydration: hyd.alc > 0 ? hyd : null,
+    hasTrust: !!settings.trustPhone,
+  });
+}
+
+// ---- Retrospectiva "Seu rolê" ----
+function openRetro() {
+  const r = retro(store.getHistory(), { now: Date.now() });
+  const favDef = r.favDrink ? resolveItem(r.favDrink) : null;
+  lastRetro = { ...r, favEmoji: favDef ? favDef.emoji : '', favName: favDef ? favDef.name : '' };
+  const slides = [
+    { emoji: '🍺', big: r.totalDrinks, sub: 'rodadas na vida' },
+    { emoji: '📅', big: r.nights, sub: 'noites de boteco' },
+    { emoji: '🔥', big: r.streakWeeks, sub: 'semanas seguidas' },
+  ];
+  if (r.record) slides.push({ emoji: '👑', big: r.record.total, sub: 'recorde numa noite' });
+  if (favDef) slides.push({ emoji: favDef.emoji, big: favDef.name, sub: 'sua favorita' });
+  if (r.topMate) slides.push({ emoji: '🤝', big: r.topMate.name, sub: 'parceiro de rolê' });
+  if (r.totalSpent > 0) slides.push({ emoji: '💸', big: 'R$ ' + r.totalSpent.toFixed(2), sub: 'já torrado' });
+  ui.openRetro({ slides });
+}
+
+// ---- Liga & desafios ----
+function openLeague() {
+  const now = Date.now();
+  const hist = store.getHistory();
+  const current = room ? { at: now, items: myItems() } : null;
+  ui.openLeague({ level: levelFor(lifeStats(hist, { now })), challenges: weeklyChallenges(hist, current, { now }), season: seasonAward(hist, { now }) });
+}
+
+// ---- Modo bar ----
+function loadBarMenu() {
+  let n = 0;
+  for (const d of store.getBarMenu()) if (d && d.id) { emitLocal(makeItem(d)); n++; }
+  if (n) { render(); ui.toast(`📂 Cardápio carregado (${n} itens)`); }
+}
+
 // ---- Handlers ----
 const handlers = {
   onName: (v) => setName(v),
@@ -698,6 +767,36 @@ const handlers = {
   onCeremonyBroadcast: () => { if (mesh) mesh.sendFx({ kind: 'ceremony', awards: lastAwards }); ui.toast('📣 Mandado pra mesa!'); },
   onStats: openStats,
   onComanda: openComanda,
+  onSafe: openSafe,
+  onRetro: openRetro,
+  onLeague: openLeague,
+  onBarMode: () => ui.openBar({ menuCount: store.getBarMenu().length }),
+  onBarOpenTable: (code, useMenu) => {
+    if (!getName()) { ui.toast('Bota teu apelido primeiro 😉'); return; }
+    const c = (code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || newRoomCode();
+    pendingBarMenu = !!useMenu && store.hasBarMenu();
+    ui.closeOverlays();
+    enterTable(c, { create: true });
+  },
+  onSaveMenu: () => {
+    const defs = [];
+    for (const rec of state.items.values()) defs.push(rec.def);
+    store.saveBarMenu(defs);
+    ui.toast(defs.length ? `💾 Cardápio salvo (${defs.length} itens)` : 'Adicione itens/preços antes 🙂');
+  },
+  onCallCar: callCar,
+  onTrustContact: () => {
+    const digits = (settings.trustPhone || '').replace(/\D/g, '');
+    if (!digits) { ui.toast('Configure um contato de confiança nas ⚙️'); return; }
+    const num = digits.length <= 11 ? '55' + digits : digits;
+    const msg = encodeURIComponent(`Oi${settings.trustName ? ' ' + settings.trustName : ''}! Tô no bar e queria uma carona/companhia pra voltar. Pode me ajudar?`);
+    try { window.open(`https://wa.me/${num}?text=${msg}`, '_blank', 'noopener'); } catch { /* ignore */ }
+  },
+  onRetroShare: async () => {
+    if (!lastRetro) return;
+    const res = await shareRetro(lastRetro).catch(() => 'error');
+    if (res === 'download') ui.toast('Imagem salva 📸'); else if (res === 'error') ui.toast('Não consegui gerar 😕');
+  },
   onWaiter: () => {
     sound.alarm(); ui.floatReaction('🔔');
     if (mesh && mesh.connectedCount() > 0) { mesh.sendFx({ kind: 'waiter', from: self, fromName: getName() || 'alguém' }); ui.toast('🔔 Chamou o garçom pra mesa!'); }

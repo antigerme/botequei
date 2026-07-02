@@ -147,8 +147,8 @@ body::after {
 .item-card[data-zero] .item-qty { color: var(--muted); opacity: .5; }
 .item-plus { position: absolute; bottom: 9px; right: 13px; margin: 0; min-height: 0; padding: 0;
   border: 0; background: none; color: var(--muted); font-family: var(--num); font-size: 15px; cursor: pointer; }
-.item-card.pop { animation: pop .35s ease; }
-@keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.06); box-shadow: 0 0 0 3px var(--gold); } 100% { transform: scale(1); } }
+.item-card.pop { animation: pop .42s cubic-bezier(.34,1.56,.64,1); }
+@keyframes pop { 0% { transform: scale(1); } 30% { transform: scale(1.11); box-shadow: 0 0 0 3px var(--gold); } 60% { transform: scale(.985); } 100% { transform: scale(1); } }
 .item-card.pop-remove { animation: popr .35s ease; }
 @keyframes popr { 0% { transform: scale(1); } 35% { transform: scale(.94); box-shadow: 0 0 0 3px var(--danger2); } 100% { transform: scale(1); } }
 
@@ -233,6 +233,10 @@ body.light { background:
   radial-gradient(135% 100% at 50% -10%, #fdf6e6 0%, #ece0c7 60%); }
 body.light .btn-primary { color: #fff; }
 body.light .item-name, body.light .peer-name { color: var(--cream); }
+/* superfícies escuras -> claras no tema kraft */
+body.light .sheet { background: linear-gradient(180deg, #fdf6e6, #f2e7cd); }
+body.light .chip, body.light .toast, body.light .fx-plus { background: #fbf2df; }
+body.light .sheet-close { background: var(--card); }
 
 /* Fonte grande (acessibilidade) */
 body.bigfont { font-size: 20px; }
@@ -322,3 +326,13 @@ body.bigfont .btn, body.bigfont .chip { font-size: 19px; }
 .price-list { list-style: none; padding: 0; margin: 0; }
 .price-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--chalk-line); }
 .price-row input { width: 110px; background: var(--card); border: 1.5px solid var(--line); color: var(--cream); border-radius: 10px; padding: 10px; font-size: 16px; font-family: system-ui, sans-serif; }
+
+/* Comemoração de marcos (confete de emoji, cai do topo) */
+.confetti { position: absolute; top: -8vh; will-change: transform;
+  animation-name: fall; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes fall { 0% { transform: translateY(0) rotate(0); opacity: 0; } 10% { opacity: 1; }
+  100% { transform: translateY(120vh) rotate(600deg); opacity: .95; } }
+
+/* Dicas de primeiro uso (giz apagado) */
+.table-hint { text-align: center; color: var(--muted); font-size: 15px; margin: 2px 0 8px; opacity: .85; }
+.home-hint { text-align: center; color: var(--muted); font-size: 15px; margin: 16px 6px 0; line-height: 1.45; opacity: .9; }

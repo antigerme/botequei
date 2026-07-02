@@ -105,6 +105,7 @@ async function main() {
   await step('estatísticas: B sai e vê 1 noite', async () => {
     await closeAll(pageB);
     await pageB.click('#btn-leave');
+    await pageB.click('#toast .toast-action'); // sair pede confirmação (um toque errado não derruba da mesa)
     await pageB.waitForSelector('#screen-home.is-active', { timeout: T });
     await pageB.click('#btn-stats');
     await visible(pageB, 'overlay-stats');

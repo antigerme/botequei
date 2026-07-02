@@ -48,7 +48,7 @@ const IDS = [
   'purr-wait', 'purr-waitcount', 'purr-seals', 'purr-result', 'purr-total', 'purr-reveals', 'purr-verdict',
   'btn-purr-again', 'btn-purr-close',
   'menu-domino', 'overlay-domino', 'btn-dom-close', 'dom-setup', 'dom-game', 'dom-verified',
-  'dom-opps', 'dom-turn', 'dom-ends', 'dom-board', 'dom-result',
+  'dom-opps', 'dom-turn', 'dom-board', 'dom-result',
   'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
   'btn-dom-pass', 'btn-dom-again',
   'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
@@ -1104,11 +1104,20 @@ function domHalf(n) {
   return `<span class="dom-half">${cells}</span>`;
 }
 // pedra: dobra (carroça) fica atravessada (metades empilhadas); na mão fica sempre deitada (flat).
-function domTileHTML(a, b, { flat = false, cls = '' } = {}) {
+function domTileHTML(a, b, { flat = false, cls = '', chip = '' } = {}) {
   const dbl = (!flat && a === b) ? ' dbl' : '';
-  return `<span class="dom-tile${dbl}${cls ? ' ' + cls : ''}">${domHalf(a)}${domHalf(b)}</span>`;
+  return `<span class="dom-tile${dbl}${cls ? ' ' + cls : ''}">${domHalf(a)}${domHalf(b)}${chip}</span>`;
 }
-function domFace(n) { return `<span class="dom-face">${domHalf(n)}</span>`; }
+// ajusta a escala do tabuleiro pra caber TUDO numa linha só (sem quebrar linha nem scroll)
+function domFitBoard() {
+  const board = el['dom-board'], wrap = board.parentElement;
+  board.style.transform = '';
+  const avail = wrap.clientWidth - 12;
+  if (avail <= 0) return;
+  const natural = board.scrollWidth;
+  const s = natural > avail ? Math.max(0.28, avail / natural) : 1;
+  board.style.transform = s < 1 ? `scale(${s})` : '';
+}
 let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolha de ponta
 export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }
 // tela de espera do handshake da mesa verificada (antes do jogo começar)
@@ -1126,16 +1135,22 @@ export function renderDomino(vm) {
     el['dom-verified'].textContent = vm.verified.text;
     el['dom-verified'].className = 'dom-verified' + (vm.verified.ok === true ? ' ok' : vm.verified.ok === false ? ' bad' : '');
   } else { el['dom-verified'].hidden = true; }
-  el['dom-opps'].innerHTML = (vm.opponents || []).map((o) => `<span class="dom-opp${o.isTurn ? ' turn' : ''}">
+  el['dom-opps'].innerHTML = (vm.opponents || []).map((o) => `<span class="dom-opp${o.isTurn ? ' turn' : ''}${o.justPlayed ? ' played' : ''}">
     <span class="dom-oav">${esc(o.avatar || '🍺')}</span><span class="dom-oname">${esc(o.name)}</span><span class="dom-ocount">🁫 ${o.count}</span></span>`).join('');
   el['dom-turn'].textContent = vm.turn || '';
   el['dom-turn'].className = 'dom-turn' + (vm.myTurn ? ' mine' : '');
-  // banner de pontas abertas (o que dá pra encaixar) — é o que importa pra jogar
-  const hasBoard = (vm.board || []).length > 0;
-  el['dom-ends'].hidden = !hasBoard;
-  if (hasBoard) el['dom-ends'].innerHTML = `<span class="dom-endlbl">pontas</span>${domFace(vm.ends[0])}<span class="dom-endsep">…</span>${domFace(vm.ends[1])}`;
-  // tabuleiro: quebra em linhas (sem scroll horizontal); carroças atravessadas
-  el['dom-board'].innerHTML = (vm.board || []).map((t) => domTileHTML(t.a, t.b)).join('') || '<span class="dom-empty">começando…</span>';
+  // tabuleiro: UMA linha que escala pra caber; pontas abertas brilham (sem banner dedicado); a
+  // peça recém-jogada ganha destaque + o avatar de quem jogou (como acompanhar a mão na mesa real).
+  const board = vm.board || [];
+  el['dom-board'].innerHTML = board.length
+    ? board.map((t, i) => {
+      const open = i === 0 || i === board.length - 1;
+      const just = i === vm.lastPlayIdx;
+      const chip = just && vm.lastPlayAvatar ? `<span class="dom-played-av" title="${esc(vm.lastPlayName || '')}">${esc(vm.lastPlayAvatar)}</span>` : '';
+      return domTileHTML(t.a, t.b, { cls: (open ? 'open' : '') + (just ? ' just' : ''), chip });
+    }).join('')
+    : '<span class="dom-empty">começando…</span>';
+  requestAnimationFrame(domFitBoard);
   el['dom-hand'].innerHTML = (vm.hand || []).map((h) => {
     const playable = h.sides.length > 0 && vm.myTurn;
     return `<button class="dom-htile${playable ? ' can' : ' dim'}" data-key="${h.key}" data-sides="${h.sides.join('')}"${playable ? '' : ' disabled'}>${domTileHTML(h.a, h.b, { flat: true })}</button>`;

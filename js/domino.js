@@ -6,6 +6,9 @@
 // Nota de arquitetura: as MÃOS são privadas (entregues 1-a-1 pelo dono da mesa via canal direto);
 // já as JOGADAS são públicas e validadas por todos com `legalMoves`/`place` — trapaça durante a
 // partida não cola. Só o embaralho inicial confia em quem "dá as cartas", igual na vida real.
+// A "mesa verificada" (fim deste arquivo) endurece isso com commit-to-deck + corte coletivo.
+
+import { sha256Hex } from './purrinha.js';
 
 // baralho completo: [a,b] com a<=b (28 pedras)
 export const FULL_SET = (() => {
@@ -124,4 +127,60 @@ export function pass(state, player) {
     return { ...state, passes, over: true, winner, reason: 'trancou' };
   }
   return { ...state, passes, turn: (player + 1) % state.players };
+}
+
+// ===================== Mesa verificada (commit-to-deck + corte coletivo) =====================
+// Endurece o "confia em quem dá as cartas": o dono lacra o baralho ANTES (não pode trocar/inventar
+// depois), a mão de cada um vem com um lacre que ele confere na hora, e um CORTE COLETIVO (seeds
+// commit-reveal de todos → σ) embaralha por cima do baralho do dono — como o dono lacra antes de
+// ver o corte, ele não consegue mirar num baralho favorável. No fim, o baralho é revelado e todos
+// AUDITAM (lacre bate, é permutação das 28, corte confere, as mãos batem). Trapaça no deal é pega.
+
+// serialização canônica (pra o hash bater igual em todo peer)
+export function serializeTiles(tiles) { return (tiles || []).map((t) => `${t[0]}${t[1]}`).join(','); }
+export function deckCommit(deck, salt) { return sha256Hex(salt + '|' + serializeTiles(deck)); }
+export function handCommit(hand, salt) { return sha256Hex(salt + '|' + serializeTiles(hand)); }
+
+// corte coletivo: junta os seeds (ordenados por id) → hash → semente do embaralho do corte
+export function combineSeeds(seeds) {
+  const joined = Object.keys(seeds || {}).sort().map((id) => `${id}:${seeds[id]}`).join('|');
+  return sha256Hex(joined);
+}
+export const seedToInt = (hex) => parseInt(String(hex).slice(0, 8), 16) >>> 0;
+export const cutDeck = (deck, combinedHex) => shuffle(deck, rngFrom(seedToInt(combinedHex)));
+
+// o baralho é exatamente as 28 pedras (sem inventar nem repetir)?
+export function isFullSet(deck) {
+  if (!Array.isArray(deck) || deck.length !== 28) return false;
+  const got = new Set(deck.map(tileKey));
+  if (got.size !== 28) return false;
+  for (const t of FULL_SET) if (!got.has(tileKey(t))) return false;
+  return true;
+}
+const sameSet = (a, b) => {
+  const A = new Set((a || []).map(tileKey)), B = new Set((b || []).map(tileKey));
+  if (A.size !== B.size) return false;
+  for (const k of A) if (!B.has(k)) return false;
+  return true;
+};
+export function dealFromDeck(deck, players) {
+  const hs = handSizeFor(players); const hands = []; let k = 0;
+  for (let p = 0; p < players; p++) hands.push(deck.slice(k, k += hs));
+  return { hands, buried: deck.slice(k) };
+}
+
+// Auditoria do deal (roda no fim, em todo peer). `initialHands[k]` = a mão inicial reconstruída do
+// assento k (o que ele jogou + o que revelou). Retorna { ok, reason }.
+export async function verifyDeal({ deck, salt, deckCommit: dc, seeds, seedCommits, players, initialHands }) {
+  if ((await deckCommit(deck, salt)) !== dc) return { ok: false, reason: 'o lacre do baralho não bate' };
+  if (!isFullSet(deck)) return { ok: false, reason: 'o baralho não são as 28 pedras' };
+  for (const id of Object.keys(seedCommits || {})) {
+    if ((await sha256Hex(seeds[id])) !== seedCommits[id]) return { ok: false, reason: `o seed de ${id} não confere` };
+  }
+  const F = cutDeck(deck, await combineSeeds(seeds));
+  const dealt = dealFromDeck(F, players);
+  for (let k = 0; k < players; k++) {
+    if (initialHands && initialHands[k] && !sameSet(dealt.hands[k], initialHands[k])) return { ok: false, reason: `a mão do assento ${k} não confere com o baralho` };
+  }
+  return { ok: true };
 }

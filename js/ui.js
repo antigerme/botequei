@@ -41,13 +41,14 @@ const IDS = [
   'overlay-safe', 'safe-verdict', 'safe-rows', 'btn-safe-car', 'btn-safe-trust', 'btn-safe-home',
   'overlay-jukebox', 'jukebox-input', 'btn-jukebox-add', 'jukebox-list',
   'overlay-festa', 'festa-canvas', 'btn-festa-close',
-  'set-shake',
+  'set-shake', 'set-domverified',
   'overlay-tournament', 'tourn-list', 'btn-tourn-add', 'btn-tourn-reset',
   'overlay-card', 'card-draw', 'btn-card-again', 'btn-card-show',
   'menu-purrinha', 'overlay-purrinha', 'purr-sub', 'purr-pick', 'purr-hands', 'purr-guesses', 'btn-purr-seal',
   'purr-wait', 'purr-waitcount', 'purr-seals', 'purr-result', 'purr-total', 'purr-reveals', 'purr-verdict',
   'btn-purr-again', 'btn-purr-close',
-  'menu-domino', 'overlay-domino', 'btn-dom-close', 'dom-opps', 'dom-turn', 'dom-ends', 'dom-board', 'dom-result',
+  'menu-domino', 'overlay-domino', 'btn-dom-close', 'dom-setup', 'dom-game', 'dom-verified',
+  'dom-opps', 'dom-turn', 'dom-ends', 'dom-board', 'dom-result',
   'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
   'btn-dom-pass', 'btn-dom-again',
   'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
@@ -223,6 +224,7 @@ export function init(handlers) {
   el['set-water'].addEventListener('change', () => H.onSetting({ waterEvery: Math.max(0, parseInt(el['set-water'].value, 10) || 0) }));
   el['set-nudges'].addEventListener('change', () => H.onSetting({ nudges: el['set-nudges'].checked }));
   el['set-shake'].addEventListener('change', () => H.onShakeToggle(el['set-shake'].checked));
+  el['set-domverified'].addEventListener('change', () => H.onSetting({ domVerified: el['set-domverified'].checked }));
   el['set-weight'].addEventListener('change', () => H.onSetting({ weightKg: Math.max(0, Math.min(300, parseInt(el['set-weight'].value, 10) || 0)) }));
   el['set-sex'].addEventListener('change', () => H.onSetting({ sex: el['set-sex'].value }));
   el['set-responsa'].addEventListener('change', () => H.onSetting({ responsa: el['set-responsa'].checked }));
@@ -592,6 +594,7 @@ export function fillSettings(s) {
   el['set-water'].value = s.waterEvery || '';
   el['set-nudges'].checked = s.nudges !== false;
   el['set-shake'].checked = !!s.shake;
+  el['set-domverified'].checked = !!s.domVerified;
   el['set-weight'].value = s.weightKg || '';
   el['set-sex'].value = s.sex || '';
   el['set-responsa'].checked = !!s.responsa;
@@ -1108,7 +1111,21 @@ function domTileHTML(a, b, { flat = false, cls = '' } = {}) {
 function domFace(n) { return `<span class="dom-face">${domHalf(n)}</span>`; }
 let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolha de ponta
 export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }
+// tela de espera do handshake da mesa verificada (antes do jogo começar)
+export function dominoSetup(msg) {
+  el['dom-setup'].innerHTML = `<div class="dom-setup-spin">🔒</div><div class="dom-setup-msg">${esc(msg)}</div>`;
+  el['dom-setup'].hidden = false;
+  el['dom-game'].hidden = true;
+  el['overlay-domino'].hidden = false;
+}
 export function renderDomino(vm) {
+  el['dom-setup'].hidden = true;
+  el['dom-game'].hidden = false;
+  if (vm.verified) {
+    el['dom-verified'].hidden = false;
+    el['dom-verified'].textContent = vm.verified.text;
+    el['dom-verified'].className = 'dom-verified' + (vm.verified.ok === true ? ' ok' : vm.verified.ok === false ? ' bad' : '');
+  } else { el['dom-verified'].hidden = true; }
   el['dom-opps'].innerHTML = (vm.opponents || []).map((o) => `<span class="dom-opp${o.isTurn ? ' turn' : ''}">
     <span class="dom-oav">${esc(o.avatar || '🍺')}</span><span class="dom-oname">${esc(o.name)}</span><span class="dom-ocount">🁫 ${o.count}</span></span>`).join('');
   el['dom-turn'].textContent = vm.turn || '';

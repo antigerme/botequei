@@ -324,6 +324,7 @@
       <input id="set-water" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" /></label>
     <label class="check"><input type="checkbox" id="set-nudges" /><span data-i18n="set.nudges">🐢 Avisos de ritmo (bora uma água?)</span></label>
     <label class="check"><input type="checkbox" id="set-shake" /><span data-i18n="set.shake">📳 Chacoalhar o celular pra +1 (mãos livres)</span></label>
+    <label class="check"><input type="checkbox" id="set-domverified" /><span>🔒 Dominó: mesa verificada (embaralho auditável)</span></label>
     <p class="lbl">📈 Estimar teor alcoólico (opcional, fica só neste aparelho)</p>
     <label class="field field-inline"><span>⚖️ Peso (kg)</span>
       <input id="set-weight" type="number" inputmode="numeric" min="0" max="300" step="1" placeholder="0 = não estima" /></label>
@@ -652,22 +653,26 @@
   <div class="sheet sheet-tall">
     <button class="sheet-close" id="btn-dom-close">✕</button>
     <h2>🁫 Dominó</h2>
-    <div class="dom-opps" id="dom-opps"></div>
-    <div class="dom-turn" id="dom-turn"></div>
-    <div class="dom-ends" id="dom-ends" hidden></div>
-    <div class="dom-board-wrap"><div class="dom-board" id="dom-board"></div></div>
-    <div id="dom-result" class="dom-result" hidden></div>
-    <div id="dom-hand-wrap">
-      <div class="dom-hand-lbl">Sua mão — toque pra jogar</div>
-      <div class="dom-hand" id="dom-hand"></div>
-      <div class="dom-side-pick" id="dom-side-pick" hidden>
-        <span>Jogar em qual ponta?</span>
-        <button class="btn btn-ghost" id="btn-dom-L">◀ <b id="dom-endL"></b></button>
-        <button class="btn btn-ghost" id="btn-dom-R"><b id="dom-endR"></b> ▶</button>
+    <div class="dom-setup" id="dom-setup" hidden></div>
+    <div id="dom-game">
+      <div class="dom-verified" id="dom-verified" hidden></div>
+      <div class="dom-opps" id="dom-opps"></div>
+      <div class="dom-turn" id="dom-turn"></div>
+      <div class="dom-ends" id="dom-ends" hidden></div>
+      <div class="dom-board-wrap"><div class="dom-board" id="dom-board"></div></div>
+      <div id="dom-result" class="dom-result" hidden></div>
+      <div id="dom-hand-wrap">
+        <div class="dom-hand-lbl">Sua mão — toque pra jogar</div>
+        <div class="dom-hand" id="dom-hand"></div>
+        <div class="dom-side-pick" id="dom-side-pick" hidden>
+          <span>Jogar em qual ponta?</span>
+          <button class="btn btn-ghost" id="btn-dom-L">◀ <b id="dom-endL"></b></button>
+          <button class="btn btn-ghost" id="btn-dom-R"><b id="dom-endR"></b> ▶</button>
+        </div>
+        <button class="btn btn-ghost" id="btn-dom-pass" hidden>🚫 Passar a vez</button>
       </div>
-      <button class="btn btn-ghost" id="btn-dom-pass" hidden>🚫 Passar a vez</button>
+      <button class="btn btn-primary btn-lg" id="btn-dom-again" hidden>🁫 Jogar de novo</button>
     </div>
-    <button class="btn btn-primary btn-lg" id="btn-dom-again" hidden>🁫 Jogar de novo</button>
   </div>
 </div>
 

@@ -4,7 +4,9 @@ import assert from 'node:assert';
 import {
   FULL_SET, isDouble, pips, tileKey, pipCount, rngFrom, shuffle, handSizeFor, dealHands,
   opening, legalMoves, canPlay, place, newGame, playTile, pass,
+  serializeTiles, deckCommit, combineSeeds, cutDeck, isFullSet, dealFromDeck, verifyDeal,
 } from '../js/domino.js';
+import { sha256Hex } from '../js/purrinha.js';
 
 let passed = 0;
 const ok = (n) => { console.log('  ✓ ' + n); passed++; };
@@ -130,6 +132,50 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   const inHands = g.hands.reduce((a, h) => a + h.length, 0);
   assert.strictEqual(inHands + g.chain.length + g.buried.length, 28); // conserva as pedras
   ok('partida nova: abre com a maior carroça e conserva as 28 pedras');
+}
+
+// ---------- mesa verificada (commit-to-deck + corte coletivo) ----------
+{
+  assert.strictEqual(serializeTiles([[6, 6], [0, 3]]), '66,03');
+  assert.strictEqual(isFullSet(FULL_SET), true);
+  assert.strictEqual(isFullSet(FULL_SET.slice(0, 27)), false);          // faltando pedra
+  assert.strictEqual(isFullSet([...FULL_SET.slice(0, 27), [0, 0]]), false); // 0-0 repetido
+  const c1 = cutDeck(FULL_SET, 'abc123def'), c2 = cutDeck(FULL_SET, 'abc123def');
+  assert.deepStrictEqual(c1, c2);              // corte determinístico
+  assert.strictEqual(isFullSet(c1), true);     // conserva as 28 pedras
+  ok('verificada: serialização, permutação e corte determinístico');
+}
+{
+  const a = await combineSeeds({ ana: 'aa', bia: 'bb' });
+  const b = await combineSeeds({ bia: 'bb', ana: 'aa' });   // ordem de inserção não importa
+  assert.strictEqual(a, b);
+  assert.notStrictEqual(a, await combineSeeds({ ana: 'aa', bia: 'XX' }));
+  ok('verificada: corte coletivo é determinístico e ordena os seeds');
+}
+{
+  // deal honesto passa; adulterar QUALQUER coisa é pego
+  const players = 2;
+  const seeds = { ana: 'seedA', bia: 'seedB' };
+  const seedCommits = {};
+  for (const id of Object.keys(seeds)) seedCommits[id] = await sha256Hex(seeds[id]);
+  const deck = shuffle(FULL_SET, rngFrom(777));  // baralho do "dono"
+  const salt = 'saltZ';
+  const dc = await deckCommit(deck, salt);
+  const F = cutDeck(deck, await combineSeeds(seeds));
+  const { hands } = dealFromDeck(F, players);
+
+  assert.strictEqual((await verifyDeal({ deck, salt, deckCommit: dc, seeds, seedCommits, players, initialHands: hands })).ok, true);
+  // lacre do baralho trocado
+  assert.strictEqual((await verifyDeal({ deck, salt, deckCommit: 'deadbeef', seeds, seedCommits, players, initialHands: hands })).ok, false);
+  // pedra trocada no baralho revelado (lacre não bate)
+  const deck2 = deck.map((t) => t.slice()); deck2[0] = [6, 6]; deck2[1] = [6, 6];
+  assert.strictEqual((await verifyDeal({ deck: deck2, salt, deckCommit: dc, seeds, seedCommits, players, initialHands: hands })).ok, false);
+  // seed adulterado (não bate com o commit)
+  assert.strictEqual((await verifyDeal({ deck, salt, deckCommit: dc, seeds: { ana: 'OUTRO', bia: 'seedB' }, seedCommits, players, initialHands: hands })).ok, false);
+  // dono deu ao assento 0 uma pedra que era da mesa (mão não confere com o baralho)
+  const fake = hands.map((h) => h.slice()); fake[0] = fake[0].slice(); fake[0][0] = F[F.length - 1];
+  assert.strictEqual((await verifyDeal({ deck, salt, deckCommit: dc, seeds, seedCommits, players, initialHands: fake })).ok, false);
+  ok('verificada: deal honesto passa; adulterar baralho/seed/mão é PEGO');
 }
 
 console.log(`\n${passed} testes de dominó passaram ✅`);

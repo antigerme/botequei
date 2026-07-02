@@ -44,6 +44,10 @@ export function makeHappyHour({ minutes, startTotal }) {
 export function makePayFor({ to, on }) {
   return { type: 'PAYFOR', from: clientId(), to, on: !!on, ts: Date.now(), eventId: newEventId() };
 }
+// Jukebox: pedido de música pra fila da mesa (acumula, não é LWW).
+export function makeSong({ title, url }) {
+  return { type: 'SONG', user: clientId(), name: getName(), title: String(title || '').slice(0, 60), url: String(url || '').slice(0, 300), ts: Date.now(), eventId: newEventId() };
+}
 
 // ---- Estado ----
 export function emptyState() {
@@ -56,6 +60,7 @@ export function emptyState() {
     table: null,         // { def:{title,emoji}, ts, eventId }  (LWW)
     happy: null,         // { def:{until,startTotal,by}, ts, eventId }  (LWW) — happy hour
     pays: new Map(),     // "from\x00to" -> { on, from, to, ts, eventId }  (LWW) — "eu pago pra fulano"
+    songs: [],           // [ { title, url, by, name, ts } ] — fila do jukebox (acumula)
   };
 }
 
@@ -113,6 +118,11 @@ export function applyEvent(state, ev) {
       if (!ev.from || !ev.to) return false;
       const k = ev.from + '\x00' + ev.to;
       if (wins(state.pays.get(k), ev)) state.pays.set(k, { on: !!ev.on, from: ev.from, to: ev.to, ts: ev.ts, eventId: ev.eventId });
+      return true;
+    }
+    case 'SONG': {
+      if (!ev.title) return false;
+      state.songs.push({ title: ev.title, url: ev.url || '', by: ev.user || '', name: ev.name || '', ts: ev.ts });
       return true;
     }
     default:
@@ -175,6 +185,11 @@ export function tableInfo(state) {
 
 export function happyHour(state) {
   return state.happy ? state.happy.def : null;
+}
+
+// Fila do jukebox (ordem de pedido).
+export function songs(state) {
+  return state.songs.slice().sort((a, b) => a.ts - b.ts);
 }
 
 // "Eu (from) pago pra (to)" está ativo agora?

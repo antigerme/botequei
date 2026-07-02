@@ -3,6 +3,7 @@
 
 import { EMOJIS, COLORS, AVATARS, CATEGORIES, catOf } from './catalog.js';
 import { scanQR, scanSupported } from './scan.js';
+import * as music from './music.js';
 
 const $ = (id) => document.getElementById(id);
 let H = {};
@@ -18,7 +19,8 @@ const IDS = [
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
-  'overlay-menu', 'menu-profile', 'menu-board', 'menu-pace', 'menu-safe', 'menu-league', 'menu-roulette', 'menu-bill', 'menu-prices',
+  'overlay-menu', 'menu-profile', 'menu-board', 'menu-pace', 'menu-safe', 'menu-league', 'menu-roulette',
+  'menu-water', 'menu-jukebox', 'menu-festa', 'menu-bill', 'menu-prices',
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list', 'btn-save-menu',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
@@ -35,7 +37,9 @@ const IDS = [
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
   'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
   'overlay-comanda', 'comanda-title', 'comanda-list', 'comanda-total',
-  'overlay-safe', 'safe-verdict', 'safe-rows', 'btn-safe-car', 'btn-safe-trust',
+  'overlay-safe', 'safe-verdict', 'safe-rows', 'btn-safe-car', 'btn-safe-trust', 'btn-safe-home',
+  'overlay-jukebox', 'jukebox-input', 'btn-jukebox-add', 'jukebox-list',
+  'overlay-festa', 'festa-canvas', 'btn-festa-close',
   'overlay-retro', 'retro-slides', 'btn-retro-share',
   'overlay-league', 'league-level', 'league-challenges', 'league-season',
   'overlay-bar', 'bar-code', 'bar-usemenu-field', 'bar-usemenu', 'bar-menu-count', 'btn-bar-open',
@@ -134,6 +138,9 @@ export function init(handlers) {
   $('menu-safe').addEventListener('click', () => { closeOverlays(); H.onSafe(); });
   $('menu-league').addEventListener('click', () => { closeOverlays(); H.onLeague(); });
   $('menu-roulette').addEventListener('click', () => { closeOverlays(); H.onRoulette(); });
+  $('menu-water').addEventListener('click', () => { closeOverlays(); H.onWaterRound(); });
+  $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
+  $('menu-festa').addEventListener('click', () => { closeOverlays(); openFesta(); });
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
   $('menu-hh').addEventListener('click', () => { closeOverlays(); el['overlay-hh'].hidden = false; });
@@ -156,6 +163,9 @@ export function init(handlers) {
   el['btn-safe-trust'].addEventListener('click', () => H.onTrustContact());
   el['btn-retro-share'].addEventListener('click', () => H.onRetroShare());
   el['btn-bar-open'].addEventListener('click', () => H.onBarOpenTable(el['bar-code'].value, el['bar-usemenu'].checked));
+  el['btn-safe-home'].addEventListener('click', () => H.onGoHome());
+  el['btn-jukebox-add'].addEventListener('click', () => submitSong());
+  el['btn-festa-close'].addEventListener('click', () => closeOverlays());
 
   $('btn-profile-save').addEventListener('click', () => submitProfile());
   $('btn-pix-copy').addEventListener('click', () => H.onPixCopy());
@@ -907,6 +917,7 @@ export function openSafe(vm) {
   if (vm.hydration) rows += row('💧', 'Hidratação', vm.hydration.label);
   el['safe-rows'].innerHTML = rows;
   el['btn-safe-trust'].hidden = !vm.hasTrust;
+  el['btn-safe-home'].hidden = !vm.hasTrust;
   el['overlay-safe'].hidden = false;
 }
 
@@ -947,9 +958,60 @@ export function openBar(vm) {
   el['overlay-bar'].hidden = false;
 }
 
+// ---------- Jukebox ----------
+export function openJukebox(vm) {
+  renderJukebox((vm && vm.songs) || []);
+  el['jukebox-input'].value = '';
+  el['overlay-jukebox'].hidden = false;
+}
+export function renderJukebox(list) {
+  el['jukebox-list'].innerHTML = (list || []).map((s, i) => `<li class="jbx-row">
+    <span class="jbx-n">${i + 1}</span>
+    <div class="jbx-main"><span class="jbx-title">${esc(s.title)}</span>
+      <span class="jbx-by">pedida por ${esc(s.name || 'alguém')}</span></div>
+    <button class="jbx-play" data-i="${i}" aria-label="tocar">▶️</button></li>`).join('') || '<li class="jbx-row">Fila vazia — peça a primeira! 🎶</li>';
+  el['jukebox-list'].querySelectorAll('.jbx-play').forEach((b) => b.addEventListener('click', () => H.onSongPlay(list[Number(b.dataset.i)])));
+}
+function submitSong() {
+  const t = el['jukebox-input'].value.trim();
+  if (!t) { el['jukebox-input'].focus(); return; }
+  H.onSongAdd(t);
+  el['jukebox-input'].value = '';
+}
+
+// ---------- Modo festa (visualizador + trilha lo-fi procedural) ----------
+let festaRAF = null;
+function drawFesta() {
+  const cv = el['festa-canvas'];
+  if (!cv) return;
+  const g = cv.getContext('2d');
+  const W = cv.width, Hh = cv.height;
+  const spec = music.spectrum();
+  g.clearRect(0, 0, W, Hh);
+  const light = document.body.classList.contains('light');
+  const n = spec.length || 1;
+  const bw = W / n;
+  for (let i = 0; i < n; i++) {
+    const h = (spec[i] / 255) * Hh;
+    g.fillStyle = `hsl(${38 + (i / n) * 22}, 85%, ${light ? 42 : 58}%)`;
+    g.fillRect(i * bw + 1, Hh - h, bw - 2, h);
+  }
+  festaRAF = requestAnimationFrame(drawFesta);
+}
+export function openFesta() {
+  music.start();
+  el['overlay-festa'].hidden = false;
+  if (!festaRAF) drawFesta();
+}
+function stopFesta() {
+  if (festaRAF) { cancelAnimationFrame(festaRAF); festaRAF = null; }
+  music.stop();
+}
+
 // ---------- Overlays / toast ----------
 export function closeOverlays() {
   if (activeScan) { activeScan.stop(); activeScan = null; }
+  stopFesta();
   document.querySelectorAll('.overlay').forEach((o) => { o.hidden = true; });
   if (lastFocus) { try { lastFocus.focus({ preventScroll: true }); } catch { /* ignore */ } lastFocus = null; }
 }

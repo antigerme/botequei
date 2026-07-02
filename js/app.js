@@ -719,7 +719,7 @@ async function purrSeal(hand, guess) {
 function renderPurrWait() {
   if (!purr) return;
   const exp = purrExpected();
-  const seals = purr.entrants.filter((e) => exp.includes(e.id)).map((e) => ({ name: purrName(e.id), sealed: purr.commits.has(e.id) }));
+  const seals = purr.entrants.filter((e) => exp.includes(e.id)).map((e) => ({ name: purrName(e.id), avatar: profOf(e.id).emoji, sealed: purr.commits.has(e.id) }));
   ui.purrinhaSealed({ count: exp.filter((id) => purr.commits.has(id)).length, total: exp.length, seals });
 }
 function onPurrCommit(fx) {

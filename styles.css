@@ -631,29 +631,51 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
 .welcome-list b { color: var(--gold); }
 
 /* ===================== Purrinha (commit-reveal) ===================== */
-.purr-lbl { margin: 14px 0 8px; font-size: 14px; color: var(--muted); }
-.purr-lbl small { opacity: .8; }
+.purr-lbl { margin: 16px 0 10px; font-size: 15px; color: var(--cream); }
+.purr-lbl b { color: var(--gold); }
+/* palito (matchstick): cabeça vermelha + corpo de madeira */
+.pstick { display: inline-block; width: 6px; height: 26px; border-radius: 3px;
+  background: linear-gradient(180deg, #e8735f 0 26%, #efdcb4 26% 100%); box-shadow: 0 1px 1px rgba(0,0,0,.3); }
+.purr-hsticks { display: inline-flex; gap: 4px; align-items: flex-end; }
+.purr-hsticks.sm .pstick { width: 5px; height: 18px; }
+.purr-fist { font-size: 24px; } .purr-fist.sm { font-size: 18px; }
+/* opções de mão (0..3) como cartões com os palitos */
+.purr-hands { display: flex; gap: 8px; }
+.purr-hand { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px;
+  min-height: 82px; padding: 10px 4px; border-radius: 14px; border: 1px solid var(--line); background: var(--card);
+  color: var(--cream); cursor: pointer; transition: transform .08s; }
+.purr-hand:active { transform: translateY(2px); }
+.purr-hand.on { background: var(--gold); color: #241a08; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(244,177,60,.3); }
+.purr-hvis { display: flex; align-items: flex-end; min-height: 26px; }
+.purr-hn { font-family: var(--num); font-size: 22px; }
+/* palpite: fichas numeradas */
 .purr-opts { display: flex; gap: 8px; }
 .purr-opts-wrap { flex-wrap: wrap; }
-.purr-opt { min-width: 52px; min-height: 52px; flex: 0 0 auto; border-radius: 12px; border: 1px solid var(--line);
-  background: var(--card); color: var(--cream); font-family: var(--num); font-size: 24px; cursor: pointer; }
+.purr-opt { min-width: 48px; min-height: 48px; flex: 0 0 auto; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--card); color: var(--cream); font-family: var(--num); font-size: 22px; cursor: pointer; }
 .purr-opt.on { background: var(--gold); color: #241a08; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(244,177,60,.28); }
 #btn-purr-seal { margin-top: 18px; }
 .purr-waitbig { font-family: var(--num); font-size: 44px; text-align: center; color: var(--gold); margin-top: 10px; }
 .purr-waitsub { text-align: center; color: var(--muted); margin-bottom: 12px; }
 .purr-seals { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .purr-seal { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line);
-  border-radius: 10px; padding: 10px 12px; color: var(--muted); }
-.purr-seal.done { color: var(--cream); border-color: var(--gold); }
-.purr-total { font-family: var(--num); font-size: 26px; color: var(--gold); text-align: center; margin: 4px 0 12px; }
+  border-radius: 10px; padding: 10px 12px; }
+.purr-seal.done { border-color: var(--gold); }
+.purr-sav { font-size: 20px; }
+.purr-sname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.purr-sst { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.purr-seal.done .purr-sst { color: var(--gold); }
+.purr-total { font-size: 18px; color: var(--muted); text-align: center; margin: 4px 0 14px; }
+.purr-total b { font-family: var(--num); color: var(--gold); font-size: 34px; margin-left: 8px; vertical-align: -4px; }
 .purr-reveals { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.purr-rev { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line);
-  border-radius: 12px; padding: 10px 12px; }
+.purr-rev { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px; }
 .purr-rev.seer { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(244,177,60,.22); }
 .purr-rev.loser { border-color: var(--danger); }
 .purr-av { font-size: 22px; flex: none; }
 .purr-rname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.purr-nums { font-family: var(--num); color: var(--cream); font-size: 18px; letter-spacing: .5px; }
+.purr-rhand { flex: none; display: inline-flex; }
+.purr-rguess { font-family: var(--num); color: var(--cream); font-size: 16px; white-space: nowrap; flex: none; }
 .purr-tag { font-size: 12px; border-radius: 999px; padding: 2px 8px; flex: none; }
 .purr-tag.seer { background: rgba(244,177,60,.2); color: var(--gold); }
 .purr-tag.loser { background: rgba(232,115,95,.2); color: var(--danger); }

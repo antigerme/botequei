@@ -178,3 +178,35 @@ export async function shareCeremony(awards, title) {
   const text = `🏆 Cerimônia do Botequei\n${lines.join('\n')}\n\nfeito no Botequei`;
   return shareCanvas(renderCeremonyCard(awards, title), text);
 }
+
+// Card da Retrospectiva "Seu rolê" (estilo Wrapped). d = objeto do lifestats.retro + favEmoji/favName.
+function renderRetroCard(d) {
+  const W = 1080, H = 1350;
+  const { c, g } = newCanvas(W, H);
+  let y = header(g, W, 'Seu rolê');
+  g.textAlign = 'center'; g.fillStyle = DIM; g.font = '46px system-ui, sans-serif';
+  g.fillText('sua retrospectiva 🎞️', W / 2, y); y += 96;
+  const line = (emoji, big, sub) => {
+    g.fillStyle = '#241f16'; roundRect(g, 90, y - 56, W - 180, 112, 20); g.fill();
+    g.textAlign = 'left'; g.font = '58px system-ui, sans-serif'; g.fillStyle = CREAM; g.fillText(emoji, 128, y + 16);
+    g.fillStyle = GOLD; g.font = 'bold 52px system-ui, sans-serif'; g.fillText(String(big).slice(0, 16), 232, y - 4);
+    g.fillStyle = DIM; g.font = '30px system-ui, sans-serif'; g.fillText(sub, 232, y + 38);
+    y += 128;
+  };
+  line('🍺', d.totalDrinks || 0, 'rodadas na vida');
+  line('📅', d.nights || 0, 'noites de boteco');
+  if (d.record) line('👑', d.record.total, 'recorde numa noite');
+  line('🔥', d.streakWeeks || 0, 'semanas seguidas');
+  if (d.favName) line(d.favEmoji || '🍺', d.favName, 'sua favorita');
+  if (d.topMate) line('🤝', d.topMate.name, 'parceiro de rolê');
+  g.textAlign = 'center'; g.fillStyle = '#8a7d63'; g.font = '40px system-ui, sans-serif';
+  g.fillText('feito no Botequei · P2P, sem servidor', W / 2, H - 60);
+  return c;
+}
+export async function shareRetro(d) {
+  const parts = [`🍺 ${d.totalDrinks || 0} rodadas`, `📅 ${d.nights || 0} noites`, `🔥 ${d.streakWeeks || 0} semanas`];
+  if (d.favName) parts.push(`favorita: ${d.favName}`);
+  if (d.topMate) parts.push(`parça: ${d.topMate.name}`);
+  const text = `🎞️ Meu rolê no Botequei\n${parts.join(' · ')}\n\nfeito no Botequei`;
+  return shareCanvas(renderRetroCard(d), text);
+}

@@ -82,6 +82,25 @@ export function weekdayInsight(history) {
   return { best, worst };
 }
 
+// Com quem você mais bebeu (agrega os `mates` guardados por noite no histórico).
+export function topMate(history) {
+  const cnt = {};
+  for (const h of history || []) for (const m of (h && h.mates) || []) if (m) cnt[m] = (cnt[m] || 0) + 1;
+  let name = null, nights = 0;
+  for (const k of Object.keys(cnt)) if (cnt[k] > nights) { nights = cnt[k]; name = k; }
+  return name ? { name, nights } : null;
+}
+
+// Retrospectiva "Seu rolê": os números pra montar os slides/card compartilhável.
+export function retro(history, { now }) {
+  const s = lifeStats(history, { now });
+  return {
+    nights: s.nights, totalDrinks: s.totalDrinks, thisMonth: s.thisMonth,
+    favDrink: s.favDrink, record: s.record, streakWeeks: s.streakWeeks,
+    totalSpent: s.totalSpent, topMate: topMate(history),
+  };
+}
+
 // Conquistas acumuladas (derivadas dos números de vida).
 export function lifeBadges(stats) {
   const b = [];

@@ -32,6 +32,7 @@ tempo real entre os navegadores. UI em **pt-BR**.
   `{type,user,item,ts,eventId}`. Total = soma (comutativa → converge). Dedup por `eventId`.
   Anti-entropy no join (troca o log completo) + gossip (repassa eventos novos). LWW (ts→eventId)
   p/ ITEM/PROFILE/TABLE/HAPPYHOUR/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
+  O `PROFILE` também leva o **nível** (liga) pra galera ver no placar.
 - **Efeitos efêmeros (não entram no log)** via `mesh.sendFx` → `onFx`: brinde, reação, **roleta**
   ("quem paga a próxima" — o iniciador sorteia e manda `{entrants,winner}`, todos animam igual e
   convergem), **cutucar/desafiar** (`to`/`from`, só o alvo reage), **cerimônia** (mostrar troféus
@@ -42,12 +43,18 @@ tempo real entre os navegadores. UI em **pt-BR**.
 - **Cardápio por categoria**: `catalog.js` (`cat` + `CATEGORIES`/`catOf`); itens custom levam
   `cat`/`note` no def do evento `ITEM` (⚠️ ao editar preço, faça `makeItem({...it, price})` pra
   não perder `g`/`cat`/`note`).
-- **Consciência & estatísticas (puro)**: `js/stats.js` (ritmo da última hora, linha do tempo e
-  estimativa de teor alcoólico por Widmark — precisa de peso/sexo locais; **não é bafômetro**) e
-  `js/lifestats.js` (média/recorde/mês/favorita/streak + conquistas de vida + `monthlyTrend`/
-  `weekdayInsight`), derivados do log / do histórico local. Gramas de álcool no `catalog.js` (`g`).
-- **Persistência:** só `localStorage` (`js/store.js`; histórico enxuto por mesa com meus itens,
-  gasto e duração; `exportAll`/`importAll` fazem backup JSON). Nada central.
+- **Consciência & estatísticas (puro)**: `js/stats.js` (ritmo, linha do tempo, teor alcoólico por
+  Widmark — peso/sexo locais, **não é bafômetro** —, `lastDrinkAt`/`hydration`/`driveVerdict`) e
+  `js/lifestats.js` (média/recorde/mês/favorita/streak + `monthlyTrend`/`weekdayInsight`/`retro`/
+  `topMate`). Gramas de álcool no `catalog.js` (`g`). A tela "🛟 Tô de boa?" cruza BAC + última
+  dose + hidratação e oferece chamar carro (Uber/99) / contato de confiança (WhatsApp).
+- **Liga & desafios (puro)**: `js/league.js` — `levelFor` (XP = rodadas×10 + noites×30 → nível),
+  `weeklyChallenges` (semana atual + noite em curso) e `seasonAward` (troféu do mês).
+- **Modo bar**: `store.saveBarMenu`/`getBarMenu` guardam o cardápio (defs de `ITEM`) pra reusar;
+  ao abrir "mesa do bar" com código fixo, o app re-emite os `ITEM` salvos.
+- **Persistência:** só `localStorage` (`js/store.js`; histórico por mesa com meus itens, gasto,
+  duração e **`mates`** — quem estava na mesa, p/ o "com quem você mais bebeu"; `exportAll`/
+  `importAll` = backup JSON; `saveBarMenu`/`getBarMenu` = cardápio do bar). Nada central.
 - **Acessibilidade**: diálogos com `role="dialog"`/foco preso/ESC (`setupA11y` em `ui.js`),
   `:focus-visible`, `prefers-reduced-motion` (corta confete/animações), rótulos ARIA.
 - **TURN opcional** (`turn.php`): credenciais efêmeras da Cloudflare, lidas de env var /
@@ -61,8 +68,8 @@ tempo real entre os navegadores. UI em **pt-BR**.
 - `js/handshake.js` — codec do offer/answer offline (deflate + base64url; puro/isomórfico)
 - `js/scan.js` — leitor de QR por câmera (BarcodeDetector + jsQR); só no fluxo offline
 - `js/events.js` — eventos + reducer (CRDT, inclui PAYFOR). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
-- `js/stats.js` — ritmo/linha do tempo/BAC (puro) · `js/lifestats.js` — estatísticas de vida + streak (puro)
-- `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia)
+- `js/stats.js` — ritmo/linha do tempo/BAC/última dose/hidratação (puro) · `js/lifestats.js` — estatísticas de vida + streak + retrô (puro) · `js/league.js` — nível/XP/desafios/troféu (puro)
+- `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia/retrô)
 - `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, overlays (ritmo/roleta/cutucar/cerimônia/números/conta)
 - `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)
 - `signaling.php`, `turn.php` — servidor mínimo (handshake / credenciais TURN)

@@ -10,7 +10,7 @@ const el = {};
 
 const IDS = [
   'screen-home', 'screen-table', 'input-name', 'input-code', 'btn-create', 'btn-join-code',
-  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-settings', 'btn-stats',
+  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-bar',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'btn-brinde', 'btn-react', 'btn-rodada',
@@ -18,15 +18,16 @@ const IDS = [
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
-  'overlay-menu', 'menu-profile', 'menu-board', 'menu-pace', 'menu-roulette', 'menu-bill', 'menu-prices',
+  'overlay-menu', 'menu-profile', 'menu-board', 'menu-pace', 'menu-safe', 'menu-league', 'menu-roulette', 'menu-bill', 'menu-prices',
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-share', 'menu-stats', 'menu-settings',
-  'overlay-prices', 'price-list',
+  'overlay-prices', 'price-list', 'btn-save-menu',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
   'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'btn-additem-confirm',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
   'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-limit', 'set-water', 'set-nudges',
-  'set-weight', 'set-sex', 'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
+  'set-weight', 'set-sex', 'set-responsa', 'set-carapp', 'set-trustname', 'set-trustphone',
+  'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
   'overlay-pace', 'pace-summary', 'pace-bar', 'pace-label', 'pace-chart', 'pace-bac',
   'overlay-roulette', 'roulette-list', 'roulette-result', 'btn-roulette-spin',
@@ -34,6 +35,10 @@ const IDS = [
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
   'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
   'overlay-comanda', 'comanda-title', 'comanda-list', 'comanda-total',
+  'overlay-safe', 'safe-verdict', 'safe-rows', 'btn-safe-car', 'btn-safe-trust',
+  'overlay-retro', 'retro-slides', 'btn-retro-share',
+  'overlay-league', 'league-level', 'league-challenges', 'league-season',
+  'overlay-bar', 'bar-code', 'bar-usemenu-field', 'bar-usemenu', 'bar-menu-count', 'btn-bar-open',
   'btn-offline-join', 'btn-offline-host',
   'overlay-offline', 'off-host', 'off-guest',
   'off-offer-qr', 'off-offer-code', 'btn-off-copy-offer', 'btn-off-scan-answer', 'off-answer-in', 'btn-off-connect',
@@ -101,6 +106,8 @@ export function init(handlers) {
   el['btn-settings'].addEventListener('click', () => openSettings());
   el['btn-install'].addEventListener('click', () => H.onInstall());
   el['btn-stats'].addEventListener('click', () => H.onStats());
+  el['btn-retro'].addEventListener('click', () => H.onRetro());
+  el['btn-bar'].addEventListener('click', () => H.onBarMode());
 
   $('btn-leave').addEventListener('click', () => H.onLeave());
   $('btn-invite').addEventListener('click', () => H.onInvite());
@@ -124,6 +131,8 @@ export function init(handlers) {
   $('menu-profile').addEventListener('click', () => { closeOverlays(); H.onProfile(); });
   $('menu-board').addEventListener('click', () => { closeOverlays(); H.onPeers(); });
   $('menu-pace').addEventListener('click', () => { closeOverlays(); H.onPace(); });
+  $('menu-safe').addEventListener('click', () => { closeOverlays(); H.onSafe(); });
+  $('menu-league').addEventListener('click', () => { closeOverlays(); H.onLeague(); });
   $('menu-roulette').addEventListener('click', () => { closeOverlays(); H.onRoulette(); });
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
@@ -140,6 +149,13 @@ export function init(handlers) {
   el['btn-roulette-spin'].addEventListener('click', () => H.onRouletteSpin());
   el['btn-ceremony-share'].addEventListener('click', () => H.onCeremonyShare());
   el['btn-ceremony-broadcast'].addEventListener('click', () => H.onCeremonyBroadcast());
+
+  // segurança / retrô / liga / modo bar
+  el['btn-save-menu'].addEventListener('click', () => H.onSaveMenu());
+  el['btn-safe-car'].addEventListener('click', () => H.onCallCar());
+  el['btn-safe-trust'].addEventListener('click', () => H.onTrustContact());
+  el['btn-retro-share'].addEventListener('click', () => H.onRetroShare());
+  el['btn-bar-open'].addEventListener('click', () => H.onBarOpenTable(el['bar-code'].value, el['bar-usemenu'].checked));
 
   $('btn-profile-save').addEventListener('click', () => submitProfile());
   $('btn-pix-copy').addEventListener('click', () => H.onPixCopy());
@@ -161,6 +177,10 @@ export function init(handlers) {
   el['set-nudges'].addEventListener('change', () => H.onSetting({ nudges: el['set-nudges'].checked }));
   el['set-weight'].addEventListener('change', () => H.onSetting({ weightKg: Math.max(0, Math.min(300, parseInt(el['set-weight'].value, 10) || 0)) }));
   el['set-sex'].addEventListener('change', () => H.onSetting({ sex: el['set-sex'].value }));
+  el['set-responsa'].addEventListener('change', () => H.onSetting({ responsa: el['set-responsa'].checked }));
+  el['set-carapp'].addEventListener('change', () => H.onSetting({ carApp: el['set-carapp'].value }));
+  el['set-trustname'].addEventListener('change', () => H.onSetting({ trustName: el['set-trustname'].value.trim() }));
+  el['set-trustphone'].addEventListener('change', () => H.onSetting({ trustPhone: el['set-trustphone'].value.trim() }));
   el['set-pixkey'].addEventListener('change', () => H.onSetting({ pixKey: el['set-pixkey'].value.trim() }));
   el['set-pixcity'].addEventListener('change', () => H.onSetting({ pixCity: el['set-pixcity'].value.trim() }));
   $('btn-clear-data').addEventListener('click', () => H.onClearData());
@@ -349,7 +369,7 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
       <span class="peer-medal">${medal}</span>
       <span class="peer-avatar" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
       <button class="peer-main" aria-label="Ver comanda de ${esc(r.name || 'anônimo')}">
-        <span class="peer-name">${esc(r.name || 'anônimo')} ${r.user === selfId ? '<span class="peer-you">(você)</span>' : ''} ${r.driver ? '🚗' : ''}</span>
+        <span class="peer-name">${esc(r.name || 'anônimo')} ${r.level > 1 ? `<span class="lvl-chip">Nv${r.level}</span>` : ''} ${r.user === selfId ? '<span class="peer-you">(você)</span>' : ''} ${r.driver ? '🚗' : ''}</span>
         <span class="peer-badges">${badges}${r.money ? ' · ' + fmtMoney(r.money) : ''}</span>
       </button>
       ${net}
@@ -524,6 +544,10 @@ export function fillSettings(s) {
   el['set-nudges'].checked = s.nudges !== false;
   el['set-weight'].value = s.weightKg || '';
   el['set-sex'].value = s.sex || '';
+  el['set-responsa'].checked = !!s.responsa;
+  el['set-carapp'].value = s.carApp || 'uber';
+  el['set-trustname'].value = s.trustName || '';
+  el['set-trustphone'].value = s.trustPhone || '';
   el['set-pixkey'].value = s.pixKey || '';
   el['set-pixcity'].value = s.pixCity || '';
 }
@@ -871,6 +895,57 @@ export function openComanda(vm) {
 
 // ---------- Aviso de nova versão (service worker) ----------
 export function showUpdate(cb) { actionToast('🆕 Nova versão do Botequei!', 'Atualizar', cb, 60000); }
+
+// ---------- Tô de boa? (segurança) ----------
+export function openSafe(vm) {
+  const v = vm.verdict;
+  el['safe-verdict'].className = 'safe-verdict lvl-' + v.level;
+  el['safe-verdict'].innerHTML = `<div class="sv-title">${esc(v.title)}</div><div class="sv-advice">${esc(v.advice)}</div>`;
+  const row = (emoji, label, val) => `<div class="safe-row"><span class="sr-emoji">${emoji}</span><span class="sr-label">${esc(label)}</span><span class="sr-val">${esc(val)}</span></div>`;
+  let rows = row('🍺', 'Teor estimado', vm.bacText);
+  if (vm.lastText) rows += row('⏱️', 'Última dose', vm.lastText);
+  if (vm.hydration) rows += row('💧', 'Hidratação', vm.hydration.label);
+  el['safe-rows'].innerHTML = rows;
+  el['btn-safe-trust'].hidden = !vm.hasTrust;
+  el['overlay-safe'].hidden = false;
+}
+
+// ---------- Retrospectiva "Seu rolê" ----------
+export function openRetro(vm) {
+  el['retro-slides'].innerHTML = (vm.slides || []).map((s) => `<div class="retro-slide">
+    <span class="rs-emoji">${esc(s.emoji || '🍺')}</span>
+    <span class="rs-big">${esc(String(s.big))}</span>
+    <span class="rs-sub">${esc(s.sub || '')}</span></div>`).join('') || '<div class="retro-slide">Sem noites ainda — bora criar a primeira? 🍻</div>';
+  el['overlay-retro'].hidden = false;
+}
+
+// ---------- Liga & desafios ----------
+export function openLeague(vm) {
+  const L = vm.level;
+  const pct = L.xpForNext > 0 ? Math.min(100, (L.xpInLevel / L.xpForNext) * 100) : 100;
+  el['league-level'].innerHTML = `<div class="ll-top"><span class="ll-badge">Nível ${L.level}</span><span class="ll-title">${esc(L.title)}</span></div>
+    <div class="pace-meter"><div class="pace-bar lvl-medio" style="width:${pct}%"></div></div>
+    <div class="ll-xp">${L.xpInLevel}/${L.xpForNext} XP pro próximo nível</div>`;
+  el['league-challenges'].innerHTML = (vm.challenges || []).map((c) => `<li class="chal-row ${c.done ? 'done' : ''}">
+    <span class="chal-emoji">${esc(c.emoji)}</span>
+    <div class="chal-main"><span class="chal-title">${esc(c.title)}</span>
+      <div class="pace-meter sm"><div class="pace-bar lvl-calmo" style="width:${Math.min(100, (c.progress / c.goal) * 100)}%"></div></div></div>
+    <span class="chal-tick">${c.done ? '✅' : `${c.progress}/${c.goal}`}</span></li>`).join('');
+  const s = vm.season;
+  el['league-season'].innerHTML = s ? `<div class="season-card"><span class="season-emoji">${esc(s.emoji)}</span>
+    <div><div class="season-title">${esc(s.title)}</div><div class="season-sub">${s.month} rodada${s.month === 1 ? '' : 's'} em ${esc(s.label)}</div></div></div>` : '';
+  el['overlay-league'].hidden = false;
+}
+
+// ---------- Modo bar ----------
+export function openBar(vm) {
+  el['bar-code'].value = '';
+  const n = (vm && vm.menuCount) || 0;
+  el['bar-usemenu-field'].hidden = n <= 0;
+  el['bar-menu-count'].textContent = n;
+  el['bar-usemenu'].checked = n > 0;
+  el['overlay-bar'].hidden = false;
+}
 
 // ---------- Overlays / toast ----------
 export function closeOverlays() {

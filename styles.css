@@ -478,6 +478,54 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
   * { scroll-behavior: auto !important; }
 }
 
+/* ===================== Leva 3 (segurança, retrô, liga, modo bar) ===================== */
+
+.home-row { display: flex; gap: 10px; }
+.home-row .btn { flex: 1; }
+
+/* Tô de boa? (segurança) */
+.safe-verdict { border: 2px dashed var(--chalk-line); border-radius: 14px; padding: 14px; text-align: center; margin-bottom: 12px; }
+.safe-verdict.lvl-no { border-color: var(--danger); background: rgba(232, 115, 95, .12); }
+.safe-verdict.lvl-wait { border-color: var(--gold); background: rgba(244, 177, 60, .12); }
+.safe-verdict.lvl-ok { border-color: var(--ok); background: rgba(127, 201, 138, .12); }
+.sv-title { font-family: var(--hand); font-size: 24px; }
+.sv-advice { color: var(--muted); font-size: 15px; margin-top: 4px; }
+.safe-rows { display: grid; gap: 8px; margin-bottom: 6px; }
+.safe-row { display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, .03); border: 2px dashed var(--chalk-line); border-radius: 12px; padding: 11px 13px; }
+.sr-emoji { font-size: 20px; flex: none; }
+.sr-label { flex: 1; color: var(--muted); }
+.sr-val { font-family: var(--hand); color: var(--cream); }
+
+/* Retrospectiva */
+.retro-slides { display: grid; gap: 10px; }
+.retro-slide { display: flex; align-items: center; gap: 14px; background: linear-gradient(180deg, rgba(244, 177, 60, .1), rgba(255, 255, 255, .02)); border: 2px dashed var(--gold); border-radius: 14px; padding: 14px 16px; }
+.rs-emoji { font-size: 32px; flex: none; }
+.rs-big { font-family: var(--num); font-size: 32px; color: var(--gold); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-sub { color: var(--muted); font-size: 14px; text-align: right; flex: none; }
+
+/* Liga & desafios */
+.league-level { background: rgba(255, 255, 255, .03); border: 2px dashed var(--chalk-line); border-radius: 14px; padding: 14px; margin-bottom: 6px; }
+.ll-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.ll-badge { font-family: var(--num); background: var(--gold); color: #241400; border-radius: 999px; padding: 4px 12px; font-size: 18px; }
+.ll-title { font-family: var(--hand); font-size: 20px; }
+.ll-xp { color: var(--muted); font-size: 13px; margin-top: 6px; text-align: right; }
+.pace-meter.sm { height: 8px; margin-top: 4px; }
+.league-challenges { list-style: none; padding: 0; margin: 4px 0; display: grid; gap: 8px; }
+.chal-row { display: flex; align-items: center; gap: 12px; background: rgba(255, 255, 255, .03); border: 2px dashed var(--chalk-line); border-radius: 12px; padding: 11px 13px; }
+.chal-row.done { border-color: var(--ok); }
+.chal-emoji { font-size: 24px; flex: none; }
+.chal-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.chal-title { font-size: 16px; }
+.chal-tick { font-family: var(--num); color: var(--gold); flex: none; }
+.league-season { margin-top: 12px; }
+.season-card { display: flex; align-items: center; gap: 14px; background: linear-gradient(180deg, rgba(244, 177, 60, .14), transparent); border: 2px dashed var(--gold); border-radius: 14px; padding: 14px 16px; }
+.season-emoji { font-size: 40px; flex: none; }
+.season-title { font-family: var(--hand); font-size: 20px; color: var(--gold); }
+.season-sub { color: var(--muted); font-size: 14px; }
+
+/* Chip de nível no placar */
+.lvl-chip { font-family: var(--num); font-size: 12px; background: rgba(244, 177, 60, .2); color: var(--gold); border-radius: 999px; padding: 1px 7px; }
+
 /* ---------- Telas largas (tablet/desktop): aproveita o espaço ---------- */
 @media (min-width: 720px) {
   #app { max-width: 760px; }

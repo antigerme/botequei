@@ -3,8 +3,9 @@
 
 import assert from 'node:assert';
 import { DEFAULT_ITEMS, catOf, CATEGORIES } from '../js/catalog.js';
-import { paceInfo, timeline, estimateBAC } from '../js/stats.js';
-import { weekStreak, lifeStats, lifeBadges, monthlyTrend, weekdayInsight } from '../js/lifestats.js';
+import { paceInfo, timeline, estimateBAC, lastDrinkAt, hydration, driveVerdict } from '../js/stats.js';
+import { weekStreak, lifeStats, lifeBadges, monthlyTrend, weekdayInsight, topMate, retro } from '../js/lifestats.js';
+import { levelFor, weeklyChallenges, seasonAward } from '../js/league.js';
 
 let passed = 0;
 const ok = (n) => { console.log('  ✓ ' + n); passed++; };
@@ -161,6 +162,67 @@ const H = 3600000;
   assert.strictEqual(ins.worst.avg, 10);
   assert.notStrictEqual(ins.best.wd, ins.worst.wd);
   ok('insight: dia mais leve vs mais pesado por média');
+}
+
+// ---------- Segurança: última dose / hidratação / veredito ----------
+{
+  const now = 10000;
+  const log = [ADD('me', 'cerveja', 1000), ADD('me', 'cerveja', 3000), ADD('me', 'agua', 5000)];
+  const ld = lastDrinkAt(log, 'me', resolve, { now });
+  assert.strictEqual(ld.ts, 3000); // água (5000) não conta
+  assert.strictEqual(ld.agoMs, 7000);
+  assert.strictEqual(lastDrinkAt([ADD('me', 'agua', 1)], 'me', resolve, { now }), null);
+  ok('última dose: ignora água, mede o tempo desde o último álcool');
+
+  const h1 = hydration([ADD('me', 'cerveja', 1), ADD('me', 'cerveja', 2), ADD('me', 'cerveja', 3), ADD('me', 'cerveja', 4), ADD('me', 'agua', 5), ADD('me', 'agua', 6)], 'me', resolve);
+  assert.strictEqual(h1.alc, 4); assert.strictEqual(h1.water, 2); assert.strictEqual(h1.level, 'good');
+  assert.strictEqual(hydration([ADD('me', 'cerveja', 1)], 'me', resolve).level, 'low');
+  assert.strictEqual(hydration([ADD('me', 'agua', 1)], 'me', resolve).level, 'none');
+  ok('hidratação: razão água/álcool vira nível');
+
+  assert.strictEqual(driveVerdict(null).level, 'unknown');
+  assert.strictEqual(driveVerdict({ bac: 0.0 }).level, 'ok');
+  assert.strictEqual(driveVerdict({ bac: 0.1 }).level, 'wait');
+  assert.strictEqual(driveVerdict({ bac: 0.5 }).level, 'no');
+  ok('veredito: dá pra dirigir? escala com o BAC');
+}
+
+// ---------- Liga: nível/XP, desafios, troféu ----------
+{
+  const l = levelFor({ totalDrinks: 10, nights: 2 }); // xp = 100 + 60 = 160
+  assert.strictEqual(l.level, 2);
+  assert.strictEqual(l.xpInLevel, 10);
+  assert.strictEqual(l.xpForNext, 300);
+  assert.strictEqual(l.title, 'Frequentador');
+  assert.strictEqual(levelFor({ totalDrinks: 0, nights: 0 }).level, 1);
+  ok('liga: XP → nível e título');
+
+  const WEEK = 7 * 864e5, now = 100 * WEEK + 3 * 864e5;
+  const hist = [{ at: now, items: { agua: 3, cerveja: 1 } }];
+  const ch = weeklyChallenges(hist, { items: { agua: 1, dose: 1, cerveja: 1, drink: 1 } }, { now });
+  const by = Object.fromEntries(ch.map((c) => [c.id, c]));
+  assert.strictEqual(by.visits.progress, 2); assert.strictEqual(by.visits.done, true);   // 1 noite + a atual
+  assert.strictEqual(by.hydrate.done, true);  // 3 águas numa noite
+  assert.strictEqual(by.variety.done, true);  // 4 itens na noite atual
+  const ch2 = weeklyChallenges([], { items: { cerveja: 1 } }, { now });
+  assert.strictEqual(ch2.find((c) => c.id === 'visits').done, false);
+  ok('liga: desafios da semana com noite em curso');
+
+  const sa = seasonAward([{ at: Date.UTC(2026, 6, 15), myTotal: 30 }, { at: Date.UTC(2026, 4, 1), myTotal: 99 }], { now: Date.UTC(2026, 6, 20) });
+  assert.strictEqual(sa.month, 30); // só julho
+  assert.strictEqual(sa.title, 'Destaque do mês');
+  assert.strictEqual(sa.label, 'jul');
+  ok('liga: troféu do mês pelo total do mês corrente');
+}
+
+// ---------- Retrospectiva: com quem + agregados ----------
+{
+  assert.strictEqual(topMate([{ mates: ['Bia', 'Zé'] }, { mates: ['Bia'] }]).name, 'Bia');
+  assert.strictEqual(topMate([]), null);
+  const r = retro([{ at: Date.UTC(2026, 6, 1), myTotal: 5, mates: ['Bia'] }], { now: Date.UTC(2026, 6, 2) });
+  assert.strictEqual(r.nights, 1);
+  assert.strictEqual(r.topMate.name, 'Bia');
+  ok('retro: agrega noites + parceiro de rolê');
 }
 
 console.log(`\n${passed} testes de stats/lifestats passaram ✅`);

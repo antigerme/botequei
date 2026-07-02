@@ -63,19 +63,20 @@
   <!-- ======================= MESA ======================= -->
   <section class="screen" id="screen-table">
     <header class="topbar">
-      <button class="icon-btn" id="btn-leave" title="Sair da mesa">‹</button>
-      <button class="table-id" id="btn-invite" title="Convidar">
+      <button class="icon-btn" id="btn-leave" title="Sair da mesa" aria-label="Sair da mesa">‹</button>
+      <button class="table-id" id="btn-invite" title="Convidar" aria-label="Convidar pra mesa">
         <span class="mesa-label" id="table-title">MESA</span>
         <span class="mesa-code" id="mesa-code">----</span>
       </button>
       <div class="topbar-actions">
-        <button class="icon-btn" id="btn-peers" title="Placar"><span id="peer-count">1</span>👥</button>
-        <button class="icon-btn" id="btn-menu" title="Mais">⋯</button>
+        <button class="icon-btn" id="btn-peers" title="Placar" aria-label="Placar e participantes"><span id="peer-count">1</span>👥</button>
+        <button class="icon-btn" id="btn-menu" title="Mais opções" aria-label="Mais opções">⋯</button>
       </div>
     </header>
 
     <div class="conn-banner" id="conn-banner" hidden></div>
     <div class="hh-banner" id="hh-banner" hidden></div>
+    <div class="presence-bar" id="presence-bar" hidden aria-label="Quem está na mesa"></div>
 
     <div class="totals">
       <div class="total-hero">
@@ -163,17 +164,22 @@
     <button class="sheet-close" data-close>✕</button>
     <h2>Mesa</h2>
     <div class="menu-list">
+      <p class="menu-sec">Você</p>
       <button class="menu-item" id="menu-profile">🎨 Meu perfil</button>
-      <button class="menu-item" id="menu-board">🏆 Placar &amp; conquistas</button>
       <button class="menu-item" id="menu-pace">📈 Meu ritmo</button>
+      <button class="menu-item" id="menu-stats">📊 Meus números</button>
+      <p class="menu-sec">Mesa</p>
+      <button class="menu-item" id="menu-board">🏆 Placar &amp; conquistas</button>
       <button class="menu-item" id="menu-roulette">🎰 Quem paga a próxima?</button>
-      <button class="menu-item" id="menu-bill">💸 Fechar a conta</button>
-      <button class="menu-item" id="menu-prices">💲 Preços do cardápio</button>
       <button class="menu-item" id="menu-hh">⏰ Happy hour</button>
+      <button class="menu-item" id="menu-waiter">🔔 Chamar o garçom</button>
       <button class="menu-item" id="menu-bebedeira">🥴 Modo bebedeira</button>
       <button class="menu-item" id="menu-ceremony">🏁 Encerrar a noite</button>
+      <p class="menu-sec">Conta</p>
+      <button class="menu-item" id="menu-bill">💸 Fechar a conta</button>
+      <button class="menu-item" id="menu-prices">💲 Preços do cardápio</button>
+      <p class="menu-sec">Extra</p>
       <button class="menu-item" id="menu-share">📸 Compartilhar a noite</button>
-      <button class="menu-item" id="menu-stats">📊 Meus números</button>
       <button class="menu-item" id="menu-settings">⚙️ Configurações</button>
     </div>
   </div>
@@ -206,8 +212,12 @@
     <div class="emoji-row" id="emoji-row"></div>
     <label class="field"><span>Nome</span>
       <input id="add-name" type="text" maxlength="24" placeholder="ex: Caipirinha" /></label>
+    <label class="field"><span>Categoria</span>
+      <select id="add-cat"></select></label>
     <label class="field"><span>Preço (opcional)</span>
       <input id="add-price" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0,00" /></label>
+    <label class="field"><span>Observação (opcional)</span>
+      <input id="add-note" type="text" maxlength="40" placeholder="ex: bem gelada, sem cebola" /></label>
     <div class="sheet-actions">
       <button class="btn btn-primary btn-lg" id="btn-additem-confirm">Adicionar</button>
     </div>
@@ -292,6 +302,12 @@
       <input id="set-pixkey" type="text" maxlength="77" placeholder="email, telefone, CPF ou aleatória" /></label>
     <label class="field"><span>Cidade</span>
       <input id="set-pixcity" type="text" maxlength="15" placeholder="ex: São Paulo" /></label>
+    <p class="lbl">💾 Backup (leve seus dados pra outro aparelho)</p>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="btn-export-data">⬇️ Exportar</button>
+      <button class="btn btn-ghost" id="btn-import-data">⬆️ Importar</button>
+    </div>
+    <input id="import-file" type="file" accept="application/json,.json" hidden />
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="btn-clear-data">🗑️ Apagar dados locais</button>
     </div>
@@ -429,8 +445,21 @@
     <h2>📊 Meus números</h2>
     <div class="stats-grid" id="stats-grid"></div>
     <div class="my-badges" id="stats-badges"></div>
+    <h3 class="stats-h3" id="stats-chart-h" hidden>Tendência (bebidas/mês)</h3>
+    <canvas class="pace-chart" id="stats-chart" width="600" height="150" hidden></canvas>
+    <p class="stats-insight" id="stats-insight"></p>
     <h3 class="stats-h3">Suas noites</h3>
     <ul class="stats-history" id="stats-history"></ul>
+  </div>
+</div>
+
+<!-- Comanda individual (o que a pessoa pediu) -->
+<div class="overlay" id="overlay-comanda" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2 id="comanda-title">Comanda</h2>
+    <ul class="comanda-list" id="comanda-list"></ul>
+    <div class="bill-total" id="comanda-total"></div>
   </div>
 </div>
 

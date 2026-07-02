@@ -1,7 +1,7 @@
 // Orquestrador do Botequei: amarra identidade, eventos, malha WebRTC, UI, sons, PIX e share.
 
 import { clientId, getName, setName, newRoomCode } from './identity.js';
-import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar } from './catalog.js';
+import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar, catOf } from './catalog.js';
 import {
   emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor,
   getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver, happyHour,
@@ -9,7 +9,7 @@ import {
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
 import { paceInfo, timeline, estimateBAC } from './stats.js';
-import { lifeStats, lifeBadges } from './lifestats.js';
+import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight } from './lifestats.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
@@ -45,6 +45,8 @@ let limitAlerted = false;   // pra a meta alertar uma vez (mesmo se ultrapassar 
 let renderScheduled = false;
 let sessionStart = 0;        // quando entrei nesta mesa (p/ duração no histórico)
 let lastNudge = 0;           // cooldown do aviso de ritmo
+let prevOnline = new Set();  // presença: quem estava online (p/ avisar entrou/saiu)
+let presenceSeeded = false;  // 1ª passada de presença só semeia (sem toast)
 
 // itens alcoolicos (motorista nao registra esses; contam pro lembrete de agua)
 const ALCOHOL = new Set(['cerveja', 'chopp', 'dose', 'drink']);
@@ -187,9 +189,9 @@ function tickHappyHour() {
   }
 }
 
-function addCustomItem({ emoji, name, price }) {
+function addCustomItem({ emoji, name, price, cat, note }) {
   const id = itemIdFromName(name);
-  if (emitLocal(makeItem({ id, emoji, name, price: price || 0 }))) { render(); ui.toast(`${emoji} ${name} na mesa!`); }
+  if (emitLocal(makeItem({ id, emoji, name, price: price || 0, cat: cat || 'outros', note: (note || '').slice(0, 40) }))) { render(); ui.toast(`${emoji} ${name} na mesa!`); }
 }
 
 // ---- Rodada coletiva ----
@@ -221,6 +223,11 @@ function onFx(fx) {
   else if (fx.kind === 'poke') { if (fx.to === self) receivePoke(fx); }
   else if (fx.kind === 'challenge') { if (fx.to === self) receiveChallenge(fx); }
   else if (fx.kind === 'ceremony') { if (Array.isArray(fx.awards)) ui.openCeremony({ awards: fx.awards }); }
+  else if (fx.kind === 'waiter') receiveWaiter(fx);
+}
+function receiveWaiter(fx) {
+  ui.toast(`🔔 ${fx.fromName || 'Alguém'} chamou o garçom!`);
+  sound.alarm(); ui.vibrate([80, 40, 80]); ui.floatReaction('🔔');
 }
 function receivePoke(fx) {
   ui.toast(`👉 ${fx.fromName || 'Alguém'} te cutucou!`);
@@ -262,7 +269,7 @@ function render() {
   if (!room) return;
   const list = allItems();
   const items = list.map((it) => ({
-    id: it.id, emoji: it.emoji, name: it.name,
+    id: it.id, emoji: it.emoji, name: it.name, cat: catOf(it), note: it.note || '',
     qty: itemTotal(state, it.id), sub: `você ${getCount(state, self, it.id)}`,
   }));
   const t = tableInfo(state);
@@ -279,6 +286,7 @@ function render() {
     items,
   });
   renderPeers();
+  renderPresence();
   const mp = mesh ? mesh.peers() : [];
   const online = mp.filter((p) => p.online).length;
   if (mp.length === 0) ui.setConn('Você está sozinho na mesa — toque em MESA pra chamar a turma 🍻');
@@ -287,11 +295,21 @@ function render() {
   tickHappyHour();
 }
 
+function renderPresence() {
+  const me = profOf(self);
+  const list = [{ user: self, emoji: me.emoji, color: me.color, name: getName() || 'você', online: true, self: true }];
+  if (mesh) for (const p of mesh.peers()) { const pr = profOf(p.user); list.push({ user: p.user, emoji: pr.emoji, color: pr.color, name: pr.name || 'alguém', online: p.online }); }
+  ui.renderPresence(list);
+}
+
 function renderPeers() {
   const base = summary(state, resolveItem); // uma passada só
+  const nets = new Map();
+  if (mesh) for (const p of mesh.peers()) nets.set(p.user, { online: p.online, conn: p.conn });
   const rows = base.map((r) => {
     const p = profOf(r.user);
-    return { ...r, name: p.name, color: p.color, emoji: p.emoji, badges: badgesFor(state, r.user) };
+    const net = nets.get(r.user);
+    return { ...r, name: p.name, color: p.color, emoji: p.emoji, badges: badgesFor(state, r.user), online: net ? net.online : undefined, conn: net ? net.conn : null };
   });
   // garante que eu apareço mesmo sem ter consumido
   if (!rows.some((r) => r.user === self)) {
@@ -338,6 +356,7 @@ function enterTableOffline(code) {
 }
 
 function onMeshChange() {
+  diffPresence();
   render();
   // convidado: assim que a conexão sobe, fecha o painel de pareamento offline sozinho
   if (offlineWaiting && mesh && mesh.connectedCount() > 0) {
@@ -346,8 +365,18 @@ function onMeshChange() {
     ui.toast('🎉 Entrou na mesa sem internet!');
   }
 }
+// Avisa quem entrou/saiu ao vivo. A 1ª passada só semeia (evita despejar toasts ao entrar).
+function diffPresence() {
+  if (!mesh) return;
+  const cur = new Set(mesh.peers().filter((p) => p.online).map((p) => p.user));
+  if (!presenceSeeded) { prevOnline = cur; presenceSeeded = true; return; }
+  for (const u of cur) if (!prevOnline.has(u)) { ui.toast(`🍻 ${profOf(u).name || 'Alguém'} entrou!`); sound.pop(); }
+  for (const u of prevOnline) if (!cur.has(u)) ui.toast(`👋 ${profOf(u).name || 'Alguém'} saiu`);
+  prevOnline = cur;
+}
 
 function startMesh(iceServers) {
+  presenceSeeded = false; prevOnline = new Set();
   mesh = new Mesh({
     room: sigRoom(room, roomPin), code: room, selfId: self, name: getName(), iceServers,
     onEvent: onRemoteEvent, onFx, onPeersChange: onMeshChange, onStatus: onMeshChange,
@@ -395,6 +424,7 @@ function leaveTable() {
   store.clearCurrent();
   room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false;
   lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastNudge = 0; lastAwards = [];
+  prevOnline = new Set(); presenceSeeded = false;
   ui.setHappyHour(null);
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
@@ -567,9 +597,23 @@ function openCeremony() {
 // ---- Meus números ----
 function openStats() {
   const hist = store.getHistory();
-  const s = lifeStats(hist, { now: Date.now() });
+  const now = Date.now();
+  const s = lifeStats(hist, { now });
   const favDef = s.favDrink ? resolveItem(s.favDrink) : null;
-  ui.openStats({ stats: s, badges: lifeBadges(s), history: hist, favEmoji: favDef ? favDef.emoji : '', favName: favDef ? favDef.name : '' });
+  ui.openStats({
+    stats: s, badges: lifeBadges(s), history: hist,
+    favEmoji: favDef ? favDef.emoji : '', favName: favDef ? favDef.name : '',
+    trend: monthlyTrend(hist, { now, months: 6 }),
+    insight: weekdayInsight(hist),
+  });
+}
+
+// Comanda de uma pessoa (o que ela pediu).
+function openComanda(user) {
+  const p = profOf(user);
+  const rows = [];
+  for (const it of allItems()) { const n = getCount(state, user, it.id); if (n > 0) rows.push({ emoji: it.emoji, name: it.name, n, money: (it.price || 0) * n }); }
+  ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user), money: userMoney(state, user, resolveItem) });
 }
 
 // ---- Handlers ----
@@ -623,7 +667,8 @@ const handlers = {
   onPrices: () => ui.openPrices(allItems()),
   onPriceChange: (id, price) => {
     const it = resolveItem(id);
-    emitLocal(makeItem({ id, emoji: it.emoji, name: it.name, price: Math.max(0, parseFloat(String(price).replace(',', '.')) || 0) }));
+    // preserva emoji/nome/g/cat/note; só troca o preço (senão perde as gramas de álcool!)
+    emitLocal(makeItem({ ...it, price: Math.max(0, parseFloat(String(price).replace(',', '.')) || 0) }));
     render();
   },
   onPix: (user) => {
@@ -652,6 +697,30 @@ const handlers = {
   },
   onCeremonyBroadcast: () => { if (mesh) mesh.sendFx({ kind: 'ceremony', awards: lastAwards }); ui.toast('📣 Mandado pra mesa!'); },
   onStats: openStats,
+  onComanda: openComanda,
+  onWaiter: () => {
+    sound.alarm(); ui.floatReaction('🔔');
+    if (mesh && mesh.connectedCount() > 0) { mesh.sendFx({ kind: 'waiter', from: self, fromName: getName() || 'alguém' }); ui.toast('🔔 Chamou o garçom pra mesa!'); }
+    else ui.toast('🔔 Garçom! (ninguém mais conectado ainda)');
+  },
+  onExportData: () => {
+    try {
+      const data = JSON.stringify(store.exportAll(), null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'botequei-backup.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      ui.toast('💾 Backup exportado!');
+    } catch { ui.toast('Não consegui exportar 😕'); }
+  },
+  onImportData: (text) => {
+    let obj; try { obj = JSON.parse(text); } catch { ui.toast('Arquivo inválido 😕'); return; }
+    let n; try { n = store.importAll(obj); } catch { ui.toast('Backup inválido 😕'); return; }
+    ui.toast(`✅ ${n} itens importados. Recarregando…`);
+    setTimeout(() => location.reload(), 900);
+  },
   onSfx: (kind) => { if (typeof sound[kind] === 'function') sound[kind](); },
   onBebedeira: () => { const id = bebedeiraItem(); ui.openBebedeira({ item: id, emoji: resolveItem(id).emoji, count: getCount(state, self, id) }); },
   onBebedeiraClose: () => render(),
@@ -720,7 +789,22 @@ function boot() {
 
   setInterval(() => { if (room) tickHappyHour(); }, 1000);
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          // nova versão pronta e já havia uma controlando -> oferece atualizar
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            ui.showUpdate(() => nw.postMessage('SKIP_WAITING'));
+          }
+        });
+      });
+    }).catch(() => {});
+    let swReloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (!swReloaded) { swReloaded = true; location.reload(); } });
+  }
 }
 
 boot();

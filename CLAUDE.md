@@ -34,14 +34,22 @@ tempo real entre os navegadores. UI em **pt-BR**.
   p/ ITEM/PROFILE/TABLE/HAPPYHOUR/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
 - **Efeitos efêmeros (não entram no log)** via `mesh.sendFx` → `onFx`: brinde, reação, **roleta**
   ("quem paga a próxima" — o iniciador sorteia e manda `{entrants,winner}`, todos animam igual e
-  convergem), **cutucar/desafiar** (`to`/`from`, só o alvo reage) e **cerimônia** (mostrar troféus
-  pra mesa). Nada disso persiste — é só show ao vivo.
+  convergem), **cutucar/desafiar** (`to`/`from`, só o alvo reage), **cerimônia** (mostrar troféus
+  pra mesa) e **chamar o garçom** (`waiter`). Nada disso persiste — é só show ao vivo.
+- **Presença ao vivo**: `render()` desenha a barra de avatares (self + peers, `mesh.peers()`);
+  `onMeshChange` faz o diff de quem entrou/saiu (toast) e o placar mostra a qualidade da conexão
+  por pessoa (host/srflx/relay). Tocar num nome no placar abre a **comanda** daquela pessoa.
+- **Cardápio por categoria**: `catalog.js` (`cat` + `CATEGORIES`/`catOf`); itens custom levam
+  `cat`/`note` no def do evento `ITEM` (⚠️ ao editar preço, faça `makeItem({...it, price})` pra
+  não perder `g`/`cat`/`note`).
 - **Consciência & estatísticas (puro)**: `js/stats.js` (ritmo da última hora, linha do tempo e
   estimativa de teor alcoólico por Widmark — precisa de peso/sexo locais; **não é bafômetro**) e
-  `js/lifestats.js` (média/recorde/mês/bebida favorita/streak de semanas + conquistas de vida),
-  derivados do log / do histórico local. Gramas de álcool por item ficam no `catalog.js` (`g`).
+  `js/lifestats.js` (média/recorde/mês/favorita/streak + conquistas de vida + `monthlyTrend`/
+  `weekdayInsight`), derivados do log / do histórico local. Gramas de álcool no `catalog.js` (`g`).
 - **Persistência:** só `localStorage` (`js/store.js`; histórico enxuto por mesa com meus itens,
-  gasto e duração p/ as estatísticas). Nada central.
+  gasto e duração; `exportAll`/`importAll` fazem backup JSON). Nada central.
+- **Acessibilidade**: diálogos com `role="dialog"`/foco preso/ESC (`setupA11y` em `ui.js`),
+  `:focus-visible`, `prefers-reduced-motion` (corta confete/animações), rótulos ARIA.
 - **TURN opcional** (`turn.php`): credenciais efêmeras da Cloudflare, lidas de env var /
   `$_SERVER` (Apache `SetEnv`) / `.env`. Token **só no servidor**. Sem config → responde 204 → STUN.
 
@@ -74,4 +82,6 @@ tempo real entre os navegadores. UI em **pt-BR**.
 - **BAC é estimativa local, não bafômetro** — sempre com o aviso de não dirigir; peso/sexo ficam só no aparelho.
 - Ao mexer no `ui.js`, todo id novo precisa entrar no array `IDS` (senão `ui.init` quebra ao amarrar o listener).
 - Ao adicionar `js/*.js` do shell, atualize a lista do `sw.js` **e** bump o `CACHE` (`botequei-vN`).
+- O SW **não** chama `skipWaiting` no install: a versão nova espera o usuário tocar em "Atualizar"
+  (o app manda `SKIP_WAITING` e recarrega no `controllerchange`). Só bump de `CACHE` dispara o aviso.
 - Antes de commitar mudança de lógica, rode os unit (`reducer`/`features`/`stats`) e o `tests/e2e.mjs`.

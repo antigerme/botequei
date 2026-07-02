@@ -53,3 +53,24 @@ export function removeHistory(room) {
   writeJSON(K_HISTORY, getHistory().filter((e) => e.room !== room));
   localStorage.removeItem(K_LOG(room));
 }
+
+// ---- Backup (exportar/importar tudo que é local do Botequei) ----
+export function exportAll() {
+  const data = {};
+  for (const k of Object.keys(localStorage)) {
+    if (!k.startsWith('botequei.')) continue;
+    const raw = localStorage.getItem(k);
+    try { data[k] = JSON.parse(raw); } catch { data[k] = raw; }
+  }
+  return { app: 'botequei', v: 1, at: Date.now(), data };
+}
+export function importAll(obj) {
+  if (!obj || obj.app !== 'botequei' || !obj.data || typeof obj.data !== 'object') throw new Error('backup inválido');
+  let n = 0;
+  for (const k of Object.keys(obj.data)) {
+    if (!k.startsWith('botequei.')) continue; // só chaves do app
+    const v = obj.data[k];
+    try { localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); n++; } catch { /* quota */ }
+  }
+  return n;
+}

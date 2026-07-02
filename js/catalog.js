@@ -4,15 +4,26 @@
 // `g` = gramas de álcool puro por unidade (estimativa p/ ritmo/BAC; 0 = não alcoólico).
 // Base: cerveja lata 350ml ~5%, chopp 300ml ~5%, dose 50ml ~40%, drink ~ um destilado.
 export const DEFAULT_ITEMS = [
-  { id: 'cerveja', emoji: '🍺', name: 'Cerveja', price: 0, g: 13 },
-  { id: 'chopp',   emoji: '🍻', name: 'Chopp',   price: 0, g: 12 },
-  { id: 'dose',    emoji: '🥃', name: 'Dose',    price: 0, g: 15 },
-  { id: 'drink',   emoji: '🍸', name: 'Drink',   price: 0, g: 14 },
-  { id: 'refri',   emoji: '🥤', name: 'Refri',   price: 0, g: 0 },
-  { id: 'agua',    emoji: '💧', name: 'Água',    price: 0, g: 0 },
-  { id: 'porcao',  emoji: '🍟', name: 'Porção',  price: 0, g: 0 },
-  { id: 'petisco', emoji: '🧀', name: 'Petisco', price: 0, g: 0 },
+  { id: 'cerveja', emoji: '🍺', name: 'Cerveja', price: 0, g: 13, cat: 'cerveja' },
+  { id: 'chopp',   emoji: '🍻', name: 'Chopp',   price: 0, g: 12, cat: 'cerveja' },
+  { id: 'dose',    emoji: '🥃', name: 'Dose',    price: 0, g: 15, cat: 'destilado' },
+  { id: 'drink',   emoji: '🍸', name: 'Drink',   price: 0, g: 14, cat: 'destilado' },
+  { id: 'refri',   emoji: '🥤', name: 'Refri',   price: 0, g: 0,  cat: 'sem-alcool' },
+  { id: 'agua',    emoji: '💧', name: 'Água',    price: 0, g: 0,  cat: 'sem-alcool' },
+  { id: 'porcao',  emoji: '🍟', name: 'Porção',  price: 0, g: 0,  cat: 'comida' },
+  { id: 'petisco', emoji: '🧀', name: 'Petisco', price: 0, g: 0,  cat: 'comida' },
 ];
+
+// Categorias do cardápio, na ordem de exibição (a última, "outros", é o padrão de item novo).
+export const CATEGORIES = [
+  { id: 'cerveja',    name: 'Cervejas' },
+  { id: 'destilado',  name: 'Destilados' },
+  { id: 'sem-alcool', name: 'Sem álcool' },
+  { id: 'comida',     name: 'Comida' },
+  { id: 'outros',     name: 'Outros' },
+];
+const CAT_IDS = new Set(CATEGORIES.map((c) => c.id));
+export function catOf(def) { const c = def && def.cat; return CAT_IDS.has(c) ? c : 'outros'; }
 
 // Gramas de álcool de um item (itens personalizados sem info => 0).
 export function alcoholG(def) { return Math.max(0, Number(def && def.g) || 0); }

@@ -1,6 +1,6 @@
 // Service worker do Botequei — cache do "app shell" para abrir offline e instalar como PWA.
 // Importante: nunca intercepta o signaling.php nem requisicoes que nao sejam GET.
-const CACHE = 'botequei-v12';
+const CACHE = 'botequei-v13';
 const SHELL = [
   './',
   'index.html',
@@ -40,9 +40,13 @@ self.addEventListener('install', (e) => {
     const cache = await caches.open(CACHE);
     // resiliente: um asset ausente nao derruba a instalacao
     await Promise.allSettled(SHELL.map((u) => cache.add(u)));
-    self.skipWaiting();
+    // NAO chama skipWaiting aqui: a nova versao espera o usuario aceitar (via mensagem),
+    // pra nao trocar o app embaixo de quem esta usando. O app avisa "nova versao".
   })());
 });
+
+// O app manda 'SKIP_WAITING' quando o usuario toca em "Atualizar".
+self.addEventListener('message', (e) => { if (e.data === 'SKIP_WAITING') self.skipWaiting(); });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {

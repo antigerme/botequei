@@ -1,7 +1,7 @@
 // Camada de apresentacao: telas, cards, gestos, efeitos sociais, placar, conta, configs.
 // Nao guarda estado do dominio — renderiza o "view model" do app.js e dispara handlers.
 
-import { EMOJIS, COLORS, AVATARS } from './catalog.js';
+import { EMOJIS, COLORS, AVATARS, CATEGORIES, catOf } from './catalog.js';
 import { scanQR, scanSupported } from './scan.js';
 
 const $ = (id) => document.getElementById(id);
@@ -12,27 +12,28 @@ const IDS = [
   'screen-home', 'screen-table', 'input-name', 'input-code', 'btn-create', 'btn-join-code',
   'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-settings', 'btn-stats',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
-  'conn-banner', 'hh-banner', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
+  'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'btn-brinde', 'btn-react', 'btn-rodada',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
   'overlay-menu', 'menu-profile', 'menu-board', 'menu-pace', 'menu-roulette', 'menu-bill', 'menu-prices',
-  'menu-hh', 'menu-bebedeira', 'menu-ceremony', 'menu-share', 'menu-stats', 'menu-settings',
+  'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
-  'overlay-additem', 'emoji-row', 'add-name', 'add-price', 'btn-additem-confirm',
+  'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'btn-additem-confirm',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
   'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-limit', 'set-water', 'set-nudges',
-  'set-weight', 'set-sex', 'set-pixkey', 'set-pixcity', 'btn-clear-data',
+  'set-weight', 'set-sex', 'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
   'overlay-pace', 'pace-summary', 'pace-bar', 'pace-label', 'pace-chart', 'pace-bac',
   'overlay-roulette', 'roulette-list', 'roulette-result', 'btn-roulette-spin',
   'overlay-poke', 'poke-title', 'poke-actions',
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
-  'overlay-stats', 'stats-grid', 'stats-badges', 'stats-history',
+  'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
+  'overlay-comanda', 'comanda-title', 'comanda-list', 'comanda-total',
   'btn-offline-join', 'btn-offline-host',
   'overlay-offline', 'off-host', 'off-guest',
   'off-offer-qr', 'off-offer-code', 'btn-off-copy-offer', 'btn-off-scan-answer', 'off-answer-in', 'btn-off-connect',
@@ -127,6 +128,7 @@ export function init(handlers) {
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
   $('menu-hh').addEventListener('click', () => { closeOverlays(); el['overlay-hh'].hidden = false; });
+  $('menu-waiter').addEventListener('click', () => { closeOverlays(); H.onWaiter(); });
   $('menu-bebedeira').addEventListener('click', () => { closeOverlays(); H.onBebedeira(); });
   $('menu-ceremony').addEventListener('click', () => { closeOverlays(); H.onCeremony(); });
   $('menu-share').addEventListener('click', () => { closeOverlays(); H.onShareNight(); });
@@ -162,6 +164,17 @@ export function init(handlers) {
   el['set-pixkey'].addEventListener('change', () => H.onSetting({ pixKey: el['set-pixkey'].value.trim() }));
   el['set-pixcity'].addEventListener('change', () => H.onSetting({ pixCity: el['set-pixcity'].value.trim() }));
   $('btn-clear-data').addEventListener('click', () => H.onClearData());
+  el['btn-export-data'].addEventListener('click', () => H.onExportData());
+  el['btn-import-data'].addEventListener('click', () => el['import-file'].click());
+  el['import-file'].addEventListener('change', () => {
+    const f = el['import-file'].files && el['import-file'].files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => { H.onImportData(String(rd.result || '')); el['import-file'].value = ''; };
+    rd.onerror = () => { toast('Não consegui ler o arquivo 😕'); el['import-file'].value = ''; };
+    rd.readAsText(f);
+  });
+  el['presence-bar'].addEventListener('click', () => H.onPeers());
 
   // offline (pareamento por QR/código, sem servidor)
   el['btn-offline-join'].addEventListener('click', () => H.onOfflineJoin());
@@ -184,7 +197,50 @@ export function init(handlers) {
   attachGesture(el['bebedeira-plus'],
     () => { H.onAdd(bebedeiraItem); },
     () => { H.onRemove(bebedeiraItem); });
+
+  setupA11y();
 }
+
+// ---------- Acessibilidade: diálogos, ESC, armadilha de foco ----------
+let lastFocus = null;
+function openOverlayEls() { return [...document.querySelectorAll('.overlay')].filter((o) => !o.hidden); }
+function focusables(root) {
+  return [...root.querySelectorAll('button,input,select,textarea,[tabindex]:not([tabindex="-1"])')]
+    .filter((x) => !x.disabled && x.offsetParent !== null);
+}
+function setupA11y() {
+  // marca cada sheet como diálogo pro leitor de tela; foca o diálogo ao abrir, devolve ao fechar
+  document.querySelectorAll('.overlay').forEach((ov) => {
+    const sheet = ov.querySelector('.sheet') || ov;
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-modal', 'true');
+    sheet.setAttribute('tabindex', '-1');
+    const h = sheet.querySelector('h2');
+    if (h) { if (!h.id) h.id = 'h_' + Math.abs(hashStr(ov.id)); sheet.setAttribute('aria-labelledby', h.id); }
+    new MutationObserver(() => {
+      if (!ov.hidden) { lastFocus = document.activeElement; try { sheet.focus({ preventScroll: true }); } catch { /* ignore */ } }
+    }).observe(ov, { attributes: true, attributeFilter: ['hidden'] });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (openOverlayEls().length) { closeOverlays(); e.preventDefault(); }
+      else if (!el['bebedeira'].hidden) closeBebedeira();
+      else if (!el['brinde'].hidden) { /* deixa terminar sozinho */ }
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const ovs = openOverlayEls();
+    const ov = ovs[ovs.length - 1];
+    if (!ov) return;
+    const f = focusables(ov.querySelector('.sheet') || ov);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); }
+    else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
+  });
+}
+function hashStr(s) { let h = 0; for (let i = 0; i < String(s).length; i++) h = (h * 31 + String(s).charCodeAt(i)) | 0; return h; }
+export function reducedMotion() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } }
 
 export function showScreen(name) {
   el['screen-home'].classList.toggle('is-active', name === 'home');
@@ -223,14 +279,15 @@ export function renderTable(vm) {
   el['money-block'].hidden = !vm.showMoney;
   if (vm.showMoney) el['my-money'].textContent = fmtMoney(vm.myMoney);
 
-  const ids = vm.items.map((i) => i.id).join(',');
-  if (ids !== lastIds) {
-    el['items-grid'].innerHTML = vm.items.map(cardHTML).join('');
+  const sig = vm.items.map((i) => i.id + ':' + (i.cat || '')).join(',');
+  if (sig !== lastIds) {
+    el['items-grid'].innerHTML = gridHTML(vm.items);
     el['items-grid'].querySelectorAll('.item-card').forEach((card) => {
       const id = card.dataset.item;
       attachGesture(card, () => H.onAdd(id), () => H.onRemove(id));
+      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); H.onAdd(id); } });
     });
-    lastIds = ids;
+    lastIds = sig;
   }
   let topId = null, topQ = 0;
   for (const it of vm.items) { const q = Number(it.qty) || 0; if (q > topQ) { topQ = q; topId = it.id; } }
@@ -247,12 +304,28 @@ export function renderTable(vm) {
   if (el['table-hint']) el['table-hint'].hidden = Number(vm.tableTotal) > 0;
 }
 function cardHTML(it) {
-  return `<div class="item-card" data-item="${esc(it.id)}">
+  const note = it.note ? ` title="${esc(it.note)}"` : '';
+  return `<div class="item-card" data-item="${esc(it.id)}" role="button" tabindex="0" aria-label="${esc(it.name)}: toque para +1, segure para −1"${note}>
     <div class="item-qty">${it.qty}</div>
     <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
     <div class="item-sub">${esc(it.sub)}</div>
-    <div class="item-plus">+1</div></div>`;
+    <div class="item-plus">+1</div>${it.note ? '<div class="item-badge" aria-hidden="true">📝</div>' : ''}</div>`;
+}
+// Cardápio agrupado por categoria (cabeçalhos só quando há mais de uma categoria).
+function gridHTML(items) {
+  const byCat = new Map();
+  for (const it of items) { const c = it.cat || 'outros'; if (!byCat.has(c)) byCat.set(c, []); byCat.get(c).push(it); }
+  const names = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.name]));
+  const order = CATEGORIES.map((c) => c.id).filter((c) => byCat.has(c));
+  for (const c of byCat.keys()) if (!order.includes(c)) order.push(c);
+  const heads = order.length > 1;
+  let html = '';
+  for (const c of order) {
+    if (heads) html += `<div class="cat-head">${esc(names[c] || 'Outros')}</div>`;
+    html += byCat.get(c).map(cardHTML).join('');
+  }
+  return html;
 }
 export function pulse(itemId, kind) {
   const card = el['items-grid'].querySelector(`[data-item="${cssq(itemId)}"]`);
@@ -271,14 +344,16 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
   el['peers-list'].innerHTML = rows.map((r) => {
     const medal = (!r.driver && r.total > 0) ? (medals[rank++] || '') : '';
     const badges = (r.badges || []).map((b) => b.emoji).join('');
+    const net = r.user === selfId ? '<span class="peer-net" title="você">📱</span>' : netHTML(r);
     return `<li class="peer-row" data-user="${esc(r.user)}">
       <span class="peer-medal">${medal}</span>
       <span class="peer-avatar" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
-      <div class="peer-main">
+      <button class="peer-main" aria-label="Ver comanda de ${esc(r.name || 'anônimo')}">
         <span class="peer-name">${esc(r.name || 'anônimo')} ${r.user === selfId ? '<span class="peer-you">(você)</span>' : ''} ${r.driver ? '🚗' : ''}</span>
         <span class="peer-badges">${badges}${r.money ? ' · ' + fmtMoney(r.money) : ''}</span>
-      </div>
-      ${r.user !== selfId ? '<button class="peer-poke" title="cutucar / desafiar">👉</button>' : ''}
+      </button>
+      ${net}
+      ${r.user !== selfId ? '<button class="peer-poke" title="cutucar / desafiar" aria-label="Cutucar ou desafiar">👉</button>' : ''}
       <span class="peer-total">${r.total}</span></li>`;
   }).join('') || '<li class="peer-row">Ninguém ainda 🥲</li>';
   el['peers-list'].querySelectorAll('.peer-poke').forEach((b) => b.addEventListener('click', (e) => {
@@ -286,7 +361,20 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
     const li = b.closest('.peer-row');
     if (li) H.onPoke(li.dataset.user);
   }));
+  el['peers-list'].querySelectorAll('.peer-main').forEach((b) => b.addEventListener('click', () => {
+    const li = b.closest('.peer-row');
+    if (li) H.onComanda(li.dataset.user);
+  }));
   el['my-badges'].innerHTML = (myBadges || []).map((b) => `<span class="badge">${b.emoji} ${esc(b.name)}</span>`).join('');
+}
+// Ícone de qualidade de conexão por pessoa (host = LAN/Wi-Fi, srflx = internet, relay = via servidor).
+function netHTML(r) {
+  if (r.online === false) return '<span class="peer-net off" title="desconectado">💤</span>';
+  const map = { host: ['📶', 'mesma rede'], srflx: ['🌐', 'internet'], prflx: ['🌐', 'internet'], relay: ['🛰️', 'via relay'] };
+  const m = map[r.conn];
+  if (m) return `<span class="peer-net" title="${m[1]}">${m[0]}</span>`;
+  if (r.online) return '<span class="peer-net" title="conectado">🟢</span>';
+  return '';
 }
 export function openPeers() { el['overlay-peers'].hidden = false; }
 
@@ -343,14 +431,16 @@ function openAddItem() {
   el['emoji-row'].querySelectorAll('.emoji-pick').forEach((b) => b.addEventListener('click', () => {
     pickedEmoji = b.dataset.e; el['emoji-row'].querySelectorAll('.emoji-pick').forEach((x) => x.classList.remove('sel')); b.classList.add('sel');
   }));
-  el['add-name'].value = ''; el['add-price'].value = '';
+  el['add-cat'].innerHTML = CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  el['add-cat'].value = 'outros';
+  el['add-name'].value = ''; el['add-price'].value = ''; el['add-note'].value = '';
   el['overlay-additem'].hidden = false;
 }
 function submitAddItem() {
   const name = el['add-name'].value.trim();
   if (!name) { toast('Dá um nome pro item 🙂'); return; }
   const price = parseFloat(String(el['add-price'].value).replace(',', '.')) || 0;
-  H.onAddItemConfirm({ emoji: pickedEmoji, name, price });
+  H.onAddItemConfirm({ emoji: pickedEmoji, name, price, cat: el['add-cat'].value, note: el['add-note'].value.trim() });
   closeOverlays();
 }
 
@@ -473,6 +563,8 @@ export function floatPlus(text, color) {
 }
 // Comemoração: chuva de emoji (marcos: 10ª rodada, recorde da mesa, rodada coletiva).
 export function celebrate(emojis) {
+  vibrate([40, 30, 90]);
+  if (reducedMotion()) return; // respeita "reduzir movimento": sem chuva de confete
   const layer = el['fx-layer'];
   const set = emojis && emojis.length ? emojis : ['🍺', '🎉', '🍻', '✨', '🥂'];
   for (let i = 0; i < 26; i++) {
@@ -485,7 +577,6 @@ export function celebrate(emojis) {
     layer.appendChild(s);
     setTimeout(() => s.remove(), 3400);
   }
-  vibrate([40, 30, 90]);
 }
 // aleatoriedade leve sem depender de Math.random em ambientes que o proíbem
 let _r = 1;
@@ -648,6 +739,14 @@ export function runRoulette(entrants, winnerUser) {
   if (winIdx < 0) winIdx = 0;
   const steps = 3 * n + winIdx; // algumas voltas + parar no vencedor
   const highlight = (idx) => items.forEach((it, i) => it.classList.toggle('on', i === idx % n));
+  const finish = () => {
+    const w = entrants[winIdx];
+    el['roulette-result'].hidden = false;
+    el['roulette-result'].innerHTML = `🎰 <strong>${esc(w.name || 'alguém')}</strong> paga a próxima! 🍻`;
+    if (H.onSfx) H.onSfx('win'); vibrate([60, 40, 120]);
+    celebrate(['🎉', '🎰', '🍻', '🥂']);
+  };
+  if (reducedMotion()) { highlight(winIdx); finish(); return; } // sem giro: mostra o resultado
   rouletteRunning = true;
   el['btn-roulette-spin'].disabled = true;
   let s = 0;
@@ -660,13 +759,9 @@ export function runRoulette(entrants, winnerUser) {
       setTimeout(step, remaining < n ? 90 + (n - remaining) * 45 : 70); // desacelera no fim
     } else {
       highlight(steps);
-      const w = entrants[winIdx];
-      el['roulette-result'].hidden = false;
-      el['roulette-result'].innerHTML = `🎰 <strong>${esc(w.name || 'alguém')}</strong> paga a próxima! 🍻`;
       rouletteRunning = false;
       el['btn-roulette-spin'].disabled = false;
-      if (H.onSfx) H.onSfx('win'); vibrate([60, 40, 120]);
-      celebrate(['🎉', '🎰', '🍻', '🥂']);
+      finish();
     }
   };
   step();
@@ -713,6 +808,18 @@ export function openStats(vm) {
   if (s.totalSpent > 0) html += cell(fmtMoney(s.totalSpent), 'já torrado 💸', true);
   el['stats-grid'].innerHTML = html;
   el['stats-badges'].innerHTML = (vm.badges || []).map((b) => `<span class="badge">${b.emoji} ${esc(b.name)}</span>`).join('') || '<span class="seal">Suas conquistas aparecem aqui 🏅</span>';
+  const trend = vm.trend || [];
+  const hasTrend = trend.some((t) => t.total > 0);
+  el['stats-chart'].hidden = !hasTrend;
+  el['stats-chart-h'].hidden = !hasTrend;
+  if (hasTrend) drawBars(el['stats-chart'], trend);
+  const ins = vm.insight;
+  if (ins && ins.best && ins.worst && ins.best.wd !== ins.worst.wd) {
+    el['stats-insight'].textContent = `📅 Você manda menos na ${ins.best.day} e mais na ${ins.worst.day}.`;
+    el['stats-insight'].hidden = false;
+  } else {
+    el['stats-insight'].hidden = true;
+  }
   el['stats-history'].innerHTML = (vm.history || []).slice(0, 12).map((h) => {
     const d = new Date(h.at);
     const when = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
@@ -720,11 +827,56 @@ export function openStats(vm) {
   }).join('') || '<li>Sem noites ainda — bora criar a primeira? 🍻</li>';
   el['overlay-stats'].hidden = false;
 }
+// Barras com rótulo (tendência mensal).
+function drawBars(canvas, items) {
+  const g = canvas.getContext('2d');
+  const W = canvas.width, Hh = canvas.height;
+  g.clearRect(0, 0, W, Hh);
+  const light = document.body.classList.contains('light');
+  const col = light ? '#c8811f' : '#f4b13c';
+  const lab = light ? 'rgba(60,40,10,.72)' : 'rgba(255,240,200,.72)';
+  const n = items.length, gap = 8, padB = 24;
+  const max = Math.max(1, ...items.map((i) => i.total));
+  const bw = (W - gap * (n + 1)) / n;
+  g.textAlign = 'center'; g.font = '18px system-ui, sans-serif';
+  for (let i = 0; i < n; i++) {
+    const h = Math.round((items[i].total / max) * (Hh - padB - 10));
+    const x = gap + i * (bw + gap);
+    if (h > 0) { g.fillStyle = col; roundRectPath(g, x, Hh - padB - h, bw, h, 4); g.fill(); }
+    g.fillStyle = lab; g.fillText(items[i].label, x + bw / 2, Hh - 7);
+  }
+}
+
+// ---------- Presença (avatares de quem está na mesa, no topo) ----------
+export function renderPresence(list) {
+  const bar = el['presence-bar'];
+  const others = (list || []).filter((p) => !p.self);
+  if (!others.length) { bar.hidden = true; bar.innerHTML = ''; return; }
+  bar.hidden = false;
+  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' off'}" title="${esc(p.name || '')}" style="background:${safeColor(p.color)}">${esc(p.emoji || '🍺')}</span>`).join('');
+}
+
+// ---------- Comanda individual ----------
+export function openComanda(vm) {
+  el['comanda-title'].textContent = `${vm.emoji || '🍺'} ${vm.name || 'anônimo'}`;
+  el['comanda-list'].innerHTML = (vm.rows || []).map((r) => `<li class="comanda-row">
+    <span class="c-emoji">${esc(r.emoji || '🍺')}</span>
+    <span class="c-name">${esc(r.name)}</span>
+    <span class="c-qty">×${r.n}</span>
+    ${r.money ? `<span class="c-money">${fmtMoney(r.money)}</span>` : ''}</li>`).join('')
+    || '<li class="comanda-row">Nada pedido ainda 🙂</li>';
+  el['comanda-total'].textContent = `Total: ${vm.total} 🍺${vm.money ? ' · ' + fmtMoney(vm.money) : ''}`;
+  el['overlay-comanda'].hidden = false;
+}
+
+// ---------- Aviso de nova versão (service worker) ----------
+export function showUpdate(cb) { actionToast('🆕 Nova versão do Botequei!', 'Atualizar', cb, 60000); }
 
 // ---------- Overlays / toast ----------
 export function closeOverlays() {
   if (activeScan) { activeScan.stop(); activeScan = null; }
   document.querySelectorAll('.overlay').forEach((o) => { o.hidden = true; });
+  if (lastFocus) { try { lastFocus.focus({ preventScroll: true }); } catch { /* ignore */ } lastFocus = null; }
 }
 let toastTimer = null;
 export function toast(msg) {

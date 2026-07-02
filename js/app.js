@@ -556,6 +556,8 @@ function boot() {
   document.addEventListener('visibilitychange', wake);
   window.addEventListener('focus', wake);
   window.addEventListener('online', wake);
+  // enquanto o usuário não escolher manualmente, segue o tema claro/escuro do sistema
+  try { window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (settings.theme !== 'light' && settings.theme !== 'dark') ui.applyTheme(settings); }); } catch { /* ignore */ }
 
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; ui.showInstall(true); });
 

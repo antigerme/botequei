@@ -370,7 +370,7 @@ export function pixCode() { return el['pix-code'].value; }
 // ---------- Configuracoes ----------
 function openSettings() { H.onOpenSettings(); el['overlay-settings'].hidden = false; }
 export function fillSettings(s) {
-  el['set-theme'].checked = s.theme === 'light';
+  el['set-theme'].checked = themeIsLight(s);
   el['set-bigfont'].checked = !!s.bigFont;
   el['set-sound'].checked = !!s.sound;
   el['set-limit'].value = s.limit || '';
@@ -378,8 +378,11 @@ export function fillSettings(s) {
   el['set-pixkey'].value = s.pixKey || '';
   el['set-pixcity'].value = s.pixCity || '';
 }
+function prefersLight() { try { return window.matchMedia('(prefers-color-scheme: light)').matches; } catch { return false; } }
+// 'light'/'dark' = escolha explícita do usuário; qualquer outro valor ('auto') segue o sistema.
+export function themeIsLight(s) { return s.theme === 'light' || (s.theme !== 'dark' && prefersLight()); }
 export function applyTheme(s) {
-  document.body.classList.toggle('light', s.theme === 'light');
+  document.body.classList.toggle('light', themeIsLight(s));
   document.body.classList.toggle('bigfont', !!s.bigFont);
 }
 

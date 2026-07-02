@@ -2,7 +2,7 @@
 
 const K = 'botequei.settings';
 const DEFAULTS = {
-  theme: 'dark',     // 'dark' | 'light'
+  theme: 'auto',     // 'auto' segue o sistema (prefers-color-scheme); 'light'/'dark' = escolha manual
   bigFont: false,    // acessibilidade
   sound: true,       // efeitos sonoros
   limit: 0,          // meta pessoal de bebidas (0 = desligado)

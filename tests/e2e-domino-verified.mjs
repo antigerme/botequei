@@ -19,12 +19,9 @@ async function main() {
     executablePath: CHROME, headless: true,
     args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-features=WebRtcHideLocalIpsWithMdns'],
   });
-  const mkCtx = async (name, verified) => {
+  const mkCtx = async (name) => {
     const c = await browser.newContext();
-    await c.addInitScript(([n, v]) => {
-      localStorage.setItem('botequei.name', n);
-      if (v) localStorage.setItem('botequei.settings', JSON.stringify({ domVerified: true }));
-    }, [name, verified]);
+    await c.addInitScript((n) => { localStorage.setItem('botequei.name', n); }, name);
     return c;
   };
   const vis = (page, id) => page.waitForFunction((i) => { const e = document.getElementById(i); return e && !e.hidden; }, id, { timeout: T });
@@ -40,14 +37,14 @@ async function main() {
   const results = [];
   const step = async (name, fn) => { await fn(); console.log('  ✓ ' + name); results.push(name); };
 
-  const A = await mkCtx('Andre', true); const pageA = await A.newPage();
+  const A = await mkCtx('Andre'); const pageA = await A.newPage();
   await pageA.goto(BASE);
   await pageA.waitForSelector('#screen-home.is-active', { timeout: T });
   await pageA.click('#btn-create');
   await pageA.waitForSelector('#screen-table.is-active', { timeout: T });
   const code = (await pageA.textContent('#mesa-code')).trim();
   await pageA.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
-  const B = await mkCtx('Bia', false); const pageB = await B.newPage();
+  const B = await mkCtx('Bia'); const pageB = await B.newPage();
   await pageB.goto(BASE + '#/join?room=' + code);
   await pageB.waitForSelector('#screen-table.is-active', { timeout: T });
   const pages = [pageA, pageB];
@@ -55,6 +52,7 @@ async function main() {
 
   await step('handshake da mesa verificada (seeds+corte) → jogo começa nos dois', async () => {
     await pageA.click('#btn-menu'); await pageA.click('#menu-domino');
+    await vis(pageA, 'dom-setup'); await pageA.click('#btn-dom-start-verified'); // quem inicia escolhe mesa verificada
     // dom-game só aparece DEPOIS do handshake (seed commit-reveal + deal com lacre)
     await Promise.all(pages.map((p) => vis(p, 'dom-game')));
     await Promise.all(pages.map((p) => p.waitForFunction(() => document.querySelectorAll('#dom-board .dom-tile').length >= 1, null, { timeout: T })));

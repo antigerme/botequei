@@ -54,6 +54,7 @@ async function main() {
 
     await step(`${N}p: dominó abre em todos e o tabuleiro começa (abertura forçada)`, async () => {
       await host.click('#btn-menu'); await host.click('#menu-domino');
+      await vis(host, 'dom-setup'); await host.click('#btn-dom-start'); // quem inicia escolhe o modo (partida normal)
       await Promise.all(pages.map((p) => vis(p, 'overlay-domino')));
       await Promise.all(pages.map((p) => p.waitForFunction(() => document.querySelectorAll('#dom-board .dom-tile').length >= 1, null, { timeout: T })));
     });

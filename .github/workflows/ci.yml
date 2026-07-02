@@ -24,7 +24,8 @@ jobs:
           node-version: '20'
       - name: node --check (sintaxe de todo JS)
         run: |
-          for f in js/*.js js/vendor/*.js sw.js tests/*.mjs eslint.config.mjs; do
+          # recursivo: pega js/ e tests/ mesmo se surgirem subpastas (ex.: js/games/…)
+          for f in $(find js tests -type f \( -name '*.js' -o -name '*.mjs' \) | sort) sw.js eslint.config.mjs; do
             echo "check $f"; node --check "$f"
           done
       - name: "ESLint (só bug: no-undef, no-dupe-keys, código morto)"
@@ -53,11 +54,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: reducer + features + stats
+      - name: Todos os tests/*.test.mjs (auto-descobertos)
         run: |
-          node tests/reducer.test.mjs
-          node tests/features.test.mjs
-          node tests/stats.test.mjs
+          # convenção: unit = tests/*.test.mjs. Teste novo entra no CI sozinho.
+          shopt -s nullglob
+          files=(tests/*.test.mjs)
+          [ ${#files[@]} -gt 0 ] || { echo "nenhum tests/*.test.mjs encontrado"; exit 1; }
+          for f in "${files[@]}"; do echo "▶ $f"; node "$f" || exit 1; done
 
   e2e:
     name: E2E (WebRTC real, Chromium headless)
@@ -74,14 +77,15 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm i --no-save playwright@1.48.0 >/dev/null 2>&1
           npx playwright install --with-deps chromium
-      - name: Sobe o servidor e roda os E2E
+      - name: Sobe o servidor e roda os E2E (auto-descobertos)
         run: |
           php -S 127.0.0.1:8000 >/tmp/php.log 2>&1 &
           sleep 1
           export BASE=http://127.0.0.1:8000
           export CHROME="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
           echo "Chromium: $CHROME"
-          node tests/e2e.mjs
-          node tests/e2e-features.mjs
-          node tests/e2e-reconnect.mjs
-          node tests/e2e-offline.mjs
+          # convenção: e2e = tests/e2e*.mjs. Suite nova entra no CI sozinha.
+          shopt -s nullglob
+          files=(tests/e2e*.mjs)
+          [ ${#files[@]} -gt 0 ] || { echo "nenhum tests/e2e*.mjs encontrado"; exit 1; }
+          for f in "${files[@]}"; do echo "▶ $f"; node "$f" || exit 1; done

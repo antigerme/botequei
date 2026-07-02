@@ -9,10 +9,19 @@ em pt-BR).
 - **Servidor local:** `php -S 0.0.0.0:8000` (serve tudo; precisa só de **PHP 8.x**, sem npm/banco).
 - **Unit, sem dependências:** `node tests/reducer.test.mjs`, `node tests/features.test.mjs` e
   `node tests/stats.test.mjs` (ritmo/BAC + estatísticas de vida).
+- **Auditoria estática (sem deps):** `node tests/audit.mjs` — confere grafo de import/export
+  (arquivo existe **e** exporta o nome, evitando o "does not provide an export named …"), o shell
+  do `sw.js` + `CACHE`, o array `IDS` do `ui.js` e as chaves de i18n. Descobre os arquivos
+  sozinha (lê `js/` e `tests/`), então cresce junto do projeto.
 - **E2E (2–3 navegadores, WebRTC real):** `npm i playwright-core && node tests/e2e.mjs`
   (usa o Chromium do ambiente; variáveis `BASE` e `CHROME`). Também `tests/e2e-reconnect.mjs`
   (reconexão), `tests/e2e-offline.mjs` (pareamento por QR/código com o signaling desligado) e
   `tests/e2e-features.mjs` (roleta sincronizada, cutucada, PAYFOR e estatísticas).
+- **CI (GitHub Actions, `.github/workflows/ci.yml`):** em todo PR/push pro `main` roda **lint**
+  (`node --check` + ESLint só de correção via `npx eslint .`, config em `eslint.config.mjs`),
+  **auditoria** (`tests/audit.mjs`) + `php -l`, **unit** e **e2e**. Unit e e2e são
+  **auto-descobertos**: qualquer `tests/*.test.mjs` (unit) e `tests/e2e*.mjs` (e2e) entram
+  sozinhos — só seguir a convenção de nome ao criar um teste novo.
 
 ## Arquitetura (essencial)
 - **Sem framework, sem build.** HTML + CSS + JS puro (ES modules). Não introduzir bundler/toolchain.
@@ -95,7 +104,8 @@ em pt-BR).
 - `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)
 - `signaling.php`, `turn.php` — servidor mínimo (handshake / credenciais TURN)
 - `tools/gen_icons.php` — gera os PNGs de `icons/` (build; **não expor na web**)
-- `tests/` — `reducer.test.mjs` + `features.test.mjs` + `stats.test.mjs` (unit) · `e2e.mjs` / `e2e-reconnect.mjs` / `e2e-offline.mjs` / `e2e-features.mjs` (Playwright)
+- `tests/` — `reducer.test.mjs` + `features.test.mjs` + `stats.test.mjs` (unit) · `audit.mjs` (auditoria estática pura) · `e2e.mjs` / `e2e-reconnect.mjs` / `e2e-offline.mjs` / `e2e-features.mjs` (Playwright)
+- `.github/workflows/ci.yml` — CI (lint/auditoria/unit/e2e; unit+e2e auto-descobertos) · `eslint.config.mjs` — ESLint só de correção (dev/CI; o app segue buildless)
 
 ## Convenções / gotchas
 - **URLs sempre relativas** (`new URL('signaling.php', location.href)`, `fetch('turn.php')`,

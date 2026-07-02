@@ -51,6 +51,8 @@
       <ul id="history-list"></ul>
     </div>
 
+    <p class="home-hint" id="home-hint" hidden>Crie a mesa e mostre o QR — a galera entra escaneando. Tudo fica só nos celulares. 🍻</p>
+
     <footer class="home-foot">
       <button class="btn btn-ghost btn-install" id="btn-install" hidden>📲 Instalar o app</button>
       <span class="seal" id="privacy-seal">🔒 Seus dados nunca saem dos celulares · P2P</span>
@@ -74,30 +76,27 @@
     <div class="conn-banner" id="conn-banner" hidden></div>
 
     <div class="totals">
-      <div class="total-block">
-        <span class="total-num" id="my-total">0</span>
-        <span class="total-cap">você</span>
-      </div>
-      <div class="total-sep"></div>
-      <div class="total-block">
+      <div class="total-hero">
+        <span class="total-cap">a mesa mandou</span>
         <span class="total-num" id="table-total">0</span>
-        <span class="total-cap">a mesa</span>
       </div>
-      <div class="total-block total-money" id="money-block" hidden>
-        <span class="total-num" id="my-money">R$0</span>
-        <span class="total-cap">sua conta</span>
+      <div class="total-side">
+        <div><span class="total-cap">você</span> <span class="total-num" id="my-total">0</span></div>
+        <div class="total-money" id="money-block" hidden><span class="total-cap">conta</span> <span class="total-num" id="my-money">R$0</span></div>
       </div>
     </div>
 
-    <div class="action-bar">
-      <button class="chip" id="btn-brinde">🥂 Brinde</button>
-      <button class="chip" id="btn-react">😀 Reagir</button>
-      <button class="chip" id="btn-rodada">🍻 Rodada</button>
-    </div>
+    <p class="table-hint" id="table-hint" hidden>👆 toque no card = +1 · segure = −1</p>
 
     <div class="items-grid" id="items-grid"><!-- cards via JS --></div>
 
     <button class="btn btn-ghost btn-additem" id="btn-additem">+ item personalizado</button>
+
+    <div class="action-bar">
+      <button class="chip" id="btn-brinde">🥂 Brinde</button>
+      <button class="chip" id="btn-rodada">🍻 Rodada</button>
+      <button class="chip" id="btn-react">😀 Reagir</button>
+    </div>
   </section>
 
 </div>

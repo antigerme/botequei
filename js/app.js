@@ -35,6 +35,7 @@ let deferredPrompt = null;
 const self = clientId();
 let settings = getSettings();
 let offlineWaiting = false;   // convidado esperando o anfitrião ler a resposta (fecha sozinho ao conectar)
+let lastTableMilestone = 0;   // comemora a cada 10 rodadas da mesa (marco); sincronizado no sync
 let limitAlerted = false;   // pra a meta alertar uma vez (mesmo se ultrapassar de vez)
 let renderScheduled = false;
 
@@ -84,7 +85,7 @@ function ingest(ev) {
   seen.add(ev.eventId); log.push(ev); applyEvent(state, ev); scheduleSave();
   return true;
 }
-function rebuildFrom(events) { log = []; seen = new Set(); state = emptyState(); for (const ev of events) ingest(ev); }
+function rebuildFrom(events) { log = []; seen = new Set(); state = emptyState(); for (const ev of events) ingest(ev); lastTableMilestone = Math.floor(tableTotal(state) / 10); }
 function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { if (room) store.saveEvents(room, log); }, 400); }
 
 // evento local: registra + propaga
@@ -134,8 +135,21 @@ function afterMyAdd(item) {
     const alc = myAlcohol();
     if (alc > 0 && alc % settings.waterEvery === 0) ui.toast('💧 Hora da água!');
   }
+  checkTableMilestone();
 }
 function callCar() { try { window.open('https://m.uber.com/ul/', '_blank', 'noopener'); } catch { /* ignore */ } }
+// Marco da mesa: a cada 10 rodadas, joga confete + aviso. Reajusta se desfizerem.
+function checkTableMilestone() {
+  const total = tableTotal(state);
+  const m = Math.floor(total / 10);
+  if (total > 0 && m > lastTableMilestone) {
+    lastTableMilestone = m;
+    ui.celebrate();
+    ui.toast(`🎉 ${total} rodadas na mesa!`);
+  } else if (m < lastTableMilestone) {
+    lastTableMilestone = m;
+  }
+}
 
 function addCustomItem({ emoji, name, price }) {
   const id = itemIdFromName(name);
@@ -154,7 +168,9 @@ function rodada() {
   }
   if (mesh) mesh.sendFx({ kind: 'react', emoji: '🍻' });
   ui.floatReaction('🍻'); ui.floatReaction('🍻'); sound.cheers();
+  ui.celebrate(['🍻', '🎉', '🥂']);
   afterChange(item, 'add');
+  lastTableMilestone = Math.floor(tableTotal(state) / 10); // sincroniza o marco (evita confete duplo)
   ui.toast(n ? `🍻 Rodada! +1 pra ${n}` : 'Rodada! 🍻');
 }
 
@@ -172,7 +188,8 @@ function onRemoteEvent(ev, fromPeer, isSync) {
   if (!ingest(ev)) return;
   if (mesh) mesh.broadcast({ k: 'ev', ev }, fromPeer); // gossip
   if (ev.type === 'ADD' && ev.user === self) checkLimit(); // alguém somou pra mim (rodada)
-  if (isSync) { scheduleRender(); return; } // catch-up em massa: 1 render, sem efeitos/sons
+  if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state) / 10); scheduleRender(); return; }
+  if (ev.type === 'ADD') checkTableMilestone();
   if (ev.type === 'ADD' && ev.user !== self) {
     const p = profOf(ev.user);
     ui.floatPlus(`${p.name || 'alguém'} ${resolveItem(ev.item).emoji}+1`, p.color);
@@ -310,7 +327,7 @@ function leaveTable() {
   }
   if (mesh) { mesh.close(); mesh = null; }
   store.clearCurrent();
-  room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false;
+  room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false; lastTableMilestone = 0;
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
 }

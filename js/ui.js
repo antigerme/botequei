@@ -10,8 +10,8 @@ const el = {};
 
 const IDS = [
   'screen-home', 'screen-table', 'input-name', 'input-code', 'btn-create', 'btn-join-code',
-  'home-history', 'history-list', 'btn-install', 'btn-settings',
-  'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count',
+  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-settings',
+  'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint',
   'conn-banner', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'btn-brinde', 'btn-react', 'btn-rodada',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
@@ -43,6 +43,24 @@ function cssq(s) { return String(s).replace(/["\\]/g, '\\$&'); }
 // So aceitamos hex (#abc/#aabbcc/#aabbccdd) ou nome CSS simples; senao, cor padrao.
 function safeColor(c) { return /^#[0-9a-f]{3,8}$|^[a-z]+$/i.test(String(c || '')) ? String(c) : '#333'; }
 function fmtMoney(v) { return 'R$' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+// Anima um inteiro do valor atual até o novo (a conta "sobe" em vez de trocar seco).
+function countTo(node, to) {
+  to = Math.round(Number(to) || 0);
+  const from = Math.round(Number(node.dataset.v) || 0);
+  node.dataset.v = String(to);
+  if (from === to) { node.textContent = String(to); return; }
+  const dur = Math.min(600, 160 + Math.abs(to - from) * 45);
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  const t0 = now();
+  const tick = () => {
+    if (Number(node.dataset.v) !== to) return; // outro countTo assumiu este nó
+    const p = Math.min(1, (now() - t0) / dur);
+    const e = 1 - Math.pow(1 - p, 3); // easeOut
+    node.textContent = String(Math.round(from + (to - from) * e));
+    if (p < 1) requestAnimationFrame(tick); else node.textContent = String(to);
+  };
+  requestAnimationFrame(tick);
+}
 
 export function vibrate(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch { /* ignore */ } }
 
@@ -155,7 +173,9 @@ export function showInstall(v) { el['btn-install'].hidden = !v; }
 
 export function renderHome(history) {
   const box = el['home-history'], ul = el['history-list'];
-  if (!history || !history.length) { box.hidden = true; ul.innerHTML = ''; return; }
+  const empty = !history || !history.length;
+  if (el['home-hint']) el['home-hint'].hidden = !empty;
+  if (empty) { box.hidden = true; ul.innerHTML = ''; return; }
   box.hidden = false;
   ul.innerHTML = history.map((h) => {
     const d = new Date(h.at);
@@ -172,8 +192,8 @@ let lastIds = '';
 export function renderTable(vm) {
   el['table-title'].textContent = vm.title || 'MESA';
   el['mesa-code'].textContent = vm.code;
-  el['my-total'].textContent = vm.myTotal;
-  el['table-total'].textContent = vm.tableTotal;
+  countTo(el['my-total'], vm.myTotal);
+  countTo(el['table-total'], vm.tableTotal);
   el['peer-count'].textContent = vm.peerCount;
   el['money-block'].hidden = !vm.showMoney;
   if (vm.showMoney) el['my-money'].textContent = fmtMoney(vm.myMoney);
@@ -187,14 +207,19 @@ export function renderTable(vm) {
     });
     lastIds = ids;
   }
+  let topId = null, topQ = 0;
+  for (const it of vm.items) { const q = Number(it.qty) || 0; if (q > topQ) { topQ = q; topId = it.id; } }
   for (const it of vm.items) {
     const card = el['items-grid'].querySelector(`[data-item="${cssq(it.id)}"]`);
     if (!card) continue;
     card.querySelector('.item-emoji').textContent = it.emoji;
     card.querySelector('.item-name').textContent = it.name;
-    card.querySelector('.item-qty').textContent = it.qty;
+    countTo(card.querySelector('.item-qty'), it.qty);
     card.querySelector('.item-sub').textContent = it.sub;
+    card.toggleAttribute('data-zero', (Number(it.qty) || 0) === 0);
+    card.classList.toggle('hot', it.id === topId && topQ > 0);
   }
+  if (el['table-hint']) el['table-hint'].hidden = Number(vm.tableTotal) > 0;
 }
 function cardHTML(it) {
   return `<div class="item-card" data-item="${esc(it.id)}">
@@ -380,6 +405,22 @@ export function floatPlus(text, color) {
   el['fx-layer'].appendChild(n);
   setTimeout(() => n.remove(), 1900);
 }
+// Comemoração: chuva de emoji (marcos: 10ª rodada, recorde da mesa, rodada coletiva).
+export function celebrate(emojis) {
+  const layer = el['fx-layer'];
+  const set = emojis && emojis.length ? emojis : ['🍺', '🎉', '🍻', '✨', '🥂'];
+  for (let i = 0; i < 26; i++) {
+    const s = document.createElement('div');
+    s.className = 'confetti'; s.textContent = set[i % set.length];
+    s.style.left = (seededRand() * 100).toFixed(1) + 'vw';
+    s.style.fontSize = (14 + seededRand() * 22).toFixed(0) + 'px';
+    s.style.animationDelay = (seededRand() * 0.25).toFixed(2) + 's';
+    s.style.animationDuration = (1.6 + seededRand() * 1.3).toFixed(2) + 's';
+    layer.appendChild(s);
+    setTimeout(() => s.remove(), 3400);
+  }
+  vibrate([40, 30, 90]);
+}
 // aleatoriedade leve sem depender de Math.random em ambientes que o proíbem
 let _r = 1;
 function seededRand() { _r = (_r * 9301 + 49297) % 233280; return _r / 233280; }
@@ -412,9 +453,10 @@ export function openBebedeira(vm) {
   bebedeiraItem = vm.item;
   el['bebedeira-item'].textContent = vm.emoji;
   el['bebedeira-count'].textContent = vm.count;
+  el['bebedeira-count'].dataset.v = String(vm.count);
   el['bebedeira'].hidden = false;
 }
-export function updateBebedeira(count) { if (!el['bebedeira'].hidden) el['bebedeira-count'].textContent = count; }
+export function updateBebedeira(count) { if (!el['bebedeira'].hidden) countTo(el['bebedeira-count'], count); }
 export function closeBebedeira() { el['bebedeira'].hidden = true; if (H.onBebedeiraClose) H.onBebedeiraClose(); }
 export function isBebedeira() { return !el['bebedeira'].hidden; }
 export function currentBebedeiraItem() { return bebedeiraItem; }

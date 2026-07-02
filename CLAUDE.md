@@ -55,6 +55,14 @@ em pt-BR).
   todos lacram, revela-se junto e cada peer **confere** o lacre (ninguém muda a mão depois de ver os
   chutes) e **apura igual** (`resolve` é determinístico → converge). Quem crava o total é vidente;
   quem chuta mais longe paga. Efêmero, não entra no log. Dropout (peer offline) não trava a rodada.
+- **Dominó (jogo P2P)** (`js/domino.js`, puro): dobra-seis de boteco (sem compra). As **mãos são
+  privadas** — o dono da mesa embaralha e entrega a mão de cada um **só pra ele** via canal direto
+  (`mesh.sendTo(id, {k:'fx',fx})`, não pelo broadcast); as **jogadas são públicas** (`kind:'domino'`,
+  fases `deal`/`play`/`pass`/`reveal`/`cancel`) e **todo peer valida** com `legalMoves`/`place` (o
+  tabuleiro é reconstruído igual em todos). Bate quem esvazia a mão; se trancar (todos passam), cada
+  um revela a mão e ganha a menor soma (`pipCount`). Trust: só o embaralho confia em quem dá as
+  cartas (igual na vida real); durante a partida, trapaça não cola. Pedras desenhadas com pips no
+  `ui.js`. Efêmero, não entra no log.
 - **Competição & coach (puro)**: `js/tournament.js` (placar acumulado por pessoa entre noites —
   pontos por aparecer + hidratar, não por beber mais), `js/deck.js` (cartas de desafio) e o coach
   em `js/stats.js` (`projectAt` = previsão de ritmo até a meia-noite, `coachTips`). Mãos livres:
@@ -106,6 +114,7 @@ em pt-BR).
 - `js/sound.js` — efeitos (WebAudio) · `js/music.js` — trilha lo-fi procedural + espectro (WebAudio, fora do puro)
 - `js/tournament.js` — placar acumulado da galera (puro) · `js/deck.js` — cartas de desafio (puro)
 - `js/purrinha.js` — jogo da purrinha: commit-reveal (SHA-256) + apuração determinística (puro)
+- `js/domino.js` — jogo de dominó: baralho/deal/encaixe/abertura/bater/trancar (puro)
 - `js/i18n.js` — dicionário pt/en/es + `applyI18n` sobre o shell (puro)
 - `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, temas (auto/dark/light/neon/retro), i18n do shell, molduras por nível, overlays (ritmo/roleta/cutucar/cerimônia/números/conta/passaporte/foto/boas-vindas)
 - `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)

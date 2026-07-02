@@ -47,6 +47,9 @@ const IDS = [
   'menu-purrinha', 'overlay-purrinha', 'purr-sub', 'purr-pick', 'purr-hands', 'purr-guesses', 'btn-purr-seal',
   'purr-wait', 'purr-waitcount', 'purr-seals', 'purr-result', 'purr-total', 'purr-reveals', 'purr-verdict',
   'btn-purr-again', 'btn-purr-close',
+  'menu-domino', 'overlay-domino', 'btn-dom-close', 'dom-opps', 'dom-turn', 'dom-board', 'dom-result',
+  'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
+  'btn-dom-pass', 'btn-dom-again',
   'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
   'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
   'overlay-welcome', 'btn-welcome-go',
@@ -150,6 +153,7 @@ export function init(handlers) {
   $('menu-league').addEventListener('click', () => { closeOverlays(); H.onLeague(); });
   $('menu-roulette').addEventListener('click', () => { closeOverlays(); H.onRoulette(); });
   $('menu-purrinha').addEventListener('click', () => { closeOverlays(); H.onPurrinha(); });
+  $('menu-domino').addEventListener('click', () => { closeOverlays(); H.onDomino(); });
   $('menu-water').addEventListener('click', () => { closeOverlays(); H.onWaterRound(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
   $('menu-festa').addEventListener('click', () => { closeOverlays(); openFesta(); });
@@ -188,6 +192,11 @@ export function init(handlers) {
   el['btn-purr-seal'].addEventListener('click', () => { if (purrPick.hand != null && purrPick.guess != null) H.onPurrSeal(purrPick.hand, purrPick.guess); });
   el['btn-purr-again'].addEventListener('click', () => H.onPurrinha());
   el['btn-purr-close'].addEventListener('click', () => { H.onPurrCancel(); closeOverlays(); });
+  el['btn-dom-pass'].addEventListener('click', () => H.onDomPass());
+  el['btn-dom-again'].addEventListener('click', () => H.onDomino());
+  el['btn-dom-close'].addEventListener('click', () => { H.onDomCancel(); closeOverlays(); });
+  el['btn-dom-L'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'L'); domArmed = null; el['dom-side-pick'].hidden = true; });
+  el['btn-dom-R'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'R'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-passport-checkin'].addEventListener('click', () => H.onCheckin(el['passport-name'].value));
   el['photo-input'].addEventListener('change', () => showPhoto());
   el['btn-photo-retake'].addEventListener('click', () => el['photo-input'].click());
@@ -1072,6 +1081,46 @@ export function purrinhaResult(vm) {
   el['purr-verdict'].textContent = vm.verdict.text;
   purrPhase('result');
   el['overlay-purrinha'].hidden = false;
+}
+
+// ---------- Dominó (pedras desenhadas com pips) ----------
+const DOM_PIPS = { 0: [], 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+function domHalf(n) {
+  const on = new Set(DOM_PIPS[n] || []);
+  let cells = '';
+  for (let i = 0; i < 9; i++) cells += `<i class="dp${on.has(i) ? ' on' : ''}"></i>`;
+  return `<span class="dom-half">${cells}</span>`;
+}
+function domTileHTML(a, b, extra) { return `<span class="dom-tile${extra ? ' ' + extra : ''}">${domHalf(a)}${domHalf(b)}</span>`; }
+let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolha de ponta
+export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }
+export function renderDomino(vm) {
+  el['dom-opps'].innerHTML = (vm.opponents || []).map((o) => `<span class="dom-opp${o.isTurn ? ' turn' : ''}">
+    <span class="dom-oav">${esc(o.avatar || '🍺')}</span><span class="dom-oname">${esc(o.name)}</span><span class="dom-ocount">🁫${o.count}</span></span>`).join('');
+  el['dom-board'].innerHTML = (vm.board || []).map((t) => domTileHTML(t.a, t.b)).join('') || '<span class="dom-empty">começando…</span>';
+  el['dom-board'].scrollLeft = el['dom-board'].scrollWidth;
+  el['dom-turn'].textContent = vm.turn || '';
+  el['dom-turn'].className = 'dom-turn' + (vm.myTurn ? ' mine' : '');
+  el['dom-hand'].innerHTML = (vm.hand || []).map((h) => {
+    const playable = h.sides.length > 0 && vm.myTurn;
+    return `<button class="dom-htile${playable ? '' : ' dim'}" data-key="${h.key}" data-sides="${h.sides.join('')}"${playable ? '' : ' disabled'}>${domTileHTML(h.a, h.b)}</button>`;
+  }).join('');
+  el['dom-hand'].querySelectorAll('.dom-htile').forEach((b) => b.addEventListener('click', () => {
+    const sides = (b.dataset.sides || '').split('').filter(Boolean);
+    if (!sides.length) return;
+    if (sides.length === 1) { H.onDomPlay(b.dataset.key, sides[0]); return; }
+    domArmed = b.dataset.key; // casa nas duas pontas → escolhe qual
+    el['dom-endL'].textContent = vm.ends[0]; el['dom-endR'].textContent = vm.ends[1];
+    el['dom-side-pick'].hidden = false;
+  }));
+  el['dom-side-pick'].hidden = true;
+  el['btn-dom-pass'].hidden = vm.over || !vm.canPass;
+  el['dom-hand-wrap'].hidden = !!vm.over;
+  el['dom-result'].hidden = !vm.over;
+  el['dom-result'].textContent = vm.over ? (vm.result || '') : '';
+  el['dom-result'].className = 'dom-result' + (vm.over && vm.iWon ? ' win' : '');
+  el['btn-dom-again'].hidden = !vm.over;
+  el['overlay-domino'].hidden = false;
 }
 
 // ---------- Jukebox ----------

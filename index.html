@@ -182,6 +182,7 @@
       <button class="menu-item" id="menu-board">🏆 Placar &amp; conquistas</button>
       <button class="menu-item" id="menu-roulette">🎰 Quem paga a próxima?</button>
       <button class="menu-item" id="menu-purrinha">🫲 Purrinha</button>
+      <button class="menu-item" id="menu-domino">🁫 Dominó</button>
       <button class="menu-item" id="menu-water">💧 Rodada de água</button>
       <button class="menu-item" id="menu-jukebox">🎵 Jukebox</button>
       <button class="menu-item" id="menu-festa">🎉 Modo festa</button>
@@ -643,6 +644,29 @@
       <div class="purr-verdict" id="purr-verdict"></div>
       <button class="btn btn-primary btn-lg" id="btn-purr-again">🫲 Jogar de novo</button>
     </div>
+  </div>
+</div>
+
+<!-- Dominó (P2P; mãos privadas, jogadas públicas) -->
+<div class="overlay" id="overlay-domino" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" id="btn-dom-close">✕</button>
+    <h2>🁫 Dominó</h2>
+    <div class="dom-opps" id="dom-opps"></div>
+    <div class="dom-turn" id="dom-turn"></div>
+    <div class="dom-board-wrap"><div class="dom-board" id="dom-board"></div></div>
+    <div id="dom-result" class="dom-result" hidden></div>
+    <div id="dom-hand-wrap">
+      <div class="dom-hand-lbl">Sua mão — toque pra jogar</div>
+      <div class="dom-hand" id="dom-hand"></div>
+      <div class="dom-side-pick" id="dom-side-pick" hidden>
+        <span>Jogar em qual ponta?</span>
+        <button class="btn btn-ghost" id="btn-dom-L">◀ <b id="dom-endL"></b></button>
+        <button class="btn btn-ghost" id="btn-dom-R"><b id="dom-endR"></b> ▶</button>
+      </div>
+      <button class="btn btn-ghost" id="btn-dom-pass" hidden>🚫 Passar a vez</button>
+    </div>
+    <button class="btn btn-primary btn-lg" id="btn-dom-again" hidden>🁫 Jogar de novo</button>
   </div>
 </div>
 

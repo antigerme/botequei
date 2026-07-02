@@ -661,3 +661,36 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
 .purr-verdict.win { color: var(--gold); background: rgba(244,177,60,.12); }
 .purr-verdict.lose { color: var(--danger); background: rgba(232,115,95,.12); }
 #btn-purr-again { margin-top: 14px; }
+
+/* ===================== Dominó ===================== */
+.dom-opps { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.dom-opp { display: flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px 10px; font-size: 14px; }
+.dom-opp.turn { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(244,177,60,.25); }
+.dom-oav { font-size: 16px; }
+.dom-ocount { font-family: var(--num); color: var(--gold); }
+.dom-turn { text-align: center; font-size: 18px; color: var(--muted); margin: 6px 0 10px; min-height: 22px; }
+.dom-turn.mine { color: var(--gold); }
+.dom-board-wrap { background: rgba(0,0,0,.16); border-radius: 12px; padding: 12px 8px; margin-bottom: 12px; }
+body.light .dom-board-wrap { background: rgba(120,90,50,.1); }
+.dom-board { display: flex; gap: 4px; align-items: center; overflow-x: auto; min-height: 44px; }
+.dom-empty { color: var(--muted); font-size: 14px; margin: 0 auto; }
+/* pedra desenhada: duas metades com pips */
+.dom-tile { display: inline-flex; background: #f3e7cc; border: 1px solid #6b5836; border-radius: 5px; flex: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.dom-half { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+  width: 24px; height: 24px; padding: 3px; gap: 1px; box-sizing: content-box; }
+.dom-half:first-child { border-right: 1px solid #8a7550; }
+.dp { border-radius: 50%; }
+.dp.on { background: #2a1e0a; }
+.dom-hand-lbl { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+.dom-hand { display: flex; flex-wrap: wrap; gap: 8px; }
+.dom-htile { padding: 2px; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; line-height: 0; }
+.dom-htile:not(.dim) { border-color: var(--gold); }
+.dom-htile.dim { opacity: .45; }
+.dom-htile .dom-half { width: 28px; height: 28px; } /* mão maior, mais fácil de tocar */
+.dom-side-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.dom-side-pick span { font-size: 14px; color: var(--muted); }
+.dom-result { text-align: center; font-size: 22px; padding: 16px; border-radius: 12px; background: var(--card); margin: 8px 0; }
+.dom-result.win { color: var(--gold); background: rgba(244,177,60,.12); }
+#btn-dom-pass { margin-top: 12px; }

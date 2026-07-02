@@ -1,8 +1,7 @@
-// E2E do dominó (2 navegadores reais, WebRTC): o dono da mesa distribui as mãos privadas (canal
-// direto — o oponente nunca vê), e os dois jogam uma partida INTEIRA até alguém bater ou trancar.
-// Como as mãos são aleatórias, o teste joga de forma adaptativa: na sua vez, lê as pedras que
-// encaixam no DOM e joga uma (ou passa). Prova o loop completo P2P: deal privado + jogadas
-// públicas + fim de jogo coerente nos dois lados.
+// E2E do dominó (navegadores reais, WebRTC): joga partidas INTEIRAS de 2 E 4 jogadores. O dono
+// distribui as mãos privadas (canal direto — oponente nunca vê), e todos jogam adaptativo (lêem
+// as pedras que encaixam no DOM) até bater/trancar. Prova o loop P2P completo com 2 e 4 pessoas:
+// deal privado + jogadas públicas + fim de jogo coerente em todos os aparelhos.
 //
 //   php -S 127.0.0.1:8000 &
 //   node tests/e2e-domino.mjs
@@ -14,6 +13,7 @@ import { chromium } from 'playwright-core';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 const CHROME = process.env.CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const T = 25000;
+const NAMES = ['Andre', 'Bia', 'Caio', 'Duda'];
 
 async function main() {
   const browser = await chromium.launch({
@@ -25,18 +25,12 @@ async function main() {
     await c.addInitScript((n) => localStorage.setItem('botequei.name', n), name);
     return c;
   };
-  const peers = (page, n) => page.waitForFunction((v) => document.getElementById('peer-count')?.textContent === v, String(n), { timeout: T });
-  const visible = (page, id) => page.waitForFunction((i) => { const e = document.getElementById(i); return e && !e.hidden; }, id, { timeout: T });
+  const vis = (page, id) => page.waitForFunction((i) => { const e = document.getElementById(i); return e && !e.hidden; }, id, { timeout: T });
   const isOver = (page) => page.evaluate(() => { const e = document.getElementById('dom-result'); return !!e && !e.hidden; });
   const turnText = (page) => page.evaluate(() => (document.getElementById('dom-turn')?.textContent || '').trim());
-  // joga uma pedra que encaixa (escolhe a esquerda se casar nas duas pontas) ou passa
   const act = async (page) => {
-    const tile = await page.$('.dom-htile:not(.dim):not([disabled])');
-    if (tile) {
-      await tile.click();
-      if (await page.$('#dom-side-pick:not([hidden])')) await page.click('#btn-dom-L');
-      return true;
-    }
+    const tile = await page.$('.dom-htile.can:not([disabled])');
+    if (tile) { await tile.click(); if (await page.$('#dom-side-pick:not([hidden])')) await page.click('#btn-dom-L'); return true; }
     const pass = await page.$('#btn-dom-pass:not([hidden])');
     if (pass) { await pass.click(); return true; }
     return false;
@@ -44,65 +38,62 @@ async function main() {
   const results = [];
   const step = async (name, fn) => { await fn(); console.log('  ✓ ' + name); results.push(name); };
 
-  const A = await mkCtx('Andre'); const pageA = await A.newPage();
-  await pageA.goto(BASE);
-  await pageA.waitForSelector('#screen-table.is-active', { timeout: T }).catch(() => {});
-  await pageA.click('#btn-create');
-  await pageA.waitForSelector('#screen-table.is-active', { timeout: T });
-  const code = (await pageA.textContent('#mesa-code')).trim();
-  await pageA.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+  async function playGame(N) {
+    const ctxs = [], pages = [];
+    for (let i = 0; i < N; i++) { const c = await mkCtx(NAMES[i]); ctxs.push(c); pages.push(await c.newPage()); }
+    const host = pages[0];
+    await host.goto(BASE);
+    await host.waitForSelector('#screen-home.is-active', { timeout: T });
+    await host.click('#btn-create');
+    await host.waitForSelector('#screen-table.is-active', { timeout: T });
+    const code = (await host.textContent('#mesa-code')).trim();
+    await host.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+    for (let i = 1; i < N; i++) { await pages[i].goto(BASE + '#/join?room=' + code); await pages[i].waitForSelector('#screen-table.is-active', { timeout: T }); }
+    // espera a malha ficar completa em TODOS os nós (cada um enxerga N na mesa)
+    await Promise.all(pages.map((p) => p.waitForFunction((n) => document.getElementById('peer-count')?.textContent === String(n), N, { timeout: T })));
 
-  const B = await mkCtx('Bia'); const pageB = await B.newPage();
-  await pageB.goto(BASE + '#/join?room=' + code);
-  await pageB.waitForSelector('#screen-table.is-active', { timeout: T });
-  await step('A e B conectam (peer-count = 2)', async () => { await Promise.all([peers(pageA, 2), peers(pageB, 2)]); });
+    await step(`${N}p: dominó abre em todos e o tabuleiro começa (abertura forçada)`, async () => {
+      await host.click('#btn-menu'); await host.click('#menu-domino');
+      await Promise.all(pages.map((p) => vis(p, 'overlay-domino')));
+      await Promise.all(pages.map((p) => p.waitForFunction(() => document.querySelectorAll('#dom-board .dom-tile').length >= 1, null, { timeout: T })));
+    });
 
-  await step('A abre o dominó e B recebe a mão (privada) e o tabuleiro', async () => {
-    await pageA.click('#btn-menu');
-    await pageA.click('#menu-domino');
-    await Promise.all([visible(pageA, 'overlay-domino'), visible(pageB, 'overlay-domino')]);
-    // a abertura forçada já colocou 1 pedra no tabuleiro nos dois
-    await pageA.waitForFunction(() => document.querySelectorAll('#dom-board .dom-tile').length >= 1, null, { timeout: T });
-    await pageB.waitForFunction(() => document.querySelectorAll('#dom-board .dom-tile').length >= 1, null, { timeout: T });
-  });
+    await step(`${N}p: mãos privadas — o host só vê a CONTAGEM dos oponentes`, async () => {
+      const counts = await host.$$eval('#dom-opps .dom-ocount', (els) => els.map((e) => e.textContent));
+      if (counts.length !== N - 1) throw new Error(`esperava ${N - 1} oponentes, vi ${counts.length}`);
+      if (!counts.every((c) => /\d/.test(c))) throw new Error('oponente sem contagem de pedras');
+    });
 
-  await step('mão privada: A não enxerga as pedras da Bia (só a contagem)', async () => {
-    // o oponente aparece como contagem "🁫 N", nunca como pedras de mão da Bia no aparelho do André
-    const oppCount = await pageA.evaluate(() => (document.querySelector('#dom-opps .dom-ocount')?.textContent || ''));
-    if (!/\d/.test(oppCount)) throw new Error('sem contagem de pedras do oponente');
-  });
-
-  await step('partida inteira: jogam adaptativo até bater/trancar (converge nos dois)', async () => {
-    let over = false;
-    for (let i = 0; i < 100 && !over; i++) {
-      if (await isOver(pageA) && await isOver(pageB)) { over = true; break; }
-      const tA = await turnText(pageA);
-      if (/Sua vez/.test(tA)) { await act(pageA); }
-      else {
-        const tB = await turnText(pageB);
-        if (/Sua vez/.test(tB)) { await act(pageB); }
+    await step(`${N}p: partida inteira até bater/trancar (converge em todos)`, async () => {
+      let over = false;
+      for (let i = 0; i < 240 && !over; i++) {
+        if ((await Promise.all(pages.map(isOver))).every(Boolean)) { over = true; break; }
+        let acted = false;
+        for (const p of pages) { if (/Sua vez/.test(await turnText(p))) { acted = await act(p); break; } }
+        await host.waitForTimeout(180);
+        if (!acted) await host.waitForTimeout(120);
       }
-      await pageA.waitForTimeout(220);
-    }
-    if (!over) {
-      // dá um tempinho final pra sincronizar o último lance
-      await pageA.waitForTimeout(600);
-      over = (await isOver(pageA)) && (await isOver(pageB));
-    }
-    if (!over) throw new Error('a partida não terminou nos dois aparelhos');
-  });
+      if (!over) { await host.waitForTimeout(800); over = (await Promise.all(pages.map(isOver))).every(Boolean); }
+      if (!over) throw new Error('a partida não terminou em todos os aparelhos');
+    });
 
-  await step('fim de jogo coerente: mesmo motivo e exatamente um vencedor ("Você")', async () => {
-    const rA = (await pageA.textContent('#dom-result')).trim();
-    const rB = (await pageB.textContent('#dom-result')).trim();
-    const reason = (s) => (/bateu/.test(s) ? 'batida' : (/[Tt]rancou/.test(s) ? 'trancou' : '?'));
-    if (reason(rA) === '?' || reason(rA) !== reason(rB)) throw new Error(`motivo divergente: A="${rA}" B="${rB}"`);
-    const winA = /Você/.test(rA), winB = /Você/.test(rB);
-    if (winA === winB) throw new Error(`vencedor inconsistente: A="${rA}" B="${rB}"`); // exatamente um "Você"
-  });
+    await step(`${N}p: fim coerente — mesmo motivo e exatamente um vencedor ("Você")`, async () => {
+      const res = await Promise.all(pages.map((p) => p.textContent('#dom-result').then((s) => s.trim())));
+      const reason = (s) => (/bateu/.test(s) ? 'batida' : (/[Tt]rancou/.test(s) ? 'trancou' : '?'));
+      const reasons = res.map(reason);
+      if (reasons.some((r) => r === '?') || new Set(reasons).size !== 1) throw new Error(`motivo divergente: ${JSON.stringify(res)}`);
+      const winners = res.filter((s) => /Você/.test(s)).length;
+      if (winners !== 1) throw new Error(`esperava exatamente 1 vencedor, vi ${winners}: ${JSON.stringify(res)}`);
+    });
+
+    for (const c of ctxs) await c.close();
+  }
+
+  await playGame(2);
+  await playGame(4);
 
   await browser.close();
-  console.log(`\n${results.length} verificações do dominó passaram ✅`);
+  console.log(`\n${results.length} verificações do dominó (2p + 4p) passaram ✅`);
 }
 
 main().catch((e) => { console.error('❌ e2e-domino falhou:', e.message); process.exit(1); });

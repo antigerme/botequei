@@ -44,7 +44,10 @@ em pt-BR).
   p/ ITEM/PROFILE/TABLE/HAPPYHOUR/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
   O `PROFILE` também leva o **nível** (liga) pra galera ver no placar. `SONG` (jukebox) **acumula**
   (não é LWW) — a fila de músicas da mesa.
-- **Efeitos efêmeros (não entram no log)** via `mesh.sendFx` → `onFx`: brinde, reação, **roleta**
+- **Efeitos efêmeros (não entram no log)** via `mesh.sendFx` → `onFx`. Os de **jogo** (dominó/
+  purrinha) levam `mid` e são **repassados com dedup** (gossip via `gameFx`/`seenFx`) pra toda
+  jogada chegar em todos mesmo se a malha não estiver completa (4 pessoas = 6 links); os demais
+  (reações etc.) são disparo único. Tipos: brinde, reação, **roleta**
   ("quem paga a próxima" — o iniciador sorteia e manda `{entrants,winner}`, todos animam igual e
   convergem), **cutucar/desafiar** (`to`/`from`, só o alvo reage), **cerimônia** (mostrar troféus
   pra mesa), **chamar o garçom** (`waiter`), **rodada de água** (`water`) e **carta da mesa**

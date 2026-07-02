@@ -14,6 +14,7 @@ import { levelFor, weeklyChallenges, seasonAward } from './league.js';
 import { mergeNight, rankTournament } from './tournament.js';
 import { pickCard } from './deck.js';
 import { clampHand, maxGuess as purrMax, randomNonce, makeCommit, verifyReveal, resolve as purrResolve } from './purrinha.js';
+import { dealHands, opening, legalMoves, place, pipCount, tileKey as domKey, rngFrom } from './domino.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
@@ -268,6 +269,13 @@ function onFx(fx) {
     else if (fx.ph === 'reveal') onPurrReveal(fx);
     else if (fx.ph === 'cancel') { if (purr && purr.gameId === fx.gameId && purr.phase !== 'revealed') { purr = null; ui.closeOverlays(); ui.toast('🫲 Purrinha cancelada'); } }
   }
+  else if (fx.kind === 'domino') {
+    if (fx.ph === 'deal') { if (!dom || dom.gameId !== fx.gameId) beginDomino(fx); }
+    else if (fx.ph === 'play') onDomPlay(fx);
+    else if (fx.ph === 'pass') onDomPass(fx);
+    else if (fx.ph === 'reveal') onDomReveal(fx);
+    else if (fx.ph === 'cancel') { if (dom && dom.gameId === fx.gameId && !dom.over) { dom = null; ui.closeOverlays(); ui.toast('🁫 Dominó cancelado'); } }
+  }
 }
 
 // Mãos livres: chacoalhar o celular soma +1 (do item mais consumido). Cooldown + guarda.
@@ -495,7 +503,7 @@ function leaveTable() {
   room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false;
   lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastNudge = 0; lastAwards = [];
   prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set(); concernAt = new Map();
-  purr = null;
+  purr = null; dom = null;
   ui.setHappyHour(null);
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
@@ -746,6 +754,108 @@ function cancelPurrinha(broadcast) {
   purr = null;
 }
 
+// ---- Dominó (P2P; MÃOS privadas via canal direto `sendTo`, JOGADAS públicas e validadas) ----
+let dom = null;
+function domEntrants() { const out = [self]; if (mesh) for (const p of mesh.peers()) if (p.online) out.push(p.user); return out; }
+function domName(id) { return id === self ? (getName() || 'você') : (profOf(id).name || 'alguém'); }
+function cryptoSeed() { try { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0]; } catch { return Date.now() >>> 0; } }
+
+function startDomino() {
+  if (!room) { ui.toast('Entre numa mesa 🙂'); return; }
+  const order = domEntrants();
+  if (order.length < 2) { ui.toast('Precisa de 2 a 4 na mesa 🁫'); return; }
+  if (order.length > 4) { ui.toast('Dominó é de 2 a 4 pessoas 🙂'); return; }
+  const gameId = 'd' + cryptoSeed();
+  const { hands } = dealHands(order.length, rngFrom(cryptoSeed())); // o dono da mesa embaralha
+  const op = opening(hands);
+  const starter = order[op.player];
+  const counts = {}; order.forEach((id, i) => { counts[id] = hands[i].length; });
+  const pub = { kind: 'domino', ph: 'deal', gameId, order, starter, firstTile: op.tile, counts };
+  // entrega a mão de cada um SÓ pra ele (canal direto); os oponentes nunca veem
+  if (mesh) order.forEach((id, i) => { if (id !== self) mesh.sendTo(id, { k: 'fx', fx: { ...pub, hand: hands[i] } }); });
+  beginDomino({ ...pub, hand: hands[order.indexOf(self)] });
+}
+function beginDomino(d) {
+  const order = d.order;
+  dom = {
+    gameId: d.gameId, players: order.length, order, idxOf: new Map(order.map((id, i) => [id, i])),
+    chain: [], ends: [null, null], counts: { ...d.counts }, myHand: (d.hand || []).map((t) => t.slice()),
+    turnIdx: 0, passes: 0, over: false, winner: null, reason: null, phase: 'play', reveals: new Map(),
+  };
+  domApplyPlay(d.starter, d.firstTile, 'L'); // abertura forçada (maior carroça)
+  ui.openDomino();
+  renderDom();
+}
+function domApplyPlay(fromId, tile, side) {
+  if (!dom || dom.over) return false;
+  const placed = place(dom.chain, dom.ends, tile, side);
+  if (!placed) return false; // jogada ilegal — ignora (jogada pública não confia no remetente)
+  dom.chain = placed.chain; dom.ends = placed.ends; dom.passes = 0;
+  dom.counts[fromId] = Math.max(0, (dom.counts[fromId] || 0) - 1);
+  if (fromId === self) { const k = domKey(tile); const i = dom.myHand.findIndex((t) => domKey(t) === k); if (i >= 0) dom.myHand.splice(i, 1); }
+  if (dom.counts[fromId] <= 0) { dom.over = true; dom.winner = fromId; dom.reason = 'batida'; }
+  else dom.turnIdx = (dom.idxOf.get(fromId) + 1) % dom.players;
+  return true;
+}
+function domApplyPass(fromId) {
+  if (!dom || dom.over) return;
+  dom.passes += 1;
+  if (dom.passes >= dom.players) domBlocked();
+  else dom.turnIdx = (dom.idxOf.get(fromId) + 1) % dom.players;
+}
+function domBlocked() {
+  if (!dom || dom.phase === 'reveal') return;
+  dom.phase = 'reveal';
+  dom.reveals.set(self, dom.myHand.slice());
+  if (mesh) mesh.sendFx({ kind: 'domino', ph: 'reveal', gameId: dom.gameId, from: self, hand: dom.myHand });
+  domResolveBlock();
+}
+function domResolveBlock() {
+  if (!dom || dom.over) return;
+  if (!dom.order.every((id) => dom.reveals.has(id))) return; // espera todo mundo mostrar a mão
+  let winner = null, best = Infinity;
+  for (const id of dom.order) { const c = pipCount(dom.reveals.get(id)); if (c < best) { best = c; winner = id; } }
+  dom.over = true; dom.winner = winner; dom.reason = 'trancou';
+  renderDom(); domCelebrate();
+}
+function onDomPlay(fx) { if (!dom || fx.gameId !== dom.gameId) return; domApplyPlay(fx.from, fx.tile, fx.side); renderDom(); domCelebrate(); if (fx.from !== self) sound.pop(); }
+function onDomPass(fx) { if (!dom || fx.gameId !== dom.gameId) return; if (fx.from !== self) ui.toast(`🁫 ${domName(fx.from)} passou`); domApplyPass(fx.from); renderDom(); domCelebrate(); }
+function onDomReveal(fx) { if (!dom || fx.gameId !== dom.gameId) return; dom.reveals.set(fx.from, fx.hand || []); if (dom.phase !== 'reveal') domBlocked(); domResolveBlock(); }
+function myDomPlay(key, side) {
+  if (!dom || dom.over || dom.order[dom.turnIdx] !== self) { ui.toast('Calma, não é sua vez 🙂'); return; }
+  const tile = dom.myHand.find((t) => domKey(t) === key);
+  if (!tile || !place(dom.chain, dom.ends, tile, side)) { ui.toast('Essa não encaixa aí 🙂'); return; }
+  if (mesh) mesh.sendFx({ kind: 'domino', ph: 'play', gameId: dom.gameId, from: self, tile, side });
+  domApplyPlay(self, tile, side); sound.pop(); renderDom(); domCelebrate();
+}
+function myDomPass() {
+  if (!dom || dom.over || dom.order[dom.turnIdx] !== self) return;
+  if (legalMoves(dom.myHand, dom.ends).length) { ui.toast('Você tem encaixe — não pode passar'); return; }
+  if (mesh) mesh.sendFx({ kind: 'domino', ph: 'pass', gameId: dom.gameId, from: self });
+  domApplyPass(self); renderDom(); domCelebrate();
+}
+function domCelebrate() {
+  if (!dom || !dom.over || dom.cheered) return;
+  dom.cheered = true;
+  if (dom.winner === self) { sound.cheers(); ui.celebrate(['🁫', '🎉', '🍻', '🏆']); } else { sound.alarm(); ui.vibrate([80, 40, 80]); }
+}
+function renderDom() {
+  if (!dom) return;
+  const myTurn = !dom.over && dom.order[dom.turnIdx] === self;
+  const moves = myTurn ? legalMoves(dom.myHand, dom.ends) : [];
+  const sidesByKey = new Map();
+  for (const m of moves) { const k = domKey(m.tile); if (!sidesByKey.has(k)) sidesByKey.set(k, []); sidesByKey.get(k).push(m.side); }
+  const hand = dom.myHand.map((t) => ({ key: domKey(t), a: t[0], b: t[1], sides: sidesByKey.get(domKey(t)) || [] }));
+  const opponents = dom.order.filter((id) => id !== self).map((id) => ({ name: domName(id), avatar: profOf(id).emoji, count: dom.counts[id] || 0, isTurn: !dom.over && dom.order[dom.turnIdx] === id }));
+  let result = null;
+  if (dom.over) { const wn = dom.winner === self ? 'Você' : domName(dom.winner); result = dom.reason === 'batida' ? `${wn} bateu! 🁫` : `Trancou 🔒 — ${wn} fez menos pontos`; }
+  ui.renderDomino({
+    board: dom.chain.map((t) => ({ a: t[0], b: t[1] })), ends: dom.ends, hand, opponents,
+    turn: dom.over ? '' : (myTurn ? 'Sua vez!' : `Vez de ${domName(dom.order[dom.turnIdx])}`),
+    myTurn, canPass: myTurn && moves.length === 0, over: dom.over, iWon: dom.winner === self, result,
+  });
+}
+
 // ---- Cutucar / desafiar ----
 function openPokeFor(user) {
   const items = ['dose', 'cerveja', 'drink'].map((id) => { const d = resolveItem(id); return { id, emoji: d.emoji, name: d.name }; });
@@ -916,6 +1026,10 @@ const handlers = {
   onPurrinha: startPurrinha,
   onPurrSeal: (hand, guess) => purrSeal(hand, guess),
   onPurrCancel: () => cancelPurrinha(true),
+  onDomino: startDomino,
+  onDomPlay: (key, side) => myDomPlay(key, side),
+  onDomPass: myDomPass,
+  onDomCancel: () => { if (dom && !dom.over && mesh) mesh.sendFx({ kind: 'domino', ph: 'cancel', gameId: dom.gameId }); dom = null; },
   onPoke: openPokeFor,
   onPokeSend: sendPoke,
   onCeremony: openCeremony,

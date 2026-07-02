@@ -947,11 +947,13 @@ async function hostDealVerified() {
   const op = opening(hands);
   const counts = {}, handCommits = {}, salts = {};
   for (let k = 0; k < dv.order.length; k++) { counts[dv.order[k]] = hands[k].length; salts[k] = randomNonce(); handCommits[dv.order[k]] = await handCommit(hands[k], salts[k]); }
-  const pub = { kind: 'domino', ph: 'vdeal', gameId: dv.gameId, order: dv.order, starter: dv.order[op.player], firstTile: op.tile, counts, deckCommit: dv.deckCommit, handCommits };
+  // vdeal carrega os seeds/lacres (autoritativo, completo) — a auditoria fica auto-contida e não
+  // depende do que cada peer juntou do gossip; o cross-check vs o que o peer coletou pega adulteração.
+  const pub = { kind: 'domino', ph: 'vdeal', gameId: dv.gameId, order: dv.order, starter: dv.order[op.player], firstTile: op.tile, counts, deckCommit: dv.deckCommit, handCommits, seeds: dv.seeds, seedCommits: dv.seedCommits };
   gameFx(pub);
   for (let k = 0; k < dv.order.length; k++) {
     const id = dv.order[k];
-    if (id === self) beginDomino({ ...pub, hand: hands[k], verified: true, isHost: true, vinfo: { deckCommit: dv.deckCommit, handCommits, mySalt: salts[k], deck: dv.deck, salt: dv.salt } });
+    if (id === self) beginDomino({ ...pub, hand: hands[k], verified: true, isHost: true, vinfo: { deckCommit: dv.deckCommit, handCommits, seeds: dv.seeds, seedCommits: dv.seedCommits, mySalt: salts[k], deck: dv.deck, salt: dv.salt } });
     else if (mesh) mesh.sendTo(id, { k: 'fx', fx: { kind: 'domino', ph: 'vhand', gameId: dv.gameId, hand: hands[k], salt: salts[k] } });
   }
 }
@@ -962,7 +964,7 @@ async function tryBeginVerified() {
   dv.began = true;
   const d = dv.deal;
   if ((await handCommit(dv.hand, dv.mySalt)) !== d.handCommits[self]) ui.toast('🚫 Sua mão não bate com o lacre da mesa!');
-  beginDomino({ ...d, hand: dv.hand, verified: true, isHost: false, vinfo: { deckCommit: d.deckCommit, handCommits: d.handCommits, mySalt: dv.mySalt } });
+  beginDomino({ ...d, hand: dv.hand, verified: true, isHost: false, vinfo: { deckCommit: d.deckCommit, handCommits: d.handCommits, seeds: d.seeds, seedCommits: d.seedCommits, mySalt: dv.mySalt } });
 }
 // No fim: cada um revela a mão INICIAL que recebeu; o dono revela o baralho; todos auditam.
 function domStartAudit() {
@@ -977,13 +979,19 @@ function onVopen(fx) { if (!dom || dom.gameId !== fx.gameId) return; dom.reveale
 function onVopenhand(fx) { if (!dom || dom.gameId !== fx.gameId) return; dom.opens[fx.from] = { hand: fx.hand, salt: fx.salt }; domStartAudit(); tryAudit(); }
 async function tryAudit() {
   if (!dom || !dom.verified || dom.audit || !dom.revealedDeck) return;
-  if (!dom.order.every((id) => dom.opens[id])) return;
-  if (!dv || !dom.order.every((id) => dv.seeds[id] && dv.seedCommits[id])) return; // espera todos os seeds
+  if (!dom.order.every((id) => dom.opens[id])) return; // espera o baralho + todas as mãos reveladas
+  const fail = (reason) => { dom.audit = { ok: false, reason }; renderDom(); ui.toast('🚫 ' + reason); };
+  const seeds = dom.vinfo.seeds || {}, seedCommits = dom.vinfo.seedCommits || {};
+  // cross-check (best-effort): os seeds/lacres do vdeal batem com os que EU coletei direto no handshake?
+  if (dv) for (const id of dom.order) {
+    if (dv.seedCommits && dv.seedCommits[id] && dv.seedCommits[id] !== seedCommits[id]) return fail(`o dono trocou o lacre de seed de ${domName(id)}`);
+    if (dv.seeds && dv.seeds[id] && dv.seeds[id] !== seeds[id]) return fail(`o dono trocou o seed de ${domName(id)}`);
+  }
   for (const id of dom.order) { // cada um revelou a mesma mão que lacrou?
-    if ((await handCommit(dom.opens[id].hand, dom.opens[id].salt)) !== dom.vinfo.handCommits[id]) { dom.audit = { ok: false, reason: `${domName(id)} revelou mão diferente do lacre` }; renderDom(); return; }
+    if ((await handCommit(dom.opens[id].hand, dom.opens[id].salt)) !== dom.vinfo.handCommits[id]) return fail(`${domName(id)} revelou mão diferente do lacre`);
   }
   const initialHands = dom.order.map((id) => dom.opens[id].hand);
-  dom.audit = await verifyDeal({ deck: dom.revealedDeck, salt: dom.revealedSalt, deckCommit: dom.vinfo.deckCommit, seeds: dv.seeds, seedCommits: dv.seedCommits, players: dom.order.length, initialHands });
+  dom.audit = await verifyDeal({ deck: dom.revealedDeck, salt: dom.revealedSalt, deckCommit: dom.vinfo.deckCommit, seeds, seedCommits, players: dom.order.length, initialHands });
   renderDom();
   ui.toast(dom.audit.ok ? '🔒✅ Mesa auditada — embaralho limpo!' : `🚫 ${dom.audit.reason}`);
 }

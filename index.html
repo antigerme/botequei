@@ -74,9 +74,11 @@
     </header>
 
     <div class="conn-banner" id="conn-banner" hidden></div>
+    <div class="hh-banner" id="hh-banner" hidden></div>
 
     <div class="totals">
       <div class="total-hero">
+        <div class="hero-fill" id="hero-fill"></div>
         <span class="total-cap">a mesa mandou</span>
         <span class="total-num" id="table-total">0</span>
       </div>
@@ -166,6 +168,7 @@
       <button class="menu-item" id="menu-prices">💲 Preços do cardápio</button>
       <button class="menu-item" id="menu-share">📸 Compartilhar a noite</button>
       <button class="menu-item" id="menu-bebedeira">🥴 Modo bebedeira</button>
+      <button class="menu-item" id="menu-hh">⏰ Happy hour</button>
       <button class="menu-item" id="menu-settings">⚙️ Configurações</button>
     </div>
   </div>
@@ -276,6 +279,20 @@
     <button class="sheet-close" data-close>✕</button>
     <h2>Mandar reação</h2>
     <div class="react-row" id="react-row"></div>
+  </div>
+</div>
+
+<!-- Happy hour -->
+<div class="overlay" id="overlay-hh" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>⏰ Happy hour</h2>
+    <p class="sheet-sub">Uma janela pra mesa mandar ver — todo mundo vê o cronômetro e quantas rodadas rolaram.</p>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" data-min="15">15 min</button>
+      <button class="btn btn-ghost" data-min="30">30 min</button>
+      <button class="btn btn-primary" data-min="60">60 min</button>
+    </div>
   </div>
 </div>
 

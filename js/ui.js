@@ -187,6 +187,8 @@ export function renderTable(vm) {
     });
     lastIds = ids;
   }
+  let topId = null, topQ = 0;
+  for (const it of vm.items) { const q = Number(it.qty) || 0; if (q > topQ) { topQ = q; topId = it.id; } }
   for (const it of vm.items) {
     const card = el['items-grid'].querySelector(`[data-item="${cssq(it.id)}"]`);
     if (!card) continue;
@@ -194,6 +196,8 @@ export function renderTable(vm) {
     card.querySelector('.item-name').textContent = it.name;
     card.querySelector('.item-qty').textContent = it.qty;
     card.querySelector('.item-sub').textContent = it.sub;
+    card.toggleAttribute('data-zero', (Number(it.qty) || 0) === 0);
+    card.classList.toggle('hot', it.id === topId && topQ > 0);
   }
 }
 function cardHTML(it) {

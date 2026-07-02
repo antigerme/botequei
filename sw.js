@@ -1,10 +1,12 @@
 // Service worker do Botequei — cache do "app shell" para abrir offline e instalar como PWA.
 // Importante: nunca intercepta o signaling.php nem requisicoes que nao sejam GET.
-const CACHE = 'botequei-v5';
+const CACHE = 'botequei-v6';
 const SHELL = [
   './',
   'index.html',
   'styles.css',
+  'fonts/anton-latin.woff2',
+  'fonts/patrickhand-latin.woff2',
   'manifest.webmanifest',
   'icons/icon.svg',
   'icons/icon-192.png',

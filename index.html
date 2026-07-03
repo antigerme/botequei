@@ -104,6 +104,9 @@
 
     <button class="btn btn-ghost btn-additem" id="btn-additem">+ item personalizado</button>
 
+    <!-- jogo minimizado (✕ não cancela mais): toque pra voltar pra partida rolando -->
+    <button class="game-pill" id="game-pill" hidden></button>
+
     <div class="action-bar">
       <button class="chip" id="btn-games">🎮 Jogos</button>
       <button class="chip" id="btn-brinde">🥂 Brinde</button>
@@ -669,6 +672,9 @@
       <div class="purr-verdict" id="purr-verdict"></div>
       <button class="btn btn-primary btn-lg" id="btn-purr-again" hidden>🫲 Jogar de novo</button>
     </div>
+
+    <!-- ✕ só minimiza; encerrar pra mesa toda é ação explícita (com confirmação) -->
+    <button class="btn btn-ghost game-end" id="btn-purr-end" hidden>🛑 Encerrar a partida pra mesa toda</button>
   </div>
 </div>
 
@@ -696,6 +702,9 @@
       </div>
       <button class="btn btn-primary btn-lg" id="btn-dom-again" hidden>🁫 Jogar de novo</button>
     </div>
+
+    <!-- ✕ só minimiza; encerrar pra mesa toda é ação explícita (com confirmação) -->
+    <button class="btn btn-ghost game-end" id="btn-dom-end" hidden>🛑 Encerrar a partida pra mesa toda</button>
   </div>
 </div>
 

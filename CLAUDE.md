@@ -68,11 +68,18 @@ em pt-BR).
 - **Dominó (jogo P2P)** (`js/domino.js`, puro): dobra-seis de boteco (sem compra). As **mãos são
   privadas** — o dono da mesa embaralha e entrega a mão de cada um **só pra ele** via canal direto
   (`mesh.sendTo(id, {k:'fx',fx})`, não pelo broadcast); as **jogadas são públicas** (`kind:'domino'`,
-  fases `deal`/`play`/`pass`/`reveal`/`cancel`) e **todo peer valida** com `legalMoves`/`place` (o
-  tabuleiro é reconstruído igual em todos). Bate quem esvazia a mão; se trancar (todos passam), cada
-  um revela a mão e ganha a menor soma (`pipCount`). Trust: só o embaralho confia em quem dá as
-  cartas (igual na vida real); durante a partida, trapaça não cola. Pedras desenhadas com pips no
-  `ui.js` (carroça atravessada; tabuleiro quebra linha, sem scroll). Efêmero, não entra no log.
+  fases `deal`/`play`/`pass`/`skip`/`reveal`/`noshow`/`cancel`) e **todo peer valida** com
+  `legalMoves`/`place` (o tabuleiro é reconstruído igual em todos). Bate quem esvazia a mão; se
+  trancar (todos passam), cada um revela a mão e ganha a menor soma (`pipCount`). **Ausente não
+  trava**: dono da vez offline por 20s → o peer online de menor id emite `skip` (vira passe; aceito
+  só se a vez ainda é dele → converge); tranca sem a mão de quem caiu → `noshow` apura entre as
+  abertas; auditoria/handshake têm teto (badge "incompleta" / dono re-embaralha). Trust: só o
+  embaralho confia em quem dá as cartas (igual na vida real); durante a partida, trapaça não cola.
+  Pedras desenhadas com pips no `ui.js` (carroça atravessada; tabuleiro quebra linha, sem scroll).
+  Efêmero, não entra no log — e **fechar (✕) só minimiza**: o jogo segue, um pill na mesa traz de
+  volta; encerrar pra todos é botão explícito com confirmação (o `cancel` leva `from` → toast diz
+  quem encerrou). Consumo/conta de quem saiu não mudam: eventos são CRDT permanentes (a pessoa
+  segue na conta; PAYFOR cobre; voltando no mesmo aparelho, reassume a identidade).
 - **Mesa verificada** (sempre ativa — o dominó abre direto nela; as regras do jogo não mudam,
   só o embaralho é auditável): endurece o embaralho do dominó com
   **commit-to-deck + corte coletivo** (`verifyDeal` em `domino.js`, puro/testado). Handshake antes
@@ -91,8 +98,11 @@ em pt-BR).
   ao `sound.js` — + `spectrum()` pro visualizador do "modo festa"). "Cuida do fulano" deriva o ritmo
   de um peer do log compartilhado (`paceInfo`, sem expor BAC); "me leva pra casa" usa GPS → WhatsApp.
 - **Presença ao vivo**: `render()` desenha a barra de avatares (self + peers, `mesh.peers()`);
-  `onMeshChange` faz o diff de quem entrou/saiu (toast) e o placar mostra a qualidade da conexão
-  por pessoa (host/srflx/relay). Tocar num nome no placar abre a **comanda** daquela pessoa.
+  `onMeshChange` faz o diff de quem entrou/saiu com **histerese** (`diffPresence`): quem some entra
+  em 45s de graça (fica 💤 esmaecido na barra, sem toast) — tela apagada/elevador não vira "saiu";
+  só depois da graça toasta "👋 saiu" (e "🙌 voltou" na volta); "entrou!" só na 1ª vez da sessão.
+  O placar mostra a qualidade da conexão por pessoa (host/srflx/relay). Tocar num nome no placar
+  abre a **comanda** daquela pessoa.
 - **Cardápio por categoria**: `catalog.js` (`cat` + `CATEGORIES`/`catOf`); itens custom levam
   `cat`/`note` no def do evento `ITEM` (⚠️ ao editar preço, faça `makeItem({...it, price})` pra
   não perder `g`/`cat`/`note`).

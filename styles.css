@@ -178,6 +178,24 @@ body::after {
   border-radius: 14px; padding: 13px 6px; font-size: 17px; font-family: var(--hand); cursor: pointer;
   backdrop-filter: blur(2px); }
 .chip:active { transform: scale(.96); }
+
+/* Pill de jogo minimizado: a partida segue rolando; um toque traz de volta.
+   O pulso é só de brilho (sem mexer na geometria — alvo de toque parado). */
+.game-pill { position: sticky; z-index: 3; bottom: calc(74px + var(--safe-b)); display: block;
+  margin: 10px auto 0; max-width: 100%; background: var(--gold); color: #241400; border: none;
+  border-radius: 999px; padding: 11px 18px; font-family: var(--hand); font-size: 16px; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .4); animation: pill-glow 2.2s ease-in-out infinite; }
+.game-pill.urgent { background: var(--danger); color: #fff; } /* SUA VEZ */
+.game-pill:active { transform: scale(.97); }
+@keyframes pill-glow {
+  0%, 100% { box-shadow: 0 6px 18px rgba(0, 0, 0, .4); filter: brightness(1); }
+  50% { box-shadow: 0 6px 26px rgba(244, 177, 60, .55); filter: brightness(1.12); }
+}
+@media (prefers-reduced-motion: reduce) { .game-pill { animation: none; } }
+
+/* "Encerrar a partida" dentro dos jogos (ação explícita; o ✕ só minimiza) */
+.game-end { width: 100%; margin-top: 12px; color: var(--danger); border-color: rgba(232, 115, 95, .55); }
+
 /* atalho de jogos (picker rápido da mesa) */
 .games-grid { display: grid; gap: 10px; }
 .game-pick { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
@@ -472,8 +490,10 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 /* Barra de presença (avatares de quem está na mesa) */
 .presence-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; cursor: pointer; }
 .pres-av { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 15px;
-  box-shadow: 0 0 0 1.5px rgba(242, 234, 214, .4); flex: none; }
-.pres-av.off { filter: grayscale(1); opacity: .45; }
+  box-shadow: 0 0 0 1.5px rgba(242, 234, 214, .4); flex: none; position: relative; }
+/* tela apagada / caiu há pouco: esmaece com 💤 em vez de sumir da barra */
+.pres-av.zz { filter: grayscale(1); opacity: .5; }
+.pres-av .zz-b { position: absolute; right: -5px; bottom: -5px; font-size: 11px; font-style: normal; filter: none; }
 
 /* Seções do menu */
 .menu-sec { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin: 14px 2px 2px; }

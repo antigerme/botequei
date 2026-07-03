@@ -54,6 +54,11 @@ export function removeHistory(room) {
   localStorage.removeItem(K_LOG(room));
 }
 
+// ---- Flags de primeira vez (welcome 1×, tour guiado da 1ª mesa) ----
+const K_FLAGS = 'botequei.flags';
+export function getFlag(name) { const v = readJSON(K_FLAGS, {}); return !!(v && v[name]); }
+export function setFlag(name) { const v = readJSON(K_FLAGS, {}) || {}; v[name] = Date.now(); writeJSON(K_FLAGS, v); }
+
 // ---- Modo bar: cardápio salvo (itens + preços) pra reusar em novas mesas ----
 const K_BARMENU = 'botequei.barmenu';
 export function saveBarMenu(defs) { writeJSON(K_BARMENU, Array.isArray(defs) ? defs : []); }

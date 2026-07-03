@@ -53,6 +53,7 @@ const IDS = [
   'dom-opps', 'dom-turn', 'dom-board', 'dom-result',
   'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
   'btn-dom-pass', 'btn-dom-again', 'btn-dom-end', 'game-pill',
+  'tour', 'tour-spot', 'tour-balloon', 'tour-count', 'tour-title', 'tour-text', 'btn-tour-skip', 'btn-tour-next',
   'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
   'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
   'overlay-welcome', 'btn-welcome-go',
@@ -207,6 +208,10 @@ export function init(handlers) {
   el['btn-dom-close'].addEventListener('click', () => H.onDomClose());
   el['btn-dom-end'].addEventListener('click', () => H.onDomEnd());
   el['game-pill'].addEventListener('click', () => H.onGameBack());
+  // tour: tocar em qualquer lugar avança; "pular" encerra
+  el['tour'].addEventListener('click', () => tourNext());
+  el['btn-tour-next'].addEventListener('click', (e) => { e.stopPropagation(); tourNext(); });
+  el['btn-tour-skip'].addEventListener('click', (e) => { e.stopPropagation(); endTour(); });
   el['btn-dom-L'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'L'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-dom-R'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'R'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-passport-checkin'].addEventListener('click', () => H.onCheckin(el['passport-name'].value));
@@ -998,8 +1003,40 @@ export function openComanda(vm) {
   el['overlay-comanda'].hidden = false;
 }
 
-// ---------- Aviso de nova versão (service worker) ----------
-export function showUpdate(cb) { actionToast('🆕 Nova versão do Botequei!', 'Atualizar', cb, 60000); }
+// ---------- Tour guiado da primeira mesa (spotlight + balão; leve, sem lib) ----------
+let tourSteps = null, tourIdx = 0;
+export function startTour(steps) {
+  tourSteps = Array.isArray(steps) && steps.length ? steps : null;
+  tourIdx = 0;
+  renderTourStep();
+}
+function endTour() { tourSteps = null; el['tour'].hidden = true; }
+function tourNext() { tourIdx++; renderTourStep(); }
+function renderTourStep() {
+  const st = tourSteps && tourSteps[tourIdx];
+  if (!st) { endTour(); return; }
+  const target = document.querySelector(st.sel);
+  if (!target) { tourIdx++; renderTourStep(); return; } // âncora não existe: segue o baile
+  target.scrollIntoView({ block: 'center' });
+  requestAnimationFrame(() => {
+    if (!tourSteps) return;
+    const r = target.getBoundingClientRect();
+    const spot = el['tour-spot'];
+    spot.style.left = (r.left - 8) + 'px';
+    spot.style.top = (r.top - 8) + 'px';
+    spot.style.width = (r.width + 16) + 'px';
+    spot.style.height = (r.height + 16) + 'px';
+    el['tour-count'].textContent = `${tourIdx + 1}/${tourSteps.length}`;
+    el['tour-title'].textContent = st.title || '';
+    el['tour-text'].textContent = st.text || '';
+    el['btn-tour-next'].textContent = tourIdx + 1 >= tourSteps.length ? 'Bora! 🍻' : 'Próximo →';
+    const bal = el['tour-balloon'];
+    bal.style.top = ''; bal.style.bottom = '';
+    if (r.top > window.innerHeight / 2) bal.style.bottom = (window.innerHeight - r.top + 16) + 'px'; // balão acima do alvo
+    else bal.style.top = (r.bottom + 16) + 'px';                                                     // ou abaixo
+    el['tour'].hidden = false;
+  });
+}
 
 // ---------- Tô de boa? (segurança) ----------
 export function openSafe(vm) {

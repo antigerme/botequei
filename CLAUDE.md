@@ -120,8 +120,10 @@ em pt-BR).
   (`resolveTheme`/`applyTheme` em `ui.js`, paletas via CSS vars em `body.neon`/`body.retro`);
   **molduras** de avatar por nível da liga (`frameClass` → `.fr-silver`/`.fr-gold`); **passaporte**
   de botecos (`store.getCheckins`/`addCheckin` — check-in local, GPS opcional, só no aparelho);
-  **foto da noite** (só preview/compartilhar via Web Share — nada é salvo/enviado) e **guia de
-  boas-vindas** no 1º uso (sem nome nem histórico e sem convite pendente).
+  **foto da noite** (só preview/compartilhar via Web Share — nada é salvo/enviado); **guia de
+  boas-vindas** no 1º uso (sem nome/histórico/convite; 1× só — flag `welcomeSeen` no
+  `store.getFlag`/`setFlag`) e **tour guiado** de 4 paradas na 1ª mesa (`ui.startTour`, flag
+  `tourSeen`; spotlight + balão, avança no toque, "pular" sempre à mão).
 - **Persistência:** só `localStorage` (`js/store.js`; histórico por mesa com meus itens, gasto,
   duração e **`mates`** — quem estava na mesa, p/ o "com quem você mais bebeu"; `exportAll`/
   `importAll` = backup JSON; `saveBarMenu`/`getBarMenu` = cardápio do bar;
@@ -172,6 +174,10 @@ em pt-BR).
   (`pt`/`en`/`es`) em `js/i18n.js` — a auditoria (`tests/audit.mjs`, roda no CI) falha se alguma ficar de fora
   ou sobrar. Toasts e mensagens dinâmicas seguem **pt-BR** de propósito (fora do i18n do shell).
 - Ao adicionar `js/*.js` do shell, atualize a lista do `sw.js` **e** bump o `CACHE` (`botequei-vN`).
-- O SW **não** chama `skipWaiting` no install: a versão nova espera o usuário tocar em "Atualizar"
-  (o app manda `SKIP_WAITING` e recarrega no `controllerchange`). Só bump de `CACHE` dispara o aviso.
+- O SW **não** chama `skipWaiting` no install — quem decide a hora é o **app**, e sozinho:
+  versão nova instalada → o app aplica **automaticamente** (toast "atualizando…" → `SKIP_WAITING`
+  → reload no `controllerchange`; o hash re-entra na mesa), **adiando** enquanto houver jogo
+  rolando ou overlay aberto (re-checa a cada 5s). Na 1ª instalação o `controllerchange` do
+  `clients.claim()` **não recarrega** (era o que piscava a tela no primeiro uso). Só bump de
+  `CACHE` dispara o ciclo.
 - Antes de commitar mudança de lógica, rode os unit (`reducer`/`features`/`stats`) e o `tests/e2e.mjs`.

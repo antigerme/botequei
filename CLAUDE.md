@@ -53,16 +53,18 @@ em pt-BR).
   pra mesa), **chamar o garçom** (`waiter`), **rodada de água** (`water`) e **carta da mesa**
   (`card` — deck de desafios). Nada disso persiste.
 - **Purrinha (jogo P2P honesto)** (`js/purrinha.js`, puro): sem "banca" central, cada um esconde a
-  mão (0–3). **Dois modos**, escolhidos por quem inicia (tela "como quer jogar?"): **clássica** —
-  o palitinho de verdade: lacre só da mão por rodada (`makeHandCommit`), palpite **falado em turno**
-  via fx público (`guess`, girando a mesa a partir do starter, **sem repetir número** — `validGuess`/
-  `guessOrder`), quem crava o total **se livra** e sai (`classicRound`/`nextRound`), rodadas até
-  sobrar um — **o último paga**; e **rápida** — 1 rodada, mão+palpite no mesmo lacre
-  `SHA-256(mão:palpite:segredo)`, abre junto e quem chuta mais longe paga (`resolve`). Nos dois,
-  todo peer **confere** os lacres (ninguém muda a mão depois de ver) e **apura igual**
-  (determinístico → converge). Fases fx: `invite`(+`mode`)/`commit`/`reveal` (rápida),
-  `hcommit`/`guess`/`hreveal` (clássica, com `rd` e buffer p/ fx adiantado)/`cancel`. Efêmero,
-  não entra no log. Dropout não trava (portões re-checam no `onMeshChange`).
+  mão. **Três modos**, escolhidos por quem inicia (tela "como quer jogar?"): **por palitos (3-2-1)**
+  — cada um começa com 3 palitos (estoque **público**; mão ≤ estoque, teto do palpite = soma dos
+  estoques — todo peer valida no reveal); quem crava **descarta 1** e **fala primeiro na próxima**;
+  quem zera **se livra**; o último com palitos paga (`sticksNext`/`poolsTotal`/`clampHandTo`);
+  **clássica** — lacre só da mão por rodada (`makeHandCommit`), palpite **falado em turno** (girando
+  a partir do starter, **sem repetir número** — `validGuessTo`/`guessOrder`), quem crava **se livra**
+  e sai (`classicRound`/`nextRound`), o último paga; e **rápida** — 1 rodada, mão+palpite no mesmo
+  lacre `SHA-256(mão:palpite:segredo)`, abre junto e quem chuta mais longe paga (`resolve`). Em
+  todos, todo peer **confere** os lacres e **apura igual** (determinístico → converge). Fases fx:
+  `invite`(+`mode`)/`commit`/`reveal` (rápida), `hcommit`/`guess`/`hreveal` (por turnos, com `rd` e
+  buffer p/ fx adiantado)/`cancel`. Efêmero, não entra no log. Dropout não trava (portões re-checam
+  no `onMeshChange`).
 - **Dominó (jogo P2P)** (`js/domino.js`, puro): dobra-seis de boteco (sem compra). As **mãos são
   privadas** — o dono da mesa embaralha e entrega a mão de cada um **só pra ele** via canal direto
   (`mesh.sendTo(id, {k:'fx',fx})`, não pelo broadcast); as **jogadas são públicas** (`kind:'domino'`,

@@ -704,6 +704,7 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
 .purr-sdg { font-family: var(--num); color: var(--gold); font-size: 16px; }
 .purr-turnrow { text-align: center; font-size: 17px; color: var(--cream); margin: 8px 0 10px; min-height: 22px; }
 .purr-opt:disabled { opacity: .32; cursor: not-allowed; text-decoration: line-through; }
+.purr-hand:disabled { opacity: .32; cursor: not-allowed; } /* 3-2-1: mão limitada ao seu estoque */
 #btn-purr-say { margin-top: 12px; width: 100%; }
 
 /* ===================== Dominó ===================== */

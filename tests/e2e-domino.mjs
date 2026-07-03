@@ -54,8 +54,8 @@ async function main() {
 
     await step(`${N}p: dominó abre em todos e o tabuleiro começa (abertura forçada)`, async () => {
       await host.click('#btn-menu'); await host.click('#menu-domino');
-      await vis(host, 'dom-setup'); await host.click('#btn-dom-start'); // quem inicia escolhe o modo (partida normal)
-      await Promise.all(pages.map((p) => vis(p, 'overlay-domino')));
+      // sempre mesa verificada: o handshake (lacres + corte coletivo) roda primeiro, aí o jogo abre
+      await Promise.all(pages.map((p) => vis(p, 'dom-game')));
       await Promise.all(pages.map((p) => p.waitForFunction(() => document.querySelectorAll('#dom-board .dom-tile').length >= 1, null, { timeout: T })));
     });
 

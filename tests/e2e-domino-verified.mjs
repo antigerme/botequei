@@ -51,8 +51,7 @@ async function main() {
   await Promise.all(pages.map((p) => p.waitForFunction(() => document.getElementById('peer-count')?.textContent === '2', null, { timeout: T })));
 
   await step('handshake da mesa verificada (seeds+corte) → jogo começa nos dois', async () => {
-    await pageA.click('#btn-menu'); await pageA.click('#menu-domino');
-    await vis(pageA, 'dom-setup'); await pageA.click('#btn-dom-start-verified'); // quem inicia escolhe mesa verificada
+    await pageA.click('#btn-menu'); await pageA.click('#menu-domino'); // dominó é SEMPRE mesa verificada
     // dom-game só aparece DEPOIS do handshake (seed commit-reveal + deal com lacre)
     await Promise.all(pages.map((p) => vis(p, 'dom-game')));
     await Promise.all(pages.map((p) => p.waitForFunction(() => document.querySelectorAll('#dom-board .dom-tile').length >= 1, null, { timeout: T })));

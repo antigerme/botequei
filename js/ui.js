@@ -12,7 +12,7 @@ const el = {};
 
 const IDS = [
   'screen-home', 'screen-table', 'input-name', 'input-code', 'btn-create', 'btn-join-code',
-  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-bar', 'btn-passport',
+  'home-history', 'history-list', 'home-hint', 'home-extras', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-bar', 'btn-passport',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'btn-brinde', 'btn-react', 'btn-rodada',
@@ -326,6 +326,7 @@ export function renderHome(history) {
   const box = el['home-history'], ul = el['history-list'];
   const empty = !history || !history.length;
   if (el['home-hint']) el['home-hint'].hidden = !empty;
+  if (el['home-extras']) el['home-extras'].hidden = empty; // features pessoais só aparecem quando já há histórico
   if (empty) { box.hidden = true; ul.innerHTML = ''; return; }
   box.hidden = false;
   ul.innerHTML = history.slice(0, 6).map((h) => {

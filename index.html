@@ -45,12 +45,12 @@
       </div>
 
       <button class="btn btn-ghost btn-offline" id="btn-offline-join" data-i18n="offline">📴 Entrar sem internet</button>
-      <div class="home-row">
-        <button class="btn btn-ghost btn-stats" id="btn-stats" data-i18n="stats">📊 Meus números</button>
-        <button class="btn btn-ghost" id="btn-retro" data-i18n="retro">🎞️ Retrô</button>
-      </div>
-      <div class="home-row">
-        <button class="btn btn-ghost" id="btn-bar" data-i18n="bar">🍺 Modo bar</button>
+      <!-- features pessoais: só aparecem quando já há histórico (primeiro uso fica limpo) -->
+      <div class="home-extras" id="home-extras" hidden>
+        <div class="home-row">
+          <button class="btn btn-ghost btn-stats" id="btn-stats" data-i18n="stats">📊 Meus números</button>
+          <button class="btn btn-ghost" id="btn-retro" data-i18n="retro">🎞️ Retrô</button>
+        </div>
         <button class="btn btn-ghost" id="btn-passport" data-i18n="passport">🗺️ Passaporte</button>
       </div>
     </div>
@@ -359,6 +359,8 @@
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="btn-clear-data">🗑️ Apagar dados locais</button>
     </div>
+    <p class="menu-sec">🍺 Bar</p>
+    <button class="btn btn-ghost" id="btn-bar" data-i18n="bar">🍺 Modo bar</button>
     <p class="seal">🔒 Nada disso é enviado a servidor. Tudo vive no seu navegador.</p>
   </div>
 </div>

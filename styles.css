@@ -508,6 +508,7 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 
 .home-row { display: flex; gap: 10px; }
 .home-row .btn { flex: 1; }
+.home-extras { display: grid; gap: 10px; } /* features pessoais (só com histórico) */
 
 /* Tô de boa? (segurança) */
 .safe-verdict { border: 2px dashed var(--chalk-line); border-radius: 14px; padding: 14px; text-align: center; margin-bottom: 12px; }

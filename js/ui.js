@@ -15,7 +15,7 @@ const IDS = [
   'home-history', 'history-list', 'home-hint', 'home-extras', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-bar', 'btn-passport',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
-  'btn-brinde', 'btn-react', 'btn-rodada',
+  'btn-brinde', 'btn-react', 'btn-rodada', 'btn-games', 'overlay-games', 'games-grid',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
@@ -134,6 +134,7 @@ export function init(handlers) {
   $('btn-peers').addEventListener('click', () => H.onPeers());
   $('money-block').addEventListener('click', () => H.onBill()); // tocar na conta abre "Fechar a conta"
   $('btn-menu').addEventListener('click', () => { el['overlay-menu'].hidden = false; });
+  $('btn-games').addEventListener('click', () => openGames());
   $('btn-additem').addEventListener('click', () => openAddItem());
   $('btn-brinde').addEventListener('click', () => H.onBrinde());
   $('btn-react').addEventListener('click', () => openReact());
@@ -691,6 +692,23 @@ export function brinde() {
       setTimeout(() => { b.hidden = true; brindeRunning = false; }, 1400);
     }
   }, 800);
+}
+
+// ---------- Jogos (atalho rápido da mesa) ----------
+const GAMES = [
+  ['🫲', 'Purrinha', 'onPurrinha'],
+  ['🁫', 'Dominó', 'onDomino'],
+  ['🎰', 'Quem paga a próxima?', 'onRoulette'],
+  ['🏟️', 'Torneio da galera', 'onTournament'],
+  ['🃏', 'Carta da mesa', 'onCard'],
+];
+function openGames() {
+  el['games-grid'].innerHTML = GAMES.map(([e, n], i) =>
+    `<button class="game-pick" data-i="${i}"><span class="game-pick-e">${e}</span><span>${esc(n)}</span></button>`).join('');
+  el['games-grid'].querySelectorAll('.game-pick').forEach((btn) => btn.addEventListener('click', () => {
+    const g = GAMES[Number(btn.dataset.i)]; closeOverlays(); H[g[2]]();
+  }));
+  el['overlay-games'].hidden = false;
 }
 
 // ---------- Bebedeira ----------

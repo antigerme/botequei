@@ -1088,12 +1088,12 @@ function openRetro() {
   ui.openRetro({ slides });
 }
 
-// ---- Liga & desafios ----
-function openLeague() {
+// ---- Liga & desafios (renderizada dentro do Placar & conquistas) ----
+function renderLeagueInfo() {
   const now = Date.now();
   const hist = store.getHistory();
   const current = room ? { at: now, items: myItems() } : null;
-  ui.openLeague({ level: levelFor(lifeStats(hist, { now })), challenges: weeklyChallenges(hist, current, { now }), season: seasonAward(hist, { now }) });
+  ui.renderLeague({ level: levelFor(lifeStats(hist, { now })), challenges: weeklyChallenges(hist, current, { now }), season: seasonAward(hist, { now }) });
 }
 
 // ---- Modo bar ----
@@ -1124,7 +1124,7 @@ const handlers = {
   onRemove: (item) => act('REMOVE', item),
   onAddItemConfirm: addCustomItem,
   onInvite: openInvite,
-  onPeers: () => { renderPeers(); ui.openPeers(); },
+  onPeers: () => { renderPeers(); renderLeagueInfo(); ui.openPeers(); },
   onBrinde, onReact, onRodada: rodada,
   onBrindeGo: () => sound.cheers(),
   onProfile: () => { const p = profOf(self); ui.openProfile({ name: getName(), color: p.color, emoji: p.emoji, driver: myDriver }); },
@@ -1195,7 +1195,6 @@ const handlers = {
   onComanda: openComanda,
   onSafe: openSafe,
   onRetro: openRetro,
-  onLeague: openLeague,
   onBarMode: () => ui.openBar({ menuCount: store.getBarMenu().length }),
   onBarOpenTable: (code, useMenu) => {
     if (!getName()) { ui.toast('Bota teu apelido primeiro 😉'); return; }

@@ -156,14 +156,19 @@
   </div>
 </div>
 
-<!-- Placar / participantes -->
+<!-- Placar & conquistas (mesa agora + seu nível/desafios/troféu do mês) -->
 <div class="overlay" id="overlay-peers" hidden>
-  <div class="sheet">
+  <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>Placar da mesa</h2>
+    <h2>🏆 Placar &amp; conquistas</h2>
+    <div class="league-level" id="league-level"></div>
+    <h3 class="stats-h3">Mesa agora</h3>
     <div class="mvp" id="mvp-banner" hidden></div>
     <ul class="peers-list" id="peers-list"></ul>
     <div class="my-badges" id="my-badges"></div>
+    <h3 class="stats-h3">Desafios da semana</h3>
+    <ul class="league-challenges" id="league-challenges"></ul>
+    <div class="league-season" id="league-season"></div>
   </div>
 </div>
 
@@ -178,7 +183,6 @@
       <button class="menu-item" id="menu-pace">📈 Meu ritmo</button>
       <button class="menu-item" id="menu-safe">🛟 Tô de boa?</button>
       <button class="menu-item" id="menu-stats">📊 Meus números</button>
-      <button class="menu-item" id="menu-league">🎖️ Liga &amp; desafios</button>
       <p class="menu-sec">Jogos</p>
       <button class="menu-item" id="menu-roulette">🎰 Quem paga a próxima?</button>
       <button class="menu-item" id="menu-purrinha">🫲 Purrinha</button>
@@ -552,17 +556,6 @@
   </div>
 </div>
 
-<!-- Liga & desafios (nível/XP, desafios da semana, troféu do mês) -->
-<div class="overlay" id="overlay-league" hidden>
-  <div class="sheet sheet-tall">
-    <button class="sheet-close" data-close>✕</button>
-    <h2>🎖️ Liga &amp; desafios</h2>
-    <div class="league-level" id="league-level"></div>
-    <h3 class="stats-h3">Desafios da semana</h3>
-    <ul class="league-challenges" id="league-challenges"></ul>
-    <div class="league-season" id="league-season"></div>
-  </div>
-</div>
 
 <!-- Modo bar (código fixo por mesa + cardápio salvo) -->
 <div class="overlay" id="overlay-bar" hidden>

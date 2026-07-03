@@ -105,6 +105,7 @@
     <button class="btn btn-ghost btn-additem" id="btn-additem">+ item personalizado</button>
 
     <div class="action-bar">
+      <button class="chip" id="btn-games">🎮 Jogos</button>
       <button class="chip" id="btn-brinde">🥂 Brinde</button>
       <button class="chip" id="btn-rodada">🍻 Rodada</button>
       <button class="chip" id="btn-react">😀 Reagir</button>
@@ -191,7 +192,7 @@
       <button class="menu-item" id="menu-hh">⏰ Happy hour</button>
       <button class="menu-item" id="menu-jukebox">🎵 Jukebox</button>
       <button class="menu-item" id="menu-festa">🎉 Modo festa</button>
-      <button class="menu-item" id="menu-bebedeira">🥴 Modo bebedeira</button>
+      <button class="menu-item" id="menu-bebedeira">🔢 Contador gigante</button>
       <button class="menu-item" id="menu-ceremony">🏅 Cerimônia da noite</button>
       <p class="menu-sec">Conta</p>
       <button class="menu-item" id="menu-bill">💸 Fechar a conta</button>
@@ -362,6 +363,15 @@
     <p class="menu-sec">🍺 Bar</p>
     <button class="btn btn-ghost" id="btn-bar" data-i18n="bar">🍺 Modo bar</button>
     <p class="seal">🔒 Nada disso é enviado a servidor. Tudo vive no seu navegador.</p>
+  </div>
+</div>
+
+<!-- Jogos (atalho rápido da mesa; mesmos handlers do menu) -->
+<div class="overlay" id="overlay-games" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2>🎮 Jogos</h2>
+    <div class="games-grid" id="games-grid"></div>
   </div>
 </div>
 

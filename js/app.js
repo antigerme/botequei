@@ -19,7 +19,7 @@ import {
   clampHandTo, poolsTotal, sticksNext, STICKS_START,
 } from './purrinha.js';
 import {
-  dealHands, opening, legalMoves, place, pipCount, tileKey as domKey, rngFrom, shuffle, FULL_SET,
+  opening, legalMoves, place, pipCount, tileKey as domKey, rngFrom, shuffle, FULL_SET,
   deckCommit, handCommit, combineSeeds, cutDeck, dealFromDeck, verifyDeal,
 } from './domino.js';
 import { getSettings, setSettings } from './settings.js';
@@ -1065,21 +1065,6 @@ function domEntrants() { const out = [self]; if (mesh) for (const p of mesh.peer
 function domName(id) { return id === self ? (getName() || 'você') : (profOf(id).name || 'alguém'); }
 function cryptoSeed() { try { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0]; } catch { return Date.now() >>> 0; } }
 
-function startDomino() {
-  if (!room) { ui.toast('Entre numa mesa 🙂'); return; }
-  const order = domEntrants();
-  if (order.length < 2) { ui.toast('Precisa de 2 a 4 na mesa 🁫'); return; }
-  if (order.length > 4) { ui.toast('Dominó é de 2 a 4 pessoas 🙂'); return; }
-  const gameId = 'd' + cryptoSeed();
-  const { hands } = dealHands(order.length, rngFrom(cryptoSeed())); // o dono da mesa embaralha
-  const op = opening(hands);
-  const starter = order[op.player];
-  const counts = {}; order.forEach((id, i) => { counts[id] = hands[i].length; });
-  const pub = { kind: 'domino', ph: 'deal', gameId, order, starter, firstTile: op.tile, counts };
-  // entrega a mão de cada um SÓ pra ele (canal direto); os oponentes nunca veem
-  if (mesh) order.forEach((id, i) => { if (id !== self) mesh.sendTo(id, { k: 'fx', fx: { ...pub, hand: hands[i] } }); });
-  beginDomino({ ...pub, hand: hands[order.indexOf(self)] });
-}
 function beginDomino(d) {
   const order = d.order;
   dom = {
@@ -1176,6 +1161,22 @@ function renderDom() {
     myTurn, canPass: myTurn && moves.length === 0, over: dom.over, iWon: dom.winner === self, result, verified,
     lastPlayIdx, lastPlayAvatar, lastPlayName,
   });
+  armDomAutoPass(myTurn && moves.length === 0 && !dom.over);
+}
+// Sem encaixe, o passe sai sozinho em 5s (contagem no botão) — ninguém fica esperando quem
+// só tem "passar" a fazer. Com encaixe na mão, nada é automático.
+let domPassTimer = null;
+function armDomAutoPass(shouldRun) {
+  if (domPassTimer) { clearInterval(domPassTimer); domPassTimer = null; }
+  if (!shouldRun) return;
+  let left = 5;
+  ui.setDomPassCount(left);
+  domPassTimer = setInterval(() => {
+    if (!dom || dom.over || dom.order[dom.turnIdx] !== self) { clearInterval(domPassTimer); domPassTimer = null; return; }
+    left--;
+    if (left <= 0) { clearInterval(domPassTimer); domPassTimer = null; myDomPass(); return; }
+    ui.setDomPassCount(left);
+  }, 1000);
 }
 
 // ---- Dominó: MESA VERIFICADA (commit-to-deck + corte coletivo + auditoria no fim) ----
@@ -1455,8 +1456,7 @@ const handlers = {
   onPurrSeal: (hand, guess) => (purr && purr.mode !== 'fast' ? purrSealHand(hand) : purrSeal(hand, guess)),
   onPurrGuess: (n) => myPurrGuess(n),
   onPurrCancel: () => cancelPurrinha(true),
-  onDomino: () => { if (!room) { ui.toast('Entre numa mesa 🙂'); return; } ui.dominoStartChoice(); },
-  onDomStart: (verified) => (verified ? startDominoVerified() : startDomino()),
+  onDomino: () => startDominoVerified(), // sempre mesa verificada (regras iguais; só o embaralho é auditável)
   onDomPlay: (key, side) => myDomPlay(key, side),
   onDomPass: myDomPass,
   onDomCancel: () => { if (dom && !dom.over) gameFx({ kind: 'domino', ph: 'cancel', gameId: dom.gameId }); dom = null; },

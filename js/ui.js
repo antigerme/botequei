@@ -275,6 +275,12 @@ export function init(handlers) {
     () => { H.onAdd(bebedeiraItem); },
     () => { H.onRemove(bebedeiraItem); });
 
+  // girar o aparelho / redimensionar: a media query troca o layout, o scale do tabuleiro
+  // precisa acompanhar (senão as pedras ficam no tamanho da orientação antiga)
+  const domRefit = () => { if (el['overlay-domino'] && !el['overlay-domino'].hidden) requestAnimationFrame(domFitBoard); };
+  window.addEventListener('resize', domRefit);
+  window.addEventListener('orientationchange', domRefit);
+
   setupA11y();
 }
 
@@ -1178,17 +1184,21 @@ export function purrinhaResult(vm) {
 }
 
 // ---------- Dominó (pedras desenhadas com pips) ----------
-const DOM_PIPS = { 0: [], 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
-function domHalf(n) {
-  const on = new Set(DOM_PIPS[n] || []);
+// Nas metades lado a lado (divisor VERTICAL) a sena são duas FILEIRAS de 3 (perpendicular ao
+// divisor, como na pedra de verdade); na carroça (metades empilhadas, divisor horizontal) a
+// sena vira duas COLUNAS de 3. Os demais números são simétricos e não mudam.
+const DOM_PIPS = { 0: [], 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 1, 2, 6, 7, 8] };
+const DOM_PIPS_UP = { ...DOM_PIPS, 6: [0, 3, 6, 2, 5, 8] };
+function domHalf(n, upright) {
+  const on = new Set((upright ? DOM_PIPS_UP : DOM_PIPS)[n] || []);
   let cells = '';
   for (let i = 0; i < 9; i++) cells += `<i class="dp${on.has(i) ? ' on' : ''}"></i>`;
   return `<span class="dom-half">${cells}</span>`;
 }
 // pedra: dobra (carroça) fica atravessada (metades empilhadas); na mão fica sempre deitada (flat).
 function domTileHTML(a, b, { flat = false, cls = '', chip = '' } = {}) {
-  const dbl = (!flat && a === b) ? ' dbl' : '';
-  return `<span class="dom-tile${dbl}${cls ? ' ' + cls : ''}">${domHalf(a)}${domHalf(b)}${chip}</span>`;
+  const isDbl = !flat && a === b;
+  return `<span class="dom-tile${isDbl ? ' dbl' : ''}${cls ? ' ' + cls : ''}">${domHalf(a, isDbl)}${domHalf(b, isDbl)}${chip}</span>`;
 }
 // ajusta a escala do tabuleiro pra caber TUDO numa linha só (sem quebrar linha nem scroll)
 function domFitBoard() {
@@ -1202,19 +1212,9 @@ function domFitBoard() {
 }
 let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolha de ponta
 export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }
-// escolha do modo na hora de começar (quem inicia decide) — antes era um toggle escondido no menu
-export function dominoStartChoice() {
-  el['dom-setup'].innerHTML = `<div class="dom-start">
-    <p class="dom-start-q">Como quer jogar?</p>
-    <button class="btn btn-primary btn-lg" id="btn-dom-start">▶️ Começar partida</button>
-    <button class="btn btn-ghost dom-start-alt" id="btn-dom-start-verified">🔒 Mesa verificada</button>
-    <p class="dom-start-note">A mesa verificada audita o embaralho no fim (trava trapaça no deal). Começa uns segundos depois.</p>
-  </div>`;
-  el['dom-setup'].querySelector('#btn-dom-start').onclick = () => H.onDomStart(false);
-  el['dom-setup'].querySelector('#btn-dom-start-verified').onclick = () => H.onDomStart(true);
-  el['dom-setup'].hidden = false;
-  el['dom-game'].hidden = true;
-  el['overlay-domino'].hidden = false;
+// contagem regressiva do auto-passe (sem jogada legal, o passe sai sozinho em 5s)
+export function setDomPassCount(n) {
+  el['btn-dom-pass'].textContent = n != null ? `🚫 Passar a vez (${n})` : '🚫 Passar a vez';
 }
 // tela de espera do handshake da mesa verificada (antes do jogo começar)
 export function dominoSetup(msg) {
@@ -1261,6 +1261,7 @@ export function renderDomino(vm) {
   }));
   el['dom-side-pick'].hidden = true;
   el['btn-dom-pass'].hidden = vm.over || !vm.canPass;
+  el['btn-dom-pass'].textContent = '🚫 Passar a vez'; // zera contagem antiga; o app re-arma se for o caso
   el['dom-hand-wrap'].hidden = !!vm.over;
   el['dom-result'].hidden = !vm.over;
   el['dom-result'].textContent = vm.over ? (vm.result || '') : '';

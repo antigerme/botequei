@@ -768,8 +768,8 @@ body.light .dom-board-wrap { background: linear-gradient(180deg, #2f6b45, #24553
 @media (prefers-reduced-motion: reduce) {
   .dom-tile.open, .dom-tile.just, .dom-played-av, .dom-opp.played { animation: none; }
 }
-/* PAISAGEM: o tabuleiro vira o protagonista (ocupa a altura), controles compactos em volta */
-@media (orientation: landscape) {
+/* PAISAGEM (celular deitado, não desktop): o tabuleiro vira o protagonista */
+@media (orientation: landscape) and (max-height: 600px) {
   #overlay-domino .sheet { max-width: 96vw; width: 96vw; height: 96vh; max-height: 96vh; }
   #dom-game { flex: 1; }
   .dom-board-wrap { flex: 1; height: auto; min-height: 0; margin-bottom: 8px; }

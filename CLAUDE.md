@@ -73,7 +73,8 @@ em pt-BR).
   um revela a mão e ganha a menor soma (`pipCount`). Trust: só o embaralho confia em quem dá as
   cartas (igual na vida real); durante a partida, trapaça não cola. Pedras desenhadas com pips no
   `ui.js` (carroça atravessada; tabuleiro quebra linha, sem scroll). Efêmero, não entra no log.
-- **Mesa verificada** (opcional, `settings.domVerified`): endurece o embaralho do dominó com
+- **Mesa verificada** (sempre ativa — o dominó abre direto nela; as regras do jogo não mudam,
+  só o embaralho é auditável): endurece o embaralho do dominó com
   **commit-to-deck + corte coletivo** (`verifyDeal` em `domino.js`, puro/testado). Handshake antes
   do jogo (fases `vsetup`/`vseed`/`vgo`/`vseedrev`/`vdeal`/`vhand`): todos lacram um seed
   (commit-reveal) → o **corte coletivo** σ sai dos seeds; o dono lacra o baralho **antes** de ver σ

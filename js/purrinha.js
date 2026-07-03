@@ -69,12 +69,13 @@ export async function verifyHandReveal(r) {
   return (await makeHandCommit(r.hand, r.nonce)) === r.commit;
 }
 
-// palpite válido: inteiro, 0..3·vivos e ainda não dito (a regra de ouro do palitinho)
-export function validGuess(g, nAlive, taken) {
+// palpite válido: inteiro, 0..teto e ainda não dito (a regra de ouro do palitinho)
+export function validGuessTo(g, maxTotal, taken) {
   const n = Number(g);
-  if (!Number.isInteger(n) || n < 0 || n > maxGuess(nAlive)) return false;
+  if (!Number.isInteger(n) || n < 0 || n > maxTotal) return false;
   return !(taken || []).some((t) => Number(t) === n);
 }
+export function validGuess(g, nAlive, taken) { return validGuessTo(g, maxGuess(nAlive), taken); }
 
 // ordem dos palpites da rodada: começa no starter e gira a mesa (só os vivos)
 export function guessOrder(alive, startIdx) {
@@ -106,4 +107,31 @@ export function nextRound(alive, startIdx, winnerId) {
     ? alive.indexOf(starterId) % next.length          // quem herdou a cadeira do starter começa
     : (next.indexOf(starterId) + 1) % next.length;    // gira pro próximo vivo
   return { alive: next, startIdx: idx, loserId: null, done: false };
+}
+
+// ===================== Modo POR PALITOS (3-2-1, eliminação por estoque) =====================
+// Cada um começa com 3 palitos (estoque público). A mão esconde só até o que a pessoa AINDA tem.
+// O teto do palpite é a soma dos estoques. Quem crava DESCARTA 1 palito; quem zera se livra e
+// sai da mesa; o último que resta com palitos paga. Regra da casa: quem cravou fala primeiro na
+// rodada seguinte (prêmio duplo); ninguém cravou → o starter gira.
+
+export const STICKS_START = 3;
+export function clampHandTo(n, pool) { return Math.max(0, Math.min(clampHand(n), Math.max(0, pool | 0))); }
+export function poolsTotal(pools) { return (pools || []).reduce((a, p) => a + Math.max(0, p.sticks | 0), 0); }
+
+// transição da rodada 3-2-1. pools: [{id, sticks}] na ordem da mesa; startIdx indexa os VIVOS
+// (sticks>0) antes da rodada; winnerId cravou (ou null). Determinístico em todo peer.
+export function sticksNext(pools, startIdx, winnerId) {
+  const before = pools.filter((p) => p.sticks > 0).map((p) => p.id);
+  const n = before.length;
+  const starterId = before[(((startIdx | 0) % n) + n) % n];
+  const next = pools.map((p) => ({ id: p.id, sticks: p.id === winnerId && p.sticks > 0 ? p.sticks - 1 : p.sticks }));
+  const alive = next.filter((p) => p.sticks > 0).map((p) => p.id);
+  const freedId = winnerId != null && before.includes(winnerId) && !alive.includes(winnerId) ? winnerId : null;
+  if (alive.length <= 1) return { pools: next, alive, startIdx: 0, loserId: alive[0] ?? null, freedId, done: true };
+  let idx;
+  if (winnerId == null) idx = (alive.indexOf(starterId) + 1) % alive.length;  // ninguém cravou → gira
+  else if (alive.includes(winnerId)) idx = alive.indexOf(winnerId);           // cravou → fala primeiro
+  else idx = before.indexOf(winnerId) % alive.length;                         // zerou e saiu → herda a cadeira
+  return { pools: next, alive, startIdx: idx, loserId: null, freedId, done: false };
 }

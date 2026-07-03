@@ -5,6 +5,7 @@ import assert from 'node:assert';
 import {
   clampHand, maxGuess, randomNonce, sha256Hex, commitString, makeCommit, verifyReveal, resolve,
   handCommitString, makeHandCommit, verifyHandReveal, validGuess, guessOrder, turnOf, classicRound, nextRound,
+  validGuessTo, clampHandTo, poolsTotal, sticksNext, STICKS_START,
 } from '../js/purrinha.js';
 
 let passed = 0;
@@ -156,6 +157,57 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   // sobrou um: ele paga
   assert.deepStrictEqual(nextRound(['a', 'b'], 0, 'a'), { alive: ['b'], startIdx: 0, loserId: 'b', done: true });
   ok('clássico: eliminação até sobrar um (que paga) + starter girando');
+}
+
+// ===================== Modo por palitos (3-2-1) =====================
+
+// ---------- mão limitada ao estoque + teto = soma dos estoques ----------
+{
+  assert.strictEqual(STICKS_START, 3);
+  assert.strictEqual(clampHandTo(3, 3), 3);
+  assert.strictEqual(clampHandTo(3, 1), 1);  // só tem 1 palito → esconde no máx. 1
+  assert.strictEqual(clampHandTo(2, 0), 0);
+  assert.strictEqual(clampHandTo(-1, 2), 0);
+  const pools = [{ id: 'a', sticks: 2 }, { id: 'b', sticks: 3 }, { id: 'c', sticks: 0 }];
+  assert.strictEqual(poolsTotal(pools), 5); // quem zerou não conta
+  assert.strictEqual(validGuessTo(5, 5, []), true);
+  assert.strictEqual(validGuessTo(6, 5, []), false); // acima do teto da mesa
+  assert.strictEqual(validGuessTo(4, 5, [4]), false); // repetido segue proibido
+  ok('3-2-1: mão ≤ estoque, teto = soma dos estoques, sem repetir');
+}
+
+// ---------- cravou descarta; quem cravou fala primeiro ----------
+{
+  const pools = [{ id: 'a', sticks: 3 }, { id: 'b', sticks: 3 }, { id: 'c', sticks: 3 }];
+  // ninguém cravou: estoques iguais, starter gira (b era o starter → c fala)
+  assert.deepStrictEqual(sticksNext(pools, 1, null), {
+    pools, alive: ['a', 'b', 'c'], startIdx: 2, loserId: null, freedId: null, done: false,
+  });
+  // c cravou: desce 3→2 e FALA PRIMEIRO na próxima
+  const r = sticksNext(pools, 1, 'c');
+  assert.deepStrictEqual(r.pools, [{ id: 'a', sticks: 3 }, { id: 'b', sticks: 3 }, { id: 'c', sticks: 2 }]);
+  assert.strictEqual(r.startIdx, 2); // índice do c entre os vivos
+  assert.strictEqual(r.freedId, null);
+  assert.strictEqual(r.done, false);
+  ok('3-2-1: cravou descarta 1 palito e fala primeiro na rodada seguinte');
+}
+
+// ---------- zerou → se livrou (herda a cadeira); último com palitos paga ----------
+{
+  const pools = [{ id: 'a', sticks: 1 }, { id: 'b', sticks: 2 }, { id: 'c', sticks: 3 }];
+  // a cravou com 1 palito: zera, sai; quem herdou a cadeira dele (b) fala primeiro
+  const r = sticksNext(pools, 0, 'a');
+  assert.deepStrictEqual(r.alive, ['b', 'c']);
+  assert.strictEqual(r.freedId, 'a');
+  assert.strictEqual(r.startIdx, 0); // b herdou o assento 0 dos vivos
+  assert.strictEqual(r.done, false);
+  // sobrou um: b zera → só c tem palito → c paga
+  const end = sticksNext([{ id: 'b', sticks: 1 }, { id: 'c', sticks: 2 }], 0, 'b');
+  assert.deepStrictEqual(end, {
+    pools: [{ id: 'b', sticks: 0 }, { id: 'c', sticks: 2 }],
+    alive: ['c'], startIdx: 0, loserId: 'c', freedId: 'b', done: true,
+  });
+  ok('3-2-1: zerou se livrou (cadeira herdada); o último com palitos paga');
 }
 
 console.log(`\n${passed} testes de purrinha passaram ✅`);

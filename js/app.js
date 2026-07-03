@@ -15,7 +15,8 @@ import { mergeNight, rankTournament } from './tournament.js';
 import { pickCard } from './deck.js';
 import {
   clampHand, maxGuess as purrMax, randomNonce, makeCommit, verifyReveal, resolve as purrResolve, sha256Hex,
-  makeHandCommit, verifyHandReveal, validGuess, guessOrder, classicRound, nextRound,
+  makeHandCommit, verifyHandReveal, validGuessTo, guessOrder, classicRound, nextRound,
+  clampHandTo, poolsTotal, sticksNext, STICKS_START,
 } from './purrinha.js';
 import {
   dealHands, opening, legalMoves, place, pipCount, tileKey as domKey, rngFrom, shuffle, FULL_SET,
@@ -704,7 +705,7 @@ function purrOnline(id) { if (id === self) return true; if (!mesh) return false;
 // só cobra lacre/reveal de quem ainda está online (dropout não trava o jogo)
 function purrExpected() {
   if (!purr) return [];
-  const base = purr.mode === 'classic' ? purr.alive : purr.entrants.map((e) => e.id);
+  const base = purr.mode === 'fast' ? purr.entrants.map((e) => e.id) : purr.alive;
   return base.filter((id) => purrOnline(id));
 }
 function purrName(id) { return profOf(id).name || (purr.entrants.find((e) => e.id === id) || {}).name || 'alguém'; }
@@ -742,11 +743,13 @@ function startPurrinhaMode(mode) {
 }
 function beginPurrinha(gameId, entrants, mode) {
   purr = {
-    gameId, mode: mode === 'classic' ? 'classic' : 'fast', entrants, cheats: new Set(),
+    gameId, mode: mode === 'classic' || mode === 'sticks' ? mode : 'fast', entrants, cheats: new Set(),
     mine: null, commits: new Map(), reveals: new Map(), phase: 'pick',
-    // clássico: assentos fixos (ordem dos entrants), vivos, livres, rodada e quem fala primeiro
+    // por turnos (clássica/3-2-1): assentos fixos (ordem dos entrants), vivos, livres, rodada, starter
     alive: entrants.map((e) => e.id), freed: [], rd: 1, startIdx: 0,
     guesses: new Map(), saidSeq: [], early: [],
+    // 3-2-1: estoque público de palitos por pessoa (cravou → descarta; zerou → livre)
+    pools: entrants.map((e) => ({ id: e.id, sticks: STICKS_START })),
   };
   renderPurrPick();
   // re-aplica fases que chegaram antes do convite (corrida do gossip)
@@ -754,11 +757,23 @@ function beginPurrinha(gameId, entrants, mode) {
   purrPreFx = purrPreFx.filter((f) => f.gameId !== gameId);
   for (const f of q) routePurrFx(f);
 }
+// helpers do 3-2-1 (estoques públicos, deterministicamente derivados das rodadas)
+function purrPool(id) { const p = purr && purr.pools ? purr.pools.find((x) => x.id === id) : null; return p ? p.sticks : 0; }
+function purrPoolsStr(pools) { return (pools || purr.pools).filter((p) => p.sticks > 0).map((p) => `${purrName(p.id)} ${p.sticks}`).join(' · '); }
+// teto do palpite da rodada: 3-2-1 = soma dos estoques; clássica = 3·vivos
+function purrCeil() { return purr.mode === 'sticks' ? poolsTotal(purr.pools) : purrMax(purr.alive.length); }
+
 function renderPurrPick() {
   if (!purr) return;
   if (purr.mode === 'fast') { ui.openPurrinha({ maxGuess: purrMax(purr.entrants.length) }); return; }
-  if (purr.alive.includes(self)) ui.openPurrinha({ classic: true, maxGuess: 0 });
-  else renderPurrWait(); // você já se livrou — acompanha a rodada dos outros
+  if (!purr.alive.includes(self)) { renderPurrWait(); return; } // você já se livrou — só assiste
+  const vm = { classic: true, maxGuess: 0 };
+  if (purr.mode === 'sticks') {
+    vm.maxHand = purrPool(self);
+    vm.status = `Rodada ${purr.rd} · 🥢 ${purrPoolsStr()}`;
+    vm.sub = 'Cravou o total? Descarta um palito e fala primeiro. Zerou? Tá livre — o último com palitos paga.';
+  } else if (purr.rd > 1) vm.status = `Rodada ${purr.rd}`;
+  ui.openPurrinha(vm);
 }
 // fx da rodada seguinte/fase seguinte pode chegar antes de eu transicionar → guarda e re-aplica
 function purrDrainEarly() {
@@ -790,10 +805,10 @@ async function purrSeal(hand, guess) {
 function renderPurrWait() {
   if (!purr) return;
   const exp = purrExpected();
-  const done = purr.mode === 'classic' && purr.phase === 'revealing' ? purr.reveals : purr.commits;
+  const done = purr.mode !== 'fast' && purr.phase === 'revealing' ? purr.reveals : purr.commits;
   const seals = exp.map((id) => ({ name: purrName(id), avatar: profOf(id).emoji, sealed: done.has(id) }));
   let sub;
-  if (purr.mode === 'classic') {
+  if (purr.mode !== 'fast') {
     if (purr.phase === 'revealing') sub = 'Todos palpitaram — abrindo as mãos… 🫲';
     else if (!purr.alive.includes(self)) sub = `Você já se livrou 🍀 — rodada ${purr.rd} rolando…`;
     else sub = `Rodada ${purr.rd} — esperando os lacres…`;
@@ -847,9 +862,9 @@ function maybePurrResolve() {
 
 // ---------- modo clássico (rodadas de eliminação; palpite falado em turno) ----------
 async function purrSealHand(hand) {
-  if (!purr || purr.mode !== 'classic' || purr.phase !== 'pick' || purr.mine) return;
+  if (!purr || purr.mode === 'fast' || purr.phase !== 'pick' || purr.mine) return;
   if (!purr.alive.includes(self)) return; // quem já se livrou só assiste
-  hand = clampHand(hand);
+  hand = purr.mode === 'sticks' ? clampHandTo(hand, purrPool(self)) : clampHand(hand); // 3-2-1: mão ≤ estoque
   const nonce = randomNonce();
   const commit = await makeHandCommit(hand, nonce);
   purr.mine = { hand, nonce, commit };
@@ -860,7 +875,7 @@ async function purrSealHand(hand) {
   purrTryGates();
 }
 function onPurrHCommit(fx) {
-  if (!purr || purr.mode !== 'classic' || fx.gameId !== purr.gameId) return;
+  if (!purr || purr.mode === 'fast' || fx.gameId !== purr.gameId) return;
   if (fx.rd > purr.rd) { purr.early.push(fx); return; } // peer rápido já foi pra próxima rodada
   if (fx.rd !== purr.rd) return;
   if (!purr.alive.includes(fx.from) || purr.commits.has(fx.from)) return;
@@ -870,24 +885,24 @@ function onPurrHCommit(fx) {
 }
 // palpite público: aceito de quem está vivo, lacrou e ainda não falou — número válido e inédito
 function onPurrGuessFx(fx) {
-  if (!purr || purr.mode !== 'classic' || fx.gameId !== purr.gameId) return;
+  if (!purr || purr.mode === 'fast' || fx.gameId !== purr.gameId) return;
   if (fx.rd > purr.rd || (fx.rd === purr.rd && purr.phase === 'pick')) { purr.early.push(fx); return; }
   if (fx.rd !== purr.rd || purr.phase !== 'guessing') return;
   applyPurrGuess(fx.from, Math.floor(Number(fx.guess)));
 }
 function applyPurrGuess(from, n) {
   if (!purr.alive.includes(from) || !purr.commits.has(from) || purr.guesses.has(from)) return;
-  if (!validGuess(n, purr.alive.length, [...purr.guesses.values()])) return; // repetido/fora da faixa → não vale
+  if (!validGuessTo(n, purrCeil(), [...purr.guesses.values()])) return; // repetido/fora da faixa → não vale
   purr.guesses.set(from, n);
   purr.saidSeq.push({ id: from, guess: n });
   purrTryGates();
   if (purr && purr.phase === 'guessing') renderPurrGuessing();
 }
 function myPurrGuess(n) {
-  if (!purr || purr.mode !== 'classic' || purr.phase !== 'guessing') return;
+  if (!purr || purr.mode === 'fast' || purr.phase !== 'guessing') return;
   if (!purr.alive.includes(self) || purr.guesses.has(self)) return;
   n = Math.floor(Number(n));
-  if (!validGuess(n, purr.alive.length, [...purr.guesses.values()])) { ui.toast('Esse número já foi dito 🙃'); return; }
+  if (!validGuessTo(n, purrCeil(), [...purr.guesses.values()])) { ui.toast('Esse número já foi dito 🙃'); return; }
   applyPurrGuess(self, n);
   gameFx({ kind: 'purrinha', ph: 'guess', gameId: purr.gameId, rd: purr.rd, from: self, guess: n });
   sound.pop();
@@ -896,22 +911,29 @@ function renderPurrGuessing() {
   if (!purr || purr.phase !== 'guessing') return;
   const order = guessOrder(purr.alive, purr.startIdx).filter((id) => purr.commits.has(id) && purrOnline(id));
   const turnId = order.find((id) => !purr.guesses.has(id)) ?? null;
+  const livres = purr.freed.length ? ` · livres 🍀: ${purr.freed.map(purrName).join(', ')}` : '';
+  const status = purr.mode === 'sticks'
+    ? `Rodada ${purr.rd} · 🥢 ${purrPoolsStr()}${livres}`
+    : `Rodada ${purr.rd} · na mesa: ${purr.alive.map(purrName).join(', ')}${livres}`;
   ui.purrinhaGuessing({
-    status: `Rodada ${purr.rd} · na mesa: ${purr.alive.map(purrName).join(', ')}`
-      + (purr.freed.length ? ` · livres 🍀: ${purr.freed.map(purrName).join(', ')}` : ''),
+    status,
     said: purr.saidSeq.map((s) => ({ name: purrName(s.id), avatar: profOf(s.id).emoji, guess: s.guess, isSelf: s.id === self })),
     myTurn: turnId === self, turnName: turnId ? purrName(turnId) : '',
-    maxGuess: purrMax(purr.alive.length), taken: [...purr.guesses.values()],
+    maxGuess: purrCeil(), taken: [...purr.guesses.values()],
   });
 }
 async function onPurrHReveal(fx) {
-  if (!purr || purr.mode !== 'classic' || fx.gameId !== purr.gameId) return;
+  if (!purr || purr.mode === 'fast' || fx.gameId !== purr.gameId) return;
   if (fx.rd > purr.rd || (fx.rd === purr.rd && purr.phase !== 'revealing')) { purr.early.push(fx); return; }
   if (fx.rd !== purr.rd) return;
   const commit = purr.commits.get(fx.from);
   if (!commit || purr.reveals.has(fx.from)) return;
   const good = await verifyHandReveal({ hand: fx.hand, nonce: fx.nonce, commit });
   if (!good) { purr.cheats.add(fx.from); ui.toast(`🚫 ${purrName(fx.from)} tentou trapacear na purrinha!`); return; }
+  // 3-2-1: todo peer confere que ninguém escondeu mais palitos do que TEM (estoque é público)
+  if (purr.mode === 'sticks' && clampHand(fx.hand) > purrPool(fx.from)) {
+    purr.cheats.add(fx.from); ui.toast(`🚫 ${purrName(fx.from)} jogou mais palitos do que tem!`); return;
+  }
   purr.reveals.set(fx.from, { hand: clampHand(fx.hand), nonce: fx.nonce });
   renderPurrWait();
   purrTryGates();
@@ -942,7 +964,9 @@ function purrTryGates() {
   }
   if (purr.phase === 'revealing') {
     const exp = purr.alive.filter((id) => purr.commits.has(id) && purrOnline(id));
-    if (exp.length && exp.every((id) => purr.reveals.has(id))) finishClassicRound();
+    if (exp.length && exp.every((id) => purr.reveals.has(id))) {
+      if (purr.mode === 'sticks') finishSticksRound(); else finishClassicRound();
+    }
   }
 }
 function finishClassicRound() {
@@ -978,6 +1002,51 @@ function finishClassicRound() {
   if (winnerId === self) { sound.cheers(); ui.celebrate(['🍀', '🫲']); } else sound.pop();
   // o estado avança JÁ (determinístico em todo peer); a UI segura o resultado por um instante
   purr.alive = step.alive; purr.startIdx = step.startIdx; purr.rd = rdNow + 1;
+  purr.mine = null; purr.commits = new Map(); purr.guesses = new Map(); purr.saidSeq = []; purr.reveals = new Map();
+  purr.phase = 'pick';
+  purrDrainEarly();
+  const gid = purr.gameId, r = purr.rd;
+  setTimeout(() => { if (purr && purr.gameId === gid && purr.rd === r && purr.phase === 'pick') renderPurrPick(); }, 2600);
+}
+// 3-2-1: cravou → descarta 1 palito (e fala primeiro na próxima); zerou → livre; último com palitos paga
+function finishSticksRound() {
+  const reveals = [...purr.reveals.entries()].map(([id, r]) => ({ id, hand: r.hand }));
+  const { total, winnerId } = classicRound(reveals, purr.saidSeq);
+  const step = sticksNext(purr.pools, purr.startIdx, winnerId);
+  const rdNow = purr.rd;
+  const rows = reveals.map((x) => ({
+    name: purrName(x.id), avatar: profOf(x.id).emoji, hand: x.hand,
+    guess: purr.guesses.has(x.id) ? purr.guesses.get(x.id) : '—',
+    isSeer: x.id === winnerId, isLoser: step.done && x.id === step.loserId, isSelf: x.id === self,
+  })).sort((a, b) => (b.isSeer - a.isSeer) || (a.isLoser - b.isLoser));
+  if (step.done) {
+    purr.pools = step.pools; purr.alive = step.alive; purr.phase = 'done';
+    if (step.freedId) purr.freed.push(step.freedId);
+    const loser = step.loserId;
+    let verdict;
+    if (loser === self) verdict = { text: '💸 Você paga a próxima!', kind: 'lose' };
+    else if (winnerId === self) verdict = { text: `🍀 Você zerou os palitos — ${purrName(loser)} paga!`, kind: 'win' };
+    else verdict = { text: `💸 ${purrName(loser)} paga a próxima!`, kind: 'other' };
+    ui.purrinhaResult({ status: `Rodada ${rdNow} · fim de jogo`, total, rows, verdict, final: true });
+    if (loser === self) { sound.alarm(); ui.vibrate([80, 40, 80]); } else { sound.cheers(); ui.celebrate(['🥢', '🍀', '🍻']); }
+    return;
+  }
+  if (step.freedId) purr.freed.push(step.freedId);
+  let msg;
+  if (winnerId == null) msg = `Ninguém cravou ${total} — vai de novo!`;
+  else if (step.freedId === winnerId) msg = winnerId === self ? '🍀 Você zerou os palitos e se livrou!' : `🍀 ${purrName(winnerId)} zerou os palitos e se livrou!`;
+  else {
+    const left = (step.pools.find((p) => p.id === winnerId) || {}).sticks;
+    msg = winnerId === self
+      ? `🎯 Você cravou ${total} — descartou um palito (restam ${left}). Você fala primeiro!`
+      : `🎯 ${purrName(winnerId)} cravou ${total} — descartou um palito (restam ${left}) e fala primeiro.`;
+  }
+  ui.purrinhaResult({
+    status: `Rodada ${rdNow} · 🥢 ${purrPoolsStr(step.pools)}`,
+    total, rows, verdict: { text: msg, kind: winnerId === self ? 'win' : 'other' }, final: false,
+  });
+  if (winnerId === self) { sound.cheers(); ui.celebrate(['🥢', '🎯']); } else sound.pop();
+  purr.pools = step.pools; purr.alive = step.alive; purr.startIdx = step.startIdx; purr.rd = rdNow + 1;
   purr.mine = null; purr.commits = new Map(); purr.guesses = new Map(); purr.saidSeq = []; purr.reveals = new Map();
   purr.phase = 'pick';
   purrDrainEarly();
@@ -1383,7 +1452,7 @@ const handlers = {
   onRouletteSpin: doRoulette,
   onPurrinha: startPurrinha,
   onPurrStart: (mode) => startPurrinhaMode(mode),
-  onPurrSeal: (hand, guess) => (purr && purr.mode === 'classic' ? purrSealHand(hand) : purrSeal(hand, guess)),
+  onPurrSeal: (hand, guess) => (purr && purr.mode !== 'fast' ? purrSealHand(hand) : purrSeal(hand, guess)),
   onPurrGuess: (n) => myPurrGuess(n),
   onPurrCancel: () => cancelPurrinha(true),
   onDomino: () => { if (!room) { ui.toast('Entre numa mesa 🙂'); return; } ui.dominoStartChoice(); },

@@ -44,7 +44,7 @@ const IDS = [
   'set-shake',
   'overlay-tournament', 'tourn-list', 'btn-tourn-add', 'btn-tourn-reset',
   'overlay-card', 'card-draw', 'btn-card-again', 'btn-card-show',
-  'menu-purrinha', 'overlay-purrinha', 'purr-sub', 'purr-setup', 'purr-pick', 'purr-hands', 'purr-guess-wrap', 'purr-guesses', 'btn-purr-seal',
+  'menu-purrinha', 'overlay-purrinha', 'purr-sub', 'purr-setup', 'purr-pick', 'purr-pstatus', 'purr-hands', 'purr-guess-wrap', 'purr-guesses', 'btn-purr-seal',
   'purr-wait', 'purr-waitcount', 'purr-waitsub', 'purr-seals',
   'purr-guessing', 'purr-status', 'purr-said', 'purr-turnrow', 'purr-gpick', 'btn-purr-say',
   'purr-result', 'purr-rstatus', 'purr-total', 'purr-reveals', 'purr-verdict',
@@ -1071,13 +1071,15 @@ function purrPhase(which) {
 }
 // escolha do modo ao iniciar (quem inicia decide) — mesmo padrão do dominó
 export function purrinhaStartChoice() {
-  el['purr-sub'].textContent = 'Cada um esconde 0–3 palitos e a mesa adivinha o total.';
+  el['purr-sub'].textContent = 'Cada um esconde palitos na mão e a mesa adivinha o total.';
   el['purr-setup'].innerHTML = `<div class="dom-start">
     <p class="dom-start-q">Como quer jogar?</p>
-    <button class="btn btn-primary btn-lg" id="btn-purr-classic">🫲 Clássica — até sobrar um</button>
+    <button class="btn btn-primary btn-lg" id="btn-purr-sticks">🥢 Por palitos (3-2-1)</button>
+    <button class="btn btn-ghost dom-start-alt" id="btn-purr-classic">🫲 Clássica — cravou, saiu</button>
     <button class="btn btn-ghost dom-start-alt" id="btn-purr-fast">⚡ Rápida — uma rodada só</button>
-    <p class="dom-start-note">Clássica é o palitinho de verdade: palpite falado na vez de cada um (sem repetir), quem crava sai — o último paga. Na rápida todos chutam em segredo e quem fica mais longe paga.</p>
+    <p class="dom-start-note">3-2-1: cravou o total, descarta um palito e fala primeiro na próxima; zerou, tá livre — o último com palitos paga. Clássica: cravou uma vez, saiu. Rápida: todos chutam em segredo e quem fica mais longe paga.</p>
   </div>`;
+  el['purr-setup'].querySelector('#btn-purr-sticks').onclick = () => H.onPurrStart('sticks');
   el['purr-setup'].querySelector('#btn-purr-classic').onclick = () => H.onPurrStart('classic');
   el['purr-setup'].querySelector('#btn-purr-fast').onclick = () => H.onPurrStart('fast');
   purrPhase('setup');
@@ -1092,12 +1094,15 @@ function purrSticks(n, sm) {
 export function openPurrinha(vm) {
   purrPick = { hand: null, guess: null };
   purrClassic = !!vm.classic;
-  el['purr-sub'].textContent = purrClassic
+  el['purr-sub'].textContent = vm.sub || (purrClassic
     ? 'Palitinho clássico: quem crava o total sai — o último que sobrar paga.'
-    : 'Escolha sua mão e chute o total da mesa. Tudo lacrado — abre junto.';
+    : 'Escolha sua mão e chute o total da mesa. Tudo lacrado — abre junto.');
   el['purr-guess-wrap'].hidden = purrClassic; // no clássico o palpite é falado depois, em voz alta
   el['btn-purr-seal'].textContent = purrClassic ? '🔒 Lacrar a mão' : '🔒 Lacrar';
-  el['purr-hands'].innerHTML = [0, 1, 2, 3].map((n) => `<button class="purr-hand" data-hand="${n}"><span class="purr-hvis">${purrSticks(n)}</span><span class="purr-hn">${n}</span></button>`).join('');
+  el['purr-pstatus'].hidden = !vm.status;
+  el['purr-pstatus'].textContent = vm.status || '';
+  const mh = vm.maxHand == null ? 3 : Math.max(0, Math.min(3, vm.maxHand)); // 3-2-1: só até o seu estoque
+  el['purr-hands'].innerHTML = [0, 1, 2, 3].map((n) => `<button class="purr-hand" data-hand="${n}"${n > mh ? ' disabled title="você não tem palitos suficientes"' : ''}><span class="purr-hvis">${purrSticks(n)}</span><span class="purr-hn">${n}</span></button>`).join('');
   const mg = Math.max(0, vm.maxGuess || 0);
   let gs = '';
   for (let i = 0; i <= mg; i++) gs += `<button class="purr-opt" data-guess="${i}">${i}</button>`;

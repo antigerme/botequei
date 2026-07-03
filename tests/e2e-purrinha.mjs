@@ -30,6 +30,20 @@ async function main() {
   const vis = (page, id) => page.waitForFunction((i) => { const e = document.getElementById(i); return e && !e.hidden; }, id, { timeout: T });
   const results = [];
   const step = async (name, fn) => { await fn(); console.log('  ✓ ' + name); results.push(name); };
+  // espera até o jogo chamar ALGUÉM (dentre cands) pra falar o palpite, e devolve essa página
+  const prompted = async (cands) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < T) {
+      for (const p of cands) {
+        const up = await p.evaluate(() => { const b = document.getElementById('btn-purr-say'); return !!b && !b.hidden; });
+        if (up) return p;
+      }
+      await cands[0].waitForTimeout(120);
+    }
+    throw new Error('ninguém foi chamado a palpitar');
+  };
+  const sealHand = async (p, hand) => { await p.click(`#purr-hands .purr-hand[data-hand="${hand}"]`); await p.click('#btn-purr-seal'); };
+  const say = async (p, n) => { await p.click(`#purr-gpick .purr-opt[data-say="${n}"]:not([disabled])`); await p.click('#btn-purr-say'); };
 
   // sobe uma mesa com N pessoas e abre a purrinha no modo pedido
   async function setupTable(N, modeBtn) {
@@ -86,20 +100,6 @@ async function main() {
   // NÃO assume quem fala primeiro: ele segue quem o jogo CHAMA pra palpitar (prompt-driven).
   async function playClassic() {
     const { ctxs, pages } = await setupTable(3, '#btn-purr-classic');
-    const sealHand = async (p, hand) => { await p.click(`#purr-hands .purr-hand[data-hand="${hand}"]`); await p.click('#btn-purr-seal'); };
-    const say = async (p, n) => { await p.click(`#purr-gpick .purr-opt[data-say="${n}"]:not([disabled])`); await p.click('#btn-purr-say'); };
-    // espera até o jogo chamar ALGUÉM (dentre cands) pra falar, e devolve essa página
-    const prompted = async (cands) => {
-      const t0 = Date.now();
-      while (Date.now() - t0 < T) {
-        for (const p of cands) {
-          const up = await p.evaluate(() => { const b = document.getElementById('btn-purr-say'); return !!b && !b.hidden; });
-          if (up) return p;
-        }
-        await cands[0].waitForTimeout(120);
-      }
-      throw new Error('ninguém foi chamado a palpitar');
-    };
 
     let winner1; // quem cravou na rodada 1 (vira espectador)
     await step('clássica 3p: todos lacram SÓ a mão (sem palpite junto)', async () => {
@@ -149,15 +149,66 @@ async function main() {
     for (const c of ctxs) await c.close();
   }
 
+  // ---------- modo POR PALITOS (3-2-1): cravou descarta e fala primeiro; zerou saiu; último paga ----------
+  // 2 jogadores, roteiro determinístico: A (iniciador, assento 0) crava 0 três vezes seguidas.
+  async function playSticks() {
+    const { ctxs, pages } = await setupTable(2, '#btn-purr-sticks');
+    const [A, B] = pages;
+    const round = async () => {
+      await sealHand(A, 0); await sealHand(B, 0);
+      await Promise.all(pages.map((p) => vis(p, 'purr-guessing')));
+      const q1 = await prompted(pages); await say(q1, 0);
+      const q2 = pages.find((p) => p !== q1); await prompted([q2]); await say(q2, 1);
+      await Promise.all(pages.map((p) => vis(p, 'purr-result')));
+      return q1;
+    };
+    await step('3-2-1 2p: rodada 1 — cravou, descartou um palito (3→2)', async () => {
+      await Promise.all(pages.map((p) => vis(p, 'purr-pick')));
+      const st = await A.textContent('#purr-pstatus');
+      if (!/Andre 3 · Bia 3/.test(st)) throw new Error(`estoques públicos no lacre: "${st}"`);
+      const q1 = await round();
+      if (q1 !== A) throw new Error('rodada 1 começa no iniciador (assento 0)');
+      const v = await A.textContent('#purr-verdict');
+      if (!/descartou um palito \(restam 2\)/.test(v)) throw new Error(`esperava descarte 3→2: "${v}"`);
+    });
+    await step('3-2-1 2p: quem cravou fala primeiro e o teto encolhe (6→5)', async () => {
+      await Promise.all(pages.map((p) => vis(p, 'purr-pick')));
+      await sealHand(A, 0); await sealHand(B, 0);
+      await Promise.all(pages.map((p) => vis(p, 'purr-guessing')));
+      const first = await prompted(pages);
+      if (first !== A) throw new Error('quem cravou deveria falar primeiro na rodada seguinte');
+      const has6 = await A.$('#purr-gpick .purr-opt[data-say="6"]');
+      const has5 = await A.$('#purr-gpick .purr-opt[data-say="5"]');
+      if (has6 || !has5) throw new Error('teto deveria ser 5 (estoques 2+3)');
+      await say(A, 0);
+      await prompted([B]); await say(B, 1);
+      await Promise.all(pages.map((p) => vis(p, 'purr-result')));
+    });
+    await step('3-2-1 2p: com 1 palito a mão trava em 0–1; A zera e B (último com palitos) paga', async () => {
+      await Promise.all(pages.map((p) => vis(p, 'purr-pick')));
+      const blockedHand = await A.$('#purr-hands .purr-hand[data-hand="2"][disabled]');
+      if (!blockedHand) throw new Error('com 1 palito, esconder 2 deveria estar bloqueado');
+      await round();
+      const verds = await Promise.all(pages.map((p) => p.textContent('#purr-verdict')));
+      const pays = verds.filter((v) => /Você paga/.test(v)).length;
+      if (pays !== 1) throw new Error(`esperava 1 "Você paga", vi ${pays}: ${JSON.stringify(verds)}`);
+      if (!/Você paga/.test(verds[1])) throw new Error('B é o último com palitos — ele paga');
+      if (!/zerou os palitos/.test(verds[0])) throw new Error(`A zerou e se livrou: "${verds[0]}"`);
+    });
+    for (const c of ctxs) await c.close();
+  }
+
   // rápida 2p: mãos 2 e 1 -> total 3; A crava 3 (vidente), B chuta 5 e paga
   await playFast(2, [{ hand: 2, guess: 3 }, { hand: 1, guess: 5 }], '2p', { total: 3 });
   // rápida 4p: todos escondem 1 -> total 4; A/B/D cravam 4 (videntes), C chuta 0 e paga
   await playFast(4, [{ hand: 1, guess: 4 }, { hand: 1, guess: 4 }, { hand: 1, guess: 0 }, { hand: 1, guess: 4 }], '4p', { total: 4 });
   // clássica 3p: eliminação em 2 rodadas com rotação do starter e bloqueio de palpite repetido
   await playClassic();
+  // 3-2-1 2p: descarte por cravada, vencedor fala primeiro, teto/mão encolhem, último com palitos paga
+  await playSticks();
 
   await browser.close();
-  console.log(`\n${results.length} verificações da purrinha (rápida 2p+4p, clássica 3p) passaram ✅`);
+  console.log(`\n${results.length} verificações da purrinha (rápida 2p+4p, clássica 3p, 3-2-1 2p) passaram ✅`);
 }
 
 main().catch((e) => { console.error('❌ e2e-purrinha falhou:', e.message); process.exit(1); });

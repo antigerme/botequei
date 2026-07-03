@@ -23,7 +23,7 @@ async function main() {
 
   const mkCtx = async (name) => {
     const c = await browser.newContext();
-    await c.addInitScript((n) => localStorage.setItem('botequei.name', n), name);
+    await c.addInitScript((n) => { localStorage.setItem('botequei.name', n); localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 })); }, name); // testes não são 1º uso (sem welcome/tour)
     return c;
   };
   const peers = (page, n) =>

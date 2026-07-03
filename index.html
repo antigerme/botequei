@@ -110,7 +110,7 @@
     <div class="action-bar">
       <button class="chip" id="btn-games">🎮 Jogos</button>
       <button class="chip" id="btn-brinde">🥂 Brinde</button>
-      <button class="chip" id="btn-rodada">🍻 Rodada</button>
+      <button class="chip" id="btn-rodada" title="+1 cerveja pra todo mundo online (menos motoristas)">🍻 Rodada</button>
       <button class="chip" id="btn-react">😀 Reagir</button>
     </div>
   </section>
@@ -751,6 +751,20 @@
     </ul>
     <div class="sheet-actions">
       <button class="btn btn-primary btn-lg" id="btn-welcome-go">Bora! 🍻</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tour guiado da 1ª mesa: spotlight recorta o alvo, balão explica; toque avança -->
+<div class="tour" id="tour" hidden>
+  <div class="tour-spot" id="tour-spot" aria-hidden="true"></div>
+  <div class="tour-balloon" id="tour-balloon" role="dialog" aria-label="tour de boas-vindas">
+    <div class="tour-count" id="tour-count">1/4</div>
+    <div class="tour-title" id="tour-title"></div>
+    <div class="tour-text" id="tour-text"></div>
+    <div class="tour-row">
+      <button class="btn btn-ghost" id="btn-tour-skip">Pular</button>
+      <button class="btn btn-primary" id="btn-tour-next">Próximo →</button>
     </div>
   </div>
 </div>

@@ -451,6 +451,7 @@ async function enterTable(code, { create = false, pin = '' } = {}) {
   render();
   if (create) openInvite();
   if (pendingBarMenu) { pendingBarMenu = false; loadBarMenu(); }
+  maybeStartTour(); // 1ª mesa da vida: mostra o caminho das pedras (espera fechar o convite)
 
   const iceServers = await loadIce();
   if (room !== code) return;
@@ -468,6 +469,7 @@ function enterTableOffline(code) {
   rebuildFrom(store.getEvents(room));
   ui.showScreen('table');
   render();
+  maybeStartTour();
   startMesh([]);
   location.hash = '#/mesa?room=' + room;
 }
@@ -747,6 +749,39 @@ function updateGamePill() {
   }
   if (gameMinned.has('purr')) parts.push({ urgent: false, label: '🫲 Purrinha rolando' });
   ui.setGamePill(parts.length ? { label: parts.map((p) => p.label).join(' · ') + ' — voltar', urgent: parts.some((p) => p.urgent) } : null);
+}
+
+// ---- Atualização automática do app (service worker) ----
+// A versão nova instala em segundo plano e APLICA sozinha (toast + reload; o hash re-entra na
+// mesa). Se tiver jogo rolando ou overlay aberto (alguém digitando), adia — re-checa a cada 5s.
+let swPending = null;
+function swBusy() {
+  if ((dom && !dom.over) || (dv && !dv.began && !dom) || purrActive()) return true;
+  return !!document.querySelector('.overlay:not([hidden])');
+}
+function trySwUpdate() {
+  if (!swPending || swBusy()) return;
+  const w = swPending; swPending = null;
+  ui.toast('🔄 Nova versão do Botequei — atualizando…');
+  setTimeout(() => { try { w.postMessage('SKIP_WAITING'); } catch { /* já ativou */ } }, 1200);
+}
+
+// ---- Tour guiado da primeira mesa (4 paradas; 1× por aparelho) ----
+function maybeStartTour() {
+  if (store.getFlag('tourSeen')) return;
+  const tick = setInterval(() => {
+    if (!room) { clearInterval(tick); return; } // saiu antes do tour começar
+    if (document.querySelector('.overlay:not([hidden])')) return; // convite/QR ainda aberto
+    if (!document.querySelector('.item-card')) return; // cardápio ainda não renderizou
+    clearInterval(tick);
+    store.setFlag('tourSeen'); // marca ao MOSTRAR (pular também conta como visto)
+    ui.startTour([
+      { sel: '.item-card', title: 'Marca aí 🍺', text: 'Toque no card = +1. Segure = −1 (desfaz).' },
+      { sel: '.total-hero', title: 'A mesa mandou', text: 'O total da mesa e o seu, ao vivo em todo mundo.' },
+      { sel: '#btn-games', title: 'Quem paga? 🎮', text: 'Roleta, purrinha e dominó — a mesa decide jogando.' },
+      { sel: '#btn-menu', title: 'O resto mora no menu', text: 'Fechar a conta, placar, garçom, configurações.' },
+    ]);
+  }, 600);
 }
 
 // ---- Purrinha (P2P honesta via commit-reveal; efêmera, não entra no log) ----
@@ -1605,7 +1640,9 @@ const handlers = {
   onAddItemConfirm: addCustomItem,
   onInvite: openInvite,
   onPeers: () => { renderPeers(); renderLeagueInfo(); ui.openPeers(); },
-  onBrinde, onReact, onRodada: rodada,
+  onBrinde, onReact,
+  // rodada é generosa demais pra sair num toque acidental: explica e confirma antes
+  onRodada: () => ui.actionToast('🍻 Rodada = +1 cerveja pra todo mundo online (menos motoristas). Bora?', 'Bora!', rodada, 6000),
   onBrindeGo: () => sound.cheers(),
   onProfile: () => { const p = profOf(self); ui.openProfile({ name: getName(), color: p.color, emoji: p.emoji, driver: myDriver }); },
   onProfileSave: ({ name, color, emoji, driver }) => {
@@ -1885,7 +1922,8 @@ function boot() {
     pendingJoin = inv.room; pendingPin = inv.needPin;
     if (getName() && !inv.needPin) enterTable(inv.room);
     else ui.openJoin(inv.room, inv.needPin);
-  } else if (!getName() && !store.getHistory().length) {
+  } else if (!getName() && !store.getHistory().length && !store.getFlag('welcomeSeen')) {
+    store.setFlag('welcomeSeen'); // marca AO MOSTRAR: reload (ex.: troca de SW) não repete o guia
     ui.openWelcome(); // primeiro uso: guia rápido (sem convite pendente)
   }
 
@@ -1907,15 +1945,21 @@ function boot() {
         const nw = reg.installing;
         if (!nw) return;
         nw.addEventListener('statechange', () => {
-          // nova versão pronta e já havia uma controlando -> oferece atualizar
-          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-            ui.showUpdate(() => nw.postMessage('SKIP_WAITING'));
-          }
+          // nova versão pronta e já havia uma controlando -> aplica SOZINHO (sem botão),
+          // mas espera acabar jogo/overlay aberto pra não trocar o app embaixo de alguém
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) { swPending = nw; trySwUpdate(); }
         });
       });
     }).catch(() => {});
+    setInterval(trySwUpdate, 5000); // re-tenta quando o jogo/overlay liberar
+    // 1ª instalação: o claim() dispara controllerchange sem haver versão velha — NÃO recarrega
+    // (era isso que piscava a tela e mostrava o guia de boas-vindas duas vezes).
+    let hadController = !!navigator.serviceWorker.controller;
     let swReloaded = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (!swReloaded) { swReloaded = true; location.reload(); } });
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) { hadController = true; return; }
+      if (!swReloaded) { swReloaded = true; location.reload(); } // hash re-entra na mesa sozinho
+    });
   }
 }
 

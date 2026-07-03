@@ -813,3 +813,32 @@ body.light .dom-board-wrap { background: linear-gradient(180deg, #2f6b45, #24553
 .dom-start-note { font-size: 13px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
 @keyframes dompulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.9); } }
 @media (prefers-reduced-motion: reduce) { .dom-setup-spin { animation: none; } }
+
+/* ===================== App liso — tour guiado + desktop de verdade ===================== */
+
+/* Tour da 1ª mesa: spotlight (recorte via box-shadow gigante) + balão explicativo */
+.tour { position: fixed; inset: 0; z-index: 60; }
+.tour-spot { position: absolute; border-radius: 14px; border: 2px dashed var(--gold);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, .74); transition: all .25s ease; pointer-events: none; }
+.tour-balloon { position: absolute; left: 16px; right: 16px; max-width: 430px; margin: 0 auto;
+  background: linear-gradient(180deg, #1c2314, #141a0f); border: 2px dashed var(--chalk-line);
+  border-radius: 16px; padding: 14px 16px 16px; box-shadow: 0 12px 40px rgba(0, 0, 0, .55); }
+.tour-count { font-size: 12px; letter-spacing: 1px; color: var(--muted); }
+.tour-title { font-family: var(--hand); font-size: 23px; color: var(--gold); margin-top: 2px; }
+.tour-text { font-size: 15px; color: var(--cream); margin-top: 4px; line-height: 1.45; }
+.tour-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+.tour-row .btn { width: auto; padding: 10px 16px; font-size: 15px; }
+body.light .tour-balloon { background: linear-gradient(180deg, #fdf6e6, #f2e7cd); }
+@media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } }
+
+/* Desktop de verdade (>=900px): sheet centralizado como cartão — não bottom-sheet de celular */
+@media (min-width: 900px) {
+  .overlay { align-items: center; padding: 28px; }
+  .sheet { max-width: 640px; max-height: 90vh; overflow-y: auto; border-radius: 22px;
+    border-bottom: 2px dashed var(--chalk-line); animation: sheet-pop .22s ease;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .55); }
+  /* jogos ganham um cartão mais largo pro tabuleiro respirar */
+  #overlay-domino .sheet, #overlay-purrinha .sheet { max-width: 760px; }
+  .tour-balloon { max-width: 460px; }
+}
+@keyframes sheet-pop { from { transform: translateY(16px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }

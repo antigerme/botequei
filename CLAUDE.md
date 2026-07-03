@@ -150,6 +150,9 @@ em pt-BR).
   `sw.js` faz `cache.add(new Request(u,{cache:'reload'}))` no install (fura o cache ao instalar).
 - **BAC é estimativa local, não bafômetro** — sempre com o aviso de não dirigir; peso/sexo ficam só no aparelho.
 - Ao mexer no `ui.js`, todo id novo precisa entrar no array `IDS` (senão `ui.init` quebra ao amarrar o listener).
+- **i18n sempre em paridade**: ao adicionar/renomear uma chave `data-i18n`, atualize as **três** línguas
+  (`pt`/`en`/`es`) em `js/i18n.js` — a auditoria (`tests/audit.mjs`, roda no CI) falha se alguma ficar de fora
+  ou sobrar. Toasts e mensagens dinâmicas seguem **pt-BR** de propósito (fora do i18n do shell).
 - Ao adicionar `js/*.js` do shell, atualize a lista do `sw.js` **e** bump o `CACHE` (`botequei-vN`).
 - O SW **não** chama `skipWaiting` no install: a versão nova espera o usuário tocar em "Atualizar"
   (o app manda `SKIP_WAITING` e recarrega no `controllerchange`). Só bump de `CACHE` dispara o aviso.

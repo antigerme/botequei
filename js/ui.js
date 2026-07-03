@@ -20,7 +20,7 @@ const IDS = [
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
-  'overlay-menu', 'menu-profile', 'menu-board', 'menu-pace', 'menu-safe', 'menu-league', 'menu-roulette',
+  'overlay-menu', 'menu-profile', 'menu-board', 'menu-pace', 'menu-safe', 'menu-roulette',
   'menu-water', 'menu-jukebox', 'menu-festa', 'menu-card', 'menu-tournament', 'menu-bill', 'menu-prices',
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list', 'btn-save-menu',
@@ -55,7 +55,7 @@ const IDS = [
   'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
   'overlay-welcome', 'btn-welcome-go',
   'overlay-retro', 'retro-slides', 'btn-retro-share',
-  'overlay-league', 'league-level', 'league-challenges', 'league-season',
+  'league-level', 'league-challenges', 'league-season',
   'overlay-bar', 'bar-code', 'bar-usemenu-field', 'bar-usemenu', 'bar-menu-count', 'btn-bar-open',
   'btn-offline-join', 'btn-offline-host',
   'overlay-offline', 'off-host', 'off-guest',
@@ -154,7 +154,6 @@ export function init(handlers) {
   $('menu-board').addEventListener('click', () => { closeOverlays(); H.onPeers(); });
   $('menu-pace').addEventListener('click', () => { closeOverlays(); H.onPace(); });
   $('menu-safe').addEventListener('click', () => { closeOverlays(); H.onSafe(); });
-  $('menu-league').addEventListener('click', () => { closeOverlays(); H.onLeague(); });
   $('menu-roulette').addEventListener('click', () => { closeOverlays(); H.onRoulette(); });
   $('menu-purrinha').addEventListener('click', () => { closeOverlays(); H.onPurrinha(); });
   $('menu-domino').addEventListener('click', () => { closeOverlays(); H.onDomino(); });
@@ -1010,8 +1009,8 @@ export function openRetro(vm) {
   el['overlay-retro'].hidden = false;
 }
 
-// ---------- Liga & desafios ----------
-export function openLeague(vm) {
+// ---------- Liga & desafios (renderizada DENTRO do Placar; sem overlay próprio) ----------
+export function renderLeague(vm) {
   const L = vm.level;
   const pct = L.xpForNext > 0 ? Math.min(100, (L.xpInLevel / L.xpForNext) * 100) : 100;
   el['league-level'].innerHTML = `<div class="ll-top"><span class="ll-badge">Nível ${L.level}</span><span class="ll-title">${esc(L.title)}</span></div>
@@ -1025,7 +1024,6 @@ export function openLeague(vm) {
   const s = vm.season;
   el['league-season'].innerHTML = s ? `<div class="season-card"><span class="season-emoji">${esc(s.emoji)}</span>
     <div><div class="season-title">${esc(s.title)}</div><div class="season-sub">${s.month} rodada${s.month === 1 ? '' : 's'} em ${esc(s.label)}</div></div></div>` : '';
-  el['overlay-league'].hidden = false;
 }
 
 // ---------- Modo bar ----------

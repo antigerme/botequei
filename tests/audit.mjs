@@ -9,7 +9,7 @@
 //      js do shell, atualize o sw.js e bump o CACHE".)
 //   3) IDS do ui.js: todo `el['x']` usado está no array IDS, e todo IDS existe como id no
 //      index.html. (CLAUDE.md: "todo id novo precisa entrar no array IDS".)
-//   4) i18n: toda chave `data-i18n`/`data-i18n-ph` do index.html existe no dicionário pt.
+//   4) i18n: toda chave `data-i18n` do index existe no pt E as 3 línguas (pt/en/es) têm as mesmas chaves.
 //
 // Uso: `node tests/audit.mjs` (sai 1 se achar qualquer inconsistência).
 
@@ -153,24 +153,37 @@ for (const file of [...JS_FILES, ...TEST_FILES]) {
   for (const id of ids) if (!htmlIds.has(id)) fail(`[ui] IDS tem '${id}', mas não existe id="${id}" no index.html`);
 }
 
-// ---------- 4) chaves de i18n ----------
+// ---------- 4) chaves de i18n (uso no pt + paridade pt/en/es) ----------
 {
   const html = read('index.html');
   const i18n = read('js/i18n.js');
-  // isola o bloco pt: { ... } por contagem de chaves
-  const start = i18n.indexOf('pt:');
-  const braceStart = i18n.indexOf('{', start);
-  let depth = 0, end = -1;
-  for (let i = braceStart; i < i18n.length; i++) {
-    if (i18n[i] === '{') depth++;
-    else if (i18n[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
-  }
-  const ptBlock = braceStart >= 0 && end > braceStart ? i18n.slice(braceStart + 1, end) : '';
-  const ptKeys = new Set();
-  for (const m of ptBlock.matchAll(/(?:^|[\s,{])(?:([\w$]+)|['"]([\w.$-]+)['"])\s*:/g)) ptKeys.add(m[1] || m[2]);
+  const dictAt = i18n.indexOf('const DICT');
+  // extrai as chaves de um bloco `<lang>: { ... }` do DICT por contagem de chaves
+  const keysOf = (lang) => {
+    const braceStart = i18n.indexOf('{', i18n.indexOf(lang + ':', dictAt));
+    let depth = 0, end = -1;
+    for (let i = braceStart; i < i18n.length; i++) {
+      if (i18n[i] === '{') depth++;
+      else if (i18n[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+    }
+    const block = braceStart >= 0 && end > braceStart ? i18n.slice(braceStart + 1, end) : '';
+    const keys = new Set();
+    for (const m of block.matchAll(/(?:^|[\s,{])(?:([\w$]+)|['"]([\w.$-]+)['"])\s*:/g)) keys.add(m[1] || m[2]);
+    return keys;
+  };
+  const pt = keysOf('pt'), en = keysOf('en'), es = keysOf('es');
 
+  // 4a) toda chave data-i18n do index.html existe no dicionário pt
   const used = new Set([...html.matchAll(/data-i18n(?:-ph)?="([\w.$-]+)"/g)].map((m) => m[1]));
-  for (const k of used) if (!ptKeys.has(k)) fail(`[i18n] index.html usa data-i18n "${k}", que não existe no dicionário pt`);
+  for (const k of used) if (!pt.has(k)) fail(`[i18n] index.html usa data-i18n "${k}", que não existe no dicionário pt`);
+
+  // 4b) paridade: en e es têm EXATAMENTE as chaves do pt (tradução não pode dessincronizar)
+  for (const k of pt) {
+    if (!en.has(k)) fail(`[i18n] chave "${k}" está no pt mas falta no en — traduza em js/i18n.js`);
+    if (!es.has(k)) fail(`[i18n] chave "${k}" está no pt mas falta no es — traduza em js/i18n.js`);
+  }
+  for (const k of en) if (!pt.has(k)) fail(`[i18n] chave "${k}" está no en mas não no pt (sobrou/renomeou?)`);
+  for (const k of es) if (!pt.has(k)) fail(`[i18n] chave "${k}" está no es mas não no pt (sobrou/renomeou?)`);
 }
 
 // ---------- resultado ----------
@@ -183,5 +196,5 @@ if (problems.length) {
 console.log(`✓ import/export coerentes (${JS_FILES.length} módulos js + ${TEST_FILES.length} testes)`);
 console.log('✓ shell do service worker cobre o js e o CACHE está no padrão');
 console.log("✓ ui.js: todo el['x'] está em IDS e todo IDS existe no index.html");
-console.log('✓ i18n: toda chave data-i18n do index.html existe no dicionário pt');
+console.log('✓ i18n: data-i18n do index no pt + paridade pt/en/es (mesmas chaves)');
 console.log('\n✅ auditoria passou');

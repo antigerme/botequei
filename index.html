@@ -630,28 +630,43 @@
     <h2>🫲 Purrinha</h2>
     <p class="sheet-sub" id="purr-sub">Escolha sua mão e chute o total da mesa. Tudo lacrado — abre junto.</p>
 
-    <!-- 1) escolher (mão + palpite), lacrar -->
-    <div id="purr-pick">
+    <!-- 0) escolha do modo (só quem inicia vê) -->
+    <div class="purr-start" id="purr-setup" hidden></div>
+
+    <!-- 1) escolher a mão (+ palpite no modo rápido), lacrar -->
+    <div id="purr-pick" hidden>
       <div class="purr-lbl"><b>1.</b> Quantos palitos você esconde na mão?</div>
       <div class="purr-hands" id="purr-hands"></div>
-      <div class="purr-lbl"><b>2.</b> Chute o total de palitos da mesa</div>
-      <div class="purr-opts purr-opts-wrap" id="purr-guesses"></div>
+      <div id="purr-guess-wrap">
+        <div class="purr-lbl"><b>2.</b> Chute o total de palitos da mesa</div>
+        <div class="purr-opts purr-opts-wrap" id="purr-guesses"></div>
+      </div>
       <button class="btn btn-primary btn-lg" id="btn-purr-seal" disabled>🔒 Lacrar</button>
     </div>
 
     <!-- 2) aguardando os lacres -->
     <div id="purr-wait" hidden>
       <div class="purr-waitbig" id="purr-waitcount">🔒 0/0</div>
-      <div class="purr-waitsub">Esperando a galera lacrar…</div>
+      <div class="purr-waitsub" id="purr-waitsub">Esperando a galera lacrar…</div>
       <ul class="purr-seals" id="purr-seals"></ul>
     </div>
 
-    <!-- 3) revelação -->
+    <!-- 2b) clássico: palpites falados em turno (públicos, sem repetir) -->
+    <div id="purr-guessing" hidden>
+      <div class="purr-status" id="purr-status"></div>
+      <ul class="purr-said" id="purr-said"></ul>
+      <div class="purr-turnrow" id="purr-turnrow"></div>
+      <div class="purr-opts purr-opts-wrap" id="purr-gpick" hidden></div>
+      <button class="btn btn-primary btn-lg" id="btn-purr-say" hidden disabled>🎙️ Falar palpite</button>
+    </div>
+
+    <!-- 3) revelação (da rodada ou final) -->
     <div id="purr-result" hidden>
+      <div class="purr-status" id="purr-rstatus" hidden></div>
       <div class="purr-total" id="purr-total"></div>
       <ul class="purr-reveals" id="purr-reveals"></ul>
       <div class="purr-verdict" id="purr-verdict"></div>
-      <button class="btn btn-primary btn-lg" id="btn-purr-again">🫲 Jogar de novo</button>
+      <button class="btn btn-primary btn-lg" id="btn-purr-again" hidden>🫲 Jogar de novo</button>
     </div>
   </div>
 </div>

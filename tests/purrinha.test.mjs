@@ -4,6 +4,7 @@
 import assert from 'node:assert';
 import {
   clampHand, maxGuess, randomNonce, sha256Hex, commitString, makeCommit, verifyReveal, resolve,
+  handCommitString, makeHandCommit, verifyHandReveal, validGuess, guessOrder, turnOf, classicRound, nextRound,
 } from '../js/purrinha.js';
 
 let passed = 0;
@@ -91,6 +92,70 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.deepStrictEqual(r.seers.sort(), ['a', 'b', 'c']);
   assert.strictEqual(r.loserId, null);
   ok('apura: todo mundo cravando o total = ninguém paga');
+}
+
+// ===================== Modo clássico (palitinho de verdade) =====================
+
+// ---------- lacre só da mão (palpite é público no clássico) ----------
+{
+  assert.strictEqual(handCommitString(2, 'abc'), 'h:2:abc');
+  assert.strictEqual(handCommitString(9, 'abc'), 'h:3:abc'); // mão clampada no lacre
+  const nonce = randomNonce();
+  const commit = await makeHandCommit(1, nonce);
+  assert.strictEqual(await verifyHandReveal({ hand: 1, nonce, commit }), true);
+  assert.strictEqual(await verifyHandReveal({ hand: 2, nonce, commit }), false); // mudou a mão → pega
+  assert.strictEqual(await verifyHandReveal({ hand: 1, nonce: 'outro', commit }), false);
+  ok('clássico: lacre da mão bate; mexer na mão depois falha');
+}
+
+// ---------- palpite: faixa + NÃO PODE REPETIR ----------
+{
+  assert.strictEqual(validGuess(0, 3, []), true);
+  assert.strictEqual(validGuess(9, 3, []), true);    // 3 vivos → até 9
+  assert.strictEqual(validGuess(10, 3, []), false);  // estourou
+  assert.strictEqual(validGuess(-1, 3, []), false);
+  assert.strictEqual(validGuess(2.5, 3, []), false); // só inteiro
+  assert.strictEqual(validGuess(4, 3, [4]), false);  // repetido → proibido
+  assert.strictEqual(validGuess(4, 3, ['4']), false); // repetido mesmo como string
+  assert.strictEqual(validGuess(5, 3, [4, 6]), true);
+  ok('clássico: palpite 0..3·vivos e nunca repetido');
+}
+
+// ---------- ordem de palpites gira a mesa ----------
+{
+  const alive = ['a', 'b', 'c', 'd'];
+  assert.deepStrictEqual(guessOrder(alive, 0), ['a', 'b', 'c', 'd']);
+  assert.deepStrictEqual(guessOrder(alive, 2), ['c', 'd', 'a', 'b']);
+  assert.strictEqual(turnOf(alive, 1, []), 'b');           // ninguém falou → starter fala
+  assert.strictEqual(turnOf(alive, 1, ['b', 'c']), 'd');   // já falaram b,c → vez do d
+  assert.strictEqual(turnOf(alive, 1, ['b', 'c', 'd', 'a']), null); // todos falaram
+  ok('clássico: palpites em turno, girando a partir do starter');
+}
+
+// ---------- apuração da rodada: cravou → se livra (no máx. 1 por rodada) ----------
+{
+  const r = classicRound(
+    [{ id: 'a', hand: 1 }, { id: 'b', hand: 2 }, { id: 'c', hand: 0 }],
+    [{ id: 'a', guess: 5 }, { id: 'b', guess: 3 }, { id: 'c', guess: 0 }],
+  );
+  assert.strictEqual(r.total, 3);
+  assert.strictEqual(r.winnerId, 'b'); // cravou 3 → se livrou
+  const r2 = classicRound([{ id: 'a', hand: 1 }, { id: 'b', hand: 1 }], [{ id: 'a', guess: 0 }, { id: 'b', guess: 3 }]);
+  assert.strictEqual(r2.winnerId, null); // ninguém cravou → joga de novo
+  ok('clássico: quem crava o total se livra; ninguém cravou → repete');
+}
+
+// ---------- eliminação + rotação do starter ----------
+{
+  // ninguém cravou: mesma mesa, starter gira pro próximo
+  assert.deepStrictEqual(nextRound(['a', 'b', 'c', 'd'], 1, null), { alive: ['a', 'b', 'c', 'd'], startIdx: 2, loserId: null, done: false });
+  // o próprio starter cravou: quem herdou a cadeira dele começa
+  assert.deepStrictEqual(nextRound(['a', 'b', 'c', 'd'], 1, 'b'), { alive: ['a', 'c', 'd'], startIdx: 1, loserId: null, done: false });
+  // outro cravou: gira pro próximo vivo depois do starter
+  assert.deepStrictEqual(nextRound(['a', 'b', 'c', 'd'], 1, 'c'), { alive: ['a', 'b', 'd'], startIdx: 2, loserId: null, done: false });
+  // sobrou um: ele paga
+  assert.deepStrictEqual(nextRound(['a', 'b'], 0, 'a'), { alive: ['b'], startIdx: 0, loserId: 'b', done: true });
+  ok('clássico: eliminação até sobrar um (que paga) + starter girando');
 }
 
 console.log(`\n${passed} testes de purrinha passaram ✅`);

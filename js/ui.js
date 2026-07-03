@@ -48,11 +48,11 @@ const IDS = [
   'purr-wait', 'purr-waitcount', 'purr-waitsub', 'purr-seals',
   'purr-guessing', 'purr-status', 'purr-said', 'purr-turnrow', 'purr-gpick', 'btn-purr-say',
   'purr-result', 'purr-rstatus', 'purr-total', 'purr-reveals', 'purr-verdict',
-  'btn-purr-again', 'btn-purr-close',
+  'btn-purr-again', 'btn-purr-close', 'btn-purr-end',
   'menu-domino', 'overlay-domino', 'btn-dom-close', 'dom-setup', 'dom-game', 'dom-verified',
   'dom-opps', 'dom-turn', 'dom-board', 'dom-result',
   'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
-  'btn-dom-pass', 'btn-dom-again',
+  'btn-dom-pass', 'btn-dom-again', 'btn-dom-end', 'game-pill',
   'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
   'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
   'overlay-welcome', 'btn-welcome-go',
@@ -200,10 +200,13 @@ export function init(handlers) {
   });
   el['btn-purr-say'].addEventListener('click', () => { if (purrSaid != null) H.onPurrGuess(purrSaid); });
   el['btn-purr-again'].addEventListener('click', () => H.onPurrinha());
-  el['btn-purr-close'].addEventListener('click', () => { H.onPurrCancel(); closeOverlays(); });
+  el['btn-purr-close'].addEventListener('click', () => H.onPurrClose()); // minimiza (jogo segue); encerrar é o botão explícito
+  el['btn-purr-end'].addEventListener('click', () => H.onPurrEnd());
   el['btn-dom-pass'].addEventListener('click', () => H.onDomPass());
   el['btn-dom-again'].addEventListener('click', () => H.onDomino());
-  el['btn-dom-close'].addEventListener('click', () => { H.onDomCancel(); closeOverlays(); });
+  el['btn-dom-close'].addEventListener('click', () => H.onDomClose());
+  el['btn-dom-end'].addEventListener('click', () => H.onDomEnd());
+  el['game-pill'].addEventListener('click', () => H.onGameBack());
   el['btn-dom-L'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'L'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-dom-R'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'R'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-passport-checkin'].addEventListener('click', () => H.onCheckin(el['passport-name'].value));
@@ -978,7 +981,8 @@ export function renderPresence(list) {
   const others = (list || []).filter((p) => !p.self);
   if (!others.length) { bar.hidden = true; bar.innerHTML = ''; return; }
   bar.hidden = false;
-  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' off'} ${frameClass(p.level)}" title="${esc(p.name || '')}" style="background:${safeColor(p.color)}">${esc(p.emoji || '🍺')}</span>`).join('');
+  // quem apagou a tela / caiu há pouco fica esmaecido com 💤 (em vez de sumir da barra)
+  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' zz'} ${frameClass(p.level)}" title="${esc(p.name || '')}${p.online ? '' : ' (fora da mesa)'}" style="background:${safeColor(p.color)}">${esc(p.emoji || '🍺')}${p.online ? '' : '<i class="zz-b">💤</i>'}</span>`).join('');
 }
 
 // ---------- Comanda individual ----------
@@ -1076,6 +1080,23 @@ function purrPhase(which) {
   el['purr-result'].hidden = which !== 'result';
 }
 // escolha do modo ao iniciar (quem inicia decide) — mesmo padrão do dominó
+// ---------- Jogo minimizado (✕ = minimizar; a partida segue e o pill traz de volta) ----------
+// Enquanto minimizado, os renders continuam atualizando o conteúdo por baixo — só não reabrem
+// o overlay na cara de quem voltou pro contador. O pill na mesa traz de volta com um toque.
+const gameMin = { dom: false, purr: false };
+export function setGameMin(kind, v) { gameMin[kind] = !!v; }
+export function showGame(kind) {
+  gameMin[kind] = false;
+  el[kind === 'dom' ? 'overlay-domino' : 'overlay-purrinha'].hidden = false;
+}
+export function setGamePill(vm) {
+  const p = el['game-pill'];
+  if (!vm) { p.hidden = true; return; }
+  p.textContent = vm.label;
+  p.classList.toggle('urgent', !!vm.urgent);
+  p.hidden = false;
+}
+
 export function purrinhaStartChoice() {
   el['purr-sub'].textContent = 'Cada um esconde palitos na mão e a mesa adivinha o total.';
   el['purr-setup'].innerHTML = `<div class="dom-start">
@@ -1088,6 +1109,7 @@ export function purrinhaStartChoice() {
   el['purr-setup'].querySelector('#btn-purr-sticks').onclick = () => H.onPurrStart('sticks');
   el['purr-setup'].querySelector('#btn-purr-classic').onclick = () => H.onPurrStart('classic');
   el['purr-setup'].querySelector('#btn-purr-fast').onclick = () => H.onPurrStart('fast');
+  el['btn-purr-end'].hidden = true; // ainda não tem partida
   purrPhase('setup');
   el['overlay-purrinha'].hidden = false;
 }
@@ -1125,8 +1147,9 @@ export function openPurrinha(vm) {
     sync();
   }));
   el['btn-purr-seal'].disabled = true;
+  el['btn-purr-end'].hidden = false;
   purrPhase('pick');
-  el['overlay-purrinha'].hidden = false;
+  if (!gameMin.purr) el['overlay-purrinha'].hidden = false;
 }
 export function purrinhaSealed(vm) {
   el['purr-waitcount'].textContent = `🔒 ${vm.count}/${vm.total}`;
@@ -1134,8 +1157,9 @@ export function purrinhaSealed(vm) {
   el['purr-seals'].innerHTML = (vm.seals || []).map((s) => `<li class="purr-seal${s.sealed ? ' done' : ''}">
     <span class="purr-sav">${esc(s.avatar || '🍺')}</span><span class="purr-sname">${esc(s.name)}</span>
     <span class="purr-sst">${s.sealed ? '🔒 lacrou' : '⏳ escolhendo…'}</span></li>`).join('');
+  el['btn-purr-end'].hidden = false;
   purrPhase('wait');
-  el['overlay-purrinha'].hidden = false;
+  if (!gameMin.purr) el['overlay-purrinha'].hidden = false;
 }
 // clássico: fase dos palpites em turno — mostra os já falados e libera o picker só na SUA vez
 export function purrinhaGuessing(vm) {
@@ -1160,8 +1184,9 @@ export function purrinhaGuessing(vm) {
     el['purr-turnrow'].textContent = vm.turnName ? `⏳ Vez de ${vm.turnName} falar…` : '';
     el['purr-gpick'].hidden = true; el['btn-purr-say'].hidden = true;
   }
+  el['btn-purr-end'].hidden = false;
   purrPhase('guessing');
-  el['overlay-purrinha'].hidden = false;
+  if (!gameMin.purr) el['overlay-purrinha'].hidden = false;
 }
 export function purrinhaResult(vm) {
   el['purr-rstatus'].hidden = !vm.status;
@@ -1179,8 +1204,9 @@ export function purrinhaResult(vm) {
   el['purr-verdict'].className = 'purr-verdict ' + (vm.verdict.kind || '');
   el['purr-verdict'].textContent = vm.verdict.text;
   el['btn-purr-again'].hidden = vm.final === false; // rodada intermediária do clássico não tem "de novo"
+  el['btn-purr-end'].hidden = vm.final !== false;   // no fim, o ✕ já resolve; no meio, dá pra encerrar
   purrPhase('result');
-  el['overlay-purrinha'].hidden = false;
+  if (!gameMin.purr) el['overlay-purrinha'].hidden = false;
 }
 
 // ---------- Dominó (pedras desenhadas com pips) ----------
@@ -1221,7 +1247,8 @@ export function dominoSetup(msg) {
   el['dom-setup'].innerHTML = `<div class="dom-setup-spin">🔒</div><div class="dom-setup-msg">${esc(msg)}</div>`;
   el['dom-setup'].hidden = false;
   el['dom-game'].hidden = true;
-  el['overlay-domino'].hidden = false;
+  el['btn-dom-end'].hidden = false;
+  if (!gameMin.dom) el['overlay-domino'].hidden = false;
 }
 export function renderDomino(vm) {
   el['dom-setup'].hidden = true;
@@ -1267,7 +1294,8 @@ export function renderDomino(vm) {
   el['dom-result'].textContent = vm.over ? (vm.result || '') : '';
   el['dom-result'].className = 'dom-result' + (vm.over && vm.iWon ? ' win' : '');
   el['btn-dom-again'].hidden = !vm.over;
-  el['overlay-domino'].hidden = false;
+  el['btn-dom-end'].hidden = !!vm.over; // no fim, o ✕ já resolve; no meio, dá pra encerrar pra mesa
+  if (!gameMin.dom) el['overlay-domino'].hidden = false;
 }
 
 // ---------- Jukebox ----------

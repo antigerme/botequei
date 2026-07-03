@@ -59,6 +59,10 @@ let sessionStart = 0;        // quando entrei nesta mesa (p/ duração no histó
 let lastNudge = 0;           // cooldown do aviso de ritmo
 let prevOnline = new Set();  // presença: quem estava online (p/ avisar entrou/saiu)
 let presenceSeeded = false;  // 1ª passada de presença só semeia (sem toast)
+let everSeen = new Set();    // quem já apareceu online na sessão ("entrou!" só na 1ª vez)
+let wentAway = new Set();    // quem saiu de verdade (passou da graça) — p/ saudar o "voltou"
+let pendingBye = new Map();  // user -> timeout da graça: sumiu agora, ainda não é "saiu"
+const BYE_GRACE_MS = 45000;  // tela apagada / elevador / xixi não viram toast de "saiu"
 let sessionMates = new Set(); // nomes que apareceram na mesa (p/ "com quem você mais bebeu")
 let pendingBarMenu = false;  // ao abrir "mesa do bar", carrega o cardápio salvo
 let lastRetro = null;        // dados da última retrospectiva (p/ compartilhar)
@@ -293,8 +297,14 @@ function onFx(fx, fromId) {
     if (fx.ph === 'deal') { if (!dom || dom.gameId !== fx.gameId) beginDomino(fx); }
     else if (fx.ph === 'play') onDomPlay(fx);
     else if (fx.ph === 'pass') onDomPass(fx);
+    else if (fx.ph === 'skip') onDomSkip(fx);       // vez pulada de quem caiu (convergente)
     else if (fx.ph === 'reveal') onDomReveal(fx);
-    else if (fx.ph === 'cancel') { if (dom && dom.gameId === fx.gameId && !dom.over) { dom = null; ui.closeOverlays(); ui.toast('🁫 Dominó cancelado'); } }
+    else if (fx.ph === 'noshow') onDomNoshow(fx);   // tranca sem a mão de quem caiu
+    else if (fx.ph === 'cancel') {
+      const bye = fx.from ? `🛑 ${domName(fx.from)} encerrou o dominó` : '🁫 Dominó cancelado';
+      if (dom && dom.gameId === fx.gameId && !dom.over) { dom = null; domClearTimers(); clearGameMin('dom'); ui.closeOverlays(); ui.toast(bye); }
+      else if (dv && dv.gameId === fx.gameId && !dv.began) { dv = null; domClearTimers(); clearGameMin('dom'); ui.closeOverlays(); ui.toast(bye); } // ainda no handshake
+    }
     else if (fx.ph === 'vsetup') onVsetup(fx);
     else if (fx.ph === 'vseed') onVseed(fx);
     else if (fx.ph === 'vgo') onVgo(fx);
@@ -401,7 +411,10 @@ function render() {
 function renderPresence() {
   const me = profOf(self);
   const list = [{ user: self, emoji: me.emoji, color: me.color, name: getName() || 'você', level: me.level, online: true, self: true }];
-  if (mesh) for (const p of mesh.peers()) { const pr = profOf(p.user); list.push({ user: p.user, emoji: pr.emoji, color: pr.color, name: pr.name || 'alguém', level: pr.level, online: p.online }); }
+  const listed = new Set([self]);
+  if (mesh) for (const p of mesh.peers()) { listed.add(p.user); const pr = profOf(p.user); list.push({ user: p.user, emoji: pr.emoji, color: pr.color, name: pr.name || 'alguém', level: pr.level, online: p.online }); }
+  // quem sumiu há pouco (dentro da graça) segue na barra como 💤, mesmo se a malha já o removeu
+  for (const u of pendingBye.keys()) if (!listed.has(u)) { const pr = profOf(u); list.push({ user: u, emoji: pr.emoji, color: pr.color, name: pr.name || 'alguém', level: pr.level, online: false }); }
   ui.renderPresence(list);
 }
 
@@ -463,6 +476,9 @@ function onMeshChange() {
   diffPresence();
   render();
   purrTryGates(); // dropout não trava a purrinha: portões re-checam quando alguém cai/volta
+  armDomSkip();   // idem no dominó: quem caiu na vez tem a vez pulada
+  if (dom && !dom.over && dom.phase === 'reveal') domResolveBlock(); // tranca esperando mão de quem caiu
+  updateGamePill();
   // convidado: assim que a conexão sobe, fecha o painel de pareamento offline sozinho
   if (offlineWaiting && mesh && mesh.connectedCount() > 0) {
     offlineWaiting = false;
@@ -470,19 +486,39 @@ function onMeshChange() {
     ui.toast('🎉 Entrou na mesa sem internet!');
   }
 }
-// Avisa quem entrou/saiu ao vivo. A 1ª passada só semeia (evita despejar toasts ao entrar).
+// Avisa quem entrou/saiu ao vivo, com HISTERESE: tela apagada derruba o WebRTC em ~12s, então
+// quem some entra numa graça de 45s (fica 💤 na barra) e só vira toast de "saiu" se não voltar.
+// Piscada (apagou e voltou) = silêncio total; "entrou!" só na primeira vez da sessão.
 function diffPresence() {
   if (!mesh) return;
   const cur = new Set(mesh.peers().filter((p) => p.online).map((p) => p.user));
   for (const u of cur) { const n = profOf(u).name; if (n) sessionMates.add(n); } // "com quem você bebeu"
-  if (!presenceSeeded) { prevOnline = cur; presenceSeeded = true; return; }
-  for (const u of cur) if (!prevOnline.has(u)) { ui.toast(`🍻 ${profOf(u).name || 'Alguém'} entrou!`); sound.pop(); }
-  for (const u of prevOnline) if (!cur.has(u)) ui.toast(`👋 ${profOf(u).name || 'Alguém'} saiu`);
+  if (!presenceSeeded) { prevOnline = cur; presenceSeeded = true; for (const u of cur) everSeen.add(u); return; }
+  for (const u of cur) {
+    const t = pendingBye.get(u);
+    if (t) { clearTimeout(t); pendingBye.delete(u); } // voltou dentro da graça: nenhum toast
+    else if (!prevOnline.has(u)) {
+      if (!everSeen.has(u)) { ui.toast(`🍻 ${profOf(u).name || 'Alguém'} entrou!`); sound.pop(); }
+      else if (wentAway.has(u)) ui.toast(`🙌 ${profOf(u).name || 'Alguém'} voltou!`);
+    }
+    everSeen.add(u); wentAway.delete(u);
+  }
+  for (const u of prevOnline) {
+    if (cur.has(u) || pendingBye.has(u)) continue;
+    pendingBye.set(u, setTimeout(() => {
+      pendingBye.delete(u);
+      const on = mesh && mesh.peers().some((p) => p.user === u && p.online);
+      if (!on) { wentAway.add(u); ui.toast(`👋 ${profOf(u).name || 'Alguém'} saiu`); }
+      scheduleRender(); // tira (ou reacende) o 💤 da barra
+    }, BYE_GRACE_MS));
+  }
   prevOnline = cur;
 }
 
 function startMesh(iceServers) {
   presenceSeeded = false; prevOnline = new Set();
+  for (const t of pendingBye.values()) clearTimeout(t);
+  pendingBye = new Map(); everSeen = new Set(); wentAway = new Set();
   mesh = new Mesh({
     room: sigRoom(room, roomPin), code: room, selfId: self, name: getName(), iceServers,
     onEvent: onRemoteEvent, onFx, onPeersChange: onMeshChange, onStatus: onMeshChange,
@@ -532,7 +568,10 @@ function leaveTable() {
   room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false;
   lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastNudge = 0; lastAwards = [];
   prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set(); concernAt = new Map();
+  for (const t of pendingBye.values()) clearTimeout(t);
+  pendingBye = new Map(); everSeen = new Set(); wentAway = new Set();
   purr = null; dom = null; dv = null; seenFx.clear(); purrPreFx = [];
+  domClearTimers(); gameMinned.clear(); ui.setGameMin('dom', false); ui.setGameMin('purr', false); ui.setGamePill(null);
   ui.setHappyHour(null);
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
@@ -688,6 +727,28 @@ function doRoulette() {
   ui.runRoulette(entrants, winner);
 }
 
+// ---- Jogo minimizado (✕ = minimizar; encerrar pra mesa toda é ação explícita) ----
+// Fechar o overlay NÃO cancela mais a partida de ninguém: o jogo segue rolando por baixo
+// (fx continuam aplicando/renderizando) e o pill na mesa traz de volta num toque. "Encerrar"
+// pede confirmação e avisa a mesa com o nome de quem encerrou.
+const gameMinned = new Set(); // 'dom' | 'purr'
+function purrActive() { return !!purr && purr.phase !== 'revealed' && purr.phase !== 'done'; }
+function minimizeGame(kind) { gameMinned.add(kind); ui.setGameMin(kind, true); ui.closeOverlays(); updateGamePill(); }
+function reopenGame(kind) { gameMinned.delete(kind); ui.showGame(kind); updateGamePill(); }
+function clearGameMin(kind) { gameMinned.delete(kind); ui.setGameMin(kind, false); updateGamePill(); }
+function updateGamePill() {
+  // poda flags de jogo que já morreu (cancelado/terminado enquanto minimizado)
+  if (gameMinned.has('dom') && !((dom && !dom.over) || (dv && !dv.began && !dom))) { gameMinned.delete('dom'); ui.setGameMin('dom', false); }
+  if (gameMinned.has('purr') && !purrActive()) { gameMinned.delete('purr'); ui.setGameMin('purr', false); }
+  const parts = [];
+  if (gameMinned.has('dom')) {
+    const myTurn = dom && !dom.over && dom.order[dom.turnIdx] === self;
+    parts.push({ urgent: myTurn, label: myTurn ? '🁫 SUA VEZ no dominó' : '🁫 Dominó rolando' });
+  }
+  if (gameMinned.has('purr')) parts.push({ urgent: false, label: '🫲 Purrinha rolando' });
+  ui.setGamePill(parts.length ? { label: parts.map((p) => p.label).join(' · ') + ' — voltar', urgent: parts.some((p) => p.urgent) } : null);
+}
+
 // ---- Purrinha (P2P honesta via commit-reveal; efêmera, não entra no log) ----
 // Dois modos, escolhidos por quem inicia:
 //   'fast'    — variante rápida: 1 rodada, mão+palpite lacrados juntos, quem chuta mais longe paga.
@@ -717,7 +778,10 @@ let purrPreFx = [];
 function routePurrFx(fx) {
   if (fx.ph === 'invite') { if (!purr || purr.gameId !== fx.gameId) beginPurrinha(fx.gameId, fx.entrants, fx.mode); return; }
   if (fx.ph === 'cancel') {
-    if (purr && purr.gameId === fx.gameId && purr.phase !== 'revealed' && purr.phase !== 'done') { purr = null; ui.closeOverlays(); ui.toast('🫲 Purrinha cancelada'); }
+    if (purr && purr.gameId === fx.gameId && purr.phase !== 'revealed' && purr.phase !== 'done') {
+      purr = null; clearGameMin('purr'); ui.closeOverlays();
+      ui.toast(fx.from ? `🛑 ${profOf(fx.from).name || 'Alguém'} encerrou a purrinha` : '🫲 Purrinha cancelada');
+    }
     return;
   }
   if (!purr || purr.gameId !== fx.gameId) { purrPreFx.push(fx); if (purrPreFx.length > 60) purrPreFx.shift(); return; }
@@ -742,6 +806,7 @@ function startPurrinhaMode(mode) {
   beginPurrinha(gameId, entrants, mode);
 }
 function beginPurrinha(gameId, entrants, mode) {
+  clearGameMin('purr'); // convite novo abre na cara (jogo anterior minimizado já era)
   purr = {
     gameId, mode: mode === 'classic' || mode === 'sticks' ? mode : 'fast', entrants, cheats: new Set(),
     mine: null, commits: new Map(), reveals: new Map(), phase: 'pick',
@@ -845,6 +910,7 @@ function maybePurrResolve() {
   const exp = purrExpected();
   if (!exp.length || !exp.every((id) => purr.reveals.has(id))) return;
   purr.phase = 'revealed';
+  if (gameMinned.has('purr')) reopenGame('purr'); // acabou: o resultado aparece mesmo minimizado
   const reveals = exp.map((id) => ({ id, hand: purr.reveals.get(id).hand, guess: purr.reveals.get(id).guess }));
   const r = purrResolve(reveals);
   const rows = reveals.map((x) => ({
@@ -981,6 +1047,7 @@ function finishClassicRound() {
   })).sort((a, b) => (b.isSeer - a.isSeer) || (a.isLoser - b.isLoser));
   if (step.done) {
     purr.phase = 'done';
+    if (gameMinned.has('purr')) reopenGame('purr'); // fim de jogo fura o minimizado
     if (winnerId) purr.freed.push(winnerId);
     const loser = step.loserId;
     let verdict;
@@ -1021,6 +1088,7 @@ function finishSticksRound() {
   })).sort((a, b) => (b.isSeer - a.isSeer) || (a.isLoser - b.isLoser));
   if (step.done) {
     purr.pools = step.pools; purr.alive = step.alive; purr.phase = 'done';
+    if (gameMinned.has('purr')) reopenGame('purr'); // fim de jogo fura o minimizado
     if (step.freedId) purr.freed.push(step.freedId);
     const loser = step.loserId;
     let verdict;
@@ -1055,7 +1123,7 @@ function finishSticksRound() {
 }
 function cancelPurrinha(broadcast) {
   if (!purr) return;
-  if (broadcast && purr.phase !== 'revealed' && purr.phase !== 'done') gameFx({ kind: 'purrinha', ph: 'cancel', gameId: purr.gameId });
+  if (broadcast && purr.phase !== 'revealed' && purr.phase !== 'done') gameFx({ kind: 'purrinha', ph: 'cancel', gameId: purr.gameId, from: self });
   purr = null;
 }
 
@@ -1076,7 +1144,8 @@ function beginDomino(d) {
     initialHand: (d.hand || []).map((t) => t.slice()), opens: {}, audit: null, auditStarted: false,
   };
   domApplyPlay(d.starter, d.firstTile, 'L'); // abertura forçada (maior carroça)
-  ui.openDomino();
+  if (dvWatch) { clearTimeout(dvWatch); dvWatch = null; } // handshake concluiu
+  if (!gameMinned.has('dom')) ui.openDomino(); // quem minimizou no handshake segue no contador
   renderDom();
 }
 function domApplyPlay(fromId, tile, side) {
@@ -1106,9 +1175,16 @@ function domBlocked() {
 }
 function domResolveBlock() {
   if (!dom || dom.over) return;
-  if (!dom.order.every((id) => dom.reveals.has(id))) return; // espera todo mundo mostrar a mão
+  const missing = dom.order.filter((id) => !dom.reveals.has(id));
+  if (missing.length) { armDomNoshow(missing); return; } // espera as mãos (com teto pra quem caiu)
+  if (domNoshow) { clearTimeout(domNoshow); domNoshow = null; }
   let winner = null, best = Infinity;
-  for (const id of dom.order) { const c = pipCount(dom.reveals.get(id)); if (c < best) { best = c; winner = id; } }
+  for (const id of dom.order) {
+    const h = dom.reveals.get(id);
+    if (!h) continue; // 'noshow': quem caiu sem abrir a mão fica de fora da apuração
+    const c = pipCount(h);
+    if (c < best) { best = c; winner = id; }
+  }
   dom.over = true; dom.winner = winner; dom.reason = 'trancou';
   renderDom(); domCelebrate();
 }
@@ -1130,6 +1206,7 @@ function myDomPass() {
 }
 function domCelebrate() {
   if (!dom || !dom.over) return;
+  if (gameMinned.has('dom')) reopenGame('dom'); // fim de jogo fura o minimizado (hora de ver quem paga)
   if (dom.verified) domStartAudit(); // mesa verificada: dispara a auditoria no fim
   if (dom.cheered) return;
   dom.cheered = true;
@@ -1151,7 +1228,9 @@ function renderDom() {
   if (dom.over) { const wn = dom.winner === self ? 'Você' : domName(dom.winner); result = dom.reason === 'batida' ? `${wn} bateu! 🁫` : `Trancou 🔒 — ${wn} fez menos pontos`; }
   let verified = null;
   if (dom.verified) {
-    if (dom.audit) verified = dom.audit.ok ? { ok: true, text: '🔒✅ Mesa verificada — embaralho auditado, limpo' } : { ok: false, text: '🚫 ' + dom.audit.reason };
+    if (dom.audit && dom.audit.ok === true) verified = { ok: true, text: '🔒✅ Mesa verificada — embaralho auditado, limpo' };
+    else if (dom.audit && dom.audit.ok === false) verified = { ok: false, text: '🚫 ' + dom.audit.reason };
+    else if (dom.audit) verified = { ok: null, text: '🔒 ' + dom.audit.reason }; // incompleta (alguém saiu sem abrir)
     else if (dom.over) verified = { ok: null, text: '🔒 Auditando o embaralho…' };
     else verified = { ok: null, text: '🔒 Mesa verificada' };
   }
@@ -1162,6 +1241,8 @@ function renderDom() {
     lastPlayIdx, lastPlayAvatar, lastPlayName,
   });
   armDomAutoPass(myTurn && moves.length === 0 && !dom.over);
+  armDomSkip();       // dono da vez sumiu? conta a graça pro pulo automático
+  updateGamePill();   // minimizado: o pill reflete "sua vez" na hora
 }
 // Sem encaixe, o passe sai sozinho em 5s (contagem no botão) — ninguém fica esperando quem
 // só tem "passar" a fazer. Com encaixe na mão, nada é automático.
@@ -1179,6 +1260,89 @@ function armDomAutoPass(shouldRun) {
   }, 1000);
 }
 
+// ---- Ausente no dominó: a mesa nunca trava ----
+// A mão é PRIVADA ⇒ um "bot" jogar por quem caiu é impossível (ninguém conhece as pedras dele).
+// Em vez disso a vez é PULADA: com o dono da vez offline por 20s, o participante online de MENOR
+// id emite um 'skip' (gossip com dedup) e todo peer o aplica como passe SE a vez ainda for daquela
+// pessoa — emissão atrasada/duplicada morre nesse portão, então converge. Quem volta joga normal
+// nas vezes seguintes. O mesmo padrão cobre a tranca (mão que nunca vai abrir) e a auditoria.
+const DOM_SKIP_MS = 20000;
+let domSkip = { timer: null, for: null };
+let domNoshow = null;    // tranca: teto de espera pela mão de quem caiu
+let domAuditWait = null; // auditoria do fim: vira "incompleta" em vez de pendurar
+let dvWatch = null;      // handshake verificado: o dono re-embaralha sem quem caiu
+
+function domOnlineIds() {
+  const on = new Set([self]);
+  if (mesh) for (const p of mesh.peers()) if (p.online) on.add(p.user);
+  return on;
+}
+function domClearTimers() {
+  armDomAutoPass(false);
+  if (domSkip.timer) clearTimeout(domSkip.timer);
+  domSkip = { timer: null, for: null };
+  if (domNoshow) { clearTimeout(domNoshow); domNoshow = null; }
+  if (domAuditWait) { clearTimeout(domAuditWait); domAuditWait = null; }
+  if (dvWatch) { clearTimeout(dvWatch); dvWatch = null; }
+}
+function armDomSkip() {
+  const holder = dom && !dom.over ? dom.order[dom.turnIdx] : null;
+  const offline = holder && holder !== self && !domOnlineIds().has(holder);
+  if (!offline) {
+    if (domSkip.timer) clearTimeout(domSkip.timer);
+    domSkip = { timer: null, for: null };
+    return;
+  }
+  if (domSkip.timer && domSkip.for === holder) return; // já contando pra esse
+  if (domSkip.timer) clearTimeout(domSkip.timer);
+  const gid = dom.gameId;
+  domSkip = {
+    for: holder,
+    timer: setTimeout(() => {
+      domSkip = { timer: null, for: null };
+      if (!dom || dom.over || dom.gameId !== gid || dom.order[dom.turnIdx] !== holder) return;
+      const on = domOnlineIds();
+      if (on.has(holder)) return; // voltou a tempo — joga normal
+      const cands = dom.order.filter((id) => on.has(id)).sort();
+      if (cands[0] !== self) return; // outro peer emite; se ele também caiu, onMeshChange re-arma
+      ui.toast(`⏭️ Pulando a vez de ${domName(holder)} (fora da mesa)`);
+      gameFx({ kind: 'domino', ph: 'skip', gameId: gid, for: holder, from: self });
+      domApplyPass(holder); renderDom(); domCelebrate();
+    }, DOM_SKIP_MS),
+  };
+}
+function onDomSkip(fx) {
+  if (!dom || fx.gameId !== dom.gameId || dom.over) return;
+  if (dom.order[dom.turnIdx] !== fx.for) return; // a vez já andou — skip atrasado não vale
+  ui.toast(fx.for === self ? '⏭️ Sua vez foi pulada (a mesa não te via online)' : `⏭️ Pulando a vez de ${domName(fx.for)} (fora da mesa)`);
+  domApplyPass(fx.for); renderDom(); domCelebrate();
+}
+// Trancou mas falta a mão de alguém OFFLINE: espera um pouco (o reveal pode estar em voo);
+// se não vier, o peer de menor id manda 'noshow' e a apuração sai só entre as mãos abertas.
+function armDomNoshow(missing) {
+  if (domNoshow) return;
+  if (missing.some((id) => domOnlineIds().has(id))) return; // tem gente online ainda revelando
+  const gid = dom.gameId;
+  domNoshow = setTimeout(() => {
+    domNoshow = null;
+    if (!dom || dom.over || dom.gameId !== gid || dom.phase !== 'reveal') return;
+    const on = domOnlineIds();
+    const miss = dom.order.filter((id) => !dom.reveals.has(id) && !on.has(id));
+    if (!miss.length) { domResolveBlock(); return; }
+    const cands = dom.order.filter((id) => on.has(id)).sort();
+    if (cands[0] !== self) return; // outro emite; se ele caiu, onMeshChange re-arma
+    gameFx({ kind: 'domino', ph: 'noshow', gameId: gid, miss, from: self });
+    onDomNoshow({ gameId: gid, miss });
+  }, 12000);
+}
+function onDomNoshow(fx) {
+  if (!dom || fx.gameId !== dom.gameId || dom.over) return;
+  const skipped = [];
+  for (const id of fx.miss || []) if (!dom.reveals.has(id)) { dom.reveals.set(id, null); skipped.push(domName(id)); }
+  if (skipped.length) ui.toast(`🁫 Trancou sem a mão de ${skipped.join(', ')} (offline) — apurando entre as abertas`);
+  domResolveBlock();
+}
+
 // ---- Dominó: MESA VERIFICADA (commit-to-deck + corte coletivo + auditoria no fim) ----
 // Handshake antes do jogo: todos lacram um seed (commit) → revelam → o corte coletivo σ sai dos
 // seeds; o dono lacra o baralho antes de ver σ (não mira num baralho favorável) e entrega cada
@@ -1193,16 +1357,39 @@ async function startDominoVerified() {
   const salt = randomNonce(); const mySeed = randomNonce();
   const dc = await deckCommit(deck, salt); const mySc = await sha256Hex(mySeed);
   dv = { gameId, order, host: true, deck, salt, mySeed, deckCommit: dc, seeds: { [self]: mySeed }, seedCommits: { [self]: mySc }, phase: 'commit', began: false };
+  clearGameMin('dom'); // jogo novo abre na cara
   ui.openDomino(); renderVwait();
   gameFx({ kind: 'domino', ph: 'vsetup', gameId, order, deckCommit: dc });
   gameFx({ kind: 'domino', ph: 'vseed', gameId, from: self, sc: mySc });
+  armDvWatch();
+}
+// Handshake pendurado (alguém caiu antes de lacrar/revelar o seed): o DONO re-embaralha só com
+// quem ficou; convidado espera o dono — e fecha se foi o próprio dono que caiu.
+function armDvWatch() {
+  if (dvWatch) clearTimeout(dvWatch);
+  const gid = dv.gameId;
+  dvWatch = setTimeout(() => {
+    dvWatch = null;
+    if (!dv || dv.gameId !== gid || dv.began || dv.phase === 'dealt') return;
+    const on = domOnlineIds();
+    if (dv.host) {
+      const still = dv.order.filter((id) => on.has(id));
+      dv = null;
+      if (still.length >= 2) { ui.toast('🔄 Alguém caiu no embaralho — re-embaralhando com quem ficou'); startDominoVerified(); }
+      else { clearGameMin('dom'); ui.closeOverlays(); ui.toast('🁫 Dominó cancelado — a mesa esvaziou'); }
+    } else if (!on.has(dv.order[0])) { // order[0] = quem deu as cartas
+      dv = null; clearGameMin('dom'); ui.closeOverlays(); ui.toast('🁫 Quem embaralhava caiu — dominó cancelado');
+    } else armDvWatch(); // dono online: ele vai re-embaralhar; segue de olho
+  }, 20000);
 }
 async function onVsetup(fx) {
   if (dv && dv.gameId === fx.gameId) return;
   const mySeed = randomNonce(); const mySc = await sha256Hex(mySeed);
   dv = { gameId: fx.gameId, order: fx.order, host: false, deckCommit: fx.deckCommit, mySeed, seeds: { [self]: mySeed }, seedCommits: { [self]: mySc }, phase: 'commit', began: false };
+  clearGameMin('dom'); // convite novo abre na cara
   ui.openDomino(); renderVwait();
   gameFx({ kind: 'domino', ph: 'vseed', gameId: fx.gameId, from: self, sc: mySc });
+  armDvWatch();
 }
 function onVseed(fx) {
   if (!dv || dv.gameId !== fx.gameId) return;
@@ -1224,6 +1411,7 @@ async function onVseedrev(fx) {
   if (dv.host && dv.phase === 'reveal' && dv.order.every((id) => dv.seeds[id])) { dv.phase = 'dealt'; await hostDealVerified(); }
 }
 async function hostDealVerified() {
+  dv.began = true; // o watchdog do handshake não vale mais a partir do deal
   const R = await combineSeeds(dv.seeds);
   const F = cutDeck(dv.deck, R);
   const { hands } = dealFromDeck(F, dv.order.length);
@@ -1256,12 +1444,27 @@ function domStartAudit() {
   dom.opens[self] = { hand: dom.initialHand, salt: dom.vinfo.mySalt };
   gameFx({ kind: 'domino', ph: 'vopenhand', gameId: dom.gameId, from: self, hand: dom.initialHand, salt: dom.vinfo.mySalt });
   if (dom.isHost) { dom.revealedDeck = dom.vinfo.deck; dom.revealedSalt = dom.vinfo.salt; gameFx({ kind: 'domino', ph: 'vopen', gameId: dom.gameId, deck: dom.vinfo.deck, salt: dom.vinfo.salt }); }
+  armDomAuditWait(); // quem saiu antes de abrir a mão não pendura o badge pra sempre
   tryAudit();
+}
+function armDomAuditWait() {
+  if (domAuditWait) return;
+  const gid = dom.gameId;
+  domAuditWait = setTimeout(() => {
+    domAuditWait = null;
+    if (!dom || dom.gameId !== gid || !dom.verified || dom.audit) return;
+    const on = domOnlineIds();
+    const missOpen = dom.order.filter((id) => !dom.opens[id] && !on.has(id));
+    if (!missOpen.length && dom.revealedDeck) return; // está vindo — tryAudit fecha
+    const who = missOpen.length ? missOpen.map(domName).join(', ') : 'quem embaralhou';
+    dom.audit = { ok: null, reason: `auditoria incompleta — ${who} saiu sem abrir` };
+    renderDom();
+  }, 15000);
 }
 function onVopen(fx) { if (!dom || dom.gameId !== fx.gameId) return; dom.revealedDeck = fx.deck; dom.revealedSalt = fx.salt; domStartAudit(); tryAudit(); }
 function onVopenhand(fx) { if (!dom || dom.gameId !== fx.gameId) return; dom.opens[fx.from] = { hand: fx.hand, salt: fx.salt }; domStartAudit(); tryAudit(); }
 async function tryAudit() {
-  if (!dom || !dom.verified || dom.audit || !dom.revealedDeck) return;
+  if (!dom || !dom.verified || (dom.audit && dom.audit.ok !== null) || !dom.revealedDeck) return; // 'incompleta' ainda upgrada
   if (!dom.order.every((id) => dom.opens[id])) return; // espera o baralho + todas as mãos reveladas
   const fail = (reason) => { dom.audit = { ok: false, reason }; renderDom(); ui.toast('🚫 ' + reason); };
   const seeds = dom.vinfo.seeds || {}, seedCommits = dom.vinfo.seedCommits || {};
@@ -1455,11 +1658,31 @@ const handlers = {
   onPurrStart: (mode) => startPurrinhaMode(mode),
   onPurrSeal: (hand, guess) => (purr && purr.mode !== 'fast' ? purrSealHand(hand) : purrSeal(hand, guess)),
   onPurrGuess: (n) => myPurrGuess(n),
-  onPurrCancel: () => cancelPurrinha(true),
+  // ✕ = minimizar (a partida segue; pill traz de volta). Encerrar pra mesa toda = confirmação.
+  onPurrClose: () => {
+    if (purrActive()) { minimizeGame('purr'); return; }
+    purr = null; clearGameMin('purr'); ui.closeOverlays();
+  },
+  onPurrEnd: () => ui.actionToast('Encerrar a purrinha pra mesa toda?', 'Encerrar', () => {
+    cancelPurrinha(true); clearGameMin('purr'); ui.closeOverlays(); ui.toast('🫲 Partida encerrada');
+  }),
   onDomino: () => startDominoVerified(), // sempre mesa verificada (regras iguais; só o embaralho é auditável)
   onDomPlay: (key, side) => myDomPlay(key, side),
   onDomPass: myDomPass,
-  onDomCancel: () => { if (dom && !dom.over) gameFx({ kind: 'domino', ph: 'cancel', gameId: dom.gameId }); dom = null; },
+  onDomClose: () => {
+    if ((dom && !dom.over) || (dv && !dv.began && !dom)) { minimizeGame('dom'); return; }
+    dom = null; domClearTimers(); clearGameMin('dom'); ui.closeOverlays();
+  },
+  onDomEnd: () => ui.actionToast('Encerrar o dominó pra mesa toda?', 'Encerrar', () => {
+    const gid = dom && !dom.over ? dom.gameId : (dv && !dv.began ? dv.gameId : null);
+    if (gid) gameFx({ kind: 'domino', ph: 'cancel', gameId: gid, from: self });
+    dom = null; dv = null; domClearTimers(); clearGameMin('dom'); ui.closeOverlays(); ui.toast('🁫 Partida encerrada');
+  }),
+  onGameBack: () => {
+    const domTurn = gameMinned.has('dom') && dom && !dom.over && dom.order[dom.turnIdx] === self;
+    const kind = domTurn || gameMinned.has('dom') ? 'dom' : (gameMinned.has('purr') ? 'purr' : null);
+    if (kind) reopenGame(kind);
+  },
   onPoke: openPokeFor,
   onPokeSend: sendPoke,
   onCeremony: openCeremony,

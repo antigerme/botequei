@@ -44,8 +44,10 @@ const IDS = [
   'set-shake',
   'overlay-tournament', 'tourn-list', 'btn-tourn-add', 'btn-tourn-reset',
   'overlay-card', 'card-draw', 'btn-card-again', 'btn-card-show',
-  'menu-purrinha', 'overlay-purrinha', 'purr-sub', 'purr-pick', 'purr-hands', 'purr-guesses', 'btn-purr-seal',
-  'purr-wait', 'purr-waitcount', 'purr-seals', 'purr-result', 'purr-total', 'purr-reveals', 'purr-verdict',
+  'menu-purrinha', 'overlay-purrinha', 'purr-sub', 'purr-setup', 'purr-pick', 'purr-hands', 'purr-guess-wrap', 'purr-guesses', 'btn-purr-seal',
+  'purr-wait', 'purr-waitcount', 'purr-waitsub', 'purr-seals',
+  'purr-guessing', 'purr-status', 'purr-said', 'purr-turnrow', 'purr-gpick', 'btn-purr-say',
+  'purr-result', 'purr-rstatus', 'purr-total', 'purr-reveals', 'purr-verdict',
   'btn-purr-again', 'btn-purr-close',
   'menu-domino', 'overlay-domino', 'btn-dom-close', 'dom-setup', 'dom-game', 'dom-verified',
   'dom-opps', 'dom-turn', 'dom-board', 'dom-result',
@@ -192,7 +194,11 @@ export function init(handlers) {
   el['btn-tourn-reset'].addEventListener('click', () => H.onTournamentReset());
   el['btn-card-again'].addEventListener('click', () => H.onCard());
   el['btn-card-show'].addEventListener('click', () => H.onCardShow());
-  el['btn-purr-seal'].addEventListener('click', () => { if (purrPick.hand != null && purrPick.guess != null) H.onPurrSeal(purrPick.hand, purrPick.guess); });
+  el['btn-purr-seal'].addEventListener('click', () => {
+    if (purrPick.hand == null || (!purrClassic && purrPick.guess == null)) return;
+    H.onPurrSeal(purrPick.hand, purrPick.guess);
+  });
+  el['btn-purr-say'].addEventListener('click', () => { if (purrSaid != null) H.onPurrGuess(purrSaid); });
   el['btn-purr-again'].addEventListener('click', () => H.onPurrinha());
   el['btn-purr-close'].addEventListener('click', () => { H.onPurrCancel(); closeOverlays(); });
   el['btn-dom-pass'].addEventListener('click', () => H.onDomPass());
@@ -1052,12 +1058,30 @@ export function openCard(vm) {
   el['overlay-card'].hidden = false;
 }
 
-// ---------- Purrinha (commit-reveal; 3 fases: escolher / aguardar / revelar) ----------
+// ---------- Purrinha (commit-reveal; modos: rápida = 1 rodada / clássica = eliminação) ----------
 let purrPick = { hand: null, guess: null };
+let purrClassic = false; // modo da partida em curso (controla o botão de lacre)
+let purrSaid = null;     // palpite selecionado na fase de turno (clássico)
 function purrPhase(which) {
+  el['purr-setup'].hidden = which !== 'setup';
   el['purr-pick'].hidden = which !== 'pick';
   el['purr-wait'].hidden = which !== 'wait';
+  el['purr-guessing'].hidden = which !== 'guessing';
   el['purr-result'].hidden = which !== 'result';
+}
+// escolha do modo ao iniciar (quem inicia decide) — mesmo padrão do dominó
+export function purrinhaStartChoice() {
+  el['purr-sub'].textContent = 'Cada um esconde 0–3 palitos e a mesa adivinha o total.';
+  el['purr-setup'].innerHTML = `<div class="dom-start">
+    <p class="dom-start-q">Como quer jogar?</p>
+    <button class="btn btn-primary btn-lg" id="btn-purr-classic">🫲 Clássica — até sobrar um</button>
+    <button class="btn btn-ghost dom-start-alt" id="btn-purr-fast">⚡ Rápida — uma rodada só</button>
+    <p class="dom-start-note">Clássica é o palitinho de verdade: palpite falado na vez de cada um (sem repetir), quem crava sai — o último paga. Na rápida todos chutam em segredo e quem fica mais longe paga.</p>
+  </div>`;
+  el['purr-setup'].querySelector('#btn-purr-classic').onclick = () => H.onPurrStart('classic');
+  el['purr-setup'].querySelector('#btn-purr-fast').onclick = () => H.onPurrStart('fast');
+  purrPhase('setup');
+  el['overlay-purrinha'].hidden = false;
 }
 // mão como palitos de verdade (0 = punho fechado)
 function purrSticks(n, sm) {
@@ -1067,12 +1091,18 @@ function purrSticks(n, sm) {
 }
 export function openPurrinha(vm) {
   purrPick = { hand: null, guess: null };
+  purrClassic = !!vm.classic;
+  el['purr-sub'].textContent = purrClassic
+    ? 'Palitinho clássico: quem crava o total sai — o último que sobrar paga.'
+    : 'Escolha sua mão e chute o total da mesa. Tudo lacrado — abre junto.';
+  el['purr-guess-wrap'].hidden = purrClassic; // no clássico o palpite é falado depois, em voz alta
+  el['btn-purr-seal'].textContent = purrClassic ? '🔒 Lacrar a mão' : '🔒 Lacrar';
   el['purr-hands'].innerHTML = [0, 1, 2, 3].map((n) => `<button class="purr-hand" data-hand="${n}"><span class="purr-hvis">${purrSticks(n)}</span><span class="purr-hn">${n}</span></button>`).join('');
   const mg = Math.max(0, vm.maxGuess || 0);
   let gs = '';
   for (let i = 0; i <= mg; i++) gs += `<button class="purr-opt" data-guess="${i}">${i}</button>`;
   el['purr-guesses'].innerHTML = gs;
-  const sync = () => { el['btn-purr-seal'].disabled = purrPick.hand == null || purrPick.guess == null; };
+  const sync = () => { el['btn-purr-seal'].disabled = purrPick.hand == null || (!purrClassic && purrPick.guess == null); };
   el['purr-hands'].querySelectorAll('[data-hand]').forEach((b) => b.addEventListener('click', () => {
     purrPick.hand = Number(b.dataset.hand);
     el['purr-hands'].querySelectorAll('.purr-hand').forEach((x) => x.classList.toggle('on', x === b));
@@ -1089,13 +1119,42 @@ export function openPurrinha(vm) {
 }
 export function purrinhaSealed(vm) {
   el['purr-waitcount'].textContent = `🔒 ${vm.count}/${vm.total}`;
+  el['purr-waitsub'].textContent = vm.sub || 'Esperando a galera lacrar…';
   el['purr-seals'].innerHTML = (vm.seals || []).map((s) => `<li class="purr-seal${s.sealed ? ' done' : ''}">
     <span class="purr-sav">${esc(s.avatar || '🍺')}</span><span class="purr-sname">${esc(s.name)}</span>
     <span class="purr-sst">${s.sealed ? '🔒 lacrou' : '⏳ escolhendo…'}</span></li>`).join('');
   purrPhase('wait');
   el['overlay-purrinha'].hidden = false;
 }
+// clássico: fase dos palpites em turno — mostra os já falados e libera o picker só na SUA vez
+export function purrinhaGuessing(vm) {
+  purrSaid = null;
+  el['purr-status'].textContent = vm.status || '';
+  el['purr-said'].innerHTML = (vm.said || []).map((s) => `<li class="purr-sd${s.isSelf ? ' me' : ''}">
+    <span class="purr-sdav">${esc(s.avatar || '🍺')}</span><span class="purr-sdn">${esc(s.name)}</span>
+    <b class="purr-sdg">${s.guess}</b></li>`).join('');
+  if (vm.myTurn) {
+    el['purr-turnrow'].textContent = '🎙️ Sua vez de falar o palpite!';
+    const taken = new Set((vm.taken || []).map(Number));
+    let gs = '';
+    for (let i = 0; i <= (vm.maxGuess || 0); i++) gs += `<button class="purr-opt" data-say="${i}"${taken.has(i) ? ' disabled title="já falaram esse"' : ''}>${i}</button>`;
+    el['purr-gpick'].innerHTML = gs; el['purr-gpick'].hidden = false;
+    el['btn-purr-say'].hidden = false; el['btn-purr-say'].disabled = true;
+    el['purr-gpick'].querySelectorAll('[data-say]:not([disabled])').forEach((b) => b.addEventListener('click', () => {
+      purrSaid = Number(b.dataset.say);
+      el['purr-gpick'].querySelectorAll('.purr-opt').forEach((x) => x.classList.toggle('on', x === b));
+      el['btn-purr-say'].disabled = false;
+    }));
+  } else {
+    el['purr-turnrow'].textContent = vm.turnName ? `⏳ Vez de ${vm.turnName} falar…` : '';
+    el['purr-gpick'].hidden = true; el['btn-purr-say'].hidden = true;
+  }
+  purrPhase('guessing');
+  el['overlay-purrinha'].hidden = false;
+}
 export function purrinhaResult(vm) {
+  el['purr-rstatus'].hidden = !vm.status;
+  el['purr-rstatus'].textContent = vm.status || '';
   el['purr-total'].innerHTML = `Total da mesa <b>${vm.total}</b>`;
   el['purr-reveals'].innerHTML = (vm.rows || []).map((r) => {
     const tag = r.isSeer ? '<span class="purr-tag seer">🔮 vidente</span>' : (r.isLoser ? '<span class="purr-tag loser">💸 paga</span>' : '');
@@ -1108,6 +1167,7 @@ export function purrinhaResult(vm) {
   }).join('');
   el['purr-verdict'].className = 'purr-verdict ' + (vm.verdict.kind || '');
   el['purr-verdict'].textContent = vm.verdict.text;
+  el['btn-purr-again'].hidden = vm.final === false; // rodada intermediária do clássico não tem "de novo"
   purrPhase('result');
   el['overlay-purrinha'].hidden = false;
 }

@@ -38,7 +38,7 @@ export async function verifyReveal(r) {
   return (await makeCommit(r.hand, r.guess, r.nonce)) === r.commit;
 }
 
-// Apura a rodada. `reveals`: [{ id, name?, hand, guess }] já verificados.
+// Apura a rodada RÁPIDA (variante de 1 rodada). `reveals`: [{ id, name?, hand, guess }] já verificados.
 // Determinístico (ordena por id) pra todo peer chegar no MESMO resultado.
 //   total   = soma das mãos
 //   seers   = ids que cravaram o total (videntes) — imunes
@@ -54,4 +54,56 @@ export function resolve(reveals) {
   }
   if (worst <= 0) loserId = null; // todo mundo cravou: ninguém paga, geral é vidente
   return { total, seers, loserId };
+}
+
+// ===================== Modo CLÁSSICO (palitinho de verdade) =====================
+// Regras do bar: só a MÃO é secreta (lacre por rodada). Os palpites são falados em voz
+// alta, um por vez, girando a mesa — e NÃO podem repetir. Quem crava o total se livra e
+// sai; os que sobram jogam de novo (máximo cai junto); o ÚLTIMO que resta paga.
+
+// lacre só da mão (o palpite é público no clássico)
+export function handCommitString(hand, nonce) { return `h:${clampHand(hand)}:${nonce}`; }
+export function makeHandCommit(hand, nonce) { return sha256Hex(handCommitString(hand, nonce)); }
+export async function verifyHandReveal(r) {
+  if (!r || typeof r.commit !== 'string') return false;
+  return (await makeHandCommit(r.hand, r.nonce)) === r.commit;
+}
+
+// palpite válido: inteiro, 0..3·vivos e ainda não dito (a regra de ouro do palitinho)
+export function validGuess(g, nAlive, taken) {
+  const n = Number(g);
+  if (!Number.isInteger(n) || n < 0 || n > maxGuess(nAlive)) return false;
+  return !(taken || []).some((t) => Number(t) === n);
+}
+
+// ordem dos palpites da rodada: começa no starter e gira a mesa (só os vivos)
+export function guessOrder(alive, startIdx) {
+  const n = (alive || []).length, out = [];
+  for (let k = 0; k < n; k++) out.push(alive[(((startIdx | 0) % n) + n + k) % n]);
+  return out;
+}
+// de quem é a vez de falar: o primeiro da ordem que ainda não palpitou
+export function turnOf(alive, startIdx, guessedIds) {
+  const done = new Set(guessedIds || []);
+  return guessOrder(alive, startIdx).find((id) => !done.has(id)) ?? null;
+}
+
+// apura a rodada clássica: total das mãos reveladas + quem cravou.
+// Palpites únicos ⇒ no máximo UM vencedor por rodada (a eliminação converge sozinha).
+export function classicRound(reveals, guesses) {
+  const total = (reveals || []).reduce((a, r) => a + clampHand(r.hand), 0);
+  const hit = (guesses || []).find((g) => Number(g.guess) === total);
+  return { total, winnerId: hit ? hit.id : null };
+}
+
+// transição de rodada: tira quem cravou; sobrou 1 → ele paga; senão o starter gira.
+// `alive` mantém a ordem da mesa (assentos); startIdx indexa `alive`.
+export function nextRound(alive, startIdx, winnerId) {
+  const starterId = alive[(((startIdx | 0) % alive.length) + alive.length) % alive.length];
+  const next = winnerId == null ? [...alive] : alive.filter((id) => id !== winnerId);
+  if (next.length <= 1) return { alive: next, startIdx: 0, loserId: next[0] ?? null, done: true };
+  const idx = winnerId === starterId
+    ? alive.indexOf(starterId) % next.length          // quem herdou a cadeira do starter começa
+    : (next.indexOf(starterId) + 1) % next.length;    // gira pro próximo vivo
+  return { alive: next, startIdx: idx, loserId: null, done: false };
 }

@@ -88,7 +88,7 @@ async function main() {
   {
     const mk = async (n) => {
       const c = await browser.newContext();
-      await c.addInitScript((x) => { localStorage.setItem('botequei.name', x); localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 })); }, n);
+      await c.addInitScript((x) => { localStorage.setItem('botequei.name', x); localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 })); localStorage.setItem('botequei.settings', JSON.stringify({ lang: 'pt' })); }, n);
       return c;
     };
     const cA = await mk('Andre'), cB = await mk('Bia');

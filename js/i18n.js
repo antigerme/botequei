@@ -50,7 +50,12 @@ export function resolveLang(pref) {
   try { const n = (navigator.language || 'pt').slice(0, 2); return DICT[n] ? n : 'pt'; } catch { return 'pt'; }
 }
 export function setLang(pref) { lang = resolveLang(pref); }
-export function t(key) { return (DICT[lang] && DICT[lang][key]) || DICT.pt[key] || key; }
+// t('chave', { name: 'Bia', n: 3 }) — interpola {name}/{n} depois de escolher a língua
+export function t(key, vars) {
+  let s = (DICT[lang] && DICT[lang][key]) || DICT.pt[key] || key;
+  if (vars) for (const k of Object.keys(vars)) s = s.split('{' + k + '}').join(String(vars[k]));
+  return s;
+}
 export function applyI18n(root = document) {
   root.querySelectorAll('[data-i18n]').forEach((n) => { n.textContent = t(n.getAttribute('data-i18n')); });
   root.querySelectorAll('[data-i18n-ph]').forEach((n) => { n.setAttribute('placeholder', t(n.getAttribute('data-i18n-ph'))); });

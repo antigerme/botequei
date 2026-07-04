@@ -2,8 +2,8 @@
 
 Contador de consumo de boteco: **PWA mobile-first, peer-to-peer (WebRTC), sem servidor de
 dados**. Cada celular registra consumo (+1 num toque, −1 no toque longo) e tudo sincroniza em
-tempo real entre os navegadores. UI em **pt-BR** (com pt/en/es via `js/i18n.js`; toasts seguem
-em pt-BR).
+tempo real entre os navegadores. UI **100% traduzível** (pt/en/es via `js/i18n.js`; idioma
+padrão Auto segue o navegador).
 
 ## Rodar / testar
 - **Servidor local:** `php -S 0.0.0.0:8000` (serve tudo; precisa só de **PHP 8.x**, sem npm/banco).
@@ -115,8 +115,10 @@ em pt-BR).
   `weeklyChallenges` (semana atual + noite em curso) e `seasonAward` (troféu do mês).
 - **Modo bar**: `store.saveBarMenu`/`getBarMenu` guardam o cardápio (defs de `ITEM`) pra reusar;
   ao abrir "mesa do bar" com código fixo, o app re-emite os `ITEM` salvos.
-- **Alcance & cara**: `js/i18n.js` (dicionário pt/en/es + `t`/`applyI18n` sobre `[data-i18n]`/
-  `[data-i18n-ph]` — só o shell; toasts seguem pt-BR); temas **auto/dark/light/neon/retro**
+- **Alcance & cara**: `js/i18n.js` (dicionário pt/en/es COMPLETO — shell, toasts e templates —
+  com `t(chave, vars)` interpolando `{name}`/`{n}` e `applyI18n` sobre `[data-i18n]`/
+  `[data-i18n-ph]`/`[data-i18n-aria]`/`[data-i18n-title]`/`[data-i18n-html]`; idioma padrão
+  **auto** pelo navegador); temas **auto/dark/light/neon/retro**
   (`resolveTheme`/`applyTheme` em `ui.js`, paletas via CSS vars em `body.neon`/`body.retro`);
   **molduras** de avatar por nível da liga (`frameClass` → `.fr-silver`/`.fr-gold`); **passaporte**
   de botecos (`store.getCheckins`/`addCheckin` — check-in local, GPS opcional, só no aparelho);
@@ -170,9 +172,13 @@ em pt-BR).
   `sw.js` faz `cache.add(new Request(u,{cache:'reload'}))` no install (fura o cache ao instalar).
 - **BAC é estimativa local, não bafômetro** — sempre com o aviso de não dirigir; peso/sexo ficam só no aparelho.
 - Ao mexer no `ui.js`, todo id novo precisa entrar no array `IDS` (senão `ui.init` quebra ao amarrar o listener).
-- **i18n sempre em paridade**: ao adicionar/renomear uma chave `data-i18n`, atualize as **três** línguas
-  (`pt`/`en`/`es`) em `js/i18n.js` — a auditoria (`tests/audit.mjs`, roda no CI) falha se alguma ficar de fora
-  ou sobrar. Toasts e mensagens dinâmicas seguem **pt-BR** de propósito (fora do i18n do shell).
+- **i18n total e sempre em paridade**: TODA string de UI (shell, toasts, templates, aria) nasce
+  no dicionário de `js/i18n.js` nas **três** línguas via `t(chave, vars)` — a auditoria
+  (`tests/audit.mjs`, roda no CI) falha se alguma língua ficar de fora ou sobrar chave. Conteúdo
+  compartilhado via CRDT (nomes de itens do catálogo, cartas do deck, conquistas, coach, cards de
+  share) segue pt-BR por design: é DADO da mesa, não chrome — traduzir dessincronizaria os peers.
+  Nos e2e, force `lang:'pt'` no addInitScript (o CI roda Chromium en-US e os asserts são pt).
+  Cuidado clássico: `const t = algumaCoisa()` SOMBREIA o `t()` do i18n — renomeie o local.
 - Ao adicionar `js/*.js` do shell, atualize a lista do `sw.js` **e** bump o `CACHE` (`botequei-vN`).
 - O SW **não** chama `skipWaiting` no install — quem decide a hora é o **app**, e sozinho:
   versão nova instalada → o app aplica **automaticamente** (toast "atualizando…" → `SKIP_WAITING`

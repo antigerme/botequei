@@ -20,7 +20,7 @@
 
   <!-- ======================= HOME ======================= -->
   <section class="screen is-active" id="screen-home">
-    <button class="gear" id="btn-settings" title="Configurações">⚙️</button>
+    <button class="gear" id="btn-settings" title="Configurações" data-i18n-title="set.title">⚙️</button>
     <div class="home-hero">
       <div class="logo">🍺</div>
       <h1 class="brand">Botequei</h1>
@@ -56,62 +56,62 @@
     </div>
 
     <div class="home-history" id="home-history" hidden>
-      <h2>Mesas recentes</h2>
+      <h2 data-i18n="recent">Mesas recentes</h2>
       <ul id="history-list"></ul>
     </div>
 
-    <p class="home-hint" id="home-hint" hidden>Crie a mesa e mostre o QR — a galera entra escaneando. Tudo fica só nos celulares. 🍻</p>
+    <p class="home-hint" id="home-hint" hidden data-i18n="home.hint">Crie a mesa e mostre o QR — a galera entra escaneando. Tudo fica só nos celulares. 🍻</p>
 
     <footer class="home-foot">
-      <button class="btn btn-ghost btn-install" id="btn-install" hidden>📲 Instalar o app</button>
-      <span class="seal" id="privacy-seal">🔒 Seus dados nunca saem dos celulares · P2P</span>
+      <button class="btn btn-ghost btn-install" id="btn-install" hidden data-i18n="install">📲 Instalar o app</button>
+      <span class="seal" id="privacy-seal" data-i18n="seal">🔒 Seus dados nunca saem dos celulares · P2P</span>
     </footer>
   </section>
 
   <!-- ======================= MESA ======================= -->
   <section class="screen" id="screen-table">
     <header class="topbar">
-      <button class="icon-btn" id="btn-leave" title="Sair da mesa" aria-label="Sair da mesa">‹</button>
-      <button class="table-id" id="btn-invite" title="Convidar" aria-label="Convidar pra mesa">
+      <button class="icon-btn" id="btn-leave" title="Sair da mesa" data-i18n-title="top.leave" aria-label="Sair da mesa" data-i18n-aria="top.leave">‹</button>
+      <button class="table-id" id="btn-invite" title="Convidar" data-i18n-title="top.invite" aria-label="Convidar pra mesa" data-i18n-aria="top.inviteAria">
         <span class="mesa-label" id="table-title">MESA</span>
         <span class="mesa-code" id="mesa-code">----</span>
       </button>
       <div class="topbar-actions">
-        <button class="icon-btn" id="btn-peers" title="Placar" aria-label="Placar e participantes"><span id="peer-count">1</span>👥</button>
-        <button class="icon-btn" id="btn-menu" title="Mais opções" aria-label="Mais opções">⋯</button>
+        <button class="icon-btn" id="btn-peers" title="Placar" data-i18n-title="top.board" aria-label="Placar e participantes" data-i18n-aria="top.boardAria"><span id="peer-count">1</span>👥</button>
+        <button class="icon-btn" id="btn-menu" title="Mais opções" data-i18n-title="top.more" aria-label="Mais opções" data-i18n-aria="top.more">⋯</button>
       </div>
     </header>
 
     <div class="conn-banner" id="conn-banner" hidden></div>
     <div class="hh-banner" id="hh-banner" hidden></div>
-    <div class="presence-bar" id="presence-bar" hidden aria-label="Quem está na mesa"></div>
+    <div class="presence-bar" id="presence-bar" hidden aria-label="Quem está na mesa" data-i18n-aria="pres.aria"></div>
 
     <div class="totals">
       <div class="total-hero">
         <div class="hero-fill" id="hero-fill"></div>
-        <span class="total-cap">a mesa mandou</span>
+        <span class="total-cap" data-i18n="table.heroCap">a mesa mandou</span>
         <span class="total-num" id="table-total">0</span>
       </div>
       <div class="total-side">
-        <div><span class="total-cap">você</span> <span class="total-num" id="my-total">0</span></div>
-        <button type="button" class="total-money" id="money-block" title="Abrir a conta" aria-label="Abrir a conta" hidden><span class="total-cap">conta</span> <span class="total-num" id="my-money">R$0</span></button>
+        <div><span class="total-cap" data-i18n="common.you">você</span> <span class="total-num" id="my-total">0</span></div>
+        <button type="button" class="total-money" id="money-block" title="Abrir a conta" data-i18n-title="table.openBill" aria-label="Abrir a conta" data-i18n-aria="table.openBill" hidden><span class="total-cap" data-i18n="table.billCap">conta</span> <span class="total-num" id="my-money">R$0</span></button>
       </div>
     </div>
 
-    <p class="table-hint" id="table-hint" hidden>👆 toque no card = +1 · segure = −1</p>
+    <p class="table-hint" id="table-hint" hidden data-i18n="table.hint">👆 toque no card = +1 · segure = −1</p>
 
     <div class="items-grid" id="items-grid"><!-- cards via JS --></div>
 
-    <button class="btn btn-ghost btn-additem" id="btn-additem">+ item personalizado</button>
+    <button class="btn btn-ghost btn-additem" id="btn-additem" data-i18n="table.addItem">+ item personalizado</button>
 
     <!-- jogo minimizado (✕ não cancela mais): toque pra voltar pra partida rolando -->
     <button class="game-pill" id="game-pill" hidden></button>
 
     <div class="action-bar">
-      <button class="chip" id="btn-games">🎮 Jogos</button>
-      <button class="chip" id="btn-brinde">🥂 Brinde</button>
-      <button class="chip" id="btn-rodada" title="+1 cerveja pra todo mundo online (menos motoristas)">🍻 Rodada</button>
-      <button class="chip" id="btn-react">😀 Reagir</button>
+      <button class="chip" id="btn-games" data-i18n="games.title">🎮 Jogos</button>
+      <button class="chip" id="btn-brinde" data-i18n="chip.brinde">🥂 Brinde</button>
+      <button class="chip" id="btn-rodada" title="+1 cerveja pra todo mundo online (menos motoristas)" data-i18n-title="chip.rodadaTitle" data-i18n="chip.rodada">🍻 Rodada</button>
+      <button class="chip" id="btn-react" data-i18n="chip.react">😀 Reagir</button>
     </div>
   </section>
 
@@ -123,25 +123,25 @@
 <div class="overlay" id="overlay-invite" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
-    <h2>Chame a turma</h2>
-    <p class="sheet-sub">Aponte a câmera do celular pro QR ou compartilhe o código.</p>
+    <h2 data-i18n="inv.title">Chame a turma</h2>
+    <p class="sheet-sub" data-i18n="inv.sub">Aponte a câmera do celular pro QR ou compartilhe o código.</p>
     <div class="qr-wrap" id="qr-wrap"></div>
     <div class="big-code" id="big-code">----</div>
-    <label class="field"><span>Nome da mesa (opcional)</span>
+    <label class="field"><span data-i18n="inv.nameLabel">Nome da mesa (opcional)</span>
       <div class="name-emoji">
-        <button class="emoji-one" id="table-emoji-btn" title="emoji">🍺</button>
-        <input id="table-name-input" type="text" maxlength="24" placeholder="ex: Mesa do Fundão" />
+        <button class="emoji-one" id="table-emoji-btn" title="emoji" data-i18n-title="inv.emojiTitle">🍺</button>
+        <input id="table-name-input" type="text" maxlength="24" placeholder="ex: Mesa do Fundão" data-i18n-ph="inv.namePh" />
       </div>
     </label>
     <div class="emoji-row" id="table-emoji-row" hidden></div>
-    <label class="field"><span>PIN (opcional — defina antes da galera entrar)</span>
-      <input id="invite-pin" type="text" inputmode="numeric" maxlength="8" placeholder="ex: 1234" /></label>
+    <label class="field"><span data-i18n="inv.pinLabel">PIN (opcional — defina antes da galera entrar)</span>
+      <input id="invite-pin" type="text" inputmode="numeric" maxlength="8" placeholder="ex: 1234" data-i18n-ph="inv.pinPh" /></label>
     <div class="sheet-actions">
-      <button class="btn btn-primary" id="btn-copy-link">Copiar link</button>
-      <button class="btn btn-ghost" id="btn-share-invite" hidden>Compartilhar</button>
+      <button class="btn btn-primary" id="btn-copy-link" data-i18n="inv.copy">Copiar link</button>
+      <button class="btn btn-ghost" id="btn-share-invite" hidden data-i18n="inv.share">Compartilhar</button>
       <button class="btn btn-ghost" id="btn-nfc" hidden>📡 NFC</button>
     </div>
-    <button class="btn btn-ghost btn-offline" id="btn-offline-host">📴 Sem internet? Parear por QR</button>
+    <button class="btn btn-ghost btn-offline" id="btn-offline-host" data-i18n="inv.offline">📴 Sem internet? Parear por QR</button>
   </div>
 </div>
 
@@ -149,12 +149,12 @@
 <div class="overlay" id="overlay-join" hidden>
   <div class="sheet">
     <h2>Entrar na mesa <span id="join-code-label"></span></h2>
-    <label class="field"><span>Seu apelido</span>
-      <input id="join-name" type="text" maxlength="20" placeholder="ex: André" /></label>
-    <label class="field" id="join-pin-field" hidden><span>PIN da mesa</span>
-      <input id="join-pin" type="text" inputmode="numeric" maxlength="8" placeholder="pergunte na mesa" /></label>
+    <label class="field"><span data-i18n="join.nick">Seu apelido</span>
+      <input id="join-name" type="text" maxlength="20" placeholder="ex: André" data-i18n-ph="name.ph" /></label>
+    <label class="field" id="join-pin-field" hidden><span data-i18n="join.pin">PIN da mesa</span>
+      <input id="join-pin" type="text" inputmode="numeric" maxlength="8" placeholder="pergunte na mesa" data-i18n-ph="join.pinPh" /></label>
     <div class="sheet-actions">
-      <button class="btn btn-primary btn-lg" id="btn-join-confirm">Bora 🍻</button>
+      <button class="btn btn-primary btn-lg" id="btn-join-confirm" data-i18n="join.go">Bora 🍻</button>
     </div>
   </div>
 </div>
@@ -165,11 +165,11 @@
     <button class="sheet-close" data-close>✕</button>
     <h2>🏆 Placar &amp; conquistas</h2>
     <div class="league-level" id="league-level"></div>
-    <h3 class="stats-h3">Mesa agora</h3>
+    <h3 class="stats-h3" data-i18n="peers.now">Mesa agora</h3>
     <div class="mvp" id="mvp-banner" hidden></div>
     <ul class="peers-list" id="peers-list"></ul>
     <div class="my-badges" id="my-badges"></div>
-    <h3 class="stats-h3">Desafios da semana</h3>
+    <h3 class="stats-h3" data-i18n="peers.week">Desafios da semana</h3>
     <ul class="league-challenges" id="league-challenges"></ul>
     <div class="league-season" id="league-season"></div>
   </div>
@@ -179,35 +179,35 @@
 <div class="overlay" id="overlay-menu" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>Mesa</h2>
+    <h2 data-i18n="menu.title">Mesa</h2>
     <div class="menu-list">
-      <p class="menu-sec">Você</p>
-      <button class="menu-item" id="menu-profile">🎨 Meu perfil</button>
-      <button class="menu-item" id="menu-pace">📈 Meu ritmo</button>
-      <button class="menu-item" id="menu-safe">🛟 Tô de boa?</button>
-      <button class="menu-item" id="menu-stats">📊 Meus números</button>
-      <p class="menu-sec">Jogos</p>
-      <button class="menu-item" id="menu-roulette">🎰 Quem paga a próxima?</button>
-      <button class="menu-item" id="menu-purrinha">🫲 Purrinha</button>
-      <button class="menu-item" id="menu-domino">🁫 Dominó</button>
-      <button class="menu-item" id="menu-tournament">🏟️ Torneio da galera</button>
-      <button class="menu-item" id="menu-card">🃏 Carta da mesa</button>
-      <p class="menu-sec">Mesa</p>
+      <p class="menu-sec" data-i18n="common.youCap">Você</p>
+      <button class="menu-item" id="menu-profile" data-i18n="menu.profile">🎨 Meu perfil</button>
+      <button class="menu-item" id="menu-pace" data-i18n="pace.title">📈 Meu ritmo</button>
+      <button class="menu-item" id="menu-safe" data-i18n="safe.title">🛟 Tô de boa?</button>
+      <button class="menu-item" id="menu-stats" data-i18n="stats">📊 Meus números</button>
+      <p class="menu-sec" data-i18n="menu.secGames">Jogos</p>
+      <button class="menu-item" id="menu-roulette" data-i18n="roul.title">🎰 Quem paga a próxima?</button>
+      <button class="menu-item" id="menu-purrinha" data-i18n="purr.title">🫲 Purrinha</button>
+      <button class="menu-item" id="menu-domino" data-i18n="dom.title">🁫 Dominó</button>
+      <button class="menu-item" id="menu-tournament" data-i18n="tourn.title">🏟️ Torneio da galera</button>
+      <button class="menu-item" id="menu-card" data-i18n="card.title">🃏 Carta da mesa</button>
+      <p class="menu-sec" data-i18n="menu.title">Mesa</p>
       <button class="menu-item" id="menu-board">🏆 Placar &amp; conquistas</button>
-      <button class="menu-item" id="menu-waiter">🔔 Chamar o garçom</button>
-      <button class="menu-item" id="menu-water">💧 Rodada de água</button>
-      <button class="menu-item" id="menu-hh">⏰ Happy hour</button>
-      <button class="menu-item" id="menu-jukebox">🎵 Jukebox</button>
-      <button class="menu-item" id="menu-festa">🎉 Modo festa</button>
-      <button class="menu-item" id="menu-bebedeira">🔢 Contador gigante</button>
-      <button class="menu-item" id="menu-ceremony">🏅 Cerimônia da noite</button>
-      <p class="menu-sec">Conta</p>
-      <button class="menu-item" id="menu-bill">💸 Fechar a conta</button>
-      <button class="menu-item" id="menu-prices">💲 Preços do cardápio</button>
-      <p class="menu-sec">Extra</p>
-      <button class="menu-item" id="menu-photo">📷 Foto da noite</button>
-      <button class="menu-item" id="menu-share">📸 Compartilhar a noite</button>
-      <button class="menu-item" id="menu-settings">⚙️ Configurações</button>
+      <button class="menu-item" id="menu-waiter" data-i18n="menu.waiter">🔔 Chamar o garçom</button>
+      <button class="menu-item" id="menu-water" data-i18n="menu.water">💧 Rodada de água</button>
+      <button class="menu-item" id="menu-hh" data-i18n="hh.title">⏰ Happy hour</button>
+      <button class="menu-item" id="menu-jukebox" data-i18n="menu.jukebox">🎵 Jukebox</button>
+      <button class="menu-item" id="menu-festa" data-i18n="menu.festa">🎉 Modo festa</button>
+      <button class="menu-item" id="menu-bebedeira" data-i18n="menu.bebedeira">🔢 Contador gigante</button>
+      <button class="menu-item" id="menu-ceremony" data-i18n="cer.title">🏅 Cerimônia da noite</button>
+      <p class="menu-sec" data-i18n="menu.secBill">Conta</p>
+      <button class="menu-item" id="menu-bill" data-i18n="menu.bill">💸 Fechar a conta</button>
+      <button class="menu-item" id="menu-prices" data-i18n="menu.prices">💲 Preços do cardápio</button>
+      <p class="menu-sec" data-i18n="menu.secExtra">Extra</p>
+      <button class="menu-item" id="menu-photo" data-i18n="photo.title">📷 Foto da noite</button>
+      <button class="menu-item" id="menu-share" data-i18n="menu.shareNight">📸 Compartilhar a noite</button>
+      <button class="menu-item" id="menu-settings" data-i18n="menu.settings">⚙️ Configurações</button>
     </div>
   </div>
 </div>
@@ -216,17 +216,17 @@
 <div class="overlay" id="overlay-profile" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
-    <h2>Meu perfil</h2>
-    <label class="field"><span>Apelido</span>
-      <input id="profile-name" type="text" maxlength="20" placeholder="seu apelido" /></label>
-    <p class="lbl">Cor</p>
+    <h2 data-i18n="prof.title">Meu perfil</h2>
+    <label class="field"><span data-i18n="prof.nick">Apelido</span>
+      <input id="profile-name" type="text" maxlength="20" placeholder="seu apelido" data-i18n-ph="prof.nickPh" /></label>
+    <p class="lbl" data-i18n="prof.color">Cor</p>
     <div class="swatch-row" id="profile-colors"></div>
-    <p class="lbl">Avatar</p>
+    <p class="lbl" data-i18n="prof.avatar">Avatar</p>
     <div class="emoji-row" id="profile-avatars"></div>
     <label class="check"><input type="checkbox" id="profile-driver" />
-      <span>🚗 Sou o motorista da rodada (não bebo)</span></label>
+      <span data-i18n="prof.driver">🚗 Sou o motorista da rodada (não bebo)</span></label>
     <div class="sheet-actions">
-      <button class="btn btn-primary btn-lg" id="btn-profile-save">Salvar</button>
+      <button class="btn btn-primary btn-lg" id="btn-profile-save" data-i18n="prof.save">Salvar</button>
     </div>
   </div>
 </div>
@@ -235,18 +235,18 @@
 <div class="overlay" id="overlay-additem" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
-    <h2>Novo item</h2>
+    <h2 data-i18n="add.title">Novo item</h2>
     <div class="emoji-row" id="emoji-row"></div>
-    <label class="field"><span>Nome</span>
-      <input id="add-name" type="text" maxlength="24" placeholder="ex: Caipirinha" /></label>
-    <label class="field"><span>Categoria</span>
+    <label class="field"><span data-i18n="add.name">Nome</span>
+      <input id="add-name" type="text" maxlength="24" placeholder="ex: Caipirinha" data-i18n-ph="add.namePh" /></label>
+    <label class="field"><span data-i18n="add.cat">Categoria</span>
       <select id="add-cat"></select></label>
-    <label class="field"><span>Preço (opcional)</span>
-      <input id="add-price" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0,00" /></label>
-    <label class="field"><span>Observação (opcional)</span>
-      <input id="add-note" type="text" maxlength="40" placeholder="ex: bem gelada, sem cebola" /></label>
+    <label class="field"><span data-i18n="add.price">Preço (opcional)</span>
+      <input id="add-price" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0,00" data-i18n-ph="add.pricePh" /></label>
+    <label class="field"><span data-i18n="add.note">Observação (opcional)</span>
+      <input id="add-note" type="text" maxlength="40" placeholder="ex: bem gelada, sem cebola" data-i18n-ph="add.notePh" /></label>
     <div class="sheet-actions">
-      <button class="btn btn-primary btn-lg" id="btn-additem-confirm">Adicionar</button>
+      <button class="btn btn-primary btn-lg" id="btn-additem-confirm" data-i18n="add.go">Adicionar</button>
     </div>
   </div>
 </div>
@@ -255,11 +255,11 @@
 <div class="overlay" id="overlay-bill" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>Fechar a conta</h2>
+    <h2 data-i18n="bill.title">Fechar a conta</h2>
     <p class="sheet-sub" id="bill-note"></p>
     <div class="bill-opts">
       <div class="tip-row">
-        <span class="lbl">Gorjeta</span>
+        <span class="lbl" data-i18n="bill.tip">Gorjeta</span>
         <div class="tip-btns" id="bill-tips">
           <button type="button" data-tip="0">0%</button>
           <button type="button" data-tip="5">5%</button>
@@ -267,14 +267,14 @@
           <button type="button" data-tip="15">15%</button>
         </div>
       </div>
-      <label class="field field-inline"><span>Couvert p/ pessoa</span>
+      <label class="field field-inline"><span data-i18n="bill.couvert">Couvert p/ pessoa</span>
         <input id="bill-couvert" type="number" inputmode="decimal" min="0" step="1" placeholder="0" /></label>
-      <label class="check"><input type="checkbox" id="bill-equal" /><span>Rachar igual (marque quem entra)</span></label>
+      <label class="check"><input type="checkbox" id="bill-equal" /><span data-i18n="bill.equal">Rachar igual (marque quem entra)</span></label>
     </div>
     <ul class="bill-list" id="bill-list"></ul>
     <div class="bill-total" id="bill-total"></div>
     <div class="sheet-actions">
-      <button class="btn btn-primary" id="btn-bill-share">📸 Mandar no grupo</button>
+      <button class="btn btn-primary" id="btn-bill-share" data-i18n="bill.share">📸 Mandar no grupo</button>
     </div>
   </div>
 </div>
@@ -283,11 +283,11 @@
 <div class="overlay" id="overlay-prices" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>Preços do cardápio</h2>
-    <p class="sheet-sub">Pra dividir a conta por consumo. Fica sincronizado com a mesa.</p>
+    <h2 data-i18n="prices.title">Preços do cardápio</h2>
+    <p class="sheet-sub" data-i18n="prices.sub">Pra dividir a conta por consumo. Fica sincronizado com a mesa.</p>
     <ul class="price-list" id="price-list"></ul>
     <div class="sheet-actions">
-      <button class="btn btn-ghost" id="btn-save-menu">💾 Salvar como cardápio do bar</button>
+      <button class="btn btn-ghost" id="btn-save-menu" data-i18n="prices.save">💾 Salvar como cardápio do bar</button>
     </div>
   </div>
 </div>
@@ -300,7 +300,7 @@
     <div class="qr-wrap" id="pix-qr"></div>
     <textarea class="pix-code" id="pix-code" readonly rows="3"></textarea>
     <div class="sheet-actions">
-      <button class="btn btn-primary" id="btn-pix-copy">Copiar código PIX</button>
+      <button class="btn btn-primary" id="btn-pix-copy" data-i18n="pix.copy">Copiar código PIX</button>
     </div>
   </div>
 </div>
@@ -310,66 +310,66 @@
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="set.title">Configurações</h2>
-    <p class="menu-sec">🎨 Aparência</p>
+    <p class="menu-sec" data-i18n="set.secLook">🎨 Aparência</p>
     <label class="field field-inline"><span data-i18n="set.theme">Tema</span>
       <select id="set-theme">
-        <option value="auto">Auto</option>
-        <option value="dark">Escuro (lousa)</option>
-        <option value="light">Claro (kraft)</option>
-        <option value="neon">Neon</option>
-        <option value="retro">Retrô</option>
+        <option value="auto" data-i18n="set.themeAuto">Auto</option>
+        <option value="dark" data-i18n="set.themeDark">Escuro (lousa)</option>
+        <option value="light" data-i18n="set.themeLight">Claro (kraft)</option>
+        <option value="neon" data-i18n="set.themeNeon">Neon</option>
+        <option value="retro" data-i18n="set.themeRetro">Retrô</option>
       </select></label>
     <label class="field field-inline"><span data-i18n="set.lang">🌎 Idioma</span>
       <select id="set-lang">
         <option value="pt">Português</option>
         <option value="en">English</option>
         <option value="es">Español</option>
-        <option value="auto">Auto</option>
+        <option value="auto" data-i18n="set.themeAuto">Auto</option>
       </select></label>
     <label class="check"><input type="checkbox" id="set-bigfont" /><span data-i18n="set.bigfont">🔎 Fonte grande</span></label>
     <p class="menu-sec">🔊 Som &amp; vibração</p>
     <label class="check"><input type="checkbox" id="set-sound" /><span data-i18n="set.sound">🔊 Sons</span></label>
     <label class="check"><input type="checkbox" id="set-shake" /><span data-i18n="set.shake">📳 Chacoalhar o celular pra +1 (mãos livres)</span></label>
-    <p class="menu-sec">🎯 Consciência</p>
-    <label class="field field-inline"><span>🎯 Meta de bebidas (alerta)</span>
-      <input id="set-limit" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" /></label>
-    <label class="field field-inline"><span>💧 Lembrar água a cada</span>
-      <input id="set-water" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" /></label>
+    <p class="menu-sec" data-i18n="set.secAware">🎯 Consciência</p>
+    <label class="field field-inline"><span data-i18n="set.limit">🎯 Meta de bebidas (alerta)</span>
+      <input id="set-limit" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" data-i18n-ph="set.limitPh" /></label>
+    <label class="field field-inline"><span data-i18n="set.water">💧 Lembrar água a cada</span>
+      <input id="set-water" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" data-i18n-ph="set.limitPh" /></label>
     <label class="check"><input type="checkbox" id="set-nudges" /><span data-i18n="set.nudges">🐢 Avisos de ritmo (bora uma água?)</span></label>
-    <label class="check"><input type="checkbox" id="set-responsa" /><span>🛟 Modo responsa (avisos mais firmes)</span></label>
-    <p class="lbl">📈 Peso e sexo estimam o teor alcoólico — fica só neste aparelho</p>
-    <label class="field field-inline"><span>⚖️ Peso (kg)</span>
-      <input id="set-weight" type="number" inputmode="numeric" min="0" max="300" step="1" placeholder="0 = não estima" /></label>
-    <label class="field field-inline"><span>👤 Você é</span>
+    <label class="check"><input type="checkbox" id="set-responsa" /><span data-i18n="set.responsa">🛟 Modo responsa (avisos mais firmes)</span></label>
+    <p class="lbl" data-i18n="set.bacNote">📈 Peso e sexo estimam o teor alcoólico — fica só neste aparelho</p>
+    <label class="field field-inline"><span data-i18n="set.weight">⚖️ Peso (kg)</span>
+      <input id="set-weight" type="number" inputmode="numeric" min="0" max="300" step="1" placeholder="0 = não estima" data-i18n-ph="set.weightPh" /></label>
+    <label class="field field-inline"><span data-i18n="set.youAre">👤 Você é</span>
       <select id="set-sex">
-        <option value="">prefiro não dizer</option>
-        <option value="m">homem</option>
-        <option value="f">mulher</option>
+        <option value="" data-i18n="set.sexNone">prefiro não dizer</option>
+        <option value="m" data-i18n="set.sexM">homem</option>
+        <option value="f" data-i18n="set.sexF">mulher</option>
       </select></label>
-    <p class="menu-sec">🚗 Carona / carro</p>
-    <label class="field field-inline"><span>App de carro</span>
+    <p class="menu-sec" data-i18n="set.secCar">🚗 Carona / carro</p>
+    <label class="field field-inline"><span data-i18n="set.carApp">App de carro</span>
       <select id="set-carapp"><option value="uber">Uber</option><option value="99">99</option></select></label>
-    <label class="field"><span>Contato de confiança (nome)</span>
-      <input id="set-trustname" type="text" maxlength="20" placeholder="ex: Mãe, Bea" /></label>
-    <label class="field"><span>Telefone dele(a) — WhatsApp</span>
-      <input id="set-trustphone" type="tel" inputmode="tel" maxlength="20" placeholder="ex: 11 99999-9999" /></label>
-    <p class="menu-sec">💸 PIX pra dividir</p>
-    <label class="field"><span>Sua chave PIX</span>
-      <input id="set-pixkey" type="text" maxlength="77" placeholder="email, telefone, CPF ou aleatória" /></label>
-    <label class="field"><span>Cidade</span>
-      <input id="set-pixcity" type="text" maxlength="15" placeholder="ex: São Paulo" /></label>
+    <label class="field"><span data-i18n="set.trustName">Contato de confiança (nome)</span>
+      <input id="set-trustname" type="text" maxlength="20" placeholder="ex: Mãe, Bea" data-i18n-ph="set.trustNamePh" /></label>
+    <label class="field"><span data-i18n="set.trustPhone">Telefone dele(a) — WhatsApp</span>
+      <input id="set-trustphone" type="tel" inputmode="tel" maxlength="20" placeholder="ex: 11 99999-9999" data-i18n-ph="set.trustPhonePh" /></label>
+    <p class="menu-sec" data-i18n="set.secPix">💸 PIX pra dividir</p>
+    <label class="field"><span data-i18n="set.pixKey">Sua chave PIX</span>
+      <input id="set-pixkey" type="text" maxlength="77" placeholder="email, telefone, CPF ou aleatória" data-i18n-ph="set.pixKeyPh" /></label>
+    <label class="field"><span data-i18n="set.pixCity">Cidade</span>
+      <input id="set-pixcity" type="text" maxlength="15" placeholder="ex: São Paulo" data-i18n-ph="set.pixCityPh" /></label>
     <p class="menu-sec">💾 Backup &amp; dados</p>
     <div class="sheet-actions">
-      <button class="btn btn-ghost" id="btn-export-data">⬇️ Exportar</button>
-      <button class="btn btn-ghost" id="btn-import-data">⬆️ Importar</button>
+      <button class="btn btn-ghost" id="btn-export-data" data-i18n="set.export">⬇️ Exportar</button>
+      <button class="btn btn-ghost" id="btn-import-data" data-i18n="set.import">⬆️ Importar</button>
     </div>
     <input id="import-file" type="file" accept="application/json,.json" hidden />
     <div class="sheet-actions">
-      <button class="btn btn-ghost" id="btn-clear-data">🗑️ Apagar dados locais</button>
+      <button class="btn btn-ghost" id="btn-clear-data" data-i18n="set.clear">🗑️ Apagar dados locais</button>
     </div>
-    <p class="menu-sec">🍺 Bar</p>
+    <p class="menu-sec" data-i18n="set.secBar">🍺 Bar</p>
     <button class="btn btn-ghost" id="btn-bar" data-i18n="bar">🍺 Modo bar</button>
-    <p class="seal">🔒 Nada disso é enviado a servidor. Tudo vive no seu navegador.</p>
+    <p class="seal" data-i18n="set.privacy">🔒 Nada disso é enviado a servidor. Tudo vive no seu navegador.</p>
   </div>
 </div>
 
@@ -377,7 +377,7 @@
 <div class="overlay" id="overlay-games" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
-    <h2>🎮 Jogos</h2>
+    <h2 data-i18n="games.title">🎮 Jogos</h2>
     <div class="games-grid" id="games-grid"></div>
   </div>
 </div>
@@ -386,7 +386,7 @@
 <div class="overlay" id="overlay-react" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
-    <h2>Mandar reação</h2>
+    <h2 data-i18n="react.title">Mandar reação</h2>
     <div class="react-row" id="react-row"></div>
   </div>
 </div>
@@ -395,8 +395,8 @@
 <div class="overlay" id="overlay-hh" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
-    <h2>⏰ Happy hour</h2>
-    <p class="sheet-sub">Uma janela pra mesa mandar ver — todo mundo vê o cronômetro e quantas rodadas rolaram.</p>
+    <h2 data-i18n="hh.title">⏰ Happy hour</h2>
+    <p class="sheet-sub" data-i18n="hh.sub">Uma janela pra mesa mandar ver — todo mundo vê o cronômetro e quantas rodadas rolaram.</p>
     <div class="sheet-actions">
       <button class="btn btn-ghost" data-min="15">15 min</button>
       <button class="btn btn-ghost" data-min="30">30 min</button>
@@ -409,37 +409,37 @@
 <div class="overlay" id="overlay-offline" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>Parear sem internet</h2>
-    <p class="sheet-sub">Mesma Wi-Fi ou hotspot de alguém — sem internet, sem servidor. 1 QR por pessoa.</p>
+    <h2 data-i18n="off.title">Parear sem internet</h2>
+    <p class="sheet-sub" data-i18n="off.sub">Mesma Wi-Fi ou hotspot de alguém — sem internet, sem servidor. 1 QR por pessoa.</p>
 
     <!-- ANFITRIÃO: mostra o convite, lê a resposta -->
     <div class="off-panel" id="off-host" hidden>
-      <p class="lbl">1 · Mostre este QR pra quem vai entrar (ou copie o código):</p>
+      <p class="lbl" data-i18n="off.host1">1 · Mostre este QR pra quem vai entrar (ou copie o código):</p>
       <div class="qr-wrap" id="off-offer-qr"></div>
       <textarea class="code-box" id="off-offer-code" readonly rows="2"></textarea>
-      <button class="btn btn-ghost" id="btn-off-copy-offer">Copiar convite</button>
-      <p class="lbl">2 · Depois, leia a resposta do convidado:</p>
+      <button class="btn btn-ghost" id="btn-off-copy-offer" data-i18n="off.copyOffer">Copiar convite</button>
+      <p class="lbl" data-i18n="off.host2">2 · Depois, leia a resposta do convidado:</p>
       <div class="sheet-actions">
-        <button class="btn btn-primary" id="btn-off-scan-answer">📷 Escanear resposta</button>
+        <button class="btn btn-primary" id="btn-off-scan-answer" data-i18n="off.scanAnswerBtn">📷 Escanear resposta</button>
       </div>
-      <textarea class="code-box" id="off-answer-in" rows="2" placeholder="ou cole a resposta aqui"></textarea>
-      <button class="btn btn-primary btn-lg" id="btn-off-connect">Conectar 🍻</button>
+      <textarea class="code-box" id="off-answer-in" rows="2" placeholder="ou cole a resposta aqui" data-i18n-ph="off.pasteAnswerPh"></textarea>
+      <button class="btn btn-primary btn-lg" id="btn-off-connect" data-i18n="off.connect">Conectar 🍻</button>
     </div>
 
     <!-- CONVIDADO: lê o convite, devolve a resposta -->
     <div class="off-panel" id="off-guest" hidden>
-      <p class="lbl">1 · Leia o convite de quem já está na mesa:</p>
+      <p class="lbl" data-i18n="off.guest1">1 · Leia o convite de quem já está na mesa:</p>
       <div class="sheet-actions">
-        <button class="btn btn-primary" id="btn-off-scan-offer">📷 Escanear convite</button>
+        <button class="btn btn-primary" id="btn-off-scan-offer" data-i18n="off.scanOfferBtn">📷 Escanear convite</button>
       </div>
-      <textarea class="code-box" id="off-offer-in" rows="2" placeholder="ou cole o convite aqui"></textarea>
-      <button class="btn btn-primary btn-lg" id="btn-off-genanswer">Gerar resposta</button>
+      <textarea class="code-box" id="off-offer-in" rows="2" placeholder="ou cole o convite aqui" data-i18n-ph="off.pasteOfferPh"></textarea>
+      <button class="btn btn-primary btn-lg" id="btn-off-genanswer" data-i18n="off.genAnswer">Gerar resposta</button>
       <div id="off-answer-out" hidden>
-        <p class="lbl">2 · Mostre esta resposta de volta (QR ou código):</p>
+        <p class="lbl" data-i18n="off.guest2">2 · Mostre esta resposta de volta (QR ou código):</p>
         <div class="qr-wrap" id="off-answer-qr"></div>
         <textarea class="code-box" id="off-answer-code" readonly rows="2"></textarea>
-        <button class="btn btn-ghost" id="btn-off-copy-answer">Copiar resposta</button>
-        <p class="sheet-sub">Assim que ele ler, você entra na mesa. 🍻</p>
+        <button class="btn btn-ghost" id="btn-off-copy-answer" data-i18n="off.copyAnswer">Copiar resposta</button>
+        <p class="sheet-sub" data-i18n="off.guestDone">Assim que ele ler, você entra na mesa. 🍻</p>
       </div>
     </div>
   </div>
@@ -459,14 +459,14 @@
 <div class="overlay" id="overlay-pace" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>📈 Meu ritmo</h2>
+    <h2 data-i18n="pace.title">📈 Meu ritmo</h2>
     <div class="pace-summary" id="pace-summary">—</div>
     <div class="pace-meter"><div class="pace-bar" id="pace-bar"></div></div>
     <p class="pace-label" id="pace-label"></p>
     <canvas class="pace-chart" id="pace-chart" width="600" height="150"></canvas>
     <div class="pace-bac" id="pace-bac"></div>
     <div class="pace-coach" id="pace-coach"></div>
-    <p class="seal">Estimativa leve, não é bafômetro. Bebeu? Não dirija. 🚗🚫</p>
+    <p class="seal" data-i18n="pace.disclaimer">Estimativa leve, não é bafômetro. Bebeu? Não dirija. 🚗🚫</p>
   </div>
 </div>
 
@@ -474,11 +474,11 @@
 <div class="overlay" id="overlay-roulette" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
-    <h2>🎰 Quem paga a próxima?</h2>
+    <h2 data-i18n="roul.title">🎰 Quem paga a próxima?</h2>
     <ul class="roulette-list" id="roulette-list"></ul>
     <div class="roulette-result" id="roulette-result" hidden></div>
     <div class="sheet-actions">
-      <button class="btn btn-primary btn-lg" id="btn-roulette-spin">Girar 🎰</button>
+      <button class="btn btn-primary btn-lg" id="btn-roulette-spin" data-i18n="roul.spin">Girar 🎰</button>
     </div>
   </div>
 </div>
@@ -496,12 +496,12 @@
 <div class="overlay" id="overlay-ceremony" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>🏅 Cerimônia da noite</h2>
-    <p class="sheet-sub">Os troféus da mesa 🏆</p>
+    <h2 data-i18n="cer.title">🏅 Cerimônia da noite</h2>
+    <p class="sheet-sub" data-i18n="cer.sub">Os troféus da mesa 🏆</p>
     <ul class="ceremony-list" id="ceremony-list"></ul>
     <div class="sheet-actions">
-      <button class="btn btn-primary" id="btn-ceremony-share">📸 Compartilhar</button>
-      <button class="btn btn-ghost" id="btn-ceremony-broadcast">📣 Mostrar pra mesa</button>
+      <button class="btn btn-primary" id="btn-ceremony-share" data-i18n="common.shareImg">📸 Compartilhar</button>
+      <button class="btn btn-ghost" id="btn-ceremony-broadcast" data-i18n="common.showTable">📣 Mostrar pra mesa</button>
     </div>
   </div>
 </div>
@@ -510,13 +510,13 @@
 <div class="overlay" id="overlay-stats" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>📊 Meus números</h2>
+    <h2 data-i18n="stats">📊 Meus números</h2>
     <div class="stats-grid" id="stats-grid"></div>
     <div class="my-badges" id="stats-badges"></div>
-    <h3 class="stats-h3" id="stats-chart-h" hidden>Tendência (bebidas/mês)</h3>
+    <h3 class="stats-h3" id="stats-chart-h" hidden data-i18n="stats.trendH">Tendência (bebidas/mês)</h3>
     <canvas class="pace-chart" id="stats-chart" width="600" height="150" hidden></canvas>
     <p class="stats-insight" id="stats-insight"></p>
-    <h3 class="stats-h3">Suas noites</h3>
+    <h3 class="stats-h3" data-i18n="stats.nightsH">Suas noites</h3>
     <ul class="stats-history" id="stats-history"></ul>
   </div>
 </div>
@@ -535,15 +535,15 @@
 <div class="overlay" id="overlay-safe" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>🛟 Tô de boa?</h2>
+    <h2 data-i18n="safe.title">🛟 Tô de boa?</h2>
     <div class="safe-verdict" id="safe-verdict"></div>
     <div class="safe-rows" id="safe-rows"></div>
     <div class="sheet-actions">
-      <button class="btn btn-primary" id="btn-safe-car">🚗 Chamar carro</button>
-      <button class="btn btn-ghost" id="btn-safe-trust" hidden>🆘 Contato</button>
+      <button class="btn btn-primary" id="btn-safe-car" data-i18n="safe.car">🚗 Chamar carro</button>
+      <button class="btn btn-ghost" id="btn-safe-trust" hidden data-i18n="safe.trust">🆘 Contato</button>
     </div>
-    <button class="btn btn-ghost" id="btn-safe-home" hidden>🏠 Me leva pra casa (manda minha localização)</button>
-    <p class="seal">Estimativa local, não é bafômetro. Bebeu? Não dirija. 🚗🚫</p>
+    <button class="btn btn-ghost" id="btn-safe-home" hidden data-i18n="safe.home">🏠 Me leva pra casa (manda minha localização)</button>
+    <p class="seal" data-i18n="safe.disclaimer">Estimativa local, não é bafômetro. Bebeu? Não dirija. 🚗🚫</p>
   </div>
 </div>
 
@@ -551,10 +551,10 @@
 <div class="overlay" id="overlay-retro" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>🎞️ Seu rolê</h2>
+    <h2 data-i18n="retro.title">🎞️ Seu rolê</h2>
     <div class="retro-slides" id="retro-slides"></div>
     <div class="sheet-actions">
-      <button class="btn btn-primary" id="btn-retro-share">📸 Compartilhar</button>
+      <button class="btn btn-primary" id="btn-retro-share" data-i18n="common.shareImg">📸 Compartilhar</button>
     </div>
   </div>
 </div>
@@ -564,15 +564,15 @@
 <div class="overlay" id="overlay-bar" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
-    <h2>🍺 Modo bar</h2>
-    <p class="sheet-sub">Pro dono do bar: um código fixo por mesa (QR que você imprime) + seu cardápio salvo.</p>
-    <label class="field"><span>Código fixo da mesa (opcional)</span>
+    <h2 data-i18n="bar">🍺 Modo bar</h2>
+    <p class="sheet-sub" data-i18n="bar.sub">Pro dono do bar: um código fixo por mesa (QR que você imprime) + seu cardápio salvo.</p>
+    <label class="field"><span data-i18n="bar.codeLabel">Código fixo da mesa (opcional)</span>
       <input id="bar-code" type="text" maxlength="8" placeholder="ex: MESA5" autocapitalize="characters" /></label>
     <label class="check" id="bar-usemenu-field" hidden><input type="checkbox" id="bar-usemenu" checked /><span>Carregar meu cardápio salvo (<span id="bar-menu-count">0</span> itens)</span></label>
     <div class="sheet-actions">
-      <button class="btn btn-primary btn-lg" id="btn-bar-open">Abrir mesa do bar 🍺</button>
+      <button class="btn btn-primary btn-lg" id="btn-bar-open" data-i18n="bar.open">Abrir mesa do bar 🍺</button>
     </div>
-    <p class="seal">Salve o cardápio na mesa em 💲 Preços → “Salvar como cardápio do bar”.</p>
+    <p class="seal" data-i18n="bar.hint">Salve o cardápio na mesa em 💲 Preços → “Salvar como cardápio do bar”.</p>
   </div>
 </div>
 
@@ -580,11 +580,11 @@
 <div class="overlay" id="overlay-jukebox" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>🎵 Jukebox da mesa</h2>
-    <p class="sheet-sub">Peça a próxima — a fila aparece pra todo mundo. Toca abrindo no seu app de música.</p>
+    <h2 data-i18n="jbx.title">🎵 Jukebox da mesa</h2>
+    <p class="sheet-sub" data-i18n="jbx.sub">Peça a próxima — a fila aparece pra todo mundo. Toca abrindo no seu app de música.</p>
     <div class="join-row">
-      <input id="jukebox-input" type="text" maxlength="60" placeholder="música / artista" class="code-input" />
-      <button class="btn btn-primary" id="btn-jukebox-add">Pedir</button>
+      <input id="jukebox-input" type="text" maxlength="60" placeholder="música / artista" data-i18n-ph="jbx.ph" class="code-input" />
+      <button class="btn btn-primary" id="btn-jukebox-add" data-i18n="jbx.add">Pedir</button>
     </div>
     <ul class="jukebox-list" id="jukebox-list"></ul>
   </div>
@@ -595,7 +595,7 @@
   <div class="festa-inner">
     <button class="sheet-close" id="btn-festa-close">✕</button>
     <canvas class="festa-canvas" id="festa-canvas" width="480" height="300"></canvas>
-    <p class="festa-hint">🎉 modo festa · trilha lo-fi tocando</p>
+    <p class="festa-hint" data-i18n="festa.hint">🎉 modo festa · trilha lo-fi tocando</p>
   </div>
 </div>
 
@@ -603,12 +603,12 @@
 <div class="overlay" id="overlay-tournament" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>🏟️ Torneio da galera</h2>
+    <h2 data-i18n="tourn.title">🏟️ Torneio da galera</h2>
     <p class="sheet-sub">Pontos por <b>aparecer</b> e por <b>se hidratar</b> — não por beber mais. Some cada noite.</p>
     <ol class="tourn-list" id="tourn-list"></ol>
     <div class="sheet-actions">
-      <button class="btn btn-primary" id="btn-tourn-add">➕ Somar esta noite</button>
-      <button class="btn btn-ghost" id="btn-tourn-reset">🆕 Recomeçar</button>
+      <button class="btn btn-primary" id="btn-tourn-add" data-i18n="tourn.add">➕ Somar esta noite</button>
+      <button class="btn btn-ghost" id="btn-tourn-reset" data-i18n="tourn.reset">🆕 Recomeçar</button>
     </div>
   </div>
 </div>
@@ -617,11 +617,11 @@
 <div class="overlay" id="overlay-card" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
-    <h2>🃏 Carta da mesa</h2>
+    <h2 data-i18n="card.title">🃏 Carta da mesa</h2>
     <div class="card-draw" id="card-draw"></div>
     <div class="sheet-actions">
-      <button class="btn btn-ghost" id="btn-card-again">🎴 Outra</button>
-      <button class="btn btn-primary" id="btn-card-show">📣 Mostrar pra mesa</button>
+      <button class="btn btn-ghost" id="btn-card-again" data-i18n="card.again">🎴 Outra</button>
+      <button class="btn btn-primary" id="btn-card-show" data-i18n="common.showTable">📣 Mostrar pra mesa</button>
     </div>
   </div>
 </div>
@@ -630,7 +630,7 @@
 <div class="overlay" id="overlay-purrinha" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" id="btn-purr-close">✕</button>
-    <h2>🫲 Purrinha</h2>
+    <h2 data-i18n="purr.title">🫲 Purrinha</h2>
     <p class="sheet-sub" id="purr-sub">Escolha sua mão e chute o total da mesa. Tudo lacrado — abre junto.</p>
 
     <!-- 0) escolha do modo (só quem inicia vê) -->
@@ -661,7 +661,7 @@
       <ul class="purr-said" id="purr-said"></ul>
       <div class="purr-turnrow" id="purr-turnrow"></div>
       <div class="purr-opts purr-opts-wrap" id="purr-gpick" hidden></div>
-      <button class="btn btn-primary btn-lg" id="btn-purr-say" hidden disabled>🎙️ Falar palpite</button>
+      <button class="btn btn-primary btn-lg" id="btn-purr-say" hidden disabled data-i18n="purr.say">🎙️ Falar palpite</button>
     </div>
 
     <!-- 3) revelação (da rodada ou final) -->
@@ -670,11 +670,11 @@
       <div class="purr-total" id="purr-total"></div>
       <ul class="purr-reveals" id="purr-reveals"></ul>
       <div class="purr-verdict" id="purr-verdict"></div>
-      <button class="btn btn-primary btn-lg" id="btn-purr-again" hidden>🫲 Jogar de novo</button>
+      <button class="btn btn-primary btn-lg" id="btn-purr-again" hidden data-i18n="purr.again">🫲 Jogar de novo</button>
     </div>
 
     <!-- ✕ só minimiza; encerrar pra mesa toda é ação explícita (com confirmação) -->
-    <button class="btn btn-ghost game-end" id="btn-purr-end" hidden>🛑 Encerrar a partida pra mesa toda</button>
+    <button class="btn btn-ghost game-end" id="btn-purr-end" hidden data-i18n="game.endAll">🛑 Encerrar a partida pra mesa toda</button>
   </div>
 </div>
 
@@ -682,7 +682,7 @@
 <div class="overlay" id="overlay-domino" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" id="btn-dom-close">✕</button>
-    <h2>🁫 Dominó</h2>
+    <h2 data-i18n="dom.title">🁫 Dominó</h2>
     <div class="dom-setup" id="dom-setup" hidden></div>
     <div id="dom-game">
       <div class="dom-verified" id="dom-verified" hidden></div>
@@ -691,20 +691,20 @@
       <div class="dom-board-wrap"><div class="dom-board" id="dom-board"></div></div>
       <div id="dom-result" class="dom-result" hidden></div>
       <div id="dom-hand-wrap">
-        <div class="dom-hand-lbl">Sua mão — toque pra jogar</div>
+        <div class="dom-hand-lbl" data-i18n="dom.handLbl">Sua mão — toque pra jogar</div>
         <div class="dom-hand" id="dom-hand"></div>
         <div class="dom-side-pick" id="dom-side-pick" hidden>
-          <span>Jogar em qual ponta?</span>
+          <span data-i18n="dom.sidePick">Jogar em qual ponta?</span>
           <button class="btn btn-ghost" id="btn-dom-L">◀ <b id="dom-endL"></b></button>
           <button class="btn btn-ghost" id="btn-dom-R"><b id="dom-endR"></b> ▶</button>
         </div>
         <button class="btn btn-ghost" id="btn-dom-pass" hidden>🚫 Passar a vez</button>
       </div>
-      <button class="btn btn-primary btn-lg" id="btn-dom-again" hidden>🁫 Jogar de novo</button>
+      <button class="btn btn-primary btn-lg" id="btn-dom-again" hidden data-i18n="dom.again">🁫 Jogar de novo</button>
     </div>
 
     <!-- ✕ só minimiza; encerrar pra mesa toda é ação explícita (com confirmação) -->
-    <button class="btn btn-ghost game-end" id="btn-dom-end" hidden>🛑 Encerrar a partida pra mesa toda</button>
+    <button class="btn btn-ghost game-end" id="btn-dom-end" hidden data-i18n="game.endAll">🛑 Encerrar a partida pra mesa toda</button>
   </div>
 </div>
 
@@ -712,12 +712,12 @@
 <div class="overlay" id="overlay-passport" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>🗺️ Passaporte de botecos</h2>
+    <h2 data-i18n="pass.title">🗺️ Passaporte de botecos</h2>
     <p class="sheet-sub" id="passport-count">Marque os lugares que você já foi. Fica só no seu aparelho.</p>
-    <label class="field"><span>Nome do lugar</span>
+    <label class="field"><span data-i18n="pass.name">Nome do lugar</span>
       <div class="join-row">
-        <input id="passport-name" type="text" maxlength="30" placeholder="ex: Bar do Zé" class="code-input" />
-        <button class="btn btn-primary" id="btn-passport-checkin">📍 Check-in</button>
+        <input id="passport-name" type="text" maxlength="30" placeholder="ex: Bar do Zé" data-i18n-ph="pass.namePh" class="code-input" />
+        <button class="btn btn-primary" id="btn-passport-checkin" data-i18n="pass.checkin">📍 Check-in</button>
       </div>
     </label>
     <ul class="passport-list" id="passport-list"></ul>
@@ -728,11 +728,11 @@
 <div class="overlay" id="overlay-photo" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
-    <h2>📷 Foto da noite</h2>
+    <h2 data-i18n="photo.title">📷 Foto da noite</h2>
     <div class="photo-wrap" id="photo-wrap"></div>
     <div class="sheet-actions">
-      <button class="btn btn-ghost" id="btn-photo-retake">🔄 Outra</button>
-      <button class="btn btn-primary" id="btn-photo-share">📸 Compartilhar</button>
+      <button class="btn btn-ghost" id="btn-photo-retake" data-i18n="photo.retake">🔄 Outra</button>
+      <button class="btn btn-primary" id="btn-photo-share" data-i18n="common.shareImg">📸 Compartilhar</button>
     </div>
   </div>
 </div>
@@ -750,7 +750,7 @@
       <li>🛟 Tem <b>consciência</b> (ritmo/teor) e <b>cuidado</b> pra voltar bem</li>
     </ul>
     <div class="sheet-actions">
-      <button class="btn btn-primary btn-lg" id="btn-welcome-go">Bora! 🍻</button>
+      <button class="btn btn-primary btn-lg" id="btn-welcome-go" data-i18n="common.go">Bora! 🍻</button>
     </div>
   </div>
 </div>
@@ -758,12 +758,12 @@
 <!-- Tour guiado da 1ª mesa: spotlight recorta o alvo, balão explica; toque avança -->
 <div class="tour" id="tour" hidden>
   <div class="tour-spot" id="tour-spot" aria-hidden="true"></div>
-  <div class="tour-balloon" id="tour-balloon" role="dialog" aria-label="tour de boas-vindas">
+  <div class="tour-balloon" id="tour-balloon" role="dialog" aria-label="tour de boas-vindas" data-i18n-aria="tour.aria">
     <div class="tour-count" id="tour-count">1/4</div>
     <div class="tour-title" id="tour-title"></div>
     <div class="tour-text" id="tour-text"></div>
     <div class="tour-row">
-      <button class="btn btn-ghost" id="btn-tour-skip">Pular</button>
+      <button class="btn btn-ghost" id="btn-tour-skip" data-i18n="tour.skip">Pular</button>
       <button class="btn btn-primary" id="btn-tour-next">Próximo →</button>
     </div>
   </div>
@@ -776,7 +776,7 @@
 <div class="brinde" id="brinde" hidden>
   <div class="brinde-emoji">🥂</div>
   <div class="brinde-count" id="brinde-count">3</div>
-  <div class="brinde-word" id="brinde-word">Preparar…</div>
+  <div class="brinde-word" id="brinde-word" data-i18n="brinde.prep">Preparar…</div>
 </div>
 
 <!-- Modo bebedeira -->
@@ -785,7 +785,7 @@
   <div class="bebedeira-item" id="bebedeira-item">🍺</div>
   <div class="bebedeira-count" id="bebedeira-count">0</div>
   <button class="bebedeira-plus" id="bebedeira-plus">+1</button>
-  <div class="bebedeira-hint">segure para −1</div>
+  <div class="bebedeira-hint" data-i18n="beb.hint">segure para −1</div>
 </div>
 
 <div id="toast" class="toast" hidden></div>

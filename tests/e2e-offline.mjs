@@ -23,9 +23,12 @@ async function main() {
   });
 
   // Contexto com signaling MORTO: qualquer chamada ao endpoint /signaling é abortada.
+  // page.route NÃO intercepta WebSocket — sem o stub abaixo, o upgrade furaria a simulação
+  // e o pareamento sairia pelo socket em vez do QR/código que este teste cobre.
   const mk = async (name) => {
     const c = await browser.newContext();
     await c.addInitScript((n) => { localStorage.setItem('botequei.name', n); localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 })); localStorage.setItem('botequei.settings', JSON.stringify({ lang: 'pt' })); }, name); // testes não são 1º uso (sem welcome/tour) e asseveram textos pt
+    await c.addInitScript(() => { try { Object.defineProperty(window, 'WebSocket', { value: undefined, configurable: true }); } catch { /* ignore */ } });
     await c.route('**/signaling?*', (r) => r.abort());
     return c.newPage();
   };

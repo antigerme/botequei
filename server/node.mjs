@@ -103,7 +103,14 @@ async function signaling(req, res, url) {
   }
   if (action === 'leave') {
     const peer = clean(body.peer);
-    if (peer !== '') { room.drop(peer); broadcastPeers(roomName, now); }
+    if (peer !== '') {
+      // saiu de verdade: derruba TAMBEM o socket dele, e ANTES do drop — tirado do mapa,
+      // o close do socket (bye) vira no-op e nao re-toca a presenca de quem ja se foi
+      const s = socksOf(roomName).get(peer);
+      if (s) { socksOf(roomName).delete(peer); try { wsFrame(s, 8); s.destroy(); } catch { /* já era */ } }
+      room.drop(peer);
+      broadcastPeers(roomName, now);
+    }
     return sendJSON(res, { ok: true });
   }
   return sendJSON(res, { error: 'acao desconhecida' }, 400);

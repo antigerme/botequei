@@ -53,11 +53,17 @@ async function main() {
   });
 
   await step('placar mostra indicador de conexão da Bia', async () => {
-    await pageA.click('#btn-peers'); await visible(pageA, 'overlay-peers');
-    const hasNet = await pageA.evaluate(() => [...document.querySelectorAll('#peers-list .peer-row')]
-      .some((r) => !r.querySelector('.peer-you') && (r.querySelector('.peer-net')?.textContent || '').trim().length > 0));
+    // o indicador vem do getStats() amostrado periodicamente — em runner lento a 1ª amostra
+    // pode ainda não ter chegado quando o placar abre; reabrir re-renderiza com o estado novo
+    let hasNet = false;
+    for (let i = 0; i < 10 && !hasNet; i++) {
+      await pageA.click('#btn-peers'); await visible(pageA, 'overlay-peers');
+      hasNet = await pageA.evaluate(() => [...document.querySelectorAll('#peers-list .peer-row')]
+        .some((r) => !r.querySelector('.peer-you') && (r.querySelector('.peer-net')?.textContent || '').trim().length > 0));
+      await closeAll(pageA);
+      if (!hasNet) await pageA.waitForTimeout(1000);
+    }
     if (!hasNet) throw new Error('sem indicador de conexão no placar');
-    await closeAll(pageA);
   });
 
   // consumo p/ dar substância à conta/estatísticas

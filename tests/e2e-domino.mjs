@@ -3,7 +3,7 @@
 // as pedras que encaixam no DOM) até bater/trancar. Prova o loop P2P completo com 2 e 4 pessoas:
 // deal privado + jogadas públicas + fim de jogo coerente em todos os aparelhos.
 //
-//   php -S 127.0.0.1:8000 &
+//   node server/node.mjs &
 //   node tests/e2e-domino.mjs
 //
 // Variaveis: BASE (default http://127.0.0.1:8000), CHROME.

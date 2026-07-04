@@ -6,7 +6,7 @@
 //   C) ausente não trava o dominó: com o dono da vez offline, a vez é PULADA sozinha (~20s)
 //      e a mesa segue jogando.
 //
-//   php -S 127.0.0.1:8000 &
+//   node server/node.mjs &
 //   node tests/e2e-mesa-viva.mjs
 //
 // Variaveis: BASE (default http://127.0.0.1:8000), CHROME.

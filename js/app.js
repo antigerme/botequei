@@ -547,7 +547,7 @@ function restartMesh() {
 async function loadIce() {
   const fallback = [{ urls: 'stun:stun.l.google.com:19302' }];
   try {
-    const r = await fetch('turn.php', { cache: 'no-store' });
+    const r = await fetch('turn', { cache: 'no-store' });
     if (r.status !== 200) return fallback;
     const d = await r.json();
     return Array.isArray(d.iceServers) && d.iceServers.length ? d.iceServers : fallback;

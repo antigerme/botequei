@@ -2,7 +2,7 @@
 // TRUCO aceito (vale 3) com a mão jogada até o fim; placar CONVERGE nos dois aparelhos por
 // várias mãos; 2v2 mineira com o PARCEIRO respondendo o truco (mergeResponses na prática).
 //
-//   php -S 127.0.0.1:8000 &
+//   node server/node.mjs &
 //   node tests/e2e-truco.mjs
 //
 // Variaveis: BASE (default http://127.0.0.1:8000), CHROME.

@@ -1,4 +1,4 @@
-// Cliente de sinalizacao: fala com signaling.php por HTTP (polling curto).
+// Cliente de sinalizacao: fala com /signaling por HTTP (polling curto).
 // Serve SO para o handshake WebRTC (troca de offer/answer/ICE) e descoberta de peers.
 // Depois que os DataChannels abrem, o consumo nao passa mais por aqui.
 
@@ -6,7 +6,7 @@ export class Signaling {
   constructor(room, self) {
     this.room = room;
     this.self = self;
-    this.url = new URL('signaling.php', location.href).href;
+    this.url = new URL('signaling', location.href).href;
     this.polling = false;
     this._timer = null;
     this.interval = 1000;

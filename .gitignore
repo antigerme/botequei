@@ -5,10 +5,10 @@ Thumbs.db
 # Logs
 *.log
 
-# Segredos — nunca comitar (os *.example ficam versionados)
+# Segredos — nunca comitar
 .env
 .env.local
-.htaccess
+.dev.vars
 
 # Dev / testes
 node_modules
@@ -17,3 +17,6 @@ test-results/
 playwright-report/
 .playwright/
 /tests/tmp/
+
+# Cloudflare (cache do wrangler dev local)
+.wrangler/

@@ -3,7 +3,7 @@
 // fechando em "vale 4" nos dois aparelhos. (Flor fica no unit: não dá pra roteirizar sem
 // arranjar a mão.)
 //
-//   php -S 127.0.0.1:8000 &
+//   node server/node.mjs &
 //   node tests/e2e-truco-gaucha.mjs
 
 import { chromium } from 'playwright-core';

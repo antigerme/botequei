@@ -3,7 +3,7 @@
 // distribui as mãos com lacre, joga a partida inteira e, no fim, TODOS AUDITAM o embaralho e veem
 // "🔒✅ embaralho auditado, limpo". Prova o protocolo commit-to-deck + corte coletivo ponta-a-ponta.
 //
-//   php -S 127.0.0.1:8000 &
+//   node server/node.mjs &
 //   node tests/e2e-domino-verified.mjs
 //
 // Variaveis: BASE (default http://127.0.0.1:8000), CHROME.

@@ -100,7 +100,10 @@ padrão Auto segue o navegador).
   Fim de partida: `topen` abre master+baralho de cada mão e todos auditam (badge 🔒✅/🚫).
   `tcancel` com `from`; ✕ minimiza (pill, padrão dos outros jogos). Estado da mão =
   reducer determinístico do motor (`reduceT`) — evento fora de hora morre igual em todos.
-  Envido/flor da gaúcha ficam pro T3 (o motor já sabe).
+  Gaúcha completa: ENVIDO/REAL ENVIDO/FLOR na 1ª vaza (`tenvido`/`trealenvido`/`tenvresp`/
+  `tflor`); aceite → cada um AUTO-DECLARA os pontos (`tenvpoints`, sem input) e o placar anda;
+  a PROVA sai na auditoria do fim: a declaração é conferida contra a mão realmente dada
+  (cantou o que a mão não sustenta → 🚫 com nome).
 - **Competição & coach (puro)**: `js/tournament.js` (placar acumulado por pessoa entre noites —
   pontos por aparecer + hidratar, não por beber mais), `js/deck.js` (cartas de desafio) e o coach
   em `js/stats.js` (`projectAt` = previsão de ritmo até a meia-noite, `coachTips`). Mãos livres:

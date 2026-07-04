@@ -1346,7 +1346,7 @@ export function renderDomino(vm) {
 function truCardHTML(cardStr, { small = false, back = false } = {}) {
   if (back) return `<span class="tru-card back${small ? ' sm' : ''}"></span>`;
   const [r, s] = String(cardStr).split(':');
-  const suit = { ouros: '♦', espadas: '♠', copas: '♥', paus: '♣', bastos: '🌴' }[s] || s;
+  const suit = { ouros: '♦', espadas: '♠', copas: '♥', paus: '♣', bastos: '🪵' }[s] || s;
   const red = s === 'copas' || s === 'ouros';
   return `<span class="tru-card${red ? ' red' : ''}${small ? ' sm' : ''}"><b>${esc(r)}</b><i>${suit}</i></span>`;
 }
@@ -1381,6 +1381,24 @@ export function renderTruco(vm) {
     `<button class="tru-hcard${vm.myTurn ? '' : ' dim'}" data-card="${esc(m.card)}"${vm.myTurn ? '' : ' disabled'}>${truCardHTML(m.card)}</button>`).join('');
   el['tru-hand'].querySelectorAll('.tru-hcard:not([disabled])').forEach((b) => b.addEventListener('click', () => H.onTrucoPlay(b.dataset.card)));
   let acts = '';
+  if (vm.envido && vm.envido.pend && !vm.envido.pend.mine) {
+    acts += `<div class="tru-pend">${t('tru.envQ', { chain: vm.envido.pend.chain })}</div>
+      <div class="tru-btns">
+        <button class="btn btn-primary" id="btn-tru-envacc">${t('tru.accept')}</button>
+        ${vm.envido.canReal ? `<button class="btn btn-ghost" id="btn-tru-realenv">${t('tru.realEnv')}</button>` : ''}
+        <button class="btn btn-ghost tru-run" id="btn-tru-envrun">${t('tru.run')}</button>
+      </div>`;
+  } else if (vm.envido && vm.envido.pend && vm.envido.pend.mine) {
+    acts += `<div class="tru-pend">${t('tru.envWait', { chain: vm.envido.pend.chain })}</div>`;
+  } else if (vm.envido && vm.envido.canCall) {
+    acts += `<div class="tru-btns">
+      <button class="btn btn-ghost" id="btn-tru-env">🎯 ${t('tru.envCall')}</button>
+      ${vm.envido.canFlor ? `<button class="btn btn-ghost" id="btn-tru-flor">🌸 ${t('tru.florCall')}</button>` : ''}
+    </div>`;
+  }
+  if (vm.envido && vm.envido.closed && vm.envido.myPts != null && vm.envido.value > 0) {
+    acts += `<div class="tru-envinfo">${t('tru.envMine', { n: vm.envido.myPts })}</div>`;
+  }
   if (vm.onze) {
     acts = vm.onze.mine
       ? `<div class="tru-onze">${t('tru.onzeQ', { n: vm.onze.value })}
@@ -1388,7 +1406,7 @@ export function renderTruco(vm) {
            <button class="btn btn-ghost" id="btn-tru-onze-run">${t('tru.onzeRun')}</button></div>`
       : `<div class="tru-onze">${t('tru.onzeWait')}</div>`;
   } else if (vm.pend) {
-    acts = vm.pend.mine
+    acts += vm.pend.mine
       ? `<div class="tru-pend">${t('tru.pendWait', { label: vm.pend.label })}</div>`
       : `<div class="tru-pend">${t('tru.pendQ', { label: vm.pend.label, n: vm.pend.value })}</div>
          <div class="tru-btns">
@@ -1396,8 +1414,8 @@ export function renderTruco(vm) {
            ${vm.pend.canRaiseBack ? `<button class="btn btn-ghost" id="btn-tru-reraise">${t('tru.raiseBack')}</button>` : ''}
            <button class="btn btn-ghost tru-run" id="btn-tru-run">${t('tru.run')}</button>
          </div>`;
-  } else if (vm.canRaise) {
-    acts = `<button class="btn btn-ghost tru-raise" id="btn-tru-raise">🔥 ${esc(vm.raiseLabel)}</button>`;
+  } else if (vm.canRaise && !(vm.envido && vm.envido.pend)) {
+    acts += `<button class="btn btn-ghost tru-raise" id="btn-tru-raise">🔥 ${esc(vm.raiseLabel)}</button>`;
   }
   el['tru-actions'].innerHTML = acts;
   const on = (id, fn) => { const b = el['tru-actions'].querySelector('#' + id); if (b) b.onclick = fn; };
@@ -1407,6 +1425,11 @@ export function renderTruco(vm) {
   on('btn-tru-run', () => H.onTrucoResp('fold'));
   on('btn-tru-onze-go', () => H.onTrucoOnze(true));
   on('btn-tru-onze-run', () => H.onTrucoOnze(false));
+  on('btn-tru-env', () => H.onTrucoEnv('envido'));
+  on('btn-tru-realenv', () => H.onTrucoEnv('realenvido'));
+  on('btn-tru-envacc', () => H.onTrucoEnvResp('accept'));
+  on('btn-tru-envrun', () => H.onTrucoEnvResp('fold'));
+  on('btn-tru-flor', () => H.onTrucoFlor());
   const res = vm.gameResult || vm.handResult || '';
   el['tru-result'].textContent = res;
   el['tru-result'].hidden = !res;

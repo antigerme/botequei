@@ -876,3 +876,4 @@ body.light .tour-balloon { background: linear-gradient(180deg, #fdf6e6, #f2e7cd)
 .tru-raise { width: 100%; border-color: rgba(244,177,60,.6); color: var(--gold); font-size: 17px; }
 .tru-run { color: var(--danger); border-color: rgba(232,115,95,.5); }
 .tru-pend, .tru-onze { text-align: center; font-size: 15px; color: var(--cream); }
+.tru-envinfo { text-align: center; font-size: 13px; color: var(--muted); }

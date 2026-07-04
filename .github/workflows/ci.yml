@@ -88,10 +88,13 @@ jobs:
           cat /tmp/server.log | tail -5
       - name: Fallback WS→polling (servidor com WebSocket desligado)
         run: |
-          kill %1 2>/dev/null || true
-          NO_WS=1 node server/node.mjs >/tmp/server-nows.log 2>&1 &
-          for i in $(seq 1 20); do curl -sf 'http://127.0.0.1:8000/signaling?action=peers&room=ci' >/dev/null && break; sleep 1; done
-          export BASE=http://127.0.0.1:8000
+          # porta PRÓPRIA (:8001): cada step roda noutro shell, então `kill %1` não
+          # alcançaria o servidor do step anterior — ele segue vivo na :8000 com WS ligado
+          # (o EXPECT_POLL falharia contra ele, e o NO_WS nem subiria: EADDRINUSE).
+          NO_WS=1 PORT=8001 node server/node.mjs >/tmp/server-nows.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf 'http://127.0.0.1:8001/signaling?action=peers&room=ci' >/dev/null && break; sleep 1; done
+          curl -sf 'http://127.0.0.1:8001/signaling?action=peers&room=ci' || { cat /tmp/server-nows.log; exit 1; }
+          export BASE=http://127.0.0.1:8001
           export CHROME="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
           EXPECT_POLL=1 node tests/e2e-ws.mjs
 

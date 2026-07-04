@@ -4,7 +4,7 @@
 //     quem crava se livra e sai; rodadas seguem até sobrar um — que paga. Prova eliminação,
 //     rotação do starter e convergência multi-rodada sem servidor.
 //
-//   php -S 127.0.0.1:8000 &
+//   node server/node.mjs &
 //   node tests/e2e-purrinha.mjs
 //
 // Variaveis: BASE (default http://127.0.0.1:8000), CHROME.

@@ -1,8 +1,9 @@
 name: CI
 
-# Rede de segurança antes de qualquer coisa cair em produção (o main faz deploy atrás do
-# Cloudflare). Roda nos PRs pro main e nos pushes pro main. Sem segredos: o app é buildless,
-# P2P e o turn.php responde 204 sem config.
+# Rede de segurança antes de qualquer coisa cair em produção. Roda nos PRs pro main e nos
+# pushes pro main. Sem segredos: o app é buildless, P2P e o /turn responde 204 sem config.
+# Dois alvos de deploy, dois jobs de e2e: o servidor Node (VM) e o Worker da Cloudflare
+# (wrangler dev local, sem conta).
 on:
   push:
     branches: [main]
@@ -24,15 +25,15 @@ jobs:
           node-version: '20'
       - name: node --check (sintaxe de todo JS)
         run: |
-          # recursivo: pega js/ e tests/ mesmo se surgirem subpastas (ex.: js/games/…)
-          for f in $(find js tests -type f \( -name '*.js' -o -name '*.mjs' \) | sort) sw.js eslint.config.mjs; do
+          # recursivo: pega js/, tests/, server/ e worker/ mesmo se surgirem subpastas
+          for f in $(find js tests server worker -type f \( -name '*.js' -o -name '*.mjs' \) 2>/dev/null | sort) sw.js eslint.config.mjs; do
             echo "check $f"; node --check "$f"
           done
       - name: "ESLint (só bug: no-undef, no-dupe-keys, código morto)"
         run: npx --yes eslint@9 .
 
   audit:
-    name: Auditoria estática + PHP lint
+    name: Auditoria estática
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,10 +42,6 @@ jobs:
           node-version: '20'
       - name: Auditoria (import/export, shell do SW + CACHE, IDS, i18n)
         run: node tests/audit.mjs
-      - name: PHP lint (signaling.php / turn.php)
-        run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq php-cli
-          for f in *.php; do echo "php -l $f"; php -l "$f"; done
 
   unit:
     name: Testes unitários (puros)
@@ -63,24 +60,23 @@ jobs:
           for f in "${files[@]}"; do echo "▶ $f"; node "$f" || exit 1; done
 
   e2e:
-    name: E2E (WebRTC real, Chromium headless)
+    name: E2E alvo VM (servidor Node, WebRTC real)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: PHP
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq php-cli
       - name: Playwright + Chromium
         run: |
           npm init -y >/dev/null 2>&1
           npm i --no-save playwright@1.48.0 >/dev/null 2>&1
           npx playwright install --with-deps chromium
-      - name: Sobe o servidor e roda os E2E (auto-descobertos)
+      - name: Sobe o servidor Node e roda os E2E (auto-descobertos)
         run: |
-          php -S 127.0.0.1:8000 >/tmp/php.log 2>&1 &
-          sleep 1
+          node server/node.mjs >/tmp/server.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf 'http://127.0.0.1:8000/signaling?action=peers&room=ci' >/dev/null && break; sleep 1; done
+          curl -sf 'http://127.0.0.1:8000/signaling?action=peers&room=ci' || { cat /tmp/server.log; exit 1; }
           export BASE=http://127.0.0.1:8000
           export CHROME="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
           echo "Chromium: $CHROME"
@@ -89,3 +85,44 @@ jobs:
           files=(tests/e2e*.mjs)
           [ ${#files[@]} -gt 0 ] || { echo "nenhum tests/e2e*.mjs encontrado"; exit 1; }
           for f in "${files[@]}"; do echo "▶ $f"; node "$f" || exit 1; done
+          cat /tmp/server.log | tail -5
+      - name: Fallback WS→polling (servidor com WebSocket desligado)
+        run: |
+          # porta PRÓPRIA (:8001): cada step roda noutro shell, então `kill %1` não
+          # alcançaria o servidor do step anterior — ele segue vivo na :8000 com WS ligado
+          # (o EXPECT_POLL falharia contra ele, e o NO_WS nem subiria: EADDRINUSE).
+          NO_WS=1 PORT=8001 node server/node.mjs >/tmp/server-nows.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf 'http://127.0.0.1:8001/signaling?action=peers&room=ci' >/dev/null && break; sleep 1; done
+          curl -sf 'http://127.0.0.1:8001/signaling?action=peers&room=ci' || { cat /tmp/server-nows.log; exit 1; }
+          export BASE=http://127.0.0.1:8001
+          export CHROME="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
+          EXPECT_POLL=1 node tests/e2e-ws.mjs
+
+  e2e-cf:
+    name: E2E alvo Cloudflare (wrangler dev / workerd local)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Playwright + Chromium + Wrangler
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i --no-save playwright@1.48.0 wrangler@4 >/dev/null 2>&1
+          npx playwright install --with-deps chromium
+      - name: Sobe o wrangler dev (local, sem conta) e roda a amostra E2E
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          # --persist-to FORA do repo: os assets são a raiz ("directory": ".") e o watcher
+          # de dev vigia essa raiz — se o miniflare gravar o estado (.wrangler/state) ali
+          # dentro, cada request toca o SQLite e vira loop infinito de reload.
+          npx wrangler dev --port 8787 --inspector-port 0 --persist-to /tmp/wrangler-state >/tmp/wrangler.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf 'http://127.0.0.1:8787/signaling?action=peers&room=ci' >/dev/null && break; sleep 2; done
+          curl -sf 'http://127.0.0.1:8787/signaling?action=peers&room=ci' || { cat /tmp/wrangler.log; exit 1; }
+          export BASE=http://127.0.0.1:8787
+          export CHROME="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
+          node tests/e2e.mjs
+          node tests/e2e-ws.mjs
+          node tests/e2e-features.mjs

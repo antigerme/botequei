@@ -84,4 +84,25 @@ export default [
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...node, ...browser } },
     rules,
   },
+  {
+    // lado servidor: núcleo puro + adaptador Node (VM). Roda em Node puro.
+    files: ['server/**/*.mjs'],
+    languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...node, URLSearchParams: 'readonly', AbortSignal: 'readonly', Response: 'readonly' } },
+    rules,
+  },
+  {
+    // adaptador Cloudflare: roda no workerd (globals de Workers, não de Node).
+    files: ['worker/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2023, sourceType: 'module',
+      globals: {
+        Response: 'readonly', Request: 'readonly', Headers: 'readonly', URL: 'readonly',
+        URLSearchParams: 'readonly', fetch: 'readonly', crypto: 'readonly', console: 'readonly',
+        TextEncoder: 'readonly', TextDecoder: 'readonly', AbortSignal: 'readonly',
+        setTimeout: 'readonly', clearTimeout: 'readonly',
+        WebSocketPair: 'readonly', WebSocketRequestResponsePair: 'readonly',
+      },
+    },
+    rules,
+  },
 ];

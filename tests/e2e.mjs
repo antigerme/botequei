@@ -2,7 +2,7 @@
 // a sincronizacao P2P via WebRTC — +1, -1 (toque longo) e anti-entropy (quem entra depois
 // recebe o historico). Opcional; requer `playwright-core` e o Chromium do ambiente.
 //
-//   php -S 127.0.0.1:8000 &
+//   node server/node.mjs &
 //   npm i playwright-core
 //   node tests/e2e.mjs
 //

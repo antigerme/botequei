@@ -6,22 +6,30 @@ tempo real entre os navegadores. UI **100% traduzível** (pt/en/es via `js/i18n.
 padrão Auto segue o navegador).
 
 ## Rodar / testar
-- **Servidor local:** `php -S 0.0.0.0:8000` (serve tudo; precisa só de **PHP 8.x**, sem npm/banco).
-- **Unit, sem dependências:** `node tests/reducer.test.mjs`, `node tests/features.test.mjs` e
-  `node tests/stats.test.mjs` (ritmo/BAC + estatísticas de vida).
+- **Servidor local:** `node server/node.mjs` (serve tudo; precisa só de **Node 18+**, sem
+  npm/banco; envs `PORT`/`HOST`, `NO_WS=1` desliga o WebSocket pra testar o fallback).
+- **Alvo Cloudflare local:** `npx wrangler dev --persist-to ../wrangler-state` (workerd em
+  `:8787`, sem conta; o `--persist-to` FORA do repo é obrigatório — assets na raiz + estado
+  do miniflare dentro dela = loop infinito de reload do watcher).
+- **Unit, sem dependências:** `node tests/reducer.test.mjs`, `node tests/features.test.mjs`,
+  `node tests/stats.test.mjs` (ritmo/BAC + estatísticas de vida) e `node tests/core.test.mjs`
+  (núcleo da sala de sinalização).
 - **Auditoria estática (sem deps):** `node tests/audit.mjs` — confere grafo de import/export
   (arquivo existe **e** exporta o nome, evitando o "does not provide an export named …"), o shell
   do `sw.js` + `CACHE`, o array `IDS` do `ui.js` e as chaves de i18n. Descobre os arquivos
   sozinha (lê `js/` e `tests/`), então cresce junto do projeto.
 - **E2E (2–3 navegadores, WebRTC real):** `npm i playwright-core && node tests/e2e.mjs`
-  (usa o Chromium do ambiente; variáveis `BASE` e `CHROME`). Também `tests/e2e-reconnect.mjs`
-  (reconexão), `tests/e2e-offline.mjs` (pareamento por QR/código com o signaling desligado) e
+  (usa o Chromium do ambiente; variáveis `BASE` e `CHROME`). Também `tests/e2e-ws.mjs`
+  (transporte: default asserta WebSocket; `EXPECT_POLL=1` contra servidor `NO_WS=1` asserta o
+  fallback; inclui interop socket↔polling), `tests/e2e-reconnect.mjs` (reconexão),
+  `tests/e2e-offline.mjs` (pareamento por QR/código com o signaling desligado) e
   `tests/e2e-features.mjs` (roleta sincronizada, cutucada, PAYFOR e estatísticas).
 - **CI (GitHub Actions, `.github/workflows/ci.yml`):** em todo PR/push pro `main` roda **lint**
   (`node --check` + ESLint só de correção via `npx eslint .`, config em `eslint.config.mjs`),
-  **auditoria** (`tests/audit.mjs`) + `php -l`, **unit** e **e2e**. Unit e e2e são
-  **auto-descobertos**: qualquer `tests/*.test.mjs` (unit) e `tests/e2e*.mjs` (e2e) entram
-  sozinhos — só seguir a convenção de nome ao criar um teste novo.
+  **auditoria** (`tests/audit.mjs`), **unit** e **e2e em DOIS alvos**: servidor Node (suíte
+  completa + fallback `NO_WS`) e `wrangler dev` (amostra e2e + e2e-ws + e2e-features). Unit e
+  e2e são **auto-descobertos**: qualquer `tests/*.test.mjs` (unit) e `tests/e2e*.mjs` (e2e)
+  entram sozinhos — só seguir a convenção de nome ao criar um teste novo.
 
 ## Arquitetura (essencial)
 - **Sem framework, sem build.** HTML + CSS + JS puro (ES modules). Não introduzir bundler/toolchain.
@@ -30,9 +38,19 @@ padrão Auto segue o navegador).
   automática**: heartbeat (`ping`) detecta queda; o iniciador re-oferta e o outro reconstrói ao
   receber a offer; `wake()` (chamado no `visibilitychange`/`online`) reconecta e re-sincroniza ao
   desbloquear a tela.
-- **Sinalização** (`signaling.php` + `js/signaling.js`): PHP único, sem banco. Só troca SDP/ICE
-  por polling HTTP com caixa-postal em arquivos temporários (TTL). Guarda só o id opaco do peer —
-  nunca consumo/histórico/participantes. Sai do fluxo após o handshake.
+- **Sinalização** (rota `/signaling`): só troca SDP/ICE; guarda só o id opaco do peer — nunca
+  consumo/histórico/participantes — e sai do fluxo após o handshake. **Um núcleo, dois
+  adaptadores**: as regras da sala (presença TTL 15s, caixa-postal FIFO 120s com entrega
+  exatamente-1×, `clean()` de ids) vivem PURAS em `server/core.mjs` (testadas em
+  `tests/core.test.mjs`); em volta, `server/node.mjs` (VM: um arquivo, zero deps, estáticos +
+  WebSocket RFC 6455 à mão) e `worker/` (Cloudflare: Worker roteador + **Durable Object por
+  sala** com Hibernation API — socket aberto É presença; alarms só pro próximo vencimento).
+  **Mudou o contrato? Mexa no núcleo** — os dois herdam; e2e (Node) + e2e-cf (wrangler) pegam
+  divergência. O cliente (`js/signaling.js`) começa por polling e **promove a WebSocket** na
+  mesma rota (abriu → poll pausa e o servidor empurra; caiu → poll religa NA HORA + retry
+  2s→30s; `poke()` tem watchdog de 3s contra socket zumbi pós-sono). Interop garantida: peer
+  de socket e peer de polling convivem na mesma sala (entrega = socket aberto do destinatário
+  OU caixa-postal que o poll drena).
 - **Fallback offline (sem servidor)** (`js/handshake.js` + `js/scan.js`): sem internet, o
   handshake WebRTC é trocado **fora de banda** por QR/copia-e-cola — offer/answer com os ICE
   candidates já embutidos (não-trickle; `iceServers: []` → host candidates de LAN/hotspot).
@@ -146,14 +164,16 @@ padrão Auto segue o navegador).
   `getCheckins`/`addCheckin` = passaporte de botecos). Nada central.
 - **Acessibilidade**: diálogos com `role="dialog"`/foco preso/ESC (`setupA11y` em `ui.js`),
   `:focus-visible`, `prefers-reduced-motion` (corta confete/animações), rótulos ARIA.
-- **TURN opcional** (`turn.php`): credenciais efêmeras da Cloudflare, lidas de env var /
-  `$_SERVER` (Apache `SetEnv`) / `.env`. Token **só no servidor**. Sem config → responde 204 → STUN.
+- **TURN opcional** (rota `/turn`, nos dois adaptadores): credenciais efêmeras da Cloudflare,
+  lidas dos envs `CF_TURN_KEY_ID`/`CF_TURN_API_TOKEN`/`CF_TURN_TTL` (VM: `Environment=` do
+  systemd; CF: Secrets do painel/`wrangler secret put`). Token **só no servidor**. Sem config →
+  204 → STUN. A API responde **201** e o `loadIce()` espera 200 → os adaptadores normalizam.
 
 ## Mapa de arquivos
 - `index.html` — shell (telas via seções `.screen`)
 - `js/app.js` — orquestrador (log, dedup, render, fluxos criar/entrar, `loadIce()`)
 - `js/mesh.js` — WebRTC full-mesh + reconexão automática (heartbeat/`wake()`) + indicador de conexão (host/srflx/relay via `getStats()`)
-- `js/signaling.js` — cliente do `signaling.php` (polling)
+- `js/signaling.js` — cliente da rota `/signaling` (polling + promoção a WebSocket com fallback)
 - `js/handshake.js` — codec do offer/answer offline (deflate + base64url; puro/isomórfico)
 - `js/scan.js` — leitor de QR por câmera (BarcodeDetector + jsQR); só no fluxo offline
 - `js/events.js` — eventos + reducer (CRDT, inclui PAYFOR). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
@@ -167,24 +187,34 @@ padrão Auto segue o navegador).
 - `js/i18n.js` — dicionário pt/en/es + `applyI18n` sobre o shell (puro)
 - `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, temas (auto/dark/light/neon/retro), i18n do shell, molduras por nível, overlays (ritmo/roleta/cutucar/cerimônia/números/conta/passaporte/foto/boas-vindas)
 - `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)
-- `signaling.php`, `turn.php` — servidor mínimo (handshake / credenciais TURN)
-- `tools/gen_icons.php` — gera os PNGs de `icons/` (build; **não expor na web**)
-- `tests/` — `reducer.test.mjs` + `features.test.mjs` + `stats.test.mjs` (unit) · `audit.mjs` (auditoria estática pura) · `e2e.mjs` / `e2e-reconnect.mjs` / `e2e-offline.mjs` / `e2e-features.mjs` (Playwright)
-- `.github/workflows/ci.yml` — CI (lint/auditoria/unit/e2e; unit+e2e auto-descobertos) · `eslint.config.mjs` — ESLint só de correção (dev/CI; o app segue buildless)
+- `server/core.mjs` — NÚCLEO puro da sala de sinalização (presença TTL + caixa-postal + `clean`; compartilhado pelos dois adaptadores) · `server/node.mjs` — adaptador VM (estáticos + `/signaling` polling+WS + `/turn`; zero deps, envs `PORT`/`HOST`/`NO_WS`)
+- `worker/index.mjs` — adaptador Cloudflare (roteador: assets / DO da sala / turn) · `worker/room-do.mjs` — Durable Object da sala (Hibernation API + alarms)
+- `wrangler.jsonc` — config da CF (assets na raiz, `run_worker_first`, DO + migrations `new_sqlite_classes`) · `.assetsignore` — o que NÃO sobe como asset · `_headers` — cache dos assets na CF (espelha as regras do `server/node.mjs`)
+- `tests/` — `reducer.test.mjs` + `features.test.mjs` + `stats.test.mjs` + `core.test.mjs` (unit) · `audit.mjs` (auditoria estática pura) · `e2e.mjs` / `e2e-ws.mjs` / `e2e-reconnect.mjs` / `e2e-offline.mjs` / `e2e-features.mjs` (Playwright)
+- `.github/workflows/ci.yml` — CI (lint/auditoria/unit/e2e nos DOIS alvos: Node e wrangler dev; unit+e2e auto-descobertos) · `eslint.config.mjs` — ESLint só de correção (dev/CI; o app segue buildless)
 
 ## Convenções / gotchas
-- **URLs sempre relativas** (`new URL('signaling.php', location.href)`, `fetch('turn.php')`,
+- **URLs sempre relativas** (`new URL('signaling', location.href)`, `fetch('turn')`,
   convite via `location.origin`). Nunca hardcodar `http(s)://` — mantém funcionando atrás de
   proxy HTTPS (Cloudflare) e sem mixed content.
-- **Segredos nunca no git.** `.env` e `.htaccess` estão no `.gitignore`; use os `*.example`.
-- **HTTPS obrigatório** em produção (SW/PWA/WebRTC); `localhost` é isento.
-- **Não rodar `mod_pagespeed`** sobre o app (pode quebrar ES modules / service worker) — o
-  `.htaccess.example` já desliga.
-- **Deploy = copiar TODOS os arquivos, inclusive `icons/`.** Atrás do Cloudflare, **purgue o
-  cache** após atualizar assets. Os ES modules não têm hash no nome: se o CDN servir um `.js`
-  velho junto de um novo, o app quebra com `does not provide an export named …`. Por isso o
-  `.htaccess.example` manda `Cache-Control: no-cache` p/ html/js/css/sw (revalida sempre) e o
-  `sw.js` faz `cache.add(new Request(u,{cache:'reload'}))` no install (fura o cache ao instalar).
+- **Mudou o protocolo de sinalização? Mexa no `server/core.mjs`** — os DOIS adaptadores
+  (`server/node.mjs` e `worker/room-do.mjs`) herdam; os jobs e2e (Node) e e2e-cf (wrangler)
+  pegam qualquer divergência de contrato. Nunca duplicar regra de sala num adaptador só.
+- **Segredos nunca no git.** `.dev.vars` (wrangler local) e `.env` estão no `.gitignore`;
+  na VM os secrets entram por `Environment=` do systemd, na CF por Secrets do painel.
+- **HTTPS obrigatório** em produção (SW/PWA/WebRTC); `localhost` é isento. Na VM, o nginx na
+  frente PRECISA repassar o upgrade (`proxy_set_header Upgrade/Connection`) — sem isso o WS
+  não passa e o app fica no polling (funciona, mas sem o turbo).
+- **`wrangler dev` sempre com `--persist-to` FORA do repo** (os assets são a raiz; estado do
+  miniflare dentro dela = loop infinito de reload do watcher). Free plan exige
+  `new_sqlite_classes` na migration do DO (já está no `wrangler.jsonc`).
+- **Deploy CF = conectar o repo** (Workers & Pages → Create → Connect to Git) ou
+  `npx wrangler deploy`; **deploy VM = clone + systemd** (README tem o passo a passo RHEL).
+  Os ES modules não têm hash no nome: se um CDN servir um `.js` velho junto de um novo, o app
+  quebra com `does not provide an export named …`. Por isso html/js/css/sw saem com
+  `Cache-Control: no-cache` (o `_headers` na CF e o `server/node.mjs` na VM aplicam as MESMAS
+  regras — mudou um, mude o outro) e o `sw.js` faz `cache.add(new Request(u,{cache:'reload'}))`
+  no install (fura o cache ao instalar).
 - **BAC é estimativa local, não bafômetro** — sempre com o aviso de não dirigir; peso/sexo ficam só no aparelho.
 - Ao mexer no `ui.js`, todo id novo precisa entrar no array `IDS` (senão `ui.init` quebra ao amarrar o listener).
 - **i18n total e sempre em paridade**: TODA string de UI (shell, toasts, templates, aria) nasce

@@ -1,8 +1,8 @@
-// Teste do fallback OFFLINE: dois navegadores pareiam por QR/código com o signaling.php
+// Teste do fallback OFFLINE: dois navegadores pareiam por QR/código com a sinalização
 // COMPLETAMENTE indisponível (requisições abortadas). Prova que dá pra montar a mesa e
 // sincronizar em tempo real sem internet e sem servidor — só WebRTC P2P out-of-band.
 //
-//   php -S 127.0.0.1:8000 &
+//   node server/node.mjs &
 //   node tests/e2e-offline.mjs
 //
 // Variaveis: BASE (default http://127.0.0.1:8000), CHROME (caminho do chrome).
@@ -22,11 +22,17 @@ async function main() {
     args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-features=WebRtcHideLocalIpsWithMdns'],
   });
 
-  // Contexto com signaling MORTO: qualquer chamada ao signaling.php é abortada.
+  // Contexto com signaling MORTO: qualquer chamada ao endpoint /signaling é abortada.
+  // page.route NÃO intercepta WebSocket — sem o stub abaixo, o upgrade furaria a simulação
+  // e o pareamento sairia pelo socket em vez do QR/código que este teste cobre.
+  // PREDICADO (não glob!) de propósito: no glob do Playwright, `?` casa UM caractere
+  // qualquer conforme a versão — '**/signaling?*' já abortou o próprio js/signaling.js
+  // ("signaling"+"."+"js") e matou o app no boot. Pathname exato não tem ambiguidade.
   const mk = async (name) => {
     const c = await browser.newContext();
     await c.addInitScript((n) => { localStorage.setItem('botequei.name', n); localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 })); localStorage.setItem('botequei.settings', JSON.stringify({ lang: 'pt' })); }, name); // testes não são 1º uso (sem welcome/tour) e asseveram textos pt
-    await c.route('**/signaling.php*', (r) => r.abort());
+    await c.addInitScript(() => { try { Object.defineProperty(window, 'WebSocket', { value: undefined, configurable: true }); } catch { /* ignore */ } });
+    await c.route((url) => url.pathname.endsWith('/signaling'), (r) => r.abort());
     return c.newPage();
   };
   const peers = (page, n) =>

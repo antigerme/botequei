@@ -2,7 +2,7 @@
 // ("quem paga"), cutucada entregue ao alvo, "eu pago pra fulano" (PAYFOR) convergindo entre
 // os peers, e as estatísticas de vida após sair da mesa.
 //
-//   php -S 127.0.0.1:8000 &
+//   node server/node.mjs &
 //   node tests/e2e-features.mjs
 //
 // Variaveis: BASE (default http://127.0.0.1:8000), CHROME.

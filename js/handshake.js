@@ -1,7 +1,7 @@
 // Handshake WebRTC "fora de banda" (sem servidor): serializa o offer/answer — com os
 // ICE candidates ja embutidos no SDP — num texto curto que cabe num QR ou num copia-e-cola.
 //
-// É o que permite parear dois celulares SEM internet e SEM signaling.php: um mostra o
+// É o que permite parear dois celulares SEM internet e SEM servidor de sinalização: um mostra o
 // código/QR do offer, o outro devolve o do answer. Depois disso o DataChannel abre e tudo
 // (consumo, placar, conta) trafega P2P como sempre.
 //

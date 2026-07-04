@@ -2,7 +2,7 @@
 // (reload — simula tela travar / app em segundo plano) e a sincronizacao AO VIVO
 // tem que voltar sozinha. Opcional; requer playwright-core + Chromium do ambiente.
 //
-//   php -S 127.0.0.1:8000 &
+//   node server/node.mjs &
 //   node tests/e2e-reconnect.mjs
 
 import { chromium } from 'playwright-core';

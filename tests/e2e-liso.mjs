@@ -3,7 +3,7 @@
 //   2) tour guiado na PRIMEIRA mesa (spotlight 4 passos, avança no toque, não volta depois);
 //   3) "🍻 Rodada" explica e CONFIRMA antes de marcar (+1 pra todo mundo online).
 //
-//   php -S 127.0.0.1:8000 &
+//   node server/node.mjs &
 //   node tests/e2e-liso.mjs
 //
 // Variaveis: BASE (default http://127.0.0.1:8000), CHROME.

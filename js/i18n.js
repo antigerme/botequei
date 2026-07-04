@@ -9,6 +9,11 @@
 
 const DICT = {
   pt: {
+    'tru.envCall': 'ENVIDO!', 'tru.realEnv': 'REAL ENVIDO!', 'tru.florCall': 'FLOR!',
+    'tru.envQ': '{chain} na mesa — aceita?', 'tru.envWait': '{chain} na mesa — esperando a resposta…',
+    'tru.envMine': 'Seu envido: {n}', 'tru.envWon': '🎯 Envido nosso! +{n}', 'tru.envLost': '🎯 Envido deles… +{n} pra lá',
+    'tru.florWon': '🌸 Flor! +{n} pra nós', 'tru.florLost': '🌸 Flor deles… +{n} pra lá',
+    'tru.envLie': '🚫 {name} cantou envido que a mão não sustenta!',
     // ---- truco ----
     'games.truco': '🂠 Truco', 'game.pillTru': '🂠 Truco rolando', 'game.pillTruTurn': '🂠 SUA VEZ no truco',
     'tru.title': '🂠 Truco', 'tru.handLbl': 'Sua mão — toque pra jogar',
@@ -351,6 +356,11 @@ const DICT = {
     'sw.updating': '🔄 Nova versão do Botequei — atualizando…',
   },
   en: {
+    'tru.envCall': 'ENVIDO!', 'tru.realEnv': 'REAL ENVIDO!', 'tru.florCall': 'FLOR!',
+    'tru.envQ': '{chain} on the table — accept?', 'tru.envWait': '{chain} on the table — waiting for the answer…',
+    'tru.envMine': 'Your envido: {n}', 'tru.envWon': '🎯 Our envido! +{n}', 'tru.envLost': '🎯 Their envido… +{n} for them',
+    'tru.florWon': '🌸 Flor! +{n} for us', 'tru.florLost': '🌸 Their flor… +{n} for them',
+    'tru.envLie': '🚫 {name} called envido points the hand cannot back!',
     // ---- truco ----
     'games.truco': '🂠 Truco', 'game.pillTru': '🂠 Truco in play', 'game.pillTruTurn': '🂠 YOUR TURN at truco',
     'tru.title': '🂠 Truco', 'tru.handLbl': 'Your hand — tap to play',
@@ -693,6 +703,11 @@ const DICT = {
     'sw.updating': '🔄 New Botequei version — updating…',
   },
   es: {
+    'tru.envCall': '¡ENVIDO!', 'tru.realEnv': '¡REAL ENVIDO!', 'tru.florCall': '¡FLOR!',
+    'tru.envQ': '{chain} en la mesa — ¿aceptas?', 'tru.envWait': '{chain} en la mesa — esperando la respuesta…',
+    'tru.envMine': 'Tu envido: {n}', 'tru.envWon': '🎯 ¡Envido nuestro! +{n}', 'tru.envLost': '🎯 Envido de ellos… +{n} para allá',
+    'tru.florWon': '🌸 ¡Flor! +{n} para nosotros', 'tru.florLost': '🌸 Flor de ellos… +{n} para allá',
+    'tru.envLie': '🚫 ¡{name} cantó un envido que la mano no sostiene!',
     // ---- truco ----
     'games.truco': '🂠 Truco', 'game.pillTru': '🂠 Truco en juego', 'game.pillTruTurn': '🂠 TU TURNO en el truco',
     'tru.title': '🂠 Truco', 'tru.handLbl': 'Tu mano — toca para jugar',

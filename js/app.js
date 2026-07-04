@@ -27,7 +27,7 @@ import {
   deckFor as truDeckFor, cardStr as truStr, raiseLabel, nextStake as truNext, canRaise as truCanRaise,
   maoRule, applyResult, teamOf, VARIANTS as TRU_VARIANTS,
   makeHandDeal, verifyOwnHand, verifyPlayReveal, verifyHandAudit,
-  newTrucoHand, reduceT,
+  newTrucoHand, reduceT, settleEnvido, envidoPoints, hasFlor, florPoints,
 } from './truco.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
@@ -1746,6 +1746,8 @@ function myTruOnze(play) {
 // -- fim de mão / partida --
 function afterTrucoStep() {
   if (!truco) return;
+  if (truco.st && truco.st.flor) truScoreFlor();
+  if (truco.st && truco.st.envido && truco.st.envido.winner != null) truScoreEnvido();
   if (truco.st && truco.st.over) {
     const stw = truco.st;
     if (stw.winnerTeam != null && !truco.scored) {
@@ -1798,6 +1800,17 @@ async function tryTruAudit() {
     if (!res.ok) ok = false;
     const dcRe = await sha256Hex(JSON.stringify(mat.deck.map ? mat.deck.map((c) => (typeof c === 'string' ? c : truStr(c))) : mat.deck) + ':' + mat.salt);
     if (dcRe !== pub.dc) ok = false;
+    // PROVA do envido: quem cantou pontos tem que ter a mão que sustenta o canto
+    const decl = (truco.envLog || {})[h];
+    if (decl && ok) {
+      const cutH = cutDeck((mat.deck.map ? mat.deck : []).map((c) => (typeof c === 'string' ? truCardObj(c) : c)), await combineSeeds(pub.seeds));
+      for (const [pid, said] of Object.entries(decl)) {
+        const seat = truco.order.indexOf(pid);
+        if (seat < 0) continue;
+        const dealt = [cutH[seat * 3], cutH[seat * 3 + 1], cutH[seat * 3 + 2]];
+        if (envidoPoints(dealt) !== said) { ok = false; ui.toast(t('tru.envLie', { name: truName(pid) })); }
+      }
+    }
   }
   if (n) { truco.auditDone = true; truco.auditOk = ok; ui.toast(ok ? t('tru.auditOk') : t('tru.auditBad')); renderTruco(); }
 }
@@ -1805,6 +1818,88 @@ function cancelTruco(broadcast) {
   if (!truco) return;
   if (broadcast && !truco.over) gameFx({ kind: 'truco', ph: 'tcancel', gameId: truco.gameId, from: self });
   truco = null; clearTimeout(truRespTimer); clearTimeout(truNextTimer); clearTimeout(truCloseWatch);
+}
+
+
+// -- Envido / Flor (gaúcha): o reducer manda; aqui é rotear, auto-declarar e pontuar --
+function onTenv(fx, kind) { if (truco && fx.h === truco.handIdx && feedT({ t: kind, p: fx.from })) afterTrucoStep(); }
+function onTenvresp(fx) {
+  if (!truco || fx.h !== truco.handIdx) return;
+  if (!feedT({ t: 'envresp', p: fx.from, r: fx.r })) return;
+  truAutoDeclare(); afterTrucoStep();
+}
+function onTenvpoints(fx) {
+  if (!truco || fx.h !== truco.handIdx) return;
+  if (!feedT({ t: 'envpoints', p: fx.from, points: fx.points })) return;
+  (truco.envLog = truco.envLog || {})[fx.h] = { ...(truco.envLog[fx.h] || {}), [fx.from]: fx.points };
+  truTrySettleEnvido(); afterTrucoStep();
+}
+function onTflor(fx) { if (truco && fx.h === truco.handIdx && feedT({ t: 'flor', p: fx.from, points: fx.points })) afterTrucoStep(); }
+// aceitou o envido → CADA participante declara os próprios pontos sozinho (sem input humano;
+// a auditoria do fim confere a declaração contra a mão real — mentir é pego)
+function truAutoDeclare() {
+  const st = truco && truco.st;
+  if (!st || !st.envido || !st.envido.closed || !st.envido.value || st.envido.winner != null) return;
+  if (truco.envDeclared || !truco.deal || !truco.deal.mine) return;
+  truco.envDeclared = true;
+  const pts = envidoPoints(truco.deal.mine.map((m) => truCardObj(m.card)));
+  gameFx({ kind: 'truco', ph: 'tenvpoints', gameId: truco.gameId, h: truco.handIdx, from: self, points: pts });
+  (truco.envLog = truco.envLog || {})[truco.handIdx] = { ...(truco.envLog[truco.handIdx] || {}), [self]: pts };
+  if (feedT({ t: 'envpoints', p: self, points: pts })) { truTrySettleEnvido(); }
+}
+function truTrySettleEnvido() {
+  const st = truco && truco.st;
+  if (!st || !st.envido || st.envido.winner != null) return;
+  const need = truco.order.filter((id) => truOnlineHas(id)).length;
+  if (Object.keys(st.envido.points).length < Math.min(need, truco.n)) return;
+  truco.st = settleEnvido(st);
+  truScoreEnvido();
+}
+function truOnlineHas(id) { if (id === self) return true; if (!mesh) return false; const p = mesh.peers().find((x) => x.user === id); return !!(p && p.online); }
+// pontua envido/flor UMA vez (todo peer chega no mesmo resultado → converge)
+function truScoreEnvido() {
+  const st = truco && truco.st;
+  if (!st || !st.envido || st.envido.winner == null || truco.envScored || !st.envido.value) return;
+  truco.envScored = true;
+  const res = applyResult(truco.score, st.envido.winner, st.envido.value, truco.variant);
+  truco.score = res.score;
+  ui.toast(t(st.envido.winner === truTeamOfId(self) ? 'tru.envWon' : 'tru.envLost', { n: st.envido.value }));
+  if (res.winner != null) { truco.over = true; truco.winnerTeam = res.winner; truFinishGame(); }
+  renderTruco();
+}
+function truScoreFlor() {
+  const st = truco && truco.st;
+  if (!st || !st.flor || truco.florScored) return;
+  truco.florScored = true;
+  const res = applyResult(truco.score, st.flor.team, st.flor.points, truco.variant);
+  truco.score = res.score;
+  ui.toast(t(st.flor.team === truTeamOfId(self) ? 'tru.florWon' : 'tru.florLost', { n: st.flor.points }));
+  if (res.winner != null) { truco.over = true; truco.winnerTeam = res.winner; truFinishGame(); }
+  renderTruco();
+}
+function myTruEnv(kind) {
+  const st = truco && truco.st;
+  if (!st || !st.envido) return;
+  const ph = kind === 'realenvido' ? 'trealenvido' : 'tenvido';
+  gameFx({ kind: 'truco', ph, gameId: truco.gameId, h: truco.handIdx, from: self });
+  if (feedT({ t: kind, p: self })) afterTrucoStep();
+  sound.challenge();
+}
+function myTruEnvResp(r) {
+  const st = truco && truco.st;
+  if (!st || !st.envido || st.envido.pendBy == null) return;
+  gameFx({ kind: 'truco', ph: 'tenvresp', gameId: truco.gameId, h: truco.handIdx, from: self, r });
+  if (feedT({ t: 'envresp', p: self, r })) { truAutoDeclare(); afterTrucoStep(); }
+}
+function myTruFlor() {
+  const st = truco && truco.st;
+  if (!st || !st.envido || !truco.deal || !truco.deal.mine) return;
+  const cards = truco.deal.mine.map((m) => truCardObj(m.card));
+  if (!hasFlor(cards)) return;
+  const pts = florPoints(cards);
+  gameFx({ kind: 'truco', ph: 'tflor', gameId: truco.gameId, h: truco.handIdx, from: self, points: pts });
+  if (feedT({ t: 'flor', p: self, points: pts })) { truScoreFlor(); afterTrucoStep(); }
+  sound.cheers();
 }
 
 function routeTrucoFx(fx) {
@@ -1829,6 +1924,11 @@ function routeTrucoFx(fx) {
   else if (fx.ph === 'tresp') onTresp(fx);
   else if (fx.ph === 'trespclose') onTrespclose(fx);
   else if (fx.ph === 'tonze') onTonze(fx);
+  else if (fx.ph === 'tenvido') onTenv(fx, 'envido');
+  else if (fx.ph === 'trealenvido') onTenv(fx, 'realenvido');
+  else if (fx.ph === 'tenvresp') onTenvresp(fx);
+  else if (fx.ph === 'tenvpoints') onTenvpoints(fx);
+  else if (fx.ph === 'tflor') onTflor(fx);
   else if (fx.ph === 'topen') onTopen(fx);
 }
 
@@ -1860,6 +1960,19 @@ function renderTruco() {
     } : null;
     vm.canRaise = !st.over && !st.pend && !truco.maoSpecial.type && truCanRaise(truco.variant, st.stake, st.lastRaiserTeam, myTeam) && truco.onzeDecided;
     vm.raiseLabel = raiseLabel(truco.variant, truNext(truco.variant, st.stake) || st.stake);
+    if (st.envido && truco.variant === 'gaucha') {
+      const env = st.envido;
+      const full = (truco.deal && truco.deal.mine) ? truco.deal.mine.map((m) => truCardObj(m.card)) : [];
+      vm.envido = {
+        canCall: env.open && !env.closed && env.pendBy == null && !st.pend && !st.flor,
+        canReal: env.pendBy != null && truTeamOfId(self) !== env.pendBy && env.chain.join('+') === 'E',
+        pend: env.pendBy != null ? { mine: truTeamOfId(self) === env.pendBy, chain: env.chain.join(' + ') } : null,
+        value: env.value, winner: env.winner,
+        myPts: full.length === 3 ? envidoPoints(full) : null,
+        canFlor: env.open && !st.flor && full.length === 3 && hasFlor(full),
+        closed: env.closed,
+      };
+    }
     vm.onze = truco.maoSpecial.type === 'maoDe' && !truco.onzeDecided
       ? { mine: truco.maoSpecial.team === myTeam, value: truco.maoSpecial.value } : null;
     if (st.over) {
@@ -2060,6 +2173,9 @@ const handlers = {
   onTrucoRaise: myTruRaise,
   onTrucoResp: (r) => myTruResp(r),
   onTrucoOnze: (play) => myTruOnze(play),
+  onTrucoEnv: (k) => myTruEnv(k),
+  onTrucoEnvResp: (r) => myTruEnvResp(r),
+  onTrucoFlor: () => myTruFlor(),
   onTrucoClose: () => {
     if (truco && !truco.over) { minimizeGame('truco'); return; }
     cancelTruco(false); clearGameMin('truco'); ui.closeOverlays();

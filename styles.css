@@ -370,6 +370,12 @@ body.bigfont .btn, body.bigfont .chip { font-size: 19px; }
 .react-row button { font-size: 40px; background: transparent; border: 0; cursor: pointer; }
 .react-row button:active { transform: scale(1.2); }
 
+/* Escolha de tema (fim do tour) */
+.sheet .hint { color: var(--muted); font-size: 14px; margin: 2px 0 10px; }
+.theme-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.theme-row .btn { width: 100%; }
+.theme-row .btn:last-child { grid-column: 1 / -1; }
+
 /* Camada de efeitos */
 .fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 70; overflow: hidden; }
 .fx-float { position: absolute; font-size: 44px; animation: floatUp 2.2s ease-out forwards; }

@@ -790,7 +790,11 @@ function maybeStartTour() {
       { sel: '.total-hero', title: t('tour.t2'), text: t('tour.x2') },
       { sel: '#btn-games', title: t('tour.t3'), text: t('tour.x3') },
       { sel: '#btn-menu', title: t('tour.t4'), text: t('tour.x4') },
-    ]);
+    ], (completed) => {
+      // fim do tour: pergunta o tema preferido (quem PULOU quer usar logo — não pergunta;
+      // o tema segue à mão nas ⚙️ Configurações)
+      if (completed) ui.openThemePick();
+    });
   }, 600);
 }
 
@@ -2360,6 +2364,11 @@ const handlers = {
     if ('lang' in patch) ui.applyLang(settings.lang);
     sound.setEnabled(settings.sound);
     if (room) render();
+  },
+  onThemePick: (theme) => {
+    settings = setSettings({ theme });
+    ui.applyTheme(settings);
+    ui.toast(t('themePick.applied'));
   },
   onClearData: () => {
     for (const k of Object.keys(localStorage)) if (k.startsWith('botequei.')) localStorage.removeItem(k);

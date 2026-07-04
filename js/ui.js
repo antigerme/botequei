@@ -54,6 +54,7 @@ const IDS = [
   'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
   'btn-dom-pass', 'btn-dom-again', 'btn-dom-end', 'game-pill',
   'tour', 'tour-spot', 'tour-balloon', 'tour-count', 'tour-title', 'tour-text', 'btn-tour-skip', 'btn-tour-next',
+  'overlay-themepick', 'themepick-row',
   'overlay-truco', 'btn-tru-close', 'tru-setup', 'tru-game', 'tru-status', 'tru-score', 'tru-vira', 'tru-table',
   'tru-hand', 'tru-actions', 'tru-result', 'btn-tru-end', 'tru-audit',
   'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
@@ -216,6 +217,10 @@ export function init(handlers) {
   el['tour'].addEventListener('click', () => tourNext());
   el['btn-tour-next'].addEventListener('click', (e) => { e.stopPropagation(); tourNext(); });
   el['btn-tour-skip'].addEventListener('click', (e) => { e.stopPropagation(); endTour(); });
+
+  // escolha de tema (fim do tour): um toque aplica e fecha
+  el['themepick-row'].querySelectorAll('button[data-th]').forEach((b) =>
+    b.addEventListener('click', () => { H.onThemePick(b.dataset.th); closeOverlays(); }));
   el['btn-dom-L'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'L'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-dom-R'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'R'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-passport-checkin'].addEventListener('click', () => H.onCheckin(el['passport-name'].value));
@@ -611,8 +616,10 @@ export function pixCode() { return el['pix-code'].value; }
 
 // ---------- Configuracoes ----------
 function openSettings() { H.onOpenSettings(); el['overlay-settings'].hidden = false; }
+// Fim do tour: pergunta o tema preferido (1 toque aplica; ✕ mantém o claro padrão).
+export function openThemePick() { el['overlay-themepick'].hidden = false; }
 export function fillSettings(s) {
-  el['set-theme'].value = s.theme || 'auto';
+  el['set-theme'].value = s.theme || 'light';
   el['set-lang'].value = s.lang || 'pt';
   el['set-bigfont'].checked = !!s.bigFont;
   el['set-sound'].checked = !!s.sound;
@@ -630,11 +637,11 @@ export function fillSettings(s) {
   el['set-pixcity'].value = s.pixCity || '';
 }
 function prefersLight() { try { return window.matchMedia('(prefers-color-scheme: light)').matches; } catch { return false; } }
-// 'auto' segue o sistema (claro/escuro); senão usa o tema escolhido (dark/light/neon/retro).
+// Padrão de fábrica: CLARO. 'auto' (escolha manual) segue o sistema; senão usa o tema escolhido.
 function resolveTheme(s) {
-  const th = s.theme || 'auto';
+  const th = s.theme || 'light';
   if (th === 'auto') return prefersLight() ? 'light' : 'dark';
-  return ['dark', 'light', 'neon', 'retro'].includes(th) ? th : 'dark';
+  return ['dark', 'light', 'neon', 'retro'].includes(th) ? th : 'light';
 }
 export function themeIsLight(s) { return resolveTheme(s) === 'light'; }
 export function applyTheme(s) {
@@ -1010,17 +1017,24 @@ export function openComanda(vm) {
 }
 
 // ---------- Tour guiado da primeira mesa (spotlight + balão; leve, sem lib) ----------
-let tourSteps = null, tourIdx = 0;
-export function startTour(steps) {
+let tourSteps = null, tourIdx = 0, tourDone = null;
+export function startTour(steps, onDone) {
   tourSteps = Array.isArray(steps) && steps.length ? steps : null;
   tourIdx = 0;
+  tourDone = tourSteps && typeof onDone === 'function' ? onDone : null;
+  if (!tourSteps) { el['tour'].hidden = true; return; }
   renderTourStep();
 }
-function endTour() { tourSteps = null; el['tour'].hidden = true; }
+// completed=true só quando os passos acabaram (viu tudo); "pular" fecha sem perguntar nada.
+function endTour(completed) {
+  tourSteps = null; el['tour'].hidden = true;
+  const cb = tourDone; tourDone = null;
+  if (cb) cb(!!completed);
+}
 function tourNext() { tourIdx++; renderTourStep(); }
 function renderTourStep() {
   const st = tourSteps && tourSteps[tourIdx];
-  if (!st) { endTour(); return; }
+  if (!st) { endTour(true); return; }
   const target = document.querySelector(st.sel);
   if (!target) { tourIdx++; renderTourStep(); return; } // âncora não existe: segue o baile
   target.scrollIntoView({ block: 'center' });

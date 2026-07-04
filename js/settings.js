@@ -2,7 +2,7 @@
 
 const K = 'botequei.settings';
 const DEFAULTS = {
-  theme: 'auto',     // 'auto' segue o sistema (prefers-color-scheme); 'light'/'dark' = escolha manual
+  theme: 'light',    // padrão de fábrica: claro (kraft). 'auto' segue o sistema; o resto é escolha manual — o fim do tour pergunta a preferência
   bigFont: false,    // acessibilidade
   sound: true,       // efeitos sonoros
   limit: 0,          // meta pessoal de bebidas (0 = desligado)

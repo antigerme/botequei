@@ -1,0 +1,31 @@
+# Cache dos assets estáticos na Cloudflare (o server/node.mjs aplica ESTAS MESMAS regras
+# na VM — mudou aqui, mude lá). ES modules não têm hash no nome: html/js/css/sw revalidam
+# SEMPRE (no-cache) pra nunca misturar módulo velho com novo ("does not provide an export").
+# Fontes e ícones mudam raramente → uma semana de cache.
+
+/
+  Cache-Control: no-cache
+
+/*.html
+  Cache-Control: no-cache
+
+/*.webmanifest
+  Cache-Control: no-cache
+
+/*.js
+  Cache-Control: no-cache
+
+/*.mjs
+  Cache-Control: no-cache
+
+/*.css
+  Cache-Control: no-cache
+
+/sw.js
+  Cache-Control: no-cache
+
+/fonts/*
+  Cache-Control: public, max-age=604800
+
+/icons/*
+  Cache-Control: public, max-age=604800

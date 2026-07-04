@@ -112,7 +112,10 @@ jobs:
         env:
           WRANGLER_SEND_METRICS: 'false'
         run: |
-          npx wrangler dev --port 8787 --inspector-port 0 >/tmp/wrangler.log 2>&1 &
+          # --persist-to FORA do repo: os assets são a raiz ("directory": ".") e o watcher
+          # de dev vigia essa raiz — se o miniflare gravar o estado (.wrangler/state) ali
+          # dentro, cada request toca o SQLite e vira loop infinito de reload.
+          npx wrangler dev --port 8787 --inspector-port 0 --persist-to /tmp/wrangler-state >/tmp/wrangler.log 2>&1 &
           for i in $(seq 1 60); do curl -sf 'http://127.0.0.1:8787/signaling?action=peers&room=ci' >/dev/null && break; sleep 2; done
           curl -sf 'http://127.0.0.1:8787/signaling?action=peers&room=ci' || { cat /tmp/wrangler.log; exit 1; }
           export BASE=http://127.0.0.1:8787

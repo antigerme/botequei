@@ -1,0 +1,30 @@
+// Configuração da Cloudflare (Workers + assets estáticos + Durable Objects).
+// Pense nela como o antigo .htaccess: diz à plataforma como servir o app.
+// Deploy: conecte o repo no painel (Workers & Pages) OU rode `npx wrangler deploy`.
+// Dev local (sem conta): `npx wrangler dev` — sobe tudo em http://localhost:8787.
+{
+  "name": "botequei",
+  "main": "worker/index.mjs",
+  "compatibility_date": "2026-07-01",
+
+  // O site inteiro (raiz do repo) vira asset estático servido pela borda da Cloudflare.
+  // run_worker_first: SÓ estas rotas acordam o Worker — todo o resto sai direto dos
+  // assets (rápido e sem custo de execução). O .assetsignore diz o que NÃO subir.
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": ["/signaling", "/turn"]
+  },
+
+  // Uma sala = um Durable Object (worker/room-do.mjs). new_sqlite_classes é o backend
+  // SQLite — obrigatório no free plan (e o recomendado nos pagos também).
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "RoomDO" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomDO"] }],
+
+  // TURN (opcional): defina os SECRETS CF_TURN_KEY_ID e CF_TURN_API_TOKEN no painel
+  // (Settings → Variables and Secrets) ou via `npx wrangler secret put …`. Sem eles o
+  // /turn responde 204 e o app segue só com STUN. O TTL não é segredo, então fica aqui.
+  "vars": { "CF_TURN_TTL": "86400" }
+}

@@ -1,0 +1,20 @@
+# O que NÃO sobe como asset estático pra Cloudflare (código de servidor, testes, config).
+# Mesmo espírito do bloqueio de caminhos privados do server/node.mjs — o site é o resto.
+server/
+worker/
+tests/
+.github/
+node_modules/
+.git/
+.wrangler/
+wrangler.jsonc
+CLAUDE.md
+README.md
+eslint.config.mjs
+.gitignore
+.assetsignore
+.dev.vars
+.env
+.env.example
+package.json
+package-lock.json

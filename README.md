@@ -14,10 +14,22 @@ celular, tudo sincroniza direto **entre os navegadores (peer-to-peer via WebRTC)
 - **WebRTC `RTCDataChannel`** em **malha completa** (_full-mesh_): cada celular conecta a
   todos os outros da mesa. Não há hub central — se qualquer um sair (inclusive quem criou a
   mesa), os demais continuam.
-- **`signaling.php`** (arquivo único, sem framework, sem banco) só ajuda os navegadores a se
-  acharem no começo: troca `offer`/`answer`/ICE por _polling_ HTTP, usando arquivos
-  temporários com TTL curto que se apagam sozinhos. Depois que a conexão P2P sobe, ele **sai
-  do fluxo** — nunca vê nem guarda consumo, histórico ou participantes.
+- **Sinalização** (rota `/signaling`) só ajuda os navegadores a se acharem no começo: troca
+  `offer`/`answer`/ICE. O cliente começa por _polling_ HTTP (funciona em qualquer rede) e, em
+  paralelo, **promove a conexão pra WebSocket** na mesma rota (entrega instantânea); se o
+  socket cair (proxy corporativo, rede zoada), o polling reassume sozinho. Depois que a
+  conexão P2P sobe, a sinalização **sai do fluxo** — nunca vê nem guarda consumo, histórico
+  ou participantes.
+- **Um protocolo, um núcleo, dois servidores.** As regras da sala (presença com TTL,
+  caixa-postal com entrega exatamente-uma-vez) vivem num módulo **puro e testado**
+  (`server/core.mjs`). Em volta dele há **dois adaptadores finos**, e você escolhe onde rodar:
+  - ☁️ **Cloudflare Workers** (`worker/`) — site servido pela borda + um **Durable Object por
+    mesa** (WebSockets com Hibernation API: escala e hiberna de graça);
+  - 🖥️ **Qualquer VM/servidor com Node** (`server/node.mjs`) — um único arquivo, **zero
+    dependências** (sem `npm install`), com WebSocket RFC 6455 escrito à mão.
+
+  Sem lock-in: o mesmo repo, o mesmo cliente e o mesmo contrato nos dois. Mudou o protocolo?
+  Mexa no núcleo — os dois herdam.
 - **Estado por eventos (CRDT PN-Counter)**: cada `+1`/`-1` é um evento imutável e idempotente.
   O total é a **soma dos eventos**; como somar é comutativo, todo mundo **converge para o mesmo
   número** mesmo com atraso, reenvio ou duplicata. Deduplicação por `eventId`.
@@ -31,21 +43,29 @@ celular, tudo sincroniza direto **entre os navegadores (peer-to-peer via WebRTC)
 ```
 navegador A  ⇄  navegador B          (consumo trafega SÓ aqui, P2P)
      ⇅            ⇅
-        signaling.php  ← só no aperto de mão inicial (SDP/ICE), nada é guardado
+      /signaling   ← só no aperto de mão inicial (SDP/ICE), nada é guardado
+   (WebSocket com fallback automático pra polling — mesma rota)
 ```
 
 ## Rodando localmente
 
-Precisa só de **PHP** (8.x). Nenhum `npm install`, nenhum banco.
+Precisa só de **Node 18+**. Nenhum `npm install`, nenhum banco.
 
 ```bash
-php -S 0.0.0.0:8000
+node server/node.mjs
 # abra http://localhost:8000
 ```
 
 Para testar com 2 celulares na **mesma Wi-Fi**: descubra o IP da máquina
-(ex.: `192.168.0.10`), rode `php -S 0.0.0.0:8000` e acesse `http://192.168.0.10:8000`
+(ex.: `192.168.0.10`), rode `node server/node.mjs` e acesse `http://192.168.0.10:8000`
 nos celulares. Um cria a mesa, os outros escaneiam o QR.
+
+Variáveis úteis: `PORT`/`HOST` (padrão `8000`/`0.0.0.0`) e `NO_WS=1` (desliga o WebSocket
+pra testar o fallback de polling).
+
+Prefere simular a Cloudflare? `npx wrangler dev --persist-to ../wrangler-state` sobe o
+worker localmente em `http://localhost:8787` (sem conta; o `--persist-to` fora do repo evita
+que o estado local dispare o watcher de assets).
 
 ## Como usar
 
@@ -53,151 +73,156 @@ nos celulares. Um cria a mesa, os outros escaneiam o QR.
 2. Toque em **MESA** pra mostrar o **QR Code** (ou copie o link).
 3. A turma escaneia com a câmera do celular → entra na hora.
 4. **1 toque** no card = +1. **Toque longo** = −1. Vibra e anima na hora.
-5. **🥴 Modo bebedeira**: tela gigante, um botão só, pra quando a noite avançar.
+5. **🔢 Contador gigante**: tela enorme, um botão só, pra quando a noite avançar.
 
 ## Deploy
 
-É um site estático + um `signaling.php`. Sobe em **qualquer hospedagem com PHP**
-(Apache/Nginx + PHP-FPM, hospedagem compartilhada barata). Basta copiar os arquivos.
+Dois caminhos oficiais — mesmo repo, mesmo app. Escolha um (ou os dois).
 
-### Checklist de deploy
-1. **Copie TODOS os arquivos, inclusive a pasta `icons/`.** (Se os ícones derem 404, o favicon e
-   o ícone de instalação do PWA quebram — foi o tropeço mais comum.)
-2. **`.htaccess`**: copie de `.htaccess.example`. Ele já **desliga o `mod_pagespeed`** (que pode
-   quebrar ES modules / service worker) e, se for usar TURN, é onde vão as credenciais (`SetEnv`).
-3. **HTTPS ligado** (Cloudflare já resolve). Não force `http→https` na origem se estiver em
-   Cloudflare **Flexible** (gera loop de redirecionamento).
-4. **Atrás do Cloudflare, purgue o cache** após cada atualização de assets (o CF pode cachear
-   inclusive um 404 antigo de `icons/` ou uma versão velha do `sw.js`).
-5. Confira: `GET /signaling.php?action=peers&room=x` deve responder `{"peers":[]}`, e
-   `GET /turn.php` deve dar `200` (TURN ligado) ou `204` (só STUN).
+### ☁️ Opção 1 — Cloudflare Workers (grátis, sem servidor pra cuidar)
 
-### Apache com vhost próprio (RHEL/CentOS)
-Se você controla o vhost (não é hospedagem compartilhada), ponha a config **direto nele**.
-No RHEL o padrão é **`AllowOverride None`**, que faz o `.htaccess` ser **ignorado** — sintomas:
-TURN fica em `204` (o `SetEnv` não é lido) e o PageSpeed não desliga.
+O `wrangler.jsonc` já descreve tudo (pense nele como o antigo `.htaccess`): o site inteiro
+vira asset estático servido pela borda, e as rotas `/signaling` e `/turn` acordam o Worker.
+Cada mesa vira um **Durable Object** — os WebSockets usam a Hibernation API, então mesa
+parada não gasta nada. **Funciona no plano free** (o `new_sqlite_classes` da config é
+exatamente o exigido lá).
 
-```apache
-<VirtualHost *:80>
-    DocumentRoot "/var/www/botequei"
-    ServerName seu.dominio
+**Pelo painel (recomendado):**
+1. [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** → **Create** →
+   **Connect to Git** → escolha este repositório.
+2. Confirme o deploy (se o painel pedir um comando, é `npx wrangler deploy`; não há build).
+3. Pronto — cada `git push` na `main` redeploya sozinho.
 
-    # habilita o .htaccess e o acesso ao diretorio
-    <Directory "/var/www/botequei">
-        Require all granted
-        Options -Indexes +FollowSymLinks
-        AllowOverride All
+**Pela linha de comando:** `npx wrangler deploy` (ele lê o `wrangler.jsonc` e sobe tudo).
 
-        # Cache: os ES modules NAO tem hash no nome. Se o CDN/navegador servir um .js
-        # velho junto de um novo, o app quebra com "does not provide an export named ...".
-        # html/js/css/sw -> "no-cache" (guarda mas SEMPRE revalida: 304 barato, nunca
-        # mistura versoes). Fontes/icones sao estaveis -> cache longo. Precisa do mod_headers.
-        <IfModule mod_headers.c>
-            <FilesMatch "\.(html|webmanifest|js|mjs|css)$">
-                Header set Cache-Control "no-cache"
-            </FilesMatch>
-            <Files "sw.js">
-                Header set Cache-Control "no-cache"
-            </Files>
-            <FilesMatch "\.(woff2|png|svg|ico|jpg|jpeg|webp)$">
-                Header set Cache-Control "public, max-age=604800"
-            </FilesMatch>
-        </IfModule>
-    </Directory>
+**TURN (opcional, pra redes restritas):** no painel do Worker → **Settings → Variables and
+Secrets**, crie os **secrets** `CF_TURN_KEY_ID` e `CF_TURN_API_TOKEN` (ou
+`npx wrangler secret put CF_TURN_KEY_ID` etc.). Sem eles, `/turn` responde `204` e o app
+segue só com STUN — funciona na maioria das redes.
 
-    # TURN direto no vhost (o .conf nao e servido pela web, entao nao vaza)
-    SetEnv CF_TURN_KEY_ID seu_key_id
-    SetEnv CF_TURN_API_TOKEN seu_token
+> Curiosidade anti-lock-in: o runtime dos Workers ([workerd](https://github.com/cloudflare/workerd))
+> é open source — o mesmo `worker/` roda fora da Cloudflare se um dia você quiser.
 
-    # desliga o mod_pagespeed neste site
-    <IfModule pagespeed_module>
-        ModPagespeed off
-    </IfModule>
-</VirtualHost>
-```
-Aplique com `apachectl configtest && systemctl reload httpd`. Se usar `AllowOverride None`
-(padrão do RHEL), estes headers **precisam** ficar no vhost — o `.htaccess` nem é lido.
-Precisa do `mod_headers` ligado (`a2enmod headers` no Debian; já vem no RHEL).
-> ⚠️ No Apache, comentários (`#`) ficam **em linha própria** — não coloque `#` no fim de uma
-> diretiva (ex.: `AllowOverride All  # ...` dá `Illegal override option`).
+### 🖥️ Opção 2 — VM própria (Red Hat, CentOS, Alma, Rocky…)
 
-**SELinux (RHEL):** o `turn.php` faz uma chamada de saída para a Cloudflare, e o SELinux bloqueia
-conexão de saída do Apache por padrão → o TURN fica `204` **mesmo com as credenciais certas**. Libere:
+Um processo Node, zero dependências. Do zero ao ar:
+
 ```bash
-setsebool -P httpd_can_network_connect on
+# 1) pacotes
+sudo dnf install -y nodejs git
+
+# 2) código
+sudo git clone https://github.com/antigerme/botequei /opt/botequei
+
+# 3) teste rápido (Ctrl+C pra parar)
+node /opt/botequei/server/node.mjs
+curl 'http://localhost:8000/signaling?action=peers&room=x'   # → {"peers":[]}
 ```
 
-- **HTTPS é necessário** em produção (WebRTC e instalação de PWA exigem; `localhost` é isento).
-- **STUN/TURN**: por padrão usa STUN público e conecta P2P direto na maioria das redes. Para
-  redes restritas (NAT simétrico/CGNAT), há suporte **opcional** a **Cloudflare TURN** via
-  `turn.php`, que lê a config de **`SetEnv`/variável de ambiente** ou de um **`.env`** — o token
-  fica **só no servidor**, nunca no cliente nem no git. Escolha **uma** das formas:
+**Como serviço (systemd)** — crie `/etc/systemd/system/botequei.service`:
 
-  **a) `.htaccess` — mais fácil (Apache / hospedagem compartilhada).** Copie `.htaccess.example`
-  para `.htaccess` e preencha. O Apache **não serve `.ht*`** por padrão, então o segredo não vaza:
-  ```apache
-  SetEnv CF_TURN_KEY_ID seu_key_id
-  SetEnv CF_TURN_API_TOKEN seu_api_token
-  # SetEnv CF_TURN_TTL 86400
-  ```
-  (Precisa de `AllowOverride` habilitado — padrão na maioria das hospedagens. O `turn.php` lê o
-  `SetEnv` via `$_SERVER`, funcionando tanto em mod_php quanto em php-fpm.)
+```ini
+[Unit]
+Description=Botequei (sinalizacao + site)
+After=network-online.target
+Wants=network-online.target
 
-  **b) Variável de ambiente** (systemd, shell, ou `env[...]` no pool do php-fpm):
-  ```bash
-  export CF_TURN_KEY_ID=seu_key_id
-  export CF_TURN_API_TOKEN=seu_api_token   # opcional: CF_TURN_TTL=86400
-  ```
+[Service]
+User=nobody
+WorkingDirectory=/opt/botequei
+ExecStart=/usr/bin/node /opt/botequei/server/node.mjs
+Restart=always
+Environment=PORT=8000
+# TURN opcional (mesmos nomes da Cloudflare):
+# Environment=CF_TURN_KEY_ID=seu_key_id
+# Environment=CF_TURN_API_TOKEN=seu_token
 
-  **c) Arquivo `.env`** (copie de `.env.example`) — deixe-o **fora do docroot**; o `turn.php`
-  procura em `../.env` primeiro. ⚠️ Um `.env` dentro do site **é servido pela web** (confirmado no
-  `php -S`); se precisar deixá-lo junto, bloqueie (`<Files ".env"> Require all denied` no Apache,
-  `location ~ /\.env { deny all; }` no nginx).
+[Install]
+WantedBy=multi-user.target
+```
 
-  Sem nenhuma config, `turn.php` responde `204` e o app segue **só com STUN**. O cliente busca as
-  credenciais efêmeras em `js/app.js` → `loadIce()` e as passa ao `RTCPeerConnection`.
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now botequei
+```
+
+**HTTPS na frente (nginx + certbot)** — obrigatório em produção (WebRTC/PWA exigem; só
+`localhost` é isento). O detalhe que não pode faltar é o repasse do **upgrade de WebSocket**:
+
+```nginx
+server {
+    server_name seu.dominio;
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;   # sem estas duas linhas o WebSocket
+        proxy_set_header Connection "upgrade";    # não passa (o app cai pro polling)
+        proxy_set_header Host $host;
+    }
+}
+```
+
+```bash
+sudo dnf install -y nginx certbot python3-certbot-nginx
+sudo systemctl enable --now nginx
+sudo certbot --nginx -d seu.dominio        # emite e renova o certificado
+
+# firewall
+sudo firewall-cmd --permanent --add-service=http --add-service=https
+sudo firewall-cmd --reload
+
+# SELinux: deixa o nginx conectar no serviço local (e o proxy funcionar)
+sudo setsebool -P httpd_can_network_connect 1
+```
+
+**Smoke test:** `curl 'https://seu.dominio/signaling?action=peers&room=x'` → `{"peers":[]}`,
+e `curl -o /dev/null -w '%{http_code}' https://seu.dominio/turn` → `200` (TURN configurado)
+ou `204` (só STUN). Abra o site em dois celulares e crie uma mesa. 🍻
 
 ## Privacidade
 
 O servidor **não conhece** mesas, consumos, histórico nem quem está na mesa. Ele só
-intermedeia o aperto de mão inicial e esquece tudo (arquivos temporários com TTL). Todo o
-estado vive nos navegadores.
+intermedeia o aperto de mão inicial e esquece tudo (presença e recados têm TTL de
+segundos, só em memória). Todo o estado vive nos navegadores.
 
 ## Estrutura
 
 ```
 index.html            # shell do PWA
 styles.css            # tema "boteco"
-signaling.php         # sinalização WebRTC (arquivo único, sem banco)
-turn.php              # (opcional) credenciais Cloudflare TURN via env var
 manifest.webmanifest  # PWA
 sw.js                 # service worker (offline / instalável)
-icons/                # ícones (icon.svg + PNGs gerados)
-js/
-  app.js              # orquestrador (log, dedup, render, fluxos)
-  events.js           # modelo de eventos + reducer (CRDT)
-  mesh.js             # WebRTC full-mesh
-  signaling.js        # cliente do signaling.php (polling)
-  ui.js               # telas, cards, gestos, vibração, bebedeira
-  store.js            # persistência local
-  identity.js         # id do cliente + apelido + código da mesa
-  catalog.js          # itens padrão (bebidas + petiscos)
-  qr.js               # geração de QR (lib local MIT)
-  vendor/qrcode.js    # qrcode-generator (MIT, Kazuhiko Arase)
-tools/gen_icons.php   # gera os PNGs dos ícones (build, opcional)
-tests/                # testes (ver abaixo)
+icons/  fonts/        # ícones e fontes (commitados, estáveis)
+js/                   # o app inteiro (ES modules, sem build)
+  app.js  ui.js  mesh.js  signaling.js  events.js  ...
+server/
+  core.mjs            # NÚCLEO puro da sala (presença TTL + caixa-postal) — compartilhado
+  node.mjs            # adaptador VM: estáticos + /signaling (polling+WS) + /turn, sem deps
+worker/
+  index.mjs           # adaptador Cloudflare: roteador (assets / DO da sala / turn)
+  room-do.mjs         # Durable Object da sala (Hibernation API, alarms)
+wrangler.jsonc        # config da Cloudflare (assets, DO, migrations, vars)
+_headers              # cache dos assets na CF (espelha as regras do server/node.mjs)
+.assetsignore         # o que NÃO sobe como asset (server/, tests/, configs…)
+tests/                # unit (*.test.mjs) + e2e Playwright (e2e*.mjs) + audit.mjs
 ```
 
 ## Testes
 
-- **Unitário do reducer** (sem dependências):
+- **Unitários** (sem dependências): `node tests/reducer.test.mjs`, `tests/core.test.mjs`,
+  `tests/features.test.mjs`, `tests/stats.test.mjs`…
+- **Auditoria estática**: `node tests/audit.mjs` (imports/exports, shell do SW, i18n ×3).
+- **Ponta a ponta (navegadores reais, WebRTC de verdade)** — usa Chromium:
   ```bash
-  node tests/reducer.test.mjs
+  node server/node.mjs &               # servidor
+  npm i playwright-core                # driver (browsers já instalados no ambiente)
+  node tests/e2e.mjs                   # mesa, +1/-1, anti-entropy
+  node tests/e2e-ws.mjs                # transporte WebSocket + interop com polling
+  NO_WS=1 node server/node.mjs &       # e o fallback:
+  EXPECT_POLL=1 node tests/e2e-ws.mjs  # tudo funciona só no polling
   ```
-- **Ponta a ponta (2 navegadores, sincronização real via WebRTC)** — opcional, usa Chromium:
-  ```bash
-  php -S 127.0.0.1:8000 &          # servidor
-  npm i playwright-core            # driver (browsers já instalados no ambiente)
-  node tests/e2e.mjs               # cria mesa, entra, valida +1/-1 e anti-entropy
-  node tests/e2e-reconnect.mjs     # valida reconexão automática (um peer sai e volta)
-  ```
+- **Contra a Cloudflare local**: `npx wrangler dev --persist-to ../wrangler-state` e rode os
+  mesmos e2e com `BASE=http://127.0.0.1:8787`.
+
+O CI (GitHub Actions) roda tudo isso nos dois alvos — servidor Node **e** `wrangler dev` —
+em todo PR.

@@ -4,7 +4,7 @@
 import { EMOJIS, COLORS, AVATARS, CATEGORIES } from './catalog.js';
 import { scanQR, scanSupported } from './scan.js';
 import * as music from './music.js';
-import { applyI18n, setLang } from './i18n.js';
+import { applyI18n, setLang, t } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 let H = {};
@@ -132,7 +132,7 @@ export function init(handlers) {
   el['btn-passport'].addEventListener('click', () => H.onPassport());
 
   // sair da mesa pede confirmação (um toque errado no ‹ não te derruba da mesa)
-  $('btn-leave').addEventListener('click', () => actionToast('Sair da mesa?', 'Sair', () => H.onLeave()));
+  $('btn-leave').addEventListener('click', () => actionToast(t('menu.leaveQ'), t('menu.leaveDo'), () => H.onLeave()));
   $('btn-invite').addEventListener('click', () => H.onInvite());
   $('btn-peers').addEventListener('click', () => H.onPeers());
   $('money-block').addEventListener('click', () => H.onBill()); // tocar na conta abre "Fechar a conta"
@@ -256,7 +256,7 @@ export function init(handlers) {
     if (!f) return;
     const rd = new FileReader();
     rd.onload = () => { H.onImportData(String(rd.result || '')); el['import-file'].value = ''; };
-    rd.onerror = () => { toast('Não consegui ler o arquivo 😕'); el['import-file'].value = ''; };
+    rd.onerror = () => { toast(t('toast.fileRead')); el['import-file'].value = ''; };
     rd.readAsText(f);
   });
   el['presence-bar'].addEventListener('click', () => H.onPeers());
@@ -264,12 +264,12 @@ export function init(handlers) {
   // offline (pareamento por QR/código, sem servidor)
   el['btn-offline-join'].addEventListener('click', () => H.onOfflineJoin());
   el['btn-offline-host'].addEventListener('click', () => { closeOverlays(); H.onOfflineHost(); });
-  el['btn-off-copy-offer'].addEventListener('click', () => copyBox('off-offer-code', 'Convite copiado! 📋'));
-  el['btn-off-copy-answer'].addEventListener('click', () => copyBox('off-answer-code', 'Resposta copiada! 📋'));
+  el['btn-off-copy-offer'].addEventListener('click', () => copyBox('off-offer-code', t('off.copyOfferOk')));
+  el['btn-off-copy-answer'].addEventListener('click', () => copyBox('off-answer-code', t('off.copyAnswerOk')));
   el['btn-off-connect'].addEventListener('click', () => H.onOfflineConnect(el['off-answer-in'].value));
   el['btn-off-genanswer'].addEventListener('click', () => H.onOfflineGenAnswer(el['off-offer-in'].value));
-  el['btn-off-scan-answer'].addEventListener('click', () => openScanner('Escanear resposta', (txt) => { el['off-answer-in'].value = txt; H.onOfflineConnect(txt); }));
-  el['btn-off-scan-offer'].addEventListener('click', () => openScanner('Escanear convite', (txt) => { el['off-offer-in'].value = txt; H.onOfflineGenAnswer(txt); }));
+  el['btn-off-scan-answer'].addEventListener('click', () => openScanner(t('off.scanAnswer'), (txt) => { el['off-answer-in'].value = txt; H.onOfflineConnect(txt); }));
+  el['btn-off-scan-offer'].addEventListener('click', () => openScanner(t('off.scanOffer'), (txt) => { el['off-offer-in'].value = txt; H.onOfflineGenAnswer(txt); }));
   el['btn-scan-close'].addEventListener('click', () => closeOverlays());
 
   // fechar overlays
@@ -354,7 +354,7 @@ export function renderHome(history) {
     const when = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     return `<li class="hist-item" data-room="${esc(h.room)}">
       <span><strong>${esc(h.room)}</strong> <small>· ${when}</small></span>
-      <small>você ${h.myTotal || 0} · mesa ${h.tableTotal || 0}</small></li>`;
+      <small>${t('home.histLine', { me: h.myTotal || 0, tt: h.tableTotal || 0 })}</small></li>`;
   }).join('');
   ul.querySelectorAll('.hist-item').forEach((li) => li.addEventListener('click', () => H.onOpenHistory(li.dataset.room)));
 }
@@ -362,7 +362,7 @@ export function renderHome(history) {
 // ---------- Mesa ----------
 let lastIds = '';
 export function renderTable(vm) {
-  el['table-title'].textContent = vm.title || 'MESA';
+  el['table-title'].textContent = vm.title || t('common.tableCap');
   el['mesa-code'].textContent = vm.code;
   countTo(el['my-total'], vm.myTotal);
   countTo(el['table-total'], vm.tableTotal);
@@ -430,24 +430,24 @@ export function setHappyHour(msg) { const b = el['hh-banner']; if (!msg) { b.hid
 // ---------- Placar / participantes ----------
 export function renderPeers({ rows, selfId, mvp, myBadges }) {
   el['mvp-banner'].hidden = !mvp;
-  if (mvp) el['mvp-banner'].innerHTML = `🏆 MVP da noite: <strong>${esc(mvp.name || 'anônimo')}</strong> · ${mvp.total} 🍺`;
+  if (mvp) el['mvp-banner'].innerHTML = t('peers.mvp', { name: esc(mvp.name || t('common.anon')), n: mvp.total });
   const medals = ['🥇', '🥈', '🥉'];
   let rank = 0;
   el['peers-list'].innerHTML = rows.map((r) => {
     const medal = (!r.driver && r.total > 0) ? (medals[rank++] || '') : '';
     const badges = (r.badges || []).map((b) => b.emoji).join('');
-    const net = r.user === selfId ? '<span class="peer-net" title="você">📱</span>' : netHTML(r);
+    const net = r.user === selfId ? `<span class="peer-net" title="${t('common.you')}">📱</span>` : netHTML(r);
     return `<li class="peer-row" data-user="${esc(r.user)}">
       <span class="peer-medal">${medal}</span>
       <span class="peer-avatar ${frameClass(r.level)}" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
-      <button class="peer-main" aria-label="Ver comanda de ${esc(r.name || 'anônimo')}">
-        <span class="peer-name">${esc(r.name || 'anônimo')} ${r.level > 1 ? `<span class="lvl-chip">Nv${r.level}</span>` : ''} ${r.user === selfId ? '<span class="peer-you">(você)</span>' : ''} ${r.driver ? '🚗' : ''}</span>
+      <button class="peer-main" aria-label="Ver comanda de ${esc(r.name || t('common.anon'))}">
+        <span class="peer-name">${esc(r.name || t('common.anon'))} ${r.level > 1 ? `<span class="lvl-chip">Nv${r.level}</span>` : ''} ${r.user === selfId ? `<span class="peer-you">${t('common.youParen')}</span>` : ''} ${r.driver ? '🚗' : ''}</span>
         <span class="peer-badges">${badges}${r.money ? ' · ' + fmtMoney(r.money) : ''}</span>
       </button>
       ${net}
-      ${r.user !== selfId ? '<button class="peer-poke" title="cutucar / desafiar" aria-label="Cutucar ou desafiar">👉</button>' : ''}
+      ${r.user !== selfId ? `<button class="peer-poke" title="${t('peers.pokeT')}" aria-label="${t('peers.pokeAria')}">👉</button>` : ''}
       <span class="peer-total">${r.total}</span></li>`;
-  }).join('') || '<li class="peer-row">Ninguém ainda 🥲</li>';
+  }).join('') || `<li class="peer-row">${t('peers.empty')}</li>`;
   el['peers-list'].querySelectorAll('.peer-poke').forEach((b) => b.addEventListener('click', (e) => {
     e.stopPropagation();
     const li = b.closest('.peer-row');
@@ -462,7 +462,7 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
 // Ícone de qualidade de conexão por pessoa (host = LAN/Wi-Fi, srflx = internet, relay = via servidor).
 function netHTML(r) {
   if (r.online === false) return '<span class="peer-net off" title="desconectado">💤</span>';
-  const map = { host: ['📶', 'mesma rede'], srflx: ['🌐', 'internet'], prflx: ['🌐', 'internet'], relay: ['🛰️', 'via relay'] };
+  const map = { host: ['📶', t('net.host')], srflx: ['🌐', t('net.inet')], prflx: ['🌐', t('net.inet')], relay: ['🛰️', t('net.relay')] };
   const m = map[r.conn];
   if (m) return `<span class="peer-net" title="${m[1]}">${m[0]}</span>`;
   if (r.online) return '<span class="peer-net" title="conectado">🟢</span>';
@@ -530,7 +530,7 @@ function openAddItem() {
 }
 function submitAddItem() {
   const name = el['add-name'].value.trim();
-  if (!name) { toast('Dá um nome pro item 🙂'); return; }
+  if (!name) { toast(t('toast.itemName')); return; }
   const price = parseFloat(String(el['add-price'].value).replace(',', '.')) || 0;
   H.onAddItemConfirm({ emoji: pickedEmoji, name, price, cat: el['add-cat'].value, note: el['add-note'].value.trim() });
   closeOverlays();
@@ -540,7 +540,7 @@ function submitAddItem() {
 export function openPrices(items) {
   el['price-list'].innerHTML = items.map((it) => `<li class="price-row">
     <span>${esc(it.emoji)} ${esc(it.name)}</span>
-    <input type="number" inputmode="decimal" min="0" step="0.5" value="${it.price || ''}" data-id="${esc(it.id)}" placeholder="0,00" /></li>`).join('');
+    <input type="number" inputmode="decimal" min="0" step="0.5" value="${it.price || ''}" data-id="${esc(it.id)}" placeholder="${t('add.pricePh')}" /></li>`).join('');
   el['price-list'].querySelectorAll('input').forEach((inp) => inp.addEventListener('change', () => H.onPriceChange(inp.dataset.id, inp.value)));
   el['overlay-prices'].hidden = false;
 }
@@ -570,17 +570,17 @@ export function renderBill(vm) {
   const equal = !!vm.equal;
   el['bill-list'].innerHTML = vm.rows.map((r) => {
     const items = (r.items || []).map((it) => `${esc(it.emoji)}${it.n}`).join(' ');
-    const sel = equal ? `<input type="checkbox" class="b-sel" ${r.included ? 'checked' : ''} aria-label="incluir na divisão" />` : '';
+    const sel = equal ? `<input type="checkbox" class="b-sel" ${r.included ? 'checked' : ''} aria-label="${t('bill.selAria')}" />` : '';
     const right = r.coveredByName
       ? `<span class="b-covered">🙌 ${esc(r.coveredByName)}</span>`
       : `<span class="b-amt">${fmtMoney(r.amount)}</span>`;
     const pix = (vm.canPix && r.amount > 0 && !r.isSelf && !r.coveredByName) ? '<button class="b-pix">PIX</button>' : '';
-    const pay = r.isSelf ? '' : `<button class="b-pay ${r.iPayThem ? 'on' : ''}" title="eu pago pra essa pessoa">🙌</button>`;
+    const pay = r.isSelf ? '' : `<button class="b-pay ${r.iPayThem ? 'on' : ''}" title="${t('bill.payTitle')}">🙌</button>`;
     return `<li class="bill-row" data-user="${esc(r.user)}">
       ${sel}
       <span class="peer-avatar" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
       <div class="b-main">
-        <span class="b-name">${esc(r.name || 'anônimo')}${r.isSelf ? ' <span class="peer-you">(você)</span>' : ''}</span>
+        <span class="b-name">${esc(r.name || t('common.anon'))}${r.isSelf ? ` <span class="peer-you">${t('common.youParen')}</span>` : ''}</span>
         <span class="b-items">${items}</span>
       </div>
       ${right}
@@ -598,7 +598,7 @@ export function renderBill(vm) {
 
 // ---------- PIX ----------
 export function openPix(vm) {
-  el['pix-title'].textContent = vm.title || 'Cobrar no PIX';
+  el['pix-title'].textContent = vm.title || t('bill.pixTitle');
   el['pix-qr'].innerHTML = ''; if (vm.qrNode) el['pix-qr'].appendChild(vm.qrNode);
   el['pix-code'].value = vm.code || '';
   el['overlay-pix'].hidden = false;
@@ -698,14 +698,14 @@ export function brinde() {
   const b = el['brinde'], cnt = el['brinde-count'], word = el['brinde-word'];
   b.hidden = false; b.classList.remove('go');
   let n = 3;
-  cnt.textContent = n; word.textContent = 'Preparar…';
+  cnt.textContent = n; word.textContent = t('brinde.prep');
   vibrate(30);
   const iv = setInterval(() => {
     n -= 1;
     if (n > 0) { cnt.textContent = n; vibrate(30); }
     else {
       clearInterval(iv);
-      cnt.textContent = '🥂'; word.textContent = 'Brinde!'; b.classList.add('go');
+      cnt.textContent = '🥂'; word.textContent = t('brinde.go'); b.classList.add('go');
       vibrate([60, 40, 120]);
       if (H.onBrindeGo) H.onBrindeGo();
       setTimeout(() => { b.hidden = true; brindeRunning = false; }, 1400);
@@ -715,11 +715,11 @@ export function brinde() {
 
 // ---------- Jogos (atalho rápido da mesa) ----------
 const GAMES = [
-  ['🫲', 'Purrinha', 'onPurrinha'],
-  ['🁫', 'Dominó', 'onDomino'],
-  ['🎰', 'Quem paga a próxima?', 'onRoulette'],
-  ['🏟️', 'Torneio da galera', 'onTournament'],
-  ['🃏', 'Carta da mesa', 'onCard'],
+  ['🫲', t('games.purr'), 'onPurrinha'],
+  ['🁫', t('games.dom'), 'onDomino'],
+  ['🎰', t('games.roul'), 'onRoulette'],
+  ['🏟️', t('games.tourn'), 'onTournament'],
+  ['🃏', t('games.card'), 'onCard'],
 ];
 function openGames() {
   el['games-grid'].innerHTML = GAMES.map(([e, n], i) =>
@@ -747,12 +747,12 @@ export function currentBebedeiraItem() { return bebedeiraItem; }
 // ---------- Offline (pareamento por QR/código, sem servidor) ----------
 async function copyBox(id, okMsg) {
   const v = el[id].value;
-  try { await navigator.clipboard.writeText(v); toast(okMsg || 'Copiado! 📋'); }
-  catch { el[id].focus(); el[id].select(); toast('Selecione e copie o código'); }
+  try { await navigator.clipboard.writeText(v); toast(okMsg || t('toast.copied')); }
+  catch { el[id].focus(); el[id].select(); toast(t('toast.selectCopy')); }
 }
 export function openOfflineHost() {
   el['off-host'].hidden = false; el['off-guest'].hidden = true;
-  el['off-offer-qr'].innerHTML = ''; el['off-offer-code'].value = 'gerando…'; el['off-answer-in'].value = '';
+  el['off-offer-qr'].innerHTML = ''; el['off-offer-code'].value = t('off.generating'); el['off-answer-in'].value = '';
   el['overlay-offline'].hidden = false;
 }
 export function openOfflineGuest() {
@@ -774,9 +774,9 @@ export function showOfflineAnswer(code, qrNode) {
 // ---------- Scanner de QR (câmera) ----------
 let activeScan = null;
 export function openScanner(title, onResult) {
-  if (!scanSupported()) { toast('Sem câmera aqui — use o copia-e-cola 🙂'); return; }
-  el['scan-title'].textContent = title || 'Escanear QR';
-  el['scan-hint'].textContent = 'Aponte a câmera pro QR…';
+  if (!scanSupported()) { toast(t('off.noCamera')); return; }
+  el['scan-title'].textContent = title || t('off.scanTitle');
+  el['scan-hint'].textContent = t('off.scanHint');
   el['overlay-scan'].hidden = false;
   const h = scanQR(el['scan-video']);
   activeScan = h;
@@ -785,8 +785,8 @@ export function openScanner(title, onResult) {
     if (onResult) onResult(txt);
   }).catch((e) => {
     activeScan = null; el['overlay-scan'].hidden = true;
-    if (e && e.name === 'NotAllowedError') toast('Precisa permitir a câmera 📷');
-    else if (e && e.message === 'sem-camera') toast('Sem câmera — use o copia-e-cola 🙂');
+    if (e && e.name === 'NotAllowedError') toast(t('off.cameraPerm'));
+    else if (e && e.message === 'sem-camera') toast(t('off.noCamera2'));
     // cancelamento manual (fechar overlay): silencioso
   });
 }
@@ -830,20 +830,20 @@ export function openPace(vm) {
   el['pace-summary'].innerHTML = `<strong>${vm.count}</strong> bebida${vm.count === 1 ? '' : 's'} em ${fmtDur(vm.spanMs)}`;
   el['pace-bar'].style.width = Math.min(100, (vm.recent / 6) * 100) + '%';
   el['pace-bar'].className = 'pace-bar lvl-' + vm.level;
-  el['pace-label'].textContent = `${vm.label} · ${vm.recent} na última hora`;
+  el['pace-label'].textContent = t('pace.lastHour', { label: vm.label, n: vm.recent });
   drawChart(el['pace-chart'], vm.bars || []);
   if (vm.bac) {
-    const sober = vm.bac.soberInMs > 0 ? ` · zera em ~${fmtDur(vm.bac.soberInMs)}` : '';
+    const sober = vm.bac.soberInMs > 0 ? t('pace.soberIn', { t: fmtDur(vm.bac.soberInMs) }) : '';
     el['pace-bac'].innerHTML = `<div class="bac-big">${vm.bac.bac.toFixed(2)} <small>g/L</small></div>
       <div class="bac-lbl">${vm.bac.label}${sober}</div>
-      ${vm.bac.canDrive ? '' : '<div class="bac-drive">🚗🚫 nem pensar em dirigir</div>'}`;
+      ${vm.bac.canDrive ? '' : `<div class="bac-drive">${t('pace.noDrive')}</div>`}`;
   } else {
-    el['pace-bac'].innerHTML = '<div class="bac-lbl">Quer estimar teu teor alcoólico? Bota teu peso nas ⚙️ configurações.</div>';
+    el['pace-bac'].innerHTML = `<div class="bac-lbl">${t('pace.setWeight')}</div>`;
   }
   if (vm.coach) {
-    const proj = vm.coach.predicted != null ? `<div class="coach-proj">🔮 No seu ritmo, ~<b>${vm.coach.predicted}</b> até a meia-noite</div>` : '';
+    const proj = vm.coach.predicted != null ? `<div class="coach-proj">${t('pace.proj', { n: vm.coach.predicted })}</div>` : '';
     const tips = (vm.coach.tips || []).map((t) => `<div class="coach-tip">${esc(t)}</div>`).join('');
-    el['pace-coach'].innerHTML = `<div class="coach-head">🧠 Coach do boteco</div>${proj}${tips}`;
+    el['pace-coach'].innerHTML = `<div class="coach-head">${t('pace.coachHead')}</div>${proj}${tips}`;
   } else {
     el['pace-coach'].innerHTML = '';
   }
@@ -858,8 +858,8 @@ export function openRoulette(vm) {
   el['btn-roulette-spin'].disabled = entrants.length < 2 || rouletteRunning;
   el['roulette-list'].innerHTML = entrants.map((e, i) => `<li class="roul-item" data-i="${i}">
     <span class="peer-avatar" style="background:${safeColor(e.color)}">${esc(e.avatar || '🍺')}</span>
-    <span class="roul-name">${esc(e.name || 'anônimo')}${e.isSelf ? ' <span class="peer-you">(você)</span>' : ''}</span></li>`).join('')
-    || '<li class="roul-item">Ninguém conectado pra sortear 🥲</li>';
+    <span class="roul-name">${esc(e.name || t('common.anon'))}${e.isSelf ? ` <span class="peer-you">${t('common.youParen')}</span>` : ''}</span></li>`).join('')
+    || `<li class="roul-item">${t('roul.empty')}</li>`;
   el['overlay-roulette'].hidden = false;
 }
 // Anima o giro terminando no vencedor (mesma lista/vencedor em todos os aparelhos → sincronizado).
@@ -875,7 +875,7 @@ export function runRoulette(entrants, winnerUser) {
   const finish = () => {
     const w = entrants[winIdx];
     el['roulette-result'].hidden = false;
-    el['roulette-result'].innerHTML = `🎰 <strong>${esc(w.name || 'alguém')}</strong> paga a próxima! 🍻`;
+    el['roulette-result'].innerHTML = t('roul.result', { name: esc(w.name || t('common.someoneLow')) });
     if (H.onSfx) H.onSfx('win'); vibrate([60, 40, 120]);
     celebrate(['🎉', '🎰', '🍻', '🥂']);
   };
@@ -902,7 +902,7 @@ export function runRoulette(entrants, winnerUser) {
 
 // ---------- Cutucar / desafiar ----------
 export function openPoke(vm) {
-  el['poke-title'].textContent = 'Provocar ' + (vm.name || 'alguém');
+  el['poke-title'].textContent = 'Provocar ' + (vm.name || t('common.someoneLow'));
   const btns = ['<button class="btn btn-primary poke-btn" data-kind="poke">👉 Cutucar</button>'];
   for (const it of (vm.items || [])) {
     btns.push(`<button class="btn btn-ghost poke-btn" data-kind="challenge" data-item="${esc(it.id)}">${esc(it.emoji)} Desafiar: ${esc(it.name)}</button>`);
@@ -921,8 +921,8 @@ export function openCeremony(vm) {
   el['ceremony-list'].innerHTML = list.length ? list.map((a) => `<li class="ceremony-row">
     <span class="cer-emoji">${esc(a.emoji || '🏅')}</span>
     <div class="cer-main"><span class="cer-title">${esc(a.title)}</span>
-    <span class="cer-name">${esc(a.name || 'anônimo')}${a.detail ? ` · ${esc(a.detail)}` : ''}</span></div></li>`).join('')
-    : '<li class="ceremony-row">Ninguém pontuou ainda 🥲</li>';
+    <span class="cer-name">${esc(a.name || t('common.anon'))}${a.detail ? ` · ${esc(a.detail)}` : ''}</span></div></li>`).join('')
+    : `<li class="ceremony-row">${t('cer.empty')}</li>`;
   el['overlay-ceremony'].hidden = false;
   if (list.length) { celebrate(['🏆', '🎉', '🥇', '🍻', '✨']); if (H.onSfx) H.onSfx('fanfare'); }
 }
@@ -931,14 +931,14 @@ export function openCeremony(vm) {
 export function openStats(vm) {
   const s = vm.stats || {};
   const cell = (v, l, wide) => `<div class="stat-cell${wide ? ' wide' : ''}"><span class="stat-v">${v}</span><span class="stat-l">${esc(l)}</span></div>`;
-  let html = cell(s.nights || 0, 'noites')
-    + cell(s.totalDrinks || 0, 'rodadas')
-    + cell((s.avgPerNight || 0).toFixed(1), 'média/noite')
-    + cell(s.thisMonth || 0, 'este mês')
-    + cell(s.record ? s.record.total : 0, 'recorde')
-    + cell('🔥' + (s.streakWeeks || 0), 'semanas');
+  let html = cell(s.nights || 0, t('stats.nights'))
+    + cell(s.totalDrinks || 0, t('stats.drinks'))
+    + cell((s.avgPerNight || 0).toFixed(1), t('stats.avg'))
+    + cell(s.thisMonth || 0, t('stats.month'))
+    + cell(s.record ? s.record.total : 0, t('stats.record'))
+    + cell('🔥' + (s.streakWeeks || 0), t('stats.weeks'));
   if (s.favDrink) html += cell(vm.favEmoji || '🍺', 'favorita: ' + (vm.favName || s.favDrink), true);
-  if (s.totalSpent > 0) html += cell(fmtMoney(s.totalSpent), 'já torrado 💸', true);
+  if (s.totalSpent > 0) html += cell(fmtMoney(s.totalSpent), t('stats.spent'), true);
   el['stats-grid'].innerHTML = html;
   el['stats-badges'].innerHTML = (vm.badges || []).map((b) => `<span class="badge">${b.emoji} ${esc(b.name)}</span>`).join('') || '<span class="seal">Suas conquistas aparecem aqui 🏅</span>';
   const trend = vm.trend || [];
@@ -948,7 +948,7 @@ export function openStats(vm) {
   if (hasTrend) drawBars(el['stats-chart'], trend);
   const ins = vm.insight;
   if (ins && ins.best && ins.worst && ins.best.wd !== ins.worst.wd) {
-    el['stats-insight'].textContent = `📅 Você manda menos na ${ins.best.day} e mais na ${ins.worst.day}.`;
+    el['stats-insight'].textContent = t('stats.insight', { best: ins.best.day, worst: ins.worst.day });
     el['stats-insight'].hidden = false;
   } else {
     el['stats-insight'].hidden = true;
@@ -956,7 +956,7 @@ export function openStats(vm) {
   el['stats-history'].innerHTML = (vm.history || []).slice(0, 12).map((h) => {
     const d = new Date(h.at);
     const when = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-    return `<li><span>${esc(h.title || h.room)} <small>· ${when}</small></span><small>você ${h.myTotal || 0} · mesa ${h.tableTotal || 0}</small></li>`;
+    return `<li><span>${esc(h.title || h.room)} <small>· ${when}</small></span><small>${t('home.histLine', { me: h.myTotal || 0, tt: h.tableTotal || 0 })}</small></li>`;
   }).join('') || '<li>Sem noites ainda — bora criar a primeira? 🍻</li>';
   el['overlay-stats'].hidden = false;
 }
@@ -987,18 +987,18 @@ export function renderPresence(list) {
   if (!others.length) { bar.hidden = true; bar.innerHTML = ''; return; }
   bar.hidden = false;
   // quem apagou a tela / caiu há pouco fica esmaecido com 💤 (em vez de sumir da barra)
-  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' zz'} ${frameClass(p.level)}" title="${esc(p.name || '')}${p.online ? '' : ' (fora da mesa)'}" style="background:${safeColor(p.color)}">${esc(p.emoji || '🍺')}${p.online ? '' : '<i class="zz-b">💤</i>'}</span>`).join('');
+  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' zz'} ${frameClass(p.level)}" title="${esc(p.name || '')}${p.online ? '' : t('pres.away')}" style="background:${safeColor(p.color)}">${esc(p.emoji || '🍺')}${p.online ? '' : '<i class="zz-b">💤</i>'}</span>`).join('');
 }
 
 // ---------- Comanda individual ----------
 export function openComanda(vm) {
-  el['comanda-title'].textContent = `${vm.emoji || '🍺'} ${vm.name || 'anônimo'}`;
+  el['comanda-title'].textContent = `${vm.emoji || '🍺'} ${vm.name || t('common.anon')}`;
   el['comanda-list'].innerHTML = (vm.rows || []).map((r) => `<li class="comanda-row">
     <span class="c-emoji">${esc(r.emoji || '🍺')}</span>
     <span class="c-name">${esc(r.name)}</span>
     <span class="c-qty">×${r.n}</span>
     ${r.money ? `<span class="c-money">${fmtMoney(r.money)}</span>` : ''}</li>`).join('')
-    || '<li class="comanda-row">Nada pedido ainda 🙂</li>';
+    || `<li class="comanda-row">${t('comanda.empty')}</li>`;
   el['comanda-total'].textContent = `Total: ${vm.total} 🍺${vm.money ? ' · ' + fmtMoney(vm.money) : ''}`;
   el['overlay-comanda'].hidden = false;
 }
@@ -1029,7 +1029,7 @@ function renderTourStep() {
     el['tour-count'].textContent = `${tourIdx + 1}/${tourSteps.length}`;
     el['tour-title'].textContent = st.title || '';
     el['tour-text'].textContent = st.text || '';
-    el['btn-tour-next'].textContent = tourIdx + 1 >= tourSteps.length ? 'Bora! 🍻' : 'Próximo →';
+    el['btn-tour-next'].textContent = tourIdx + 1 >= tourSteps.length ? t('common.go') : t('tour.next');
     const bal = el['tour-balloon'];
     bal.style.top = ''; bal.style.bottom = '';
     if (r.top > window.innerHeight / 2) bal.style.bottom = (window.innerHeight - r.top + 16) + 'px'; // balão acima do alvo
@@ -1044,9 +1044,9 @@ export function openSafe(vm) {
   el['safe-verdict'].className = 'safe-verdict lvl-' + v.level;
   el['safe-verdict'].innerHTML = `<div class="sv-title">${esc(v.title)}</div><div class="sv-advice">${esc(v.advice)}</div>`;
   const row = (emoji, label, val) => `<div class="safe-row"><span class="sr-emoji">${emoji}</span><span class="sr-label">${esc(label)}</span><span class="sr-val">${esc(val)}</span></div>`;
-  let rows = row('🍺', 'Teor estimado', vm.bacText);
-  if (vm.lastText) rows += row('⏱️', 'Última dose', vm.lastText);
-  if (vm.hydration) rows += row('💧', 'Hidratação', vm.hydration.label);
+  let rows = row('🍺', t('safe.bacRow'), vm.bacText);
+  if (vm.lastText) rows += row('⏱️', t('safe.lastRow'), vm.lastText);
+  if (vm.hydration) rows += row('💧', t('safe.hydRow'), vm.hydration.label);
   el['safe-rows'].innerHTML = rows;
   el['btn-safe-trust'].hidden = !vm.hasTrust;
   el['btn-safe-home'].hidden = !vm.hasTrust;
@@ -1135,13 +1135,13 @@ export function setGamePill(vm) {
 }
 
 export function purrinhaStartChoice() {
-  el['purr-sub'].textContent = 'Cada um esconde palitos na mão e a mesa adivinha o total.';
+  el['purr-sub'].textContent = t('purr.subIntro');
   el['purr-setup'].innerHTML = `<div class="dom-start">
-    <p class="dom-start-q">Como quer jogar?</p>
-    <button class="btn btn-primary btn-lg" id="btn-purr-sticks">🥢 Por palitos (3-2-1)</button>
-    <button class="btn btn-ghost dom-start-alt" id="btn-purr-classic">🫲 Clássica — cravou, saiu</button>
-    <button class="btn btn-ghost dom-start-alt" id="btn-purr-fast">⚡ Rápida — uma rodada só</button>
-    <p class="dom-start-note">3-2-1: cravou o total, descarta um palito e fala primeiro na próxima; zerou, tá livre — o último com palitos paga. Clássica: cravou uma vez, saiu. Rápida: todos chutam em segredo e quem fica mais longe paga.</p>
+    <p class="dom-start-q">${t('game.how')}</p>
+    <button class="btn btn-primary btn-lg" id="btn-purr-sticks">${t('purr.modeSticks')}</button>
+    <button class="btn btn-ghost dom-start-alt" id="btn-purr-classic">${t('purr.modeClassic')}</button>
+    <button class="btn btn-ghost dom-start-alt" id="btn-purr-fast">${t('purr.modeFast')}</button>
+    <p class="dom-start-note">${t('purr.modesNote')}</p>
   </div>`;
   el['purr-setup'].querySelector('#btn-purr-sticks').onclick = () => H.onPurrStart('sticks');
   el['purr-setup'].querySelector('#btn-purr-classic').onclick = () => H.onPurrStart('classic');
@@ -1160,14 +1160,14 @@ export function openPurrinha(vm) {
   purrPick = { hand: null, guess: null };
   purrClassic = !!vm.classic;
   el['purr-sub'].textContent = vm.sub || (purrClassic
-    ? 'Palitinho clássico: quem crava o total sai — o último que sobrar paga.'
-    : 'Escolha sua mão e chute o total da mesa. Tudo lacrado — abre junto.');
+    ? t('purr.subClassic')
+    : t('purr.subFast'));
   el['purr-guess-wrap'].hidden = purrClassic; // no clássico o palpite é falado depois, em voz alta
-  el['btn-purr-seal'].textContent = purrClassic ? '🔒 Lacrar a mão' : '🔒 Lacrar';
+  el['btn-purr-seal'].textContent = purrClassic ? t('purr.sealHand') : t('purr.seal');
   el['purr-pstatus'].hidden = !vm.status;
   el['purr-pstatus'].textContent = vm.status || '';
   const mh = vm.maxHand == null ? 3 : Math.max(0, Math.min(3, vm.maxHand)); // 3-2-1: só até o seu estoque
-  el['purr-hands'].innerHTML = [0, 1, 2, 3].map((n) => `<button class="purr-hand" data-hand="${n}"${n > mh ? ' disabled title="você não tem palitos suficientes"' : ''}><span class="purr-hvis">${purrSticks(n)}</span><span class="purr-hn">${n}</span></button>`).join('');
+  el['purr-hands'].innerHTML = [0, 1, 2, 3].map((n) => `<button class="purr-hand" data-hand="${n}"${n > mh ? ` disabled title="${t('purr.noSticks')}"` : ''}><span class="purr-hvis">${purrSticks(n)}</span><span class="purr-hn">${n}</span></button>`).join('');
   const mg = Math.max(0, vm.maxGuess || 0);
   let gs = '';
   for (let i = 0; i <= mg; i++) gs += `<button class="purr-opt" data-guess="${i}">${i}</button>`;
@@ -1190,10 +1190,10 @@ export function openPurrinha(vm) {
 }
 export function purrinhaSealed(vm) {
   el['purr-waitcount'].textContent = `🔒 ${vm.count}/${vm.total}`;
-  el['purr-waitsub'].textContent = vm.sub || 'Esperando a galera lacrar…';
+  el['purr-waitsub'].textContent = vm.sub || t('purr.waiting');
   el['purr-seals'].innerHTML = (vm.seals || []).map((s) => `<li class="purr-seal${s.sealed ? ' done' : ''}">
     <span class="purr-sav">${esc(s.avatar || '🍺')}</span><span class="purr-sname">${esc(s.name)}</span>
-    <span class="purr-sst">${s.sealed ? '🔒 lacrou' : '⏳ escolhendo…'}</span></li>`).join('');
+    <span class="purr-sst">${s.sealed ? t('purr.sealed') : t('purr.choosing')}</span></li>`).join('');
   el['btn-purr-end'].hidden = false;
   purrPhase('wait');
   if (!gameMin.purr) el['overlay-purrinha'].hidden = false;
@@ -1206,10 +1206,10 @@ export function purrinhaGuessing(vm) {
     <span class="purr-sdav">${esc(s.avatar || '🍺')}</span><span class="purr-sdn">${esc(s.name)}</span>
     <b class="purr-sdg">${s.guess}</b></li>`).join('');
   if (vm.myTurn) {
-    el['purr-turnrow'].textContent = '🎙️ Sua vez de falar o palpite!';
+    el['purr-turnrow'].textContent = t('purr.yourSay');
     const taken = new Set((vm.taken || []).map(Number));
     let gs = '';
-    for (let i = 0; i <= (vm.maxGuess || 0); i++) gs += `<button class="purr-opt" data-say="${i}"${taken.has(i) ? ' disabled title="já falaram esse"' : ''}>${i}</button>`;
+    for (let i = 0; i <= (vm.maxGuess || 0); i++) gs += `<button class="purr-opt" data-say="${i}"${taken.has(i) ? ` disabled title="${t('purr.saidTaken')}"` : ''}>${i}</button>`;
     el['purr-gpick'].innerHTML = gs; el['purr-gpick'].hidden = false;
     el['btn-purr-say'].hidden = false; el['btn-purr-say'].disabled = true;
     el['purr-gpick'].querySelectorAll('[data-say]:not([disabled])').forEach((b) => b.addEventListener('click', () => {
@@ -1218,7 +1218,7 @@ export function purrinhaGuessing(vm) {
       el['btn-purr-say'].disabled = false;
     }));
   } else {
-    el['purr-turnrow'].textContent = vm.turnName ? `⏳ Vez de ${vm.turnName} falar…` : '';
+    el['purr-turnrow'].textContent = vm.turnName ? t('purr.turnSay', { name: vm.turnName }) : '';
     el['purr-gpick'].hidden = true; el['btn-purr-say'].hidden = true;
   }
   el['btn-purr-end'].hidden = false;
@@ -1228,12 +1228,12 @@ export function purrinhaGuessing(vm) {
 export function purrinhaResult(vm) {
   el['purr-rstatus'].hidden = !vm.status;
   el['purr-rstatus'].textContent = vm.status || '';
-  el['purr-total'].innerHTML = `Total da mesa <b>${vm.total}</b>`;
+  el['purr-total'].innerHTML = t('purr.total', { n: vm.total });
   el['purr-reveals'].innerHTML = (vm.rows || []).map((r) => {
-    const tag = r.isSeer ? '<span class="purr-tag seer">🔮 vidente</span>' : (r.isLoser ? '<span class="purr-tag loser">💸 paga</span>' : '');
+    const tag = r.isSeer ? `<span class="purr-tag seer">${t('purr.tagSeer')}</span>` : (r.isLoser ? `<span class="purr-tag loser">${t('purr.tagPays')}</span>` : '');
     return `<li class="purr-rev${r.isSeer ? ' seer' : ''}${r.isLoser ? ' loser' : ''}">
       <span class="purr-av">${esc(r.avatar || '🍺')}</span>
-      <span class="purr-rname">${esc(r.name)}${r.isSelf ? ' <small>(você)</small>' : ''}</span>
+      <span class="purr-rname">${esc(r.name)}${r.isSelf ? ` <small>${t('common.youParen')}</small>` : ''}</span>
       <span class="purr-rhand">${purrSticks(r.hand, true)}</span>
       <span class="purr-rguess">🎯 ${r.guess}</span>
       ${tag}</li>`;
@@ -1277,7 +1277,7 @@ let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolh
 export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }
 // contagem regressiva do auto-passe (sem jogada legal, o passe sai sozinho em 5s)
 export function setDomPassCount(n) {
-  el['btn-dom-pass'].textContent = n != null ? `🚫 Passar a vez (${n})` : '🚫 Passar a vez';
+  el['btn-dom-pass'].textContent = n != null ? t('dom.passN', { n: n }) : t('dom.pass');
 }
 // tela de espera do handshake da mesa verificada (antes do jogo começar)
 export function dominoSetup(msg) {
@@ -1309,7 +1309,7 @@ export function renderDomino(vm) {
       const chip = just && vm.lastPlayAvatar ? `<span class="dom-played-av" title="${esc(vm.lastPlayName || '')}">${esc(vm.lastPlayAvatar)}</span>` : '';
       return domTileHTML(t.a, t.b, { cls: (open ? 'open' : '') + (just ? ' just' : ''), chip });
     }).join('')
-    : '<span class="dom-empty">começando…</span>';
+    : `<span class="dom-empty">${t('dom.starting')}</span>`;
   requestAnimationFrame(domFitBoard);
   el['dom-hand'].innerHTML = (vm.hand || []).map((h) => {
     const playable = h.sides.length > 0 && vm.myTurn;
@@ -1325,7 +1325,7 @@ export function renderDomino(vm) {
   }));
   el['dom-side-pick'].hidden = true;
   el['btn-dom-pass'].hidden = vm.over || !vm.canPass;
-  el['btn-dom-pass'].textContent = '🚫 Passar a vez'; // zera contagem antiga; o app re-arma se for o caso
+  el['btn-dom-pass'].textContent = t('dom.pass'); // zera contagem antiga; o app re-arma se for o caso
   el['dom-hand-wrap'].hidden = !!vm.over;
   el['dom-result'].hidden = !vm.over;
   el['dom-result'].textContent = vm.over ? (vm.result || '') : '';
@@ -1345,8 +1345,8 @@ export function renderJukebox(list) {
   el['jukebox-list'].innerHTML = (list || []).map((s, i) => `<li class="jbx-row">
     <span class="jbx-n">${i + 1}</span>
     <div class="jbx-main"><span class="jbx-title">${esc(s.title)}</span>
-      <span class="jbx-by">pedida por ${esc(s.name || 'alguém')}</span></div>
-    <button class="jbx-play" data-i="${i}" aria-label="tocar">▶️</button></li>`).join('') || '<li class="jbx-row">Fila vazia — peça a primeira! 🎶</li>';
+      <span class="jbx-by">pedida por ${esc(s.name || t('common.someoneLow'))}</span></div>
+    <button class="jbx-play" data-i="${i}" aria-label="${t('jbx.play')}">▶️</button></li>`).join('') || `<li class="jbx-row">${t('jbx.empty')}</li>`;
   el['jukebox-list'].querySelectorAll('.jbx-play').forEach((b) => b.addEventListener('click', () => H.onSongPlay(list[Number(b.dataset.i)])));
 }
 function submitSong() {
@@ -1388,16 +1388,16 @@ function stopFesta() {
 // ---------- Passaporte de botecos (check-ins locais) ----------
 export function openPassport(vm) {
   const list = (vm && vm.checkins) || [];
-  const places = new Set(list.map((c) => c.name || 'Boteco')).size;
+  const places = new Set(list.map((c) => c.name || t('pass.fallback'))).size;
   el['passport-count'].textContent = list.length
     ? `${list.length} check-in${list.length === 1 ? '' : 's'} · ${places} lugar${places === 1 ? '' : 'es'}`
-    : 'Marque os botecos por onde você passou. Fica só no seu aparelho.';
+    : t('pass.empty');
   el['passport-list'].innerHTML = list.map((c) => {
     const d = new Date(c.at);
     const when = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
     const map = (c.lat != null && c.lng != null) ? `https://maps.google.com/?q=${c.lat},${c.lng}` : '';
     return `<li class="pass-row"><span class="pass-pin">📍</span>
-      <div class="pass-main"><span class="pass-name">${esc(c.name || 'Boteco')}</span><span class="pass-when">${when}</span></div>
+      <div class="pass-main"><span class="pass-name">${esc(c.name || t('pass.fallback'))}</span><span class="pass-when">${when}</span></div>
       ${map ? `<a class="pass-map" href="${map}" target="_blank" rel="noopener" aria-label="ver no mapa">🗺️</a>` : ''}</li>`;
   }).join('') || '<li class="pass-row">Nenhum check-in ainda 🥲</li>';
   el['passport-name'].value = (vm && vm.suggestName) || '';
@@ -1417,7 +1417,7 @@ function showPhoto() {
     el['overlay-photo'].hidden = false;
     el['photo-input'].value = '';
   };
-  rd.onerror = () => { toast('Não consegui abrir a foto 😕'); el['photo-input'].value = ''; };
+  rd.onerror = () => { toast(t('toast.photoOpen')); el['photo-input'].value = ''; };
   rd.readAsDataURL(f);
 }
 export function currentPhoto() { return lastPhoto; }

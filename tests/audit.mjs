@@ -157,18 +157,37 @@ for (const file of [...JS_FILES, ...TEST_FILES]) {
 {
   const html = read('index.html');
   const i18n = read('js/i18n.js');
-  const dictAt = i18n.indexOf('const DICT');
-  // extrai as chaves de um bloco `<lang>: { ... }` do DICT por contagem de chaves
+  // extrai as chaves de um bloco `<lang>: { ... }` do DICT com um scanner ciente de STRINGS:
+  // valores podem conter `{name}` (interpolação) e `Palavra:` — contagem crua de chaves/regex
+  // solta acharia chaves-fantasma e fecharia o bloco no lugar errado.
   const keysOf = (lang) => {
-    const braceStart = i18n.indexOf('{', i18n.indexOf(lang + ':', dictAt));
-    let depth = 0, end = -1;
-    for (let i = braceStart; i < i18n.length; i++) {
-      if (i18n[i] === '{') depth++;
-      else if (i18n[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
-    }
-    const block = braceStart >= 0 && end > braceStart ? i18n.slice(braceStart + 1, end) : '';
+    const head = i18n.search(new RegExp('^  ' + lang + ': \\{', 'm')); // cabeçalho do bloco (indent 2)
+    if (head < 0) return new Set();
+    const braceStart = i18n.indexOf('{', head);
     const keys = new Set();
-    for (const m of block.matchAll(/(?:^|[\s,{])(?:([\w$]+)|['"]([\w.$-]+)['"])\s*:/g)) keys.add(m[1] || m[2]);
+    let depth = 0, quote = null, i = braceStart;
+    for (; i < i18n.length; i++) {
+      const c = i18n[i];
+      if (quote) { // dentro de string: só sai na aspa igual (respeitando \)
+        if (c === '\\') i++;
+        else if (c === quote) quote = null;
+        continue;
+      }
+      if (c === "'" || c === '"' || c === '`') {
+        // aspas abrindo: se for uma CHAVE 'x.y': captura; senão é valor — pula a string inteira
+        const m = /^(['"])([\w.$-]+)\1\s*:/.exec(i18n.slice(i, i + 80));
+        if (m && depth === 1) { keys.add(m[2]); i += m[0].length - 1; continue; }
+        quote = c;
+        continue;
+      }
+      if (c === '{') { depth++; continue; }
+      if (c === '}') { depth--; if (depth === 0) break; continue; }
+      // chave sem aspas (tagline:), só no nível 1 do bloco
+      if (depth === 1 && /[\w$]/.test(c) && (i === braceStart + 1 || /[\s,{]/.test(i18n[i - 1]))) {
+        const m = /^([\w$]+)\s*:/.exec(i18n.slice(i, i + 60));
+        if (m) { keys.add(m[1]); i += m[0].length - 1; }
+      }
+    }
     return keys;
   };
   const pt = keysOf('pt'), en = keysOf('en'), es = keysOf('es');

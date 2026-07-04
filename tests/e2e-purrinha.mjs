@@ -23,7 +23,7 @@ async function main() {
   });
   const mkCtx = async (name) => {
     const c = await browser.newContext();
-    await c.addInitScript((n) => { localStorage.setItem('botequei.name', n); localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 })); }, name); // testes não são 1º uso (sem welcome/tour)
+    await c.addInitScript((n) => { localStorage.setItem('botequei.name', n); localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 })); localStorage.setItem('botequei.settings', JSON.stringify({ lang: 'pt' })); }, name); // testes não são 1º uso (sem welcome/tour) e asseveram textos pt
     return c;
   };
   const peersAll = (pages, n) => Promise.all(pages.map((p) => p.waitForFunction((v) => document.getElementById('peer-count')?.textContent === v, String(n), { timeout: T })));

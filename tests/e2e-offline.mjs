@@ -25,7 +25,7 @@ async function main() {
   // Contexto com signaling MORTO: qualquer chamada ao signaling.php é abortada.
   const mk = async (name) => {
     const c = await browser.newContext();
-    await c.addInitScript((n) => { localStorage.setItem('botequei.name', n); localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 })); }, name); // testes não são 1º uso (sem welcome/tour)
+    await c.addInitScript((n) => { localStorage.setItem('botequei.name', n); localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 })); localStorage.setItem('botequei.settings', JSON.stringify({ lang: 'pt' })); }, name); // testes não são 1º uso (sem welcome/tour) e asseveram textos pt
     await c.route('**/signaling.php*', (r) => r.abort());
     return c.newPage();
   };

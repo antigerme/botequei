@@ -84,4 +84,10 @@ export default [
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...node, ...browser } },
     rules,
   },
+  {
+    // lado servidor: núcleo puro + adaptador Node (VM). Roda em Node puro.
+    files: ['server/**/*.mjs'],
+    languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...node, URLSearchParams: 'readonly', AbortSignal: 'readonly', Response: 'readonly' } },
+    rules,
+  },
 ];

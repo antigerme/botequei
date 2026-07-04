@@ -31,6 +31,10 @@ async function main() {
     await step('1º uso: guia de boas-vindas abre sozinho', async () => {
       await vis(page, 'overlay-welcome');
     });
+    await step('padrão de fábrica: tema CLARO já no primeiro uso', async () => {
+      const light = await page.evaluate(() => document.body.classList.contains('light'));
+      if (!light) throw new Error('primeiro uso deveria abrir no tema claro');
+    });
     await step('reload NÃO repete o guia (flag persistente)', async () => {
       await page.reload();
       await page.waitForSelector('#screen-home.is-active', { timeout: T });
@@ -74,12 +78,29 @@ async function main() {
       if (open) throw new Error('tour não fechou depois do último passo');
     });
 
-    await step('reload (volta pra mesa via hash) NÃO repete o tour', async () => {
+    await step('fim do tour: pergunta o tema (e o padrão em uso é o CLARO)', async () => {
+      await vis(page, 'overlay-themepick');
+      const light = await page.evaluate(() => document.body.classList.contains('light'));
+      if (!light) throw new Error('antes de escolher, o tema deveria ser o claro padrão');
+    });
+
+    await step('escolhe "Escuro" → aplica na hora e fecha a pergunta', async () => {
+      await page.click('#themepick-row [data-th="dark"]');
+      await page.waitForFunction(() => document.getElementById('overlay-themepick').hidden, null, { timeout: 5000 });
+      const dark = await page.evaluate(() => !document.body.classList.contains('light') && !document.body.classList.contains('neon') && !document.body.classList.contains('retro'));
+      if (!dark) throw new Error('tema escuro não aplicou');
+    });
+
+    await step('reload (volta pra mesa via hash) NÃO repete o tour e o tema escolhido PERSISTE', async () => {
       await page.reload();
       await page.waitForSelector('#screen-table.is-active', { timeout: T });
       await page.waitForTimeout(1600); // > intervalo do gatilho (600ms)
       const open = await page.evaluate(() => !document.getElementById('tour').hidden);
       if (open) throw new Error('tour apareceu de novo');
+      const stillDark = await page.evaluate(() => !document.body.classList.contains('light'));
+      if (!stillDark) throw new Error('escolha de tema não persistiu no reload');
+      const pickOpen = await page.evaluate(() => !document.getElementById('overlay-themepick').hidden);
+      if (pickOpen) throw new Error('pergunta de tema apareceu de novo no reload');
     });
     await ctx.close();
   }

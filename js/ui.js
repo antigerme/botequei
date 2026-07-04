@@ -54,6 +54,8 @@ const IDS = [
   'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
   'btn-dom-pass', 'btn-dom-again', 'btn-dom-end', 'game-pill',
   'tour', 'tour-spot', 'tour-balloon', 'tour-count', 'tour-title', 'tour-text', 'btn-tour-skip', 'btn-tour-next',
+  'overlay-truco', 'btn-tru-close', 'tru-setup', 'tru-game', 'tru-status', 'tru-score', 'tru-vira', 'tru-table',
+  'tru-hand', 'tru-actions', 'tru-result', 'btn-tru-end', 'tru-audit',
   'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
   'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
   'overlay-welcome', 'btn-welcome-go',
@@ -208,6 +210,8 @@ export function init(handlers) {
   el['btn-dom-close'].addEventListener('click', () => H.onDomClose());
   el['btn-dom-end'].addEventListener('click', () => H.onDomEnd());
   el['game-pill'].addEventListener('click', () => H.onGameBack());
+  el['btn-tru-close'].addEventListener('click', () => H.onTrucoClose());
+  el['btn-tru-end'].addEventListener('click', () => H.onTrucoEnd());
   // tour: tocar em qualquer lugar avança; "pular" encerra
   el['tour'].addEventListener('click', () => tourNext());
   el['btn-tour-next'].addEventListener('click', (e) => { e.stopPropagation(); tourNext(); });
@@ -714,18 +718,20 @@ export function brinde() {
 }
 
 // ---------- Jogos (atalho rápido da mesa) ----------
-const GAMES = [
+const GAMES = () => [
   ['🫲', t('games.purr'), 'onPurrinha'],
   ['🁫', t('games.dom'), 'onDomino'],
+  ['🂠', t('games.truco'), 'onTruco'],
   ['🎰', t('games.roul'), 'onRoulette'],
   ['🏟️', t('games.tourn'), 'onTournament'],
   ['🃏', t('games.card'), 'onCard'],
 ];
 function openGames() {
-  el['games-grid'].innerHTML = GAMES.map(([e, n], i) =>
+  const games = GAMES();
+  el['games-grid'].innerHTML = games.map(([e, n], i) =>
     `<button class="game-pick" data-i="${i}"><span class="game-pick-e">${e}</span><span>${esc(n)}</span></button>`).join('');
   el['games-grid'].querySelectorAll('.game-pick').forEach((btn) => btn.addEventListener('click', () => {
-    const g = GAMES[Number(btn.dataset.i)]; closeOverlays(); H[g[2]]();
+    const g = games[Number(btn.dataset.i)]; closeOverlays(); H[g[2]]();
   }));
   el['overlay-games'].hidden = false;
 }
@@ -1120,11 +1126,11 @@ function purrPhase(which) {
 // ---------- Jogo minimizado (✕ = minimizar; a partida segue e o pill traz de volta) ----------
 // Enquanto minimizado, os renders continuam atualizando o conteúdo por baixo — só não reabrem
 // o overlay na cara de quem voltou pro contador. O pill na mesa traz de volta com um toque.
-const gameMin = { dom: false, purr: false };
+const gameMin = { dom: false, purr: false, truco: false };
 export function setGameMin(kind, v) { gameMin[kind] = !!v; }
 export function showGame(kind) {
   gameMin[kind] = false;
-  el[kind === 'dom' ? 'overlay-domino' : 'overlay-purrinha'].hidden = false;
+  el[kind === 'dom' ? 'overlay-domino' : kind === 'truco' ? 'overlay-truco' : 'overlay-purrinha'].hidden = false;
 }
 export function setGamePill(vm) {
   const p = el['game-pill'];
@@ -1333,6 +1339,80 @@ export function renderDomino(vm) {
   el['btn-dom-again'].hidden = !vm.over;
   el['btn-dom-end'].hidden = !!vm.over; // no fim, o ✕ já resolve; no meio, dá pra encerrar pra mesa
   if (!gameMin.dom) el['overlay-domino'].hidden = false;
+}
+
+
+// ---------- Truco (mesa: vira, placar, vaza central, mão em CSS puro) ----------
+function truCardHTML(cardStr, { small = false, back = false } = {}) {
+  if (back) return `<span class="tru-card back${small ? ' sm' : ''}"></span>`;
+  const [r, s] = String(cardStr).split(':');
+  const suit = { ouros: '♦', espadas: '♠', copas: '♥', paus: '♣', bastos: '🌴' }[s] || s;
+  const red = s === 'copas' || s === 'ouros';
+  return `<span class="tru-card${red ? ' red' : ''}${small ? ' sm' : ''}"><b>${esc(r)}</b><i>${suit}</i></span>`;
+}
+export function trucoStartChoice(vm) {
+  el['tru-setup'].innerHTML = `<div class="dom-start">
+    <p class="dom-start-q">${t('tru.how')} <small>(${vm.mode})</small></p>
+    <button class="btn btn-primary btn-lg" id="btn-tru-pta">🂠 ${t('tru.vPaulista')}</button>
+    <button class="btn btn-ghost dom-start-alt" id="btn-tru-min">⛏️ ${t('tru.vMineira')}</button>
+    <button class="btn btn-ghost dom-start-alt" id="btn-tru-gau">🧉 ${t('tru.vGaucha')}</button>
+    <p class="dom-start-note">${t('tru.note')}</p>
+  </div>`;
+  el['tru-setup'].querySelector('#btn-tru-pta').onclick = () => H.onTrucoStart('paulista');
+  el['tru-setup'].querySelector('#btn-tru-min').onclick = () => H.onTrucoStart('mineira');
+  el['tru-setup'].querySelector('#btn-tru-gau').onclick = () => H.onTrucoStart('gaucha');
+  el['tru-setup'].hidden = false; el['tru-game'].hidden = true;
+  el['btn-tru-end'].hidden = true;
+  if (!gameMin.truco) el['overlay-truco'].hidden = false;
+}
+export function renderTruco(vm) {
+  el['tru-setup'].hidden = true; el['tru-game'].hidden = false;
+  el['tru-score'].innerHTML = `<span class="tru-var">${esc(vm.variant)}</span>
+    <b class="${vm.myTeam === 0 ? 'us' : ''}">${vm.score[0]}</b> × <b class="${vm.myTeam === 1 ? 'us' : ''}">${vm.score[1]}</b>
+    <span class="tru-stake">${t('tru.worth', { n: vm.stake })}</span>`;
+  el['tru-vira'].innerHTML = vm.vira ? `${t('tru.vira')} ${truCardHTML(vm.vira, { small: true })}` : '';
+  el['tru-vira'].hidden = !vm.vira;
+  if (vm.audit) { el['tru-audit'].hidden = false; el['tru-audit'].textContent = vm.audit === 'ok' ? t('tru.auditOk') : t('tru.auditBad'); el['tru-audit'].className = 'dom-verified ' + (vm.audit === 'ok' ? 'ok' : 'bad'); }
+  else el['tru-audit'].hidden = true;
+  el['tru-status'].textContent = vm.handshake || vm.turnName || '';
+  el['tru-table'].innerHTML = (vm.table || []).map((p) => `<span class="tru-played${p.self ? ' me' : ''}">
+    ${truCardHTML(p.card && p.card.r ? p.card.r + ':' + p.card.s : p.card)}<small>${esc(p.avatar || '')} ${esc(p.name)}</small></span>`).join('');
+  el['tru-hand'].innerHTML = (vm.mine || []).map((m) =>
+    `<button class="tru-hcard${vm.myTurn ? '' : ' dim'}" data-card="${esc(m.card)}"${vm.myTurn ? '' : ' disabled'}>${truCardHTML(m.card)}</button>`).join('');
+  el['tru-hand'].querySelectorAll('.tru-hcard:not([disabled])').forEach((b) => b.addEventListener('click', () => H.onTrucoPlay(b.dataset.card)));
+  let acts = '';
+  if (vm.onze) {
+    acts = vm.onze.mine
+      ? `<div class="tru-onze">${t('tru.onzeQ', { n: vm.onze.value })}
+           <button class="btn btn-primary" id="btn-tru-onze-go">${t('tru.onzePlay')}</button>
+           <button class="btn btn-ghost" id="btn-tru-onze-run">${t('tru.onzeRun')}</button></div>`
+      : `<div class="tru-onze">${t('tru.onzeWait')}</div>`;
+  } else if (vm.pend) {
+    acts = vm.pend.mine
+      ? `<div class="tru-pend">${t('tru.pendWait', { label: vm.pend.label })}</div>`
+      : `<div class="tru-pend">${t('tru.pendQ', { label: vm.pend.label, n: vm.pend.value })}</div>
+         <div class="tru-btns">
+           <button class="btn btn-primary" id="btn-tru-acc">${t('tru.accept')}</button>
+           ${vm.pend.canRaiseBack ? `<button class="btn btn-ghost" id="btn-tru-reraise">${t('tru.raiseBack')}</button>` : ''}
+           <button class="btn btn-ghost tru-run" id="btn-tru-run">${t('tru.run')}</button>
+         </div>`;
+  } else if (vm.canRaise) {
+    acts = `<button class="btn btn-ghost tru-raise" id="btn-tru-raise">🔥 ${esc(vm.raiseLabel)}</button>`;
+  }
+  el['tru-actions'].innerHTML = acts;
+  const on = (id, fn) => { const b = el['tru-actions'].querySelector('#' + id); if (b) b.onclick = fn; };
+  on('btn-tru-raise', () => H.onTrucoRaise());
+  on('btn-tru-acc', () => H.onTrucoResp('accept'));
+  on('btn-tru-reraise', () => H.onTrucoResp('raise'));
+  on('btn-tru-run', () => H.onTrucoResp('fold'));
+  on('btn-tru-onze-go', () => H.onTrucoOnze(true));
+  on('btn-tru-onze-run', () => H.onTrucoOnze(false));
+  const res = vm.gameResult || vm.handResult || '';
+  el['tru-result'].textContent = res;
+  el['tru-result'].hidden = !res;
+  el['tru-result'].className = 'dom-result' + (res && (vm.gameResult ? vm.gameOver : true) && /🏆|!/.test(res) ? '' : '');
+  el['btn-tru-end'].hidden = !!vm.gameOver;
+  if (!gameMin.truco) el['overlay-truco'].hidden = false;
 }
 
 // ---------- Jukebox ----------

@@ -755,6 +755,28 @@
   </div>
 </div>
 
+
+<!-- Truco (P2P; mãos privadas, jogadas lacradas por carta) -->
+<div class="overlay" id="overlay-truco" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" id="btn-tru-close">✕</button>
+    <h2 data-i18n="tru.title">🂠 Truco</h2>
+    <div class="dom-setup" id="tru-setup" hidden></div>
+    <div id="tru-game" hidden>
+      <div class="dom-verified" id="tru-audit" hidden></div>
+      <div class="tru-score" id="tru-score"></div>
+      <div class="tru-vira" id="tru-vira" hidden></div>
+      <div class="dom-turn" id="tru-status"></div>
+      <div class="tru-table" id="tru-table"></div>
+      <div id="tru-result" class="dom-result" hidden></div>
+      <div class="tru-hand-lbl" data-i18n="tru.handLbl">Sua mão — toque pra jogar</div>
+      <div class="tru-hand" id="tru-hand"></div>
+      <div class="tru-actions" id="tru-actions"></div>
+    </div>
+    <button class="btn btn-ghost game-end" id="btn-tru-end" hidden data-i18n="game.endAll">🛑 Encerrar a partida pra mesa toda</button>
+  </div>
+</div>
+
 <!-- Tour guiado da 1ª mesa: spotlight recorta o alvo, balão explica; toque avança -->
 <div class="tour" id="tour" hidden>
   <div class="tour-spot" id="tour-spot" aria-hidden="true"></div>

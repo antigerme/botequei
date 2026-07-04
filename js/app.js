@@ -23,6 +23,12 @@ import {
   opening, legalMoves, place, pipCount, tileKey as domKey, rngFrom, shuffle, FULL_SET,
   deckCommit, handCommit, combineSeeds, cutDeck, dealFromDeck, verifyDeal,
 } from './domino.js';
+import {
+  deckFor as truDeckFor, cardStr as truStr, raiseLabel, nextStake as truNext, canRaise as truCanRaise,
+  maoRule, applyResult, teamOf, VARIANTS as TRU_VARIANTS,
+  makeHandDeal, verifyOwnHand, verifyPlayReveal, verifyHandAudit,
+  newTrucoHand, reduceT,
+} from './truco.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
@@ -279,7 +285,7 @@ function gameFx(fx) {
 function onFx(fx, fromId) {
   if (!fx) return;
   // gossip com dedup só pras fx de jogo (têm mid): ignora repetida, repassa a nova pros outros
-  if (fx.mid && (fx.kind === 'domino' || fx.kind === 'purrinha')) {
+  if (fx.mid && (fx.kind === 'domino' || fx.kind === 'purrinha' || fx.kind === 'truco')) {
     if (seenFx.has(fx.mid)) return;
     seenFx.add(fx.mid);
     if (mesh) mesh.broadcast({ k: 'fx', fx }, fromId);
@@ -294,6 +300,7 @@ function onFx(fx, fromId) {
   else if (fx.kind === 'water') { ui.floatReaction('💧'); ui.celebrate(['💧', '💦', '🚰']); ui.toast(t('toast.waterRoundFx')); sound.plus(); }
   else if (fx.kind === 'card') { ui.openCard({ emoji: fx.emoji, text: fx.text }); sound.pop(); }
   else if (fx.kind === 'purrinha') routePurrFx(fx);
+  else if (fx.kind === 'truco') routeTrucoFx(fx);
   else if (fx.kind === 'domino') {
     if (fx.ph === 'deal') { if (!dom || dom.gameId !== fx.gameId) beginDomino(fx); }
     else if (fx.ph === 'play') onDomPlay(fx);
@@ -574,6 +581,7 @@ function leaveTable() {
   for (const t of pendingBye.values()) clearTimeout(t);
   pendingBye = new Map(); everSeen = new Set(); wentAway = new Set();
   purr = null; dom = null; dv = null; seenFx.clear(); purrPreFx = [];
+  cancelTruco(false); trucoPreFx = [];
   domClearTimers(); gameMinned.clear(); ui.setGameMin('dom', false); ui.setGameMin('purr', false); ui.setGamePill(null);
   ui.setHappyHour(null);
   location.hash = '';
@@ -743,6 +751,7 @@ function updateGamePill() {
   // poda flags de jogo que já morreu (cancelado/terminado enquanto minimizado)
   if (gameMinned.has('dom') && !((dom && !dom.over) || (dv && !dv.began && !dom))) { gameMinned.delete('dom'); ui.setGameMin('dom', false); }
   if (gameMinned.has('purr') && !purrActive()) { gameMinned.delete('purr'); ui.setGameMin('purr', false); }
+  if (gameMinned.has('truco') && !(truco && !truco.over)) { gameMinned.delete('truco'); ui.setGameMin('truco', false); }
   const parts = [];
   if (gameMinned.has('dom')) {
     const myTurn = dom && !dom.over && dom.order[dom.turnIdx] === self;
@@ -757,7 +766,7 @@ function updateGamePill() {
 // mesa). Se tiver jogo rolando ou overlay aberto (alguém digitando), adia — re-checa a cada 5s.
 let swPending = null;
 function swBusy() {
-  if ((dom && !dom.over) || (dv && !dv.began && !dom) || purrActive()) return true;
+  if ((dom && !dom.over) || (dv && !dv.began && !dom) || purrActive() || (truco && !truco.over)) return true;
   return !!document.querySelector('.overlay:not([hidden])');
 }
 function trySwUpdate() {
@@ -1523,6 +1532,346 @@ function renderVwait() {
   ui.dominoSetup(t('dom.vHandshake', { phase: dv.phase === 'commit' ? t('dom.vPhaseCommit') : t('dom.vPhaseReveal'), have: have, total: dv.order.length }));
 }
 
+
+// ---- Truco (P2P; mãos privadas via sendTo, jogadas reveladas com lacre POR CARTA) ----
+// Partida = placar corrido (12/24) de várias MÃOS; cada mão tem embaralho próprio do dealer
+// da vez, com commit-reveal de seeds (corte coletivo) + lacres por carta do js/truco.js.
+// Fases fx (kind:'truco', gossip com dedup): tsetup · thseal/thseed/thgo/thseedrev/tdeal/
+// thand(privada) · tplay/traise/tresp/trespclose · tonze · topen(auditoria fim de partida) ·
+// tcancel. Reducer determinístico (reduceT) — evento fora de hora morre igual em todo peer.
+let truco = null;      // { gameId, variant, order, score, handIdx, st (reducer), deal {...}, ... }
+let trucoPreFx = [];   // fx que chegou antes do tsetup (corrida do gossip)
+let truRespTimer = null, truNextTimer = null, truCloseWatch = null;
+
+function truName(id) { return id === self ? (getName() || t('common.you')) : (profOf(id).name || t('common.someoneLow')); }
+function truTeamOfId(id) { return truco ? teamOf(truco.order.indexOf(id)) : null; }
+function truMySeat() { return truco ? truco.order.indexOf(self) : -1; }
+
+function startTruco() {
+  if (!room) { ui.toast(t('toast.needTable')); return; }
+  const n = domEntrants().length;
+  if (n < 2) { ui.toast(t('tru.need2')); return; }
+  ui.trucoStartChoice({ mode: n >= 4 ? '2v2' : '1v1' });
+}
+function startTrucoVariant(variant) {
+  if (!TRU_VARIANTS[variant]) return;
+  let order = domEntrants();
+  if (order.length >= 4) order = order.slice(0, 4); else order = order.slice(0, 2);
+  if (order.length === 3) order = order.slice(0, 2); // 3 online: 1v1 com os dois primeiros
+  const gameId = 'tr' + cryptoSeed();
+  gameFx({ kind: 'truco', ph: 'tsetup', gameId, variant, order, from: self });
+  beginTruco({ gameId, variant, order });
+  truHandStart(); // sou o dealer da mão 0
+}
+function beginTruco({ gameId, variant, order }) {
+  clearGameMin('truco');
+  truco = {
+    gameId, variant, order, n: order.length,
+    score: [0, 0], handIdx: 0, st: null,
+    deal: null,        // mão corrente: { dc, seedCommits, seeds, commits, vira, mine, counts, master?, deck?, salt? }
+    reveals: {},       // seat -> [{i,card}] cartas já abertas (pra UI)
+    opens: {},         // h -> {deck,salt,master} auditoria de fim de partida
+    audits: null, over: false, winnerTeam: null,
+  };
+  renderTruco();
+  const q = trucoPreFx.filter((f) => f.gameId === gameId);
+  trucoPreFx = trucoPreFx.filter((f) => f.gameId !== gameId);
+  for (const f of q) routeTrucoFx(f);
+}
+function truDealerIdx() { return truco ? truco.handIdx % truco.n : 0; }
+function truIsDealer() { return truco && truco.order[truDealerIdx()] === self; }
+
+// -- handshake do embaralho da mão (dealer lacra o baralho ANTES do corte coletivo) --
+async function truHandStart() {
+  if (!truco || truco.over || !truIsDealer()) return;
+  const deck = shuffle(truDeckFor(truco.variant), rngFrom(cryptoSeed()));
+  const salt = randomNonce(); const master = randomNonce();
+  const dc = await sha256Hex(JSON.stringify(deck.map(truStr)) + ':' + salt);
+  truco.deal = { dc, deck, salt, master, seedCommits: {}, seeds: {}, phase: 'seed' };
+  const mySeed = randomNonce(); const mySc = await sha256Hex(mySeed);
+  truco.deal.mySeed = mySeed; truco.deal.seedCommits[self] = mySc; truco.deal.seeds[self] = mySeed;
+  gameFx({ kind: 'truco', ph: 'thseal', gameId: truco.gameId, h: truco.handIdx, dc });
+  gameFx({ kind: 'truco', ph: 'thseed', gameId: truco.gameId, h: truco.handIdx, from: self, sc: mySc });
+  renderTruco();
+}
+async function onThseal(fx) {
+  if (!truco || fx.h !== truco.handIdx || truIsDealer()) return;
+  truco.deal = { dc: fx.dc, seedCommits: {}, seeds: {}, phase: 'seed' };
+  const mySeed = randomNonce(); const mySc = await sha256Hex(mySeed);
+  truco.deal.mySeed = mySeed; truco.deal.seedCommits[self] = mySc; truco.deal.seeds[self] = mySeed;
+  gameFx({ kind: 'truco', ph: 'thseed', gameId: truco.gameId, h: truco.handIdx, from: self, sc: mySc });
+  renderTruco();
+}
+function onThseed(fx) {
+  if (!truco || !truco.deal || fx.h !== truco.handIdx) return;
+  truco.deal.seedCommits[fx.from] = fx.sc;
+  if (truIsDealer() && truco.deal.phase === 'seed' && truco.order.every((id) => truco.deal.seedCommits[id])) {
+    truco.deal.phase = 'rev';
+    gameFx({ kind: 'truco', ph: 'thgo', gameId: truco.gameId, h: truco.handIdx });
+    gameFx({ kind: 'truco', ph: 'thseedrev', gameId: truco.gameId, h: truco.handIdx, from: self, seed: truco.deal.mySeed });
+  }
+}
+function onThgo(fx) {
+  if (!truco || !truco.deal || fx.h !== truco.handIdx || truIsDealer() || truco.deal.phase !== 'seed') return;
+  truco.deal.phase = 'rev';
+  gameFx({ kind: 'truco', ph: 'thseedrev', gameId: truco.gameId, h: truco.handIdx, from: self, seed: truco.deal.mySeed });
+}
+async function onThseedrev(fx) {
+  if (!truco || !truco.deal || fx.h !== truco.handIdx) return;
+  truco.deal.seeds[fx.from] = fx.seed;
+  if (truIsDealer() && truco.deal.phase === 'rev' && truco.order.every((id) => truco.deal.seeds[id])) {
+    truco.deal.phase = 'dealt';
+    const R = await combineSeeds(truco.deal.seeds);
+    const cut = cutDeck(truco.deal.deck, R);
+    const wantVira = !!TRU_VARIANTS[truco.variant].vira;
+    const { commits, hands, vira } = await makeHandDeal(cut, truco.n, truco.deal.master, wantVira);
+    truco.deal.cut = cut;
+    truco.opens[truco.handIdx] = { deck: truco.deal.deck.map(truStr), salt: truco.deal.salt, master: truco.deal.master };
+    const pub = {
+      kind: 'truco', ph: 'tdeal', gameId: truco.gameId, h: truco.handIdx,
+      commits, vira: vira ? truStr(vira) : null, dc: truco.deal.dc,
+      seeds: truco.deal.seeds, seedCommits: truco.deal.seedCommits,
+    };
+    gameFx(pub);
+    for (let k = 0; k < truco.n; k++) {
+      const id = truco.order[k];
+      const cards = hands[k].map((x) => ({ i: x.i, card: truStr(x.card), salt: x.salt }));
+      if (id === self) applyTdeal(pub, cards);
+      else if (mesh) mesh.sendTo(id, { k: 'fx', fx: { kind: 'truco', ph: 'thand', gameId: truco.gameId, h: truco.handIdx, cards } });
+    }
+  }
+}
+function onTdeal(fx) {
+  if (!truco || fx.h !== truco.handIdx || truIsDealer()) return;
+  applyTdeal(fx, truco.deal && truco.deal.mineRaw);
+}
+function onThand(fx) {
+  if (!truco || fx.h !== truco.handIdx) return;
+  if (truco.deal && truco.deal.pub) applyTdeal(truco.deal.pub, fx.cards);
+  else { truco.deal = truco.deal || { seedCommits: {}, seeds: {} }; truco.deal.mineRaw = fx.cards; }
+}
+async function applyTdeal(pub, mineRaw) {
+  if (!truco) return;
+  truco.deal = { ...(truco.deal || {}), pub, dc: pub.dc, commits: pub.commits, seeds: pub.seeds, seedCommits: pub.seedCommits, phase: 'play' };
+  truco.deal.vira = pub.vira || null;
+  if (mineRaw) {
+    const mine = mineRaw.map((c) => ({ i: c.i, card: typeof c.card === 'string' ? c.card : truStr(c.card), salt: c.salt }));
+    truco.deal.mine = mine;
+    const okHand = await verifyOwnHand(mine.map((m) => ({ i: m.i, card: truCardObj(m.card), salt: m.salt })), pub.commits);
+    if (!okHand) ui.toast(t('tru.handMismatch'));
+  } else if (truco.deal.mineRaw) {
+    return applyTdeal(pub, truco.deal.mineRaw);
+  } else return renderTruco(); // ainda sem a mão privada; thand chega já já
+  const special = maoRule(truco.variant, truco.score);
+  truco.st = newTrucoHand({
+    variant: truco.variant, order: truco.order, dealerIdx: truDealerIdx(),
+    vira: truco.deal.vira ? truCardObj(truco.deal.vira) : null, maoSpecial: special.type ? special : null,
+  });
+  truco.reveals = {};
+  truco.maoSpecial = special;
+  truco.onzeDecided = special.type !== 'maoDe';
+  renderTruco();
+}
+function truCardObj(s) { const [r, su] = String(s).split(':'); return { r, s: su }; }
+
+// -- jogo --
+function feedT(ev) { if (truco && truco.st) { const nx = reduceT(truco.st, ev); const changed = nx !== truco.st; truco.st = nx; return changed; } return false; }
+async function onTplay(fx) {
+  if (!truco || !truco.st || fx.h !== truco.handIdx) return;
+  const card = truCardObj(fx.reveal.card);
+  const okSeal = await verifyPlayReveal({ i: fx.reveal.i, card, salt: fx.reveal.salt }, truco.deal.commits);
+  if (!okSeal) { ui.toast(t('tru.badSeal', { name: truName(fx.from) })); return; }
+  if (feedT({ t: 'play', p: fx.from, card })) {
+    (truco.reveals[fx.from] = truco.reveals[fx.from] || []).push(fx.reveal);
+    afterTrucoStep();
+  }
+}
+function onTraise(fx) { if (truco && fx.h === truco.handIdx && feedT({ t: 'raise', p: fx.from })) afterTrucoStep(); }
+function onTresp(fx) {
+  if (!truco || fx.h !== truco.handIdx) return;
+  if (!feedT({ t: 'resp', p: fx.from, r: fx.r })) return;
+  // o PROPONENTE fecha a resposta: imediato no 1v1, graça de 1,2s no 2v2 (o parceiro pode gritar mais alto)
+  const pend = truco.st.pend;
+  if (pend && truTeamOfId(self) === pend.byTeam && truMySeat() === Math.min(...truco.order.map((id, i) => teamOf(i) === pend.byTeam ? i : 99).filter((x) => x < 99))) {
+    clearTimeout(truRespTimer);
+    const gid = truco.gameId, h = truco.handIdx;
+    truRespTimer = setTimeout(() => {
+      if (truco && truco.gameId === gid && truco.handIdx === h && truco.st && truco.st.pend) {
+        gameFx({ kind: 'truco', ph: 'trespclose', gameId: gid, h });
+        if (feedT({ t: 'respClose' })) afterTrucoStep();
+      }
+    }, truco.n === 2 ? 60 : 1200);
+  }
+  afterTrucoStep();
+}
+function onTrespclose(fx) { if (truco && fx.h === truco.handIdx && feedT({ t: 'respClose' })) afterTrucoStep(); }
+function onTonze(fx) {
+  if (!truco || fx.h !== truco.handIdx || !truco.maoSpecial || truco.maoSpecial.type !== 'maoDe') return;
+  if (fx.from && truTeamOfId(fx.from) !== truco.maoSpecial.team) return; // só o time da mão de onze decide
+  truco.onzeDecided = true;
+  if (!fx.play) {
+    const other = 1 - truco.maoSpecial.team;
+    truco.st = { ...truco.st, over: true, winnerTeam: other, points: truco.maoSpecial.foldGives, reason: 'correu da mão' };
+  }
+  afterTrucoStep();
+}
+function myTruPlay(cardStrArg) {
+  if (!truco || !truco.st || truco.st.over || !truco.onzeDecided) return;
+  if (truco.st.order[truco.st.turnIdx] !== self || truco.st.pend) return;
+  const m = (truco.deal.mine || []).find((x) => x.card === cardStrArg && !x.played);
+  if (!m) return;
+  m.played = true;
+  gameFx({ kind: 'truco', ph: 'tplay', gameId: truco.gameId, h: truco.handIdx, from: self, reveal: { i: m.i, card: m.card, salt: m.salt } });
+  onTplay({ h: truco.handIdx, from: self, reveal: { i: m.i, card: m.card, salt: m.salt } });
+  sound.pop();
+}
+function myTruRaise() {
+  if (!truco || !truco.st || truco.st.over || truco.st.pend || truco.maoSpecial.type) return;
+  if (!truCanRaise(truco.variant, truco.st.stake, truco.st.lastRaiserTeam, truTeamOfId(self))) return;
+  gameFx({ kind: 'truco', ph: 'traise', gameId: truco.gameId, h: truco.handIdx, from: self });
+  if (feedT({ t: 'raise', p: self })) afterTrucoStep();
+  sound.challenge();
+}
+function myTruResp(r) {
+  if (!truco || !truco.st || !truco.st.pend) return;
+  gameFx({ kind: 'truco', ph: 'tresp', gameId: truco.gameId, h: truco.handIdx, from: self, r });
+  onTresp({ h: truco.handIdx, from: self, r });
+}
+function myTruOnze(play) {
+  if (!truco || !truco.maoSpecial || truco.maoSpecial.type !== 'maoDe' || truco.onzeDecided) return;
+  gameFx({ kind: 'truco', ph: 'tonze', gameId: truco.gameId, h: truco.handIdx, from: self, play });
+  onTonze({ h: truco.handIdx, from: self, play });
+}
+
+// -- fim de mão / partida --
+function afterTrucoStep() {
+  if (!truco) return;
+  if (truco.st && truco.st.over) {
+    const stw = truco.st;
+    if (stw.winnerTeam != null && !truco.scored) {
+      truco.scored = true;
+      const res = applyResult(truco.score, stw.winnerTeam, stw.points, truco.variant);
+      truco.score = res.score;
+      if (res.winner != null) { truco.over = true; truco.winnerTeam = res.winner; truFinishGame(); }
+      else {
+        clearTimeout(truNextTimer);
+        const gid = truco.gameId, h = truco.handIdx;
+        truNextTimer = setTimeout(() => {
+          if (!truco || truco.gameId !== gid || truco.handIdx !== h) return;
+          truco.handIdx += 1; truco.st = null; truco.deal = null; truco.scored = false; truco.reveals = {};
+          renderTruco();
+          truHandStart(); // só o novo dealer emite (os outros ficam no aguardo)
+        }, 2600);
+      }
+    }
+  }
+  renderTruco();
+}
+async function truFinishGame() {
+  if (!truco) return;
+  if (gameMinned.has('truco')) reopenGame('truco');
+  // auditoria: cada ex-dealer abre baralho+salt+master das mãos que deu
+  for (const [h, open] of Object.entries(truco.opens)) {
+    gameFx({ kind: 'truco', ph: 'topen', gameId: truco.gameId, h: Number(h), ...open });
+  }
+  truco.audits = truco.audits || {};
+  tryTruAudit();
+  if (truco.winnerTeam === truTeamOfId(self)) { sound.cheers(); ui.celebrate(['🃏', '🏆', '🍻']); } else { sound.alarm(); ui.vibrate([80, 40, 80]); }
+  renderTruco();
+}
+async function onTopen(fx) {
+  if (!truco || !truco.over) { trucoPreFx.push(fx); return; }
+  truco.audits = truco.audits || {};
+  truco.audits[fx.h] = { deck: fx.deck, salt: fx.salt, master: fx.master };
+  tryTruAudit();
+}
+async function tryTruAudit() {
+  if (!truco || !truco.over || truco.auditDone) return;
+  // audita as mãos que temos material (a corrente sempre; anteriores conforme topen chega)
+  const pend = truco.dealsSeen || {};
+  let ok = true; let n = 0;
+  for (const [h, mat] of Object.entries({ ...truco.audits, ...truco.opens })) {
+    const pub = pend[h];
+    if (!pub || !mat) continue;
+    const res = await verifyHandAudit({ deckCut: cutDeck(mat.deck.map ? mat.deck.map(truCardObj) : mat.deck, await combineSeeds(pub.seeds)), master: mat.master, commits: pub.commits });
+    n++;
+    if (!res.ok) ok = false;
+    const dcRe = await sha256Hex(JSON.stringify(mat.deck.map ? mat.deck.map((c) => (typeof c === 'string' ? c : truStr(c))) : mat.deck) + ':' + mat.salt);
+    if (dcRe !== pub.dc) ok = false;
+  }
+  if (n) { truco.auditDone = true; truco.auditOk = ok; ui.toast(ok ? t('tru.auditOk') : t('tru.auditBad')); renderTruco(); }
+}
+function cancelTruco(broadcast) {
+  if (!truco) return;
+  if (broadcast && !truco.over) gameFx({ kind: 'truco', ph: 'tcancel', gameId: truco.gameId, from: self });
+  truco = null; clearTimeout(truRespTimer); clearTimeout(truNextTimer); clearTimeout(truCloseWatch);
+}
+
+function routeTrucoFx(fx) {
+  if (fx.ph === 'tsetup') { if (!truco || truco.gameId !== fx.gameId) { beginTruco({ gameId: fx.gameId, variant: fx.variant, order: fx.order }); } return; }
+  if (fx.ph === 'tcancel') {
+    if (truco && truco.gameId === fx.gameId && !truco.over) {
+      truco = null; clearGameMin('truco'); ui.closeOverlays();
+      ui.toast(fx.from ? t('tru.endedBy', { name: truName(fx.from) }) : t('tru.cancelled'));
+    }
+    return;
+  }
+  if (!truco || truco.gameId !== fx.gameId) { trucoPreFx.push(fx); if (trucoPreFx.length > 80) trucoPreFx.shift(); return; }
+  if (fx.ph === 'tdeal') truco.dealsSeen = { ...(truco.dealsSeen || {}), [fx.h]: fx };
+  if (fx.ph === 'thseal') onThseal(fx);
+  else if (fx.ph === 'thseed') onThseed(fx);
+  else if (fx.ph === 'thgo') onThgo(fx);
+  else if (fx.ph === 'thseedrev') onThseedrev(fx);
+  else if (fx.ph === 'tdeal') onTdeal(fx);
+  else if (fx.ph === 'thand') onThand(fx);
+  else if (fx.ph === 'tplay') onTplay(fx);
+  else if (fx.ph === 'traise') onTraise(fx);
+  else if (fx.ph === 'tresp') onTresp(fx);
+  else if (fx.ph === 'trespclose') onTrespclose(fx);
+  else if (fx.ph === 'tonze') onTonze(fx);
+  else if (fx.ph === 'topen') onTopen(fx);
+}
+
+// -- ponte pra UI --
+function renderTruco() {
+  if (!truco) return;
+  const st = truco.st;
+  const v = TRU_VARIANTS[truco.variant];
+  const myTeam = truTeamOfId(self);
+  const vm = {
+    variant: truco.variant, score: truco.score, myTeam, target: v.target,
+    handshake: !st ? t('tru.shuffling', { name: truName(truco.order[truDealerIdx()]) }) : null,
+    stake: st ? st.stake : v.start, vira: truco.deal && truco.deal.vira,
+    over: truco.over, gameOver: truco.over,
+    audit: truco.auditDone ? (truco.auditOk ? 'ok' : 'bad') : null,
+  };
+  if (st) {
+    const seatTurn = st.order[st.turnIdx];
+    vm.handOver = st.over;
+    vm.turnName = st.over ? '' : (seatTurn === self ? t('tru.yourTurn') : t('tru.turnOf', { name: truName(seatTurn) }));
+    vm.myTurn = !st.over && seatTurn === self && !st.pend && truco.onzeDecided;
+    vm.table = st.vazas.flatMap((vz, vi) => vz.map((pl) => ({ card: pl.card, name: truName(pl.p), avatar: profOf(pl.p).emoji, vaza: vi, self: pl.p === self })));
+    vm.results = st.results;
+    vm.mine = (truco.deal.mine || []).filter((m) => !m.played).map((m) => ({ card: m.card }));
+    vm.pend = st.pend ? {
+      label: raiseLabel(truco.variant, st.pend.value), value: st.pend.value,
+      mine: st.pend.byTeam === myTeam,
+      canRaiseBack: truNext(truco.variant, st.pend.value) != null,
+    } : null;
+    vm.canRaise = !st.over && !st.pend && !truco.maoSpecial.type && truCanRaise(truco.variant, st.stake, st.lastRaiserTeam, myTeam) && truco.onzeDecided;
+    vm.raiseLabel = raiseLabel(truco.variant, truNext(truco.variant, st.stake) || st.stake);
+    vm.onze = truco.maoSpecial.type === 'maoDe' && !truco.onzeDecided
+      ? { mine: truco.maoSpecial.team === myTeam, value: truco.maoSpecial.value } : null;
+    if (st.over) {
+      vm.handResult = st.winnerTeam == null ? t('tru.handDraw')
+        : t(st.winnerTeam === myTeam ? 'tru.handWon' : 'tru.handLost', { n: st.points });
+    }
+  }
+  if (truco.over) vm.gameResult = t(truco.winnerTeam === myTeam ? 'tru.gameWon' : 'tru.gameLost');
+  ui.renderTruco(vm);
+  updateGamePill();
+}
+
 // ---- Cutucar / desafiar ----
 function openPokeFor(user) {
   const items = ['dose', 'cerveja', 'drink'].map((id) => { const d = resolveItem(id); return { id, emoji: d.emoji, name: d.name }; });
@@ -1705,6 +2054,19 @@ const handlers = {
     cancelPurrinha(true); clearGameMin('purr'); ui.closeOverlays(); ui.toast(t('purr.ended'));
   }),
   onDomino: () => startDominoVerified(), // sempre mesa verificada (regras iguais; só o embaralho é auditável)
+  onTruco: startTruco,
+  onTrucoStart: (variant) => startTrucoVariant(variant),
+  onTrucoPlay: (card) => myTruPlay(card),
+  onTrucoRaise: myTruRaise,
+  onTrucoResp: (r) => myTruResp(r),
+  onTrucoOnze: (play) => myTruOnze(play),
+  onTrucoClose: () => {
+    if (truco && !truco.over) { minimizeGame('truco'); return; }
+    cancelTruco(false); clearGameMin('truco'); ui.closeOverlays();
+  },
+  onTrucoEnd: () => ui.actionToast(t('tru.endConfirm'), t('game.end'), () => {
+    cancelTruco(true); clearGameMin('truco'); ui.closeOverlays(); ui.toast(t('tru.ended'));
+  }),
   onDomPlay: (key, side) => myDomPlay(key, side),
   onDomPass: myDomPass,
   onDomClose: () => {
@@ -1718,7 +2080,8 @@ const handlers = {
   }),
   onGameBack: () => {
     const domTurn = gameMinned.has('dom') && dom && !dom.over && dom.order[dom.turnIdx] === self;
-    const kind = domTurn || gameMinned.has('dom') ? 'dom' : (gameMinned.has('purr') ? 'purr' : null);
+    const truTurn = gameMinned.has('truco') && truco && truco.st && !truco.st.over && truco.st.order[truco.st.turnIdx] === self;
+    const kind = domTurn ? 'dom' : (truTurn ? 'truco' : (gameMinned.has('dom') ? 'dom' : (gameMinned.has('truco') ? 'truco' : (gameMinned.has('purr') ? 'purr' : null))));
     if (kind) reopenGame(kind);
   },
   onPoke: openPokeFor,

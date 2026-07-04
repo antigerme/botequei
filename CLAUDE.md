@@ -90,6 +90,17 @@ padrão Auto segue o navegador).
   28, corte confere, mãos batem) — trapaça no deal é **pega** (badge 🔒✅/🚫). Só o dono ainda vê
   as mãos (tirar isso = mental poker, pesado demais). Jogadas de jogo vão por **gossip com dedup**
   (`gameFx`) pra chegar em todos mesmo com malha incompleta (4 pessoas = 6 links).
+- **Truco (jogo P2P, 3 variantes)** (`js/truco.js` puro + protocolo no `app.js`): partida de
+  placar corrido (12/24) em MÃOS; cada mão tem embaralho do dealer da vez com commit do
+  baralho + corte coletivo (seeds commit-reveal, fases `thseal`/`thseed`/`thgo`/`thseedrev`)
+  e **lacre POR CARTA** (`tdeal` publica commits por posição; a mão vai privada via `sendTo`
+  em `thand`; cada `tplay` revela {carta,salt} e TODO peer valida na hora). Apostas por
+  `traise`/`tresp`/`trespclose` (o PROPONENTE fecha após graça de 1,2s no 2v2 — resposta da
+  dupla é CRDT max: fold<accept<raise). Mão de onze/dez via `tonze` (só o time da regra).
+  Fim de partida: `topen` abre master+baralho de cada mão e todos auditam (badge 🔒✅/🚫).
+  `tcancel` com `from`; ✕ minimiza (pill, padrão dos outros jogos). Estado da mão =
+  reducer determinístico do motor (`reduceT`) — evento fora de hora morre igual em todos.
+  Envido/flor da gaúcha ficam pro T3 (o motor já sabe).
 - **Competição & coach (puro)**: `js/tournament.js` (placar acumulado por pessoa entre noites —
   pontos por aparecer + hidratar, não por beber mais), `js/deck.js` (cartas de desafio) e o coach
   em `js/stats.js` (`projectAt` = previsão de ritmo até a meia-noite, `coachTips`). Mãos livres:

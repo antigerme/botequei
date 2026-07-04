@@ -5,7 +5,12 @@
 {
   "name": "botequei",
   "main": "worker/index.mjs",
-  "compatibility_date": "2026-07-01",
+  // Data CONSERVADORA de propósito: o `wrangler dev` roda o workerd que veio JUNTO do
+  // wrangler instalado, e ele só aceita datas até a versão dele — data "de hoje" quebra o
+  // dev/CI de quem estiver com um wrangler de semanas atrás ("requires compatibility date X,
+  // but the newest supported is Y"). Nada que o worker usa exige data recente; em produção
+  // qualquer data passada é sempre aceita. Só avance se precisar de um default novo do runtime.
+  "compatibility_date": "2026-04-01",
 
   // O site inteiro (raiz do repo) vira asset estático servido pela borda da Cloudflare.
   // run_worker_first: SÓ estas rotas acordam o Worker — todo o resto sai direto dos

@@ -22,22 +22,22 @@ const H = 3600000;
 {
   const now = 5 * H;
   const log = [
-    ADD('me', 'cerveja', 0),          // 5h atrás
-    ADD('me', 'cerveja', 1 * H),      // 4h atrás
-    ADD('me', 'cerveja', now - 1800000), // 30min
-    ADD('me', 'cerveja', now - 600000),  // 10min
-    ADD('me', 'cerveja', now - 300000),  // 5min
-    ADD('other', 'cerveja', now - 60000), // não é meu
+    ADD('me', 'lata', 0),          // 5h atrás
+    ADD('me', 'lata', 1 * H),      // 4h atrás
+    ADD('me', 'lata', now - 1800000), // 30min
+    ADD('me', 'lata', now - 600000),  // 10min
+    ADD('me', 'lata', now - 300000),  // 5min
+    ADD('other', 'lata', now - 60000), // não é meu
   ];
   const p = paceInfo(log, 'me', resolve, { now });
   assert.strictEqual(p.count, 5);
-  assert.strictEqual(p.grams, 65); // 5 × 13g
+  assert.strictEqual(p.grams, 70); // 5 latas × 14g
   assert.strictEqual(p.recent, 3); // últimas 3 dentro de 1h
   assert.strictEqual(p.firstTs, 0);
   assert.strictEqual(p.level, 'medio'); // 3 na última hora
   ok('ritmo: conta total, gramas, "última hora" e nível');
 
-  const p2 = paceInfo([...log, REM('me', 'cerveja', now - 120000)], 'me', resolve, { now });
+  const p2 = paceInfo([...log, REM('me', 'lata', now - 120000)], 'me', resolve, { now });
   assert.strictEqual(p2.count, 4);
   assert.strictEqual(p2.recent, 2); // remove abateu uma da última hora
   ok('ritmo: REMOVE abate do total e da janela recente');
@@ -52,7 +52,7 @@ const H = 3600000;
 // ---------- Linha do tempo ----------
 {
   const now = 6000;
-  const log = [ADD('me', 'cerveja', 0), ADD('me', 'cerveja', 500), ADD('me', 'cerveja', 1500), ADD('me', 'cerveja', 5500)];
+  const log = [ADD('me', 'lata', 0), ADD('me', 'lata', 500), ADD('me', 'lata', 1500), ADD('me', 'lata', 5500)];
   const t = timeline(log, 'me', resolve, { now, buckets: 6 });
   assert.strictEqual(t.bars.length, 6);
   assert.deepStrictEqual(t.bars, [2, 1, 0, 0, 0, 1]);
@@ -169,16 +169,16 @@ const H = 3600000;
 // ---------- Segurança: última dose / hidratação / veredito ----------
 {
   const now = 10000;
-  const log = [ADD('me', 'cerveja', 1000), ADD('me', 'cerveja', 3000), ADD('me', 'agua', 5000)];
+  const log = [ADD('me', 'lata', 1000), ADD('me', 'lata', 3000), ADD('me', 'agua', 5000)];
   const ld = lastDrinkAt(log, 'me', resolve, { now });
   assert.strictEqual(ld.ts, 3000); // água (5000) não conta
   assert.strictEqual(ld.agoMs, 7000);
   assert.strictEqual(lastDrinkAt([ADD('me', 'agua', 1)], 'me', resolve, { now }), null);
   ok('última dose: ignora água, mede o tempo desde o último álcool');
 
-  const h1 = hydration([ADD('me', 'cerveja', 1), ADD('me', 'cerveja', 2), ADD('me', 'cerveja', 3), ADD('me', 'cerveja', 4), ADD('me', 'agua', 5), ADD('me', 'agua', 6)], 'me', resolve);
+  const h1 = hydration([ADD('me', 'lata', 1), ADD('me', 'lata', 2), ADD('me', 'lata', 3), ADD('me', 'lata', 4), ADD('me', 'agua', 5), ADD('me', 'agua', 6)], 'me', resolve);
   assert.strictEqual(h1.alc, 4); assert.strictEqual(h1.water, 2); assert.strictEqual(h1.level, 'good');
-  assert.strictEqual(hydration([ADD('me', 'cerveja', 1)], 'me', resolve).level, 'low');
+  assert.strictEqual(hydration([ADD('me', 'lata', 1)], 'me', resolve).level, 'low');
   assert.strictEqual(hydration([ADD('me', 'agua', 1)], 'me', resolve).level, 'none');
   ok('hidratação: razão água/álcool vira nível');
 
@@ -231,7 +231,7 @@ const H = 3600000;
 {
   const H = 3600000, now = 2 * H;
   // 3 bebidas na última hora, 4 no total
-  const log = [ADD('me', 'cerveja', 0), ADD('me', 'cerveja', now - 1800000), ADD('me', 'cerveja', now - 600000), ADD('me', 'cerveja', now - 60000)];
+  const log = [ADD('me', 'lata', 0), ADD('me', 'lata', now - 1800000), ADD('me', 'lata', now - 600000), ADD('me', 'lata', now - 60000)];
   const pr = projectAt(log, 'me', resolve, { now, targetTs: now + 2 * H });
   assert.strictEqual(pr.count, 4);
   assert.strictEqual(pr.perHour, 3);

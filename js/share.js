@@ -10,7 +10,7 @@ export function recapText(state, resolveItem) {
   const title = (t.emoji || '🍺') + ' ' + (t.title || 'Mesa do Botequei');
   const rows = summary(state, resolveItem).filter((r) => r.total > 0).slice(0, 8);
   const lines = rows.map((r) => `${r.emoji || '🍺'} ${r.name || 'anônimo'}: ${r.total}`);
-  return `${title}\nTotal da mesa: ${tableTotal(state)} 🍺\n${lines.join('\n')}\n\nfeito no Botequei`;
+  return `${title}\nTotal da mesa: ${tableTotal(state, resolveItem)} 🍺\n${lines.join('\n')}\n\nfeito no Botequei`;
 }
 
 async function renderCard(state, resolveItem) {
@@ -35,7 +35,7 @@ async function renderCard(state, resolveItem) {
 
   g.fillStyle = '#ffb92e';
   g.font = 'bold 220px system-ui, sans-serif';
-  g.fillText(String(tableTotal(state)), W / 2, 560);
+  g.fillText(String(tableTotal(state, resolveItem)), W / 2, 560);
   g.fillStyle = '#b3a488';
   g.font = '48px system-ui, sans-serif';
   g.fillText('rodadas na mesa', W / 2, 630);

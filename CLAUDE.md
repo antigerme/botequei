@@ -165,7 +165,12 @@ padrão Auto segue o navegador).
   (puro: motorista fora por padrão, toggle "todos", fallback se só tem motorista); o card tem
   a zona "🥂 meu copo" (item `copo`, `cup:1`, R$0 e g=11) = dose PESSOAL que alimenta
   BAC/estatísticas e não vira card próprio. `userTotal`/`userMoney`/`summary` aceitam
-  `resolveItem` e excluem share do pessoal; `tableTotal` soma tudo (herói é da mesa).
+  `resolveItem` e excluem share do pessoal; `tableTotal` (herói) soma os PEDIDOS —
+  exclui `cup` (o copo derivaria dupla contagem da garrafa que já contou).
+  **Cardápio da mesa** (ex-"Preços", `menu-prices`): cada item aceita **marca/apelido**
+  (`brand` no def, LWW — `itemLabel` prioriza) e **esconder** (`off` no def — cards/rodada/
+  contador gigante filtram; a lista do editor mostra esmaecido pra reativar; contagens e
+  conta não mudam). Duas marcas do mesmo formato ao mesmo tempo = criar item custom.
 - **Consciência & estatísticas (puro)**: `js/stats.js` (ritmo, linha do tempo, teor alcoólico por
   Widmark — peso/sexo locais, **não é bafômetro** —, `lastDrinkAt`/`hydration`/`driveVerdict`) e
   `js/lifestats.js` (média/recorde/mês/favorita/streak + `monthlyTrend`/`weekdayInsight`/`retro`/

@@ -441,8 +441,13 @@ body.light .bill-pool { background: rgba(178, 108, 0, .06); }
 .brinde.go .brinde-count { animation: pop .4s ease; }
 .toast-action { color: var(--gold); }
 .price-list { list-style: none; padding: 0; margin: 0; }
-.price-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--chalk-line); }
-.price-row input { width: 110px; background: var(--card); border: 1.5px solid var(--line); color: var(--cream); border-radius: 10px; padding: 10px; font-size: 16px; font-family: system-ui, sans-serif; }
+.price-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px dashed var(--chalk-line); }
+.price-row input { background: var(--card); border: 1.5px solid var(--line); color: var(--cream); border-radius: 10px; padding: 10px; font-size: 16px; font-family: system-ui, sans-serif; }
+.price-row .pr-emoji { font-size: 22px; flex: 0 0 auto; }
+.price-row .pr-brand { flex: 1; min-width: 0; }
+.price-row .pr-price { width: 88px; flex: 0 0 auto; }
+.price-row .pr-eye { flex: 0 0 auto; background: none; border: 0; font-size: 20px; padding: 6px; cursor: pointer; opacity: .8; }
+.price-row.off .pr-emoji, .price-row.off .pr-brand, .price-row.off .pr-price { opacity: .4; }
 
 /* Comemoração de marcos (confete de emoji, cai do topo) */
 .confetti { position: absolute; top: -8vh; will-change: transform;

@@ -114,6 +114,8 @@ async function main() {
     await pageB.waitForFunction(() => document.querySelector('.item-card[data-item="cerveja"] .item-cup-n')?.textContent.trim() === '1', null, { timeout: T });
     const cupA = await pageA.evaluate(() => document.querySelector('.item-card[data-item="cerveja"] .item-cup-n')?.textContent.trim());
     if (cupA !== '0') throw new Error('contador do copo é PESSOAL — em A deveria seguir 0, vi ' + cupA);
+    const totB = (await pageB.textContent('#table-total')).trim();
+    if (totB !== '1') throw new Error('copo NÃO sobe o "a mesa mandou" (a garrafa já contou) — vi ' + totB);
     await pageB.click('.item-card[data-item="chopp"]'); // e um chopp individual (estatística da Bia)
     await pageA.waitForTimeout(400);
   });
@@ -121,8 +123,8 @@ async function main() {
   await step('conta: bolo da mesa aparece com preço e racheia entre os dois', async () => {
     await pageA.click('#btn-menu'); await pageA.click('#menu-prices');
     await visible(pageA, 'overlay-prices');
-    await pageA.fill('#price-list input[data-id="cerveja"]', '12');
-    await pageA.$eval('#price-list input[data-id="cerveja"]', (e) => e.dispatchEvent(new Event('change')));
+    await pageA.fill('.price-row[data-id="cerveja"] .pr-price', '12');
+    await pageA.$eval('.price-row[data-id="cerveja"] .pr-price', (e) => e.dispatchEvent(new Event('change')));
     await closeAll(pageA);
     await pageA.click('#btn-menu'); await pageA.click('#menu-bill');
     await visible(pageA, 'overlay-bill');
@@ -132,6 +134,19 @@ async function main() {
       return p && !p.hidden && l && l.textContent.includes('12') && l.textContent.includes('× 2');
     }, null, { timeout: T });
     await closeAll(pageA);
+  });
+
+  await step('cardápio da mesa: marca "Original" e item escondido valem pra TODOS', async () => {
+    await pageA.click('#btn-menu'); await pageA.click('#menu-prices');
+    await visible(pageA, 'overlay-prices');
+    await pageA.fill('.price-row[data-id="cerveja"] .pr-brand', 'Original');
+    await pageA.$eval('.price-row[data-id="cerveja"] .pr-brand', (e) => e.dispatchEvent(new Event('change')));
+    await pageA.click('.price-row[data-id="torre"] .pr-eye'); // mesa não pediu torre hoje
+    await closeAll(pageA);
+    await Promise.all([pageA, pageB].map((p) => p.waitForFunction(() => {
+      const name = document.querySelector('.item-card[data-item="cerveja"] .item-name')?.textContent;
+      return name === 'Original' && !document.querySelector('.item-card[data-item="torre"]');
+    }, null, { timeout: T })));
   });
 
   await step('roleta: mesmo vencedor nos dois aparelhos', async () => {

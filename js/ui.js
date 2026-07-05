@@ -738,10 +738,17 @@ function submitAddItem() {
 
 // ---------- Preços ----------
 export function openPrices(items) {
-  el['price-list'].innerHTML = items.map((it) => `<li class="price-row">
-    <span>${esc(it.emoji)} ${esc(it.name)}</span>
-    <input type="number" inputmode="decimal" min="0" step="0.5" value="${it.price || ''}" data-id="${esc(it.id)}" placeholder="${t('add.pricePh')}" /></li>`).join('');
-  el['price-list'].querySelectorAll('input').forEach((inp) => inp.addEventListener('change', () => H.onPriceChange(inp.dataset.id, inp.value)));
+  el['price-list'].innerHTML = items.map((it) => `<li class="price-row${it.off ? ' off' : ''}" data-id="${esc(it.id)}">
+    <span class="pr-emoji">${esc(it.emoji)}</span>
+    <input class="pr-brand" type="text" maxlength="28" value="${esc(it.brand || '')}" placeholder="${esc(it.name)}" aria-label="${t('prices.brandAria')}" />
+    <input class="pr-price" type="number" inputmode="decimal" min="0" step="0.5" value="${it.price || ''}" placeholder="${t('add.pricePh')}" aria-label="${t('prices.priceAria')}" />
+    <button class="pr-eye" type="button" title="${t(it.off ? 'prices.show' : 'prices.hide')}" aria-label="${t(it.off ? 'prices.show' : 'prices.hide')}">${it.off ? '🚫' : '👁'}</button></li>`).join('');
+  el['price-list'].querySelectorAll('li').forEach((li) => {
+    const id = li.dataset.id;
+    li.querySelector('.pr-price').addEventListener('change', (e) => H.onPriceChange(id, e.target.value));
+    li.querySelector('.pr-brand').addEventListener('change', (e) => H.onBrandChange(id, e.target.value));
+    li.querySelector('.pr-eye').addEventListener('click', () => H.onItemToggle(id));
+  });
   el['overlay-prices'].hidden = false;
 }
 

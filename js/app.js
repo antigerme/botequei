@@ -142,10 +142,15 @@ function allItems() {
   customs.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   return out.concat(customs);
 }
-// Nome de exibição de um item: PADRÃO é localizado no aparelho (o evento carrega só o id,
-// então cada peer vê no próprio idioma — a dor "na Europa cerveja é chopp"); item
-// PERSONALIZADO é dado da mesa e fica como foi digitado.
-function itemLabel(def) { return def && isDefault(def.id) ? t('item.' + def.id) : ((def && def.name) || ''); }
+// Nome de exibição de um item: a MARCA/apelido da mesa (dado da mesa, LWW) vence tudo
+// ("Original", "Coca 2L"); sem marca, item PADRÃO é localizado no aparelho (o evento
+// carrega só o id — a dor "na Europa cerveja é chopp") e item PERSONALIZADO fica como
+// foi digitado.
+function itemLabel(def) {
+  if (!def) return '';
+  if (def.brand) return def.brand;
+  return isDefault(def.id) ? t('item.' + def.id) : (def.name || '');
+}
 
 function profOf(user) {
   const p = getProfile(state, user);
@@ -158,7 +163,7 @@ function ingest(ev) {
   seen.add(ev.eventId); log.push(ev); applyEvent(state, ev); scheduleSave();
   return true;
 }
-function rebuildFrom(events) { log = []; seen = new Set(); state = emptyState(); for (const ev of events) ingest(ev); lastTableMilestone = Math.floor(tableTotal(state) / 10); const hh0 = happyHour(state); hhEndedFor = hh0 && hh0.until <= Date.now() ? hh0.until : 0; }
+function rebuildFrom(events) { log = []; seen = new Set(); state = emptyState(); for (const ev of events) ingest(ev); lastTableMilestone = Math.floor(tableTotal(state, resolveItem) / 10); const hh0 = happyHour(state); hhEndedFor = hh0 && hh0.until <= Date.now() ? hh0.until : 0; }
 function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { if (room) store.saveEvents(room, log); }, 400); }
 
 // evento local: registra + propaga
@@ -250,7 +255,7 @@ function callCar() {
 }
 // Marco da mesa: a cada 10 rodadas, joga confete + aviso. Reajusta se desfizerem.
 function checkTableMilestone() {
-  const total = tableTotal(state);
+  const total = tableTotal(state, resolveItem);
   const m = Math.floor(total / 10);
   if (total > 0 && m > lastTableMilestone) {
     lastTableMilestone = m;
@@ -267,13 +272,13 @@ function tickHappyHour() {
   if (hh && hh.until > now) {
     const r = hh.until - now;
     const mm = Math.floor(r / 60000), ss = Math.floor((r % 60000) / 1000);
-    const rounds = Math.max(0, tableTotal(state) - hh.startTotal);
+    const rounds = Math.max(0, tableTotal(state, resolveItem) - hh.startTotal);
     ui.setHappyHour(t(rounds === 1 ? 'hh.banner1' : 'hh.bannerN', { time: `${mm}:${String(ss).padStart(2, '0')}`, n: rounds }));
   } else {
     ui.setHappyHour(null);
     if (hh && hh.until && hhEndedFor !== hh.until) {
       hhEndedFor = hh.until;
-      const rounds = Math.max(0, tableTotal(state) - hh.startTotal);
+      const rounds = Math.max(0, tableTotal(state, resolveItem) - hh.startTotal);
       if (rounds > 0) { ui.celebrate(['🍺', '🏆', '🎉', '🥂']); ui.toast(t(rounds === 1 ? 'hh.closed1' : 'hh.closedN', { n: rounds })); }
     }
   }
@@ -291,7 +296,7 @@ function addCustomItem({ emoji, name, price, cat, note, share }) {
 // inclui todo mundo. ----
 function roundChoices() {
   return allItems()
-    .filter((it) => !isShare(it) && ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it)))
+    .filter((it) => !isShare(it) && !it.off && ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it)))
     .map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it) }));
 }
 function rodada(item) {
@@ -310,7 +315,7 @@ function rodada(item) {
   ui.floatReaction(def.emoji || '🍻'); ui.floatReaction('🍻'); sound.cheers();
   ui.celebrate([def.emoji || '🍻', '🎉', '🥂']);
   afterChange(item, 'add');
-  lastTableMilestone = Math.floor(tableTotal(state) / 10); // sincroniza o marco (evita confete duplo)
+  lastTableMilestone = Math.floor(tableTotal(state, resolveItem) / 10); // sincroniza o marco (evita confete duplo)
   ui.toast(n ? t('toast.roundN', { n: n }) : t('toast.round0'));
 }
 
@@ -411,7 +416,7 @@ function onRemoteEvent(ev, fromPeer, isSync) {
   if (mesh) mesh.broadcast({ k: 'ev', ev }, fromPeer); // gossip
   if (ev.type === 'HAPPYHOUR' && Number(ev.until) <= Date.now()) hhEndedFor = Number(ev.until); // happy hour já vencido (veio no sync): não comemora
   if (ev.type === 'ADD' && ev.user === self) checkLimit(); // alguém somou pra mim (rodada)
-  if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state) / 10); scheduleRender(); return; }
+  if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state, resolveItem) / 10); scheduleRender(); return; }
   if (ev.type === 'ADD') checkTableMilestone();
   if (ev.type === 'SONG') ui.renderJukebox(songs(state));
   if (ev.type === 'ADD' && ev.user !== self) {
@@ -438,7 +443,7 @@ function render() {
   const list = allItems();
   // copo da mesa não vira card (mora DENTRO dos cards compartilhados); share mostra o
   // contador DA MESA no número grande e os MEUS copos na zona de baixo
-  const items = list.filter((it) => !isCup(it)).map((it) => ({
+  const items = list.filter((it) => !isCup(it) && !it.off).map((it) => ({
     id: it.id, emoji: it.emoji, name: itemLabel(it), cat: catOf(it), note: it.note || '',
     share: isShare(it),
     qty: itemTotal(state, it.id),
@@ -446,7 +451,7 @@ function render() {
     cups: isShare(it) ? getCount(state, self, 'copo') : 0,
   }));
   const info = tableInfo(state);
-  const tt = tableTotal(state);
+  const tt = tableTotal(state, resolveItem);
   ui.renderTable({
     code: room,
     title: info.title || '',
@@ -498,8 +503,20 @@ function renderPeers() {
 
 function bebedeiraItem() {
   let best = 'chopp', bestN = -1;
-  for (const it of allItems()) { if (isShare(it) || isCup(it)) continue; const n = getCount(state, self, it.id); if (n > bestN) { bestN = n; best = it.id; } }
+  for (const it of allItems()) { if (isShare(it) || isCup(it) || it.off) continue; const n = getCount(state, self, it.id); if (n > bestN) { bestN = n; best = it.id; } }
   return best;
+}
+
+// Linhas da tela "Cardápio da mesa" (marca + preço + esconder). Itens OCULTOS aparecem
+// aqui (esmaecidos, pra poder voltar) — é só dos CARDS da mesa que eles somem.
+function menuEditorItems() {
+  return allItems().filter((it) => !isCup(it)).map((it) => ({
+    ...it,
+    brand: it.brand || '',
+    off: !!it.off,
+    // placeholder do campo de marca = o que o item É sem marca (rótulo localizado)
+    name: isDefault(it.id) ? t('item.' + it.id) : (it.name || ''),
+  }));
 }
 
 // ---- Mesa ----
@@ -617,7 +634,7 @@ function leaveTable() {
     const info = tableInfo(state);
     store.pushHistory({
       room, at: Date.now(),
-      myTotal: userTotal(state, self, resolveItem), tableTotal: tableTotal(state),
+      myTotal: userTotal(state, self, resolveItem), tableTotal: tableTotal(state, resolveItem),
       myMoney: userMoney(state, self, resolveItem),
       title: info.title || '',
       items: myItems(),
@@ -2208,11 +2225,24 @@ const handlers = {
     if (res === 'download') ui.toast(t('toast.imgSaved')); else if (res === 'error') ui.toast(t('toast.imgError'));
   },
   onPayFor: (user, on) => { emitLocal(makePayFor({ to: user, on })); renderBill(); },
-  onPrices: () => ui.openPrices(allItems().filter((it) => !isCup(it)).map((it) => ({ ...it, name: itemLabel(it) }))),
+  onPrices: () => ui.openPrices(menuEditorItems()),
+  onItemToggle: (id) => {
+    const it = resolveItem(id);
+    // esconder = override do def (LWW, mesa toda); contagens/conta/histórico não mudam
+    emitLocal(makeItem({ ...it, off: it.off ? 0 : 1 }));
+    render();
+    ui.openPrices(menuEditorItems()); // re-desenha a lista com o olho/esmaecido atualizados
+  },
   onPriceChange: (id, price) => {
     const it = resolveItem(id);
-    // preserva emoji/nome/g/cat/note; só troca o preço (senão perde as gramas de álcool!)
+    // preserva emoji/nome/g/cat/note/share/brand; só troca o preço (senão perde as gramas de álcool!)
     emitLocal(makeItem({ ...it, price: Math.max(0, parseFloat(String(price).replace(',', '.')) || 0) }));
+    render();
+  },
+  onBrandChange: (id, brand) => {
+    const it = resolveItem(id);
+    // marca/apelido é DADO da mesa (LWW): "Original", "Coca 2L"… vazio = volta pro rótulo padrão
+    emitLocal(makeItem({ ...it, brand: String(brand || '').trim().slice(0, 28) }));
     render();
   },
   onPix: (user) => {
@@ -2414,7 +2444,7 @@ const handlers = {
   onHappyHour: (minutes) => {
     if (!room) { ui.toast(t('toast.needTableFirst')); return; }
     hhEndedFor = 0;
-    emitLocal(makeHappyHour({ minutes, startTotal: tableTotal(state) }));
+    emitLocal(makeHappyHour({ minutes, startTotal: tableTotal(state, resolveItem) }));
     tickHappyHour();
     ui.toast(t('hh.on', { n: minutes }));
   },

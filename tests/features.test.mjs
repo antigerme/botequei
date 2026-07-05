@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs } from '../js/events.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs } from '../js/events.js';
 import { badgesFor, mvp, ceremonyAwards } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
@@ -66,6 +66,11 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.strictEqual(userTotal(s, 'a'), 7, 'sem resolver: soma tudo (compat)');
   assert.strictEqual(userTotal(s, 'a', resolve), 5, 'pessoal: garrafas da mesa ficam de fora');
   ok('compartilhado: total pessoal não conta o recipiente da mesa');
+
+  // o número grande da mesa = o que foi PEDIDO: copo NÃO soma (a garrafa dele já contou)
+  assert.strictEqual(tableTotal(s), 8, 'sem resolver: soma tudo (compat)');
+  assert.strictEqual(tableTotal(s, resolve), 6, '3 garrafas + 3 chopps; os 2 copos ficam de fora');
+  ok('compartilhado: "a mesa mandou" não conta copo (senão a mesma cerveja contaria 2×)');
 
   assert.strictEqual(userMoney(s, 'a', resolve), 27, 'só os 3 chopps (copo é R$0; garrafa é do bolo)');
   assert.strictEqual(userMoney(s, 'b', resolve), 0, 'b só marcou garrafa da mesa');

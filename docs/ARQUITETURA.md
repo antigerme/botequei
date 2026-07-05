@@ -89,6 +89,9 @@ BAC/estatísticas. Recipiente = dinheiro da mesa; copo = corpo de quem bebeu.
   (`chopp`, `cerveja`…), e cada aparelho mostra o nome via `t('item.'+id)` — na Europa a
   "cerveja" do brasileiro é o chopp deles, então o RÓTULO é percepção local (`itemLabel`
   em `app.js`), não dado. O que os peers sincronizam (id + contagem) continua idêntico.
+  Se a mesa der uma **marca** ao item ("Original", no Cardápio da mesa), aí SIM vira dado
+  da mesa (`brand` no def, LWW) e vence o rótulo local em todo lugar; `off` (esconder o
+  item dos cards) segue o mesmo caminho.
 - **Jogos confiam como na vida real**: quem embaralha é o dono da mesa; a MESA VERIFICADA
   (commit-to-deck + corte coletivo + auditoria no fim) pega trapaça no embaralho, e cada
   jogada é validada por TODOS os peers. O que não dá pra esconder sem "mental poker"

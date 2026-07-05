@@ -228,7 +228,7 @@ export function summary(state, resolveItem) {
   for (const u of state.users) {
     const p = getProfile(state, u);
     rows.push({
-      user: u, name: p.name, color: p.color, emoji: p.emoji, driver: p.driver,
+      user: u, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, driver: p.driver,
       total: userTotal(state, u),
       money: userMoney(state, u, resolveItem),
     });

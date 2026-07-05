@@ -257,7 +257,11 @@ export class Mesh {
       rec.lastSeen = Date.now();
       this._retryAt.delete(rec.id);
       this._raw(rec.id, { k: 'hello', name: this.name });
-      this._raw(rec.id, { k: 'sync', events: this.getSyncPayload() }); // anti-entropy
+      // anti-entropy em LOTES: o log cresce a noite toda (e PROFILE pode levar miniatura de
+      // foto) — numa mensagem única ele esbarraria no teto de mensagem do DataChannel. O
+      // receptor já aplica evento a evento, então N mensagens 'sync' menores = mesma coisa.
+      const evs = this.getSyncPayload() || [];
+      for (let i = 0; i < evs.length; i += 64) this._raw(rec.id, { k: 'sync', events: evs.slice(i, i + 64) });
       this.onPeersChange();
       this.onStatus();
     };

@@ -29,8 +29,14 @@ export function makeRemove(item, user, name) {
 export function makeItem(def) {
   return { type: 'ITEM', def, ts: Date.now(), eventId: newEventId() };
 }
-export function makeProfile({ color, emoji, driver, level }) {
-  return { type: 'PROFILE', user: clientId(), name: getName(), color: color || '', emoji: emoji || '', driver: !!driver, level: Number(level) || 0, ts: Date.now(), eventId: newEventId() };
+// Foto de perfil: SÓ miniatura dataURL de imagem e pequena (≤20k chars ≈ ~15 KB — o app
+// gera 128×128 JPEG ≈ 6–10 KB). Higiene P2P: qualquer outra coisa vira '' e o evento segue
+// valendo sem foto (emoji é o fallback eterno). Validada na ENTRADA (makeProfile) e na
+// SAÍDA do fio (reducer) — peer malicioso não infla o log nem injeta src estranho.
+export const cleanPhoto = (s) => (typeof s === 'string' && s.startsWith('data:image/') && s.length <= 20000 ? s : '');
+
+export function makeProfile({ color, emoji, driver, level, photo }) {
+  return { type: 'PROFILE', user: clientId(), name: getName(), color: color || '', emoji: emoji || '', driver: !!driver, level: Number(level) || 0, photo: cleanPhoto(photo), ts: Date.now(), eventId: newEventId() };
 }
 export function makeTable({ title, emoji }) {
   return { type: 'TABLE', title: title || '', emoji: emoji || '', ts: Date.now(), eventId: newEventId() };
@@ -98,7 +104,7 @@ export function applyEvent(state, ev) {
       if (!ev.user) return false;
       if (wins(state.profiles.get(ev.user), ev)) {
         state.profiles.set(ev.user, {
-          def: { name: ev.name || '', color: ev.color || '', emoji: ev.emoji || '', driver: !!ev.driver, level: Number(ev.level) || 0 },
+          def: { name: ev.name || '', color: ev.color || '', emoji: ev.emoji || '', driver: !!ev.driver, level: Number(ev.level) || 0, photo: cleanPhoto(ev.photo) },
           ts: ev.ts, eventId: ev.eventId,
         });
       }
@@ -176,6 +182,7 @@ export function getProfile(state, user) {
     emoji: def.emoji || '',
     driver: !!def.driver,
     level: Number(def.level) || 0,
+    photo: def.photo || '',
   };
 }
 

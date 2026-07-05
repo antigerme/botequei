@@ -178,6 +178,39 @@ sudo firewall-cmd --reload
 sudo setsebool -P httpd_can_network_connect 1
 ```
 
+**Prefere Apache (httpd)?** Mesma ideia — o pulo do gato continua sendo o repasse do
+WebSocket (o `mod_proxy_wstunnel` já vem no httpd; sem ele o app funciona, mas fica preso
+no polling, sem o turbo):
+
+```apache
+# /etc/httpd/conf.d/botequei.conf
+<VirtualHost *:80>
+    ServerName seu.dominio
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    # quando o navegador pede upgrade pra WebSocket, o pedido vira ws:// no serviço local
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} =websocket [NC]
+    RewriteRule ^/(.*)$ ws://127.0.0.1:8000/$1 [P,L]
+
+    # todo o resto é HTTP normal
+    ProxyPass        / http://127.0.0.1:8000/
+    ProxyPassReverse / http://127.0.0.1:8000/
+</VirtualHost>
+```
+
+```bash
+sudo dnf install -y httpd certbot python3-certbot-apache
+sudo apachectl configtest && sudo systemctl enable --now httpd
+sudo certbot --apache -d seu.dominio   # HTTPS + renovação; ele replica o vhost no :443
+```
+
+Firewall e SELinux são os MESMOS de cima — aliás, o boolean `httpd_can_network_connect`
+tem esse nome justamente por causa do Apache. ⚠️ Lembrete de sempre no Apache: comentário
+(`#`) em linha própria, nunca no fim de uma diretiva.
+
 **Smoke test:** `curl 'https://seu.dominio/signaling?action=peers&room=x'` → `{"peers":[]}`,
 e `curl -o /dev/null -w '%{http_code}' https://seu.dominio/turn` → `200` (TURN configurado)
 ou `204` (só STUN). Abra o site em dois celulares e crie uma mesa. 🍻

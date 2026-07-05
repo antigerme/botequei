@@ -5,6 +5,23 @@ dados**. Cada celular registra consumo (+1 num toque, −1 no toque longo) e tud
 tempo real entre os navegadores. UI **100% traduzível** (pt/en/es via `js/i18n.js`; idioma
 padrão Auto segue o navegador).
 
+## Regras de ouro (valem pra TODA mudança, sem exceção)
+- **GUI/UX primeiro**: sempre buscar a melhor experiência — mobile-first, mínimo de toques,
+  preview ao vivo, feedback imediato. Ação óbvia > botão extra (ex.: tocar num emoji volta
+  pro emoji — não precisa de botão "voltar"). Overlays seguem o padrão `.sheet`; antes de
+  commitar, pergunte "como isso fica MELHOR pro usuário?".
+- **i18n sempre**: TODA string de UI (shell, toasts, templates, aria, placeholder) nasce em
+  `js/i18n.js` nas TRÊS línguas via `t(chave)`. Removeu UI? Remova as chaves órfãs. A
+  auditoria trava paridade no CI — detalhes na seção de convenções.
+- **Consistência em tudo**: a mesma feature aparece em TODOS os pontos de entrada — menu "…"
+  ↔ grid de jogos ↔ atalhos da mesa (já escapou o Truco do menu uma vez). Adicionou
+  jogo/feature/tela? VARRA os pontos de entrada e os padrões visuais (mesmos botões, mesmos
+  gestos, mesmas molduras). Grep é seu amigo.
+- **Não perder o que já temos**: cada evolução PRESERVA o que existe — rode unit + audit +
+  a suíte e2e antes de commitar; toda feature nova ganha assert de e2e (auto-descoberto);
+  nunca remover/alterar comportamento existente sem pedido explícito; mexeu em algo
+  compartilhado (helper, evento, CSS), grep quem mais usa e confira um a um.
+
 ## Rodar / testar
 - **Servidor local:** `node server/node.mjs` (serve tudo; precisa só de **Node 18+**, sem
   npm/banco; envs `PORT`/`HOST`, `NO_WS=1` desliga o WebSocket pra testar o fallback).

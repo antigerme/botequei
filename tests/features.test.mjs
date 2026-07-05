@@ -48,6 +48,33 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   ok('mesa: nome/emoji com LWW');
 }
 
+// ---------- Foto de perfil (miniatura no PROFILE, validada) ----------
+{
+  const s = emptyState();
+  const foto = 'data:image/jpeg;base64,' + 'A'.repeat(400); // miniatura plausível
+  applyEvent(s, { type: 'PROFILE', user: 'a', name: 'André', emoji: '😎', photo: foto, ts: 1, eventId: 'f1' });
+  assert.strictEqual(getProfile(s, 'a').photo, foto);
+  ok('foto: dataURL pequena entra no perfil');
+
+  applyEvent(s, { type: 'PROFILE', user: 'a', name: 'André', emoji: '😎', photo: '', ts: 2, eventId: 'f2' });
+  assert.strictEqual(getProfile(s, 'a').photo, '');
+  ok('foto: PROFILE novo com photo vazia LIMPA (volta pro emoji)');
+
+  applyEvent(s, { type: 'PROFILE', user: 'a', name: 'André', emoji: '😎', photo: foto, ts: 1, eventId: 'f0' });
+  assert.strictEqual(getProfile(s, 'a').photo, '', 'ts menor não ressuscita a foto');
+  ok('foto: LWW vale pra foto também (ts velho não volta)');
+
+  // higiene P2P: gigante ou src estranho é DESCARTADO (evento segue valendo sem foto)
+  applyEvent(s, { type: 'PROFILE', user: 'b', name: 'Bia', emoji: '🦊', photo: 'data:image/png;base64,' + 'B'.repeat(30000), ts: 1, eventId: 'g1' });
+  assert.strictEqual(getProfile(s, 'b').photo, '');
+  assert.strictEqual(getProfile(s, 'b').emoji, '🦊', 'resto do perfil fica');
+  applyEvent(s, { type: 'PROFILE', user: 'c', name: 'Caio', emoji: '🐼', photo: 'javascript:alert(1)', ts: 1, eventId: 'g2' });
+  assert.strictEqual(getProfile(s, 'c').photo, '');
+  applyEvent(s, { type: 'PROFILE', user: 'd', name: 'Duda', emoji: '🐸', photo: { hack: 1 }, ts: 1, eventId: 'g3' });
+  assert.strictEqual(getProfile(s, 'd').photo, '');
+  ok('foto: gigante/URL esquisita/não-string são descartadas (higiene P2P)');
+}
+
 // ---------- Preço via ITEM + conta ----------
 {
   const s = emptyState();

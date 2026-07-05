@@ -18,6 +18,7 @@ const browser = {
   Event: 'readonly', CustomEvent: 'readonly', MessageEvent: 'readonly', MouseEvent: 'readonly',
   KeyboardEvent: 'readonly', TouchEvent: 'readonly', PointerEvent: 'readonly',
   MutationObserver: 'readonly', IntersectionObserver: 'readonly', ResizeObserver: 'readonly',
+  createImageBitmap: 'readonly',
   AbortController: 'readonly', AbortSignal: 'readonly', Notification: 'readonly',
   RTCPeerConnection: 'readonly', RTCSessionDescription: 'readonly', RTCIceCandidate: 'readonly',
   WebSocket: 'readonly', DeviceMotionEvent: 'readonly', DeviceOrientationEvent: 'readonly',

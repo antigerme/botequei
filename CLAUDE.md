@@ -5,6 +5,23 @@ dados**. Cada celular registra consumo (+1 num toque, −1 no toque longo) e tud
 tempo real entre os navegadores. UI **100% traduzível** (pt/en/es via `js/i18n.js`; idioma
 padrão Auto segue o navegador).
 
+## Regras de ouro (valem pra TODA mudança, sem exceção)
+- **GUI/UX primeiro**: sempre buscar a melhor experiência — mobile-first, mínimo de toques,
+  preview ao vivo, feedback imediato. Ação óbvia > botão extra (ex.: tocar num emoji volta
+  pro emoji — não precisa de botão "voltar"). Overlays seguem o padrão `.sheet`; antes de
+  commitar, pergunte "como isso fica MELHOR pro usuário?".
+- **i18n sempre**: TODA string de UI (shell, toasts, templates, aria, placeholder) nasce em
+  `js/i18n.js` nas TRÊS línguas via `t(chave)`. Removeu UI? Remova as chaves órfãs. A
+  auditoria trava paridade no CI — detalhes na seção de convenções.
+- **Consistência em tudo**: a mesma feature aparece em TODOS os pontos de entrada — menu "…"
+  ↔ grid de jogos ↔ atalhos da mesa (já escapou o Truco do menu uma vez). Adicionou
+  jogo/feature/tela? VARRA os pontos de entrada e os padrões visuais (mesmos botões, mesmos
+  gestos, mesmas molduras). Grep é seu amigo.
+- **Não perder o que já temos**: cada evolução PRESERVA o que existe — rode unit + audit +
+  a suíte e2e antes de commitar; toda feature nova ganha assert de e2e (auto-descoberto);
+  nunca remover/alterar comportamento existente sem pedido explícito; mexeu em algo
+  compartilhado (helper, evento, CSS), grep quem mais usa e confira um a um.
+
 ## Rodar / testar
 - **Servidor local:** `node server/node.mjs` (serve tudo; precisa só de **Node 18+**, sem
   npm/banco; envs `PORT`/`HOST`, `NO_WS=1` desliga o WebSocket pra testar o fallback).
@@ -58,9 +75,11 @@ padrão Auto segue o navegador).
   peer e converge). Peers manuais ficam fora da reconexão via signaling (re-pareia com novo QR).
 - **Estado por eventos (CRDT PN-Counter)** (`js/events.js`): eventos imutáveis
   `{type,user,item,ts,eventId}`. Total = soma (comutativa → converge). Dedup por `eventId`.
-  Anti-entropy no join (troca o log completo) + gossip (repassa eventos novos). LWW (ts→eventId)
+  Anti-entropy no join (troca o log completo, em **lotes de 64 eventos** — mensagem única
+  estouraria o teto do DataChannel com o log grande) + gossip (repassa eventos novos). LWW (ts→eventId)
   p/ ITEM/PROFILE/TABLE/HAPPYHOUR/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
-  O `PROFILE` também leva o **nível** (liga) pra galera ver no placar. `SONG` (jukebox) **acumula**
+  O `PROFILE` também leva o **nível** (liga) e a **foto** (miniatura 128px, dataURL ≤20k chars,
+  validada por `cleanPhoto` na entrada E na saída do fio — emoji é o fallback eterno). `SONG` (jukebox) **acumula**
   (não é LWW) — a fila de músicas da mesa.
 - **Efeitos efêmeros (não entram no log)** via `mesh.sendFx` → `onFx`. Os de **jogo** (dominó/
   purrinha) levam `mid` e são **repassados com dedup** (gossip via `gameFx`/`seenFx`) pra toda
@@ -178,7 +197,7 @@ padrão Auto segue o navegador).
 - `js/scan.js` — leitor de QR por câmera (BarcodeDetector + jsQR); só no fluxo offline
 - `js/events.js` — eventos + reducer (CRDT, inclui PAYFOR). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
 - `js/stats.js` — ritmo/linha do tempo/BAC/última dose/hidratação (puro) · `js/lifestats.js` — estatísticas de vida + streak + retrô (puro) · `js/league.js` — nível/XP/desafios/troféu (puro)
-- `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia/retrô)
+- `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia/retrô; recap e conta desenham a FOTO de perfil redonda quando tem)
 - `js/sound.js` — efeitos (WebAudio) · `js/music.js` — trilha lo-fi procedural + espectro (WebAudio, fora do puro)
 - `js/tournament.js` — placar acumulado da galera (puro) · `js/deck.js` — cartas de desafio (puro)
 - `js/purrinha.js` — jogo da purrinha: commit-reveal (SHA-256) + apuração determinística (puro)

@@ -13,7 +13,7 @@ export function recapText(state, resolveItem) {
   return `${title}\nTotal da mesa: ${tableTotal(state)} 🍺\n${lines.join('\n')}\n\nfeito no Botequei`;
 }
 
-function renderCard(state, resolveItem) {
+async function renderCard(state, resolveItem) {
   const W = 1080, H = 1350;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
@@ -41,6 +41,7 @@ function renderCard(state, resolveItem) {
   g.fillText('rodadas na mesa', W / 2, 630);
 
   const rows = summary(state, resolveItem).filter((r) => r.total > 0).slice(0, 7);
+  const avatars = await loadAvatars(rows);
   const medals = ['🥇', '🥈', '🥉'];
   let y = 760;
   g.textAlign = 'left';
@@ -50,7 +51,12 @@ function renderCard(state, resolveItem) {
     roundRect(g, 90, y - 55, W - 180, 92, 20); g.fill();
     g.font = '52px system-ui, sans-serif';
     g.fillStyle = '#f6ecd8';
-    g.fillText(`${medals[i] || '　'} ${r.emoji || '🍺'} ${(r.name || 'anônimo').slice(0, 14)}`, 130, y + 8);
+    if (drawAvatar(g, avatars.get(r.user), 214, y - 9, 66)) {
+      g.fillText(`${medals[i] || '　'}`, 130, y + 8);
+      g.fillText(`${(r.name || 'anônimo').slice(0, 14)}`, 302, y + 8);
+    } else {
+      g.fillText(`${medals[i] || '　'} ${r.emoji || '🍺'} ${(r.name || 'anônimo').slice(0, 14)}`, 130, y + 8);
+    }
     g.textAlign = 'right';
     g.fillStyle = '#ffb92e';
     g.font = 'bold 60px system-ui, sans-serif';
@@ -76,6 +82,28 @@ function roundRect(g, x, y, w, h, r) {
   g.closePath();
 }
 
+// Pré-carrega as miniaturas de foto (dataURL do PROFILE) como Image, chaveadas por user.
+// Sem foto ou carga falhou → null (o card cai pro emoji, como sempre foi).
+function loadAvatars(rows) {
+  return Promise.all((rows || []).map((r) => new Promise((res) => {
+    const ph = typeof r.photo === 'string' && r.photo.startsWith('data:image/') ? r.photo : '';
+    if (!ph) return res([r.user, null]);
+    const i = new Image();
+    i.onload = () => res([r.user, i]);
+    i.onerror = () => res([r.user, null]);
+    i.src = ph;
+  }))).then((pairs) => new Map(pairs));
+}
+// Fotinho REDONDA no canvas (clip circular). Devolve false quando não há foto (usa emoji).
+function drawAvatar(g, img, x, cy, size) {
+  if (!img) return false;
+  g.save();
+  g.beginPath(); g.arc(x + size / 2, cy, size / 2, 0, Math.PI * 2); g.clip();
+  g.drawImage(img, x, cy - size / 2, size, size);
+  g.restore();
+  return true;
+}
+
 // Header padrão dos cards (logo + título) — devolve o y de onde seguir desenhando.
 function header(g, W, title) {
   g.textAlign = 'center';
@@ -96,18 +124,20 @@ function newCanvas(W, H) {
 }
 
 // Card da conta: quanto cada um paga + total. billVM = { rows:[{name,emoji,color,amount}], total }.
-function renderBillCard(billVM, title) {
+async function renderBillCard(billVM, title) {
   const W = 1080, H = 1350;
   const { c, g } = newCanvas(W, H);
   let y = header(g, W, title || 'A conta');
   g.textAlign = 'center'; g.fillStyle = DIM; g.font = '46px system-ui, sans-serif';
   g.fillText('quanto cada um paga', W / 2, y); y += 90;
   const rows = (billVM.rows || []).filter((r) => r.amount > 0.005).slice(0, 8);
+  const avatars = await loadAvatars(rows);
   g.textAlign = 'left';
   for (const r of rows) {
     g.fillStyle = '#241f16'; roundRect(g, 90, y - 55, W - 180, 92, 20); g.fill();
     g.font = '50px system-ui, sans-serif'; g.fillStyle = CREAM;
-    g.fillText(`${r.emoji || '🍺'} ${(r.name || 'anônimo').slice(0, 16)}`, 130, y + 8);
+    if (drawAvatar(g, avatars.get(r.user), 126, y - 9, 62)) g.fillText(`${(r.name || 'anônimo').slice(0, 16)}`, 210, y + 8);
+    else g.fillText(`${r.emoji || '🍺'} ${(r.name || 'anônimo').slice(0, 16)}`, 130, y + 8);
     g.textAlign = 'right'; g.fillStyle = GOLD; g.font = 'bold 54px system-ui, sans-serif';
     g.fillText('R$ ' + Number(r.amount).toFixed(2), W - 130, y + 10);
     g.textAlign = 'left'; y += 108;
@@ -166,12 +196,12 @@ async function shareCanvas(canvas, text) {
 
 // Gera o card e tenta compartilhar (Web Share); senao, baixa a imagem.
 export async function shareRecap(state, resolveItem) {
-  return shareCanvas(renderCard(state, resolveItem), recapText(state, resolveItem));
+  return shareCanvas(await renderCard(state, resolveItem), recapText(state, resolveItem));
 }
 export async function shareBill(billVM, title) {
   const lines = (billVM.rows || []).filter((r) => r.amount > 0.005).map((r) => `${r.emoji || '🍺'} ${r.name || 'anônimo'}: R$ ${Number(r.amount).toFixed(2)}`);
   const text = `A conta 🧾\nTotal: R$ ${Number(billVM.total || 0).toFixed(2)}\n${lines.join('\n')}\n\nfeito no Botequei`;
-  return shareCanvas(renderBillCard(billVM, title), text);
+  return shareCanvas(await renderBillCard(billVM, title), text);
 }
 export async function shareCeremony(awards, title) {
   const lines = (awards || []).map((a) => `${a.emoji} ${a.title}: ${a.name}${a.detail ? ' (' + a.detail + ')' : ''}`);

@@ -25,6 +25,8 @@ const IDS = [
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list', 'btn-save-menu',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
+  'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-selfie', 'btn-avatar-upload', 'avatar-file',
+  'overlay-crop', 'crop-canvas', 'crop-zoom', 'btn-crop-use',
   'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'btn-additem-confirm',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
@@ -49,7 +51,7 @@ const IDS = [
   'purr-guessing', 'purr-status', 'purr-said', 'purr-turnrow', 'purr-gpick', 'btn-purr-say',
   'purr-result', 'purr-rstatus', 'purr-total', 'purr-reveals', 'purr-verdict',
   'btn-purr-again', 'btn-purr-close', 'btn-purr-end',
-  'menu-domino', 'overlay-domino', 'btn-dom-close', 'dom-setup', 'dom-game', 'dom-verified',
+  'menu-domino', 'menu-truco', 'overlay-domino', 'btn-dom-close', 'dom-setup', 'dom-game', 'dom-verified',
   'dom-opps', 'dom-turn', 'dom-board', 'dom-result',
   'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
   'btn-dom-pass', 'btn-dom-again', 'btn-dom-end', 'game-pill',
@@ -79,6 +81,15 @@ function cssq(s) { return String(s).replace(/["\\]/g, '\\$&'); }
 // Cor vinda da rede vai para style="background:..."; esc() nao barra ';' de CSS.
 // So aceitamos hex (#abc/#aabbcc/#aabbccdd) ou nome CSS simples; senao, cor padrao.
 function safeColor(c) { return /^#[0-9a-f]{3,8}$|^[a-z]+$/i.test(String(c || '')) ? String(c) : '#333'; }
+// Miolo do avatar: foto (miniatura) quando tem, senão emoji. O guard espelha o cleanPhoto
+// do events.js — NUNCA injeta src cru vindo da rede. fill=true preenche círculo de tamanho
+// fixo (.peer-avatar/.pres-av); senão .av-mini acompanha o font-size do emoji local.
+function safePhoto(ph) { return typeof ph === 'string' && /^data:image\/[a-z.+-]+;base64,[A-Za-z0-9+/=]+$/.test(ph) && ph.length <= 20000 ? ph : ''; }
+function avInner(photo, emoji, fill = true) {
+  const ph = safePhoto(photo);
+  if (!ph) return esc(emoji || '🍺');
+  return `<img class="${fill ? 'av-img' : 'av-mini'}" src="${ph}" alt="" />`;
+}
 function fmtMoney(v) { return 'R$' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 // Anima um inteiro do valor atual até o novo (a conta "sobe" em vez de trocar seco).
 function countTo(node, to) {
@@ -163,6 +174,7 @@ export function init(handlers) {
   $('menu-roulette').addEventListener('click', () => { closeOverlays(); H.onRoulette(); });
   $('menu-purrinha').addEventListener('click', () => { closeOverlays(); H.onPurrinha(); });
   $('menu-domino').addEventListener('click', () => { closeOverlays(); H.onDomino(); });
+  $('menu-truco').addEventListener('click', () => { closeOverlays(); H.onTruco(); });
   $('menu-water').addEventListener('click', () => { closeOverlays(); H.onWaterRound(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
   $('menu-festa').addEventListener('click', () => { closeOverlays(); openFesta(); });
@@ -230,6 +242,12 @@ export function init(handlers) {
   el['btn-welcome-go'].addEventListener('click', () => closeOverlays());
 
   $('btn-profile-save').addEventListener('click', () => submitProfile());
+  // foto de perfil: selfie/galeria compartilham o MESMO input (só troca o capture)
+  el['btn-avatar-selfie'].addEventListener('click', () => openAvatarPicker(true));
+  el['btn-avatar-upload'].addEventListener('click', () => openAvatarPicker(false));
+  el['avatar-file'].addEventListener('change', () => avatarFilePicked());
+  el['btn-crop-use'].addEventListener('click', () => cropUse());
+  bindCrop();
   $('btn-pix-copy').addEventListener('click', () => H.onPixCopy());
 
   // conta: recalcular ao mudar opcoes + presets de gorjeta + compartilhar
@@ -448,7 +466,7 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
     const net = r.user === selfId ? `<span class="peer-net" title="${t('common.you')}">📱</span>` : netHTML(r);
     return `<li class="peer-row" data-user="${esc(r.user)}">
       <span class="peer-medal">${medal}</span>
-      <span class="peer-avatar ${frameClass(r.level)}" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
+      <span class="peer-avatar ${frameClass(r.level)}" style="background:${safeColor(r.color)}">${avInner(r.photo, r.emoji)}</span>
       <button class="peer-main" aria-label="Ver comanda de ${esc(r.name || t('common.anon'))}">
         <span class="peer-name">${esc(r.name || t('common.anon'))} ${r.level > 1 ? `<span class="lvl-chip">Nv${r.level}</span>` : ''} ${r.user === selfId ? `<span class="peer-you">${t('common.youParen')}</span>` : ''} ${r.driver ? '🚗' : ''}</span>
         <span class="peer-badges">${badges}${r.money ? ' · ' + fmtMoney(r.money) : ''}</span>
@@ -504,24 +522,148 @@ export function openJoin(code, needPin) {
 }
 
 // ---------- Perfil ----------
-let profileSel = { color: COLORS[0], emoji: AVATARS[0] };
+let profileSel = { color: COLORS[0], emoji: AVATARS[0], photo: '' };
+// Herói do perfil: preview AO VIVO de como a mesa te vê — cor de fundo + foto OU emoji.
+function paintProfileHero() {
+  el['profile-preview'].style.background = safeColor(profileSel.color);
+  const has = !!profileSel.photo;
+  el['profile-photo-img'].hidden = !has;
+  if (has) el['profile-photo-img'].src = profileSel.photo;
+  else el['profile-photo-img'].removeAttribute('src');
+  el['profile-preview-emoji'].hidden = has;
+  el['profile-preview-emoji'].textContent = profileSel.emoji || '🍺';
+}
 export function openProfile(cur) {
-  profileSel = { color: cur.color || COLORS[0], emoji: cur.emoji || AVATARS[0] };
+  profileSel = { color: cur.color || COLORS[0], emoji: cur.emoji || AVATARS[0], photo: cur.photo || '' };
   el['profile-name'].value = cur.name || '';
   el['profile-driver'].checked = !!cur.driver;
   el['profile-colors'].innerHTML = COLORS.map((c) => `<button class="swatch ${c === profileSel.color ? 'sel' : ''}" style="background:${c}" data-c="${c}"></button>`).join('');
   el['profile-colors'].querySelectorAll('.swatch').forEach((b) => b.addEventListener('click', () => {
     profileSel.color = b.dataset.c; el['profile-colors'].querySelectorAll('.swatch').forEach((x) => x.classList.remove('sel')); b.classList.add('sel');
+    paintProfileHero();
   }));
   el['profile-avatars'].innerHTML = AVATARS.map((e) => `<button class="emoji-pick ${e === profileSel.emoji ? 'sel' : ''}" data-e="${e}">${e}</button>`).join('');
   el['profile-avatars'].querySelectorAll('.emoji-pick').forEach((b) => b.addEventListener('click', () => {
-    profileSel.emoji = b.dataset.e; el['profile-avatars'].querySelectorAll('.emoji-pick').forEach((x) => x.classList.remove('sel')); b.classList.add('sel');
+    profileSel.emoji = b.dataset.e; profileSel.photo = ''; // tocar num emoji = voltar pro emoji
+    el['profile-avatars'].querySelectorAll('.emoji-pick').forEach((x) => x.classList.remove('sel')); b.classList.add('sel');
+    paintProfileHero();
   }));
+  paintProfileHero();
   el['overlay-profile'].hidden = false;
 }
 function submitProfile() {
-  H.onProfileSave({ name: el['profile-name'].value.trim(), color: profileSel.color, emoji: profileSel.emoji, driver: el['profile-driver'].checked });
+  H.onProfileSave({ name: el['profile-name'].value.trim(), color: profileSel.color, emoji: profileSel.emoji, driver: el['profile-driver'].checked, photo: profileSel.photo });
   closeOverlays();
+}
+
+// ---------- Foto de perfil: captura + recorte (arrasta/pinça/slider) ----------
+// A foto original NUNCA sai do aparelho: aqui ela vira uma miniatura 128×128 (JPEG) e SÓ
+// essa miniatura entra no perfil (e, ao salvar, no evento PROFILE pra mesa ver).
+const CROP_VIEW = 280, THUMB = 128;
+let crop = null; // { img, w, h, scale, min, x, y, pointers:Map, pinch:null }
+
+function openAvatarPicker(selfie) {
+  const inp = el['avatar-file'];
+  // selfie = câmera frontal do SISTEMA (padrão da "foto da noite"); galeria = sem capture
+  if (selfie) inp.setAttribute('capture', 'user');
+  else inp.removeAttribute('capture');
+  inp.click();
+}
+
+async function avatarFilePicked() {
+  const f = el['avatar-file'].files && el['avatar-file'].files[0];
+  el['avatar-file'].value = '';
+  if (!f) return;
+  let img;
+  try {
+    // createImageBitmap respeita a orientação EXIF (selfie de celular vem rotacionada)
+    img = await createImageBitmap(f, { imageOrientation: 'from-image' });
+  } catch {
+    img = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = r.result; };
+      r.onerror = rej; r.readAsDataURL(f);
+    }).catch(() => null);
+  }
+  if (!img || !img.width || !img.height) return;
+  const min = CROP_VIEW / Math.min(img.width, img.height); // cobre a janela inteira
+  crop = { img, w: img.width, h: img.height, scale: min, min, x: img.width / 2, y: img.height / 2, pointers: new Map(), pinch: null };
+  el['crop-zoom'].value = '100';
+  el['overlay-crop'].hidden = false;
+  drawCrop();
+}
+
+// centro (x,y) em coordenadas DA IMAGEM; clamp mantém a janela sempre coberta
+function clampCrop() {
+  const half = CROP_VIEW / 2 / crop.scale;
+  crop.x = Math.min(crop.w - half, Math.max(half, crop.x));
+  crop.y = Math.min(crop.h - half, Math.max(half, crop.y));
+}
+function drawCrop() {
+  if (!crop) return;
+  const g = el['crop-canvas'].getContext('2d');
+  const src = CROP_VIEW / crop.scale;
+  g.clearRect(0, 0, CROP_VIEW, CROP_VIEW);
+  g.drawImage(crop.img, crop.x - src / 2, crop.y - src / 2, src, src, 0, 0, CROP_VIEW, CROP_VIEW);
+  // guia circular (é assim que a mesa vai ver)
+  g.save();
+  g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 2; g.setLineDash([6, 6]);
+  g.beginPath(); g.arc(CROP_VIEW / 2, CROP_VIEW / 2, CROP_VIEW / 2 - 3, 0, Math.PI * 2); g.stroke();
+  g.restore();
+}
+function cropSetScale(s, cx, cy) { // cx/cy = ponto fixo na TELA (âncora do zoom)
+  const old = crop.scale;
+  crop.scale = Math.min(crop.min * 3, Math.max(crop.min, s));
+  if (cx != null) { // mantém o ponto sob o dedo parado enquanto o zoom muda
+    crop.x += (cx - CROP_VIEW / 2) * (1 / old - 1 / crop.scale);
+    crop.y += (cy - CROP_VIEW / 2) * (1 / old - 1 / crop.scale);
+  }
+  clampCrop(); drawCrop();
+  el['crop-zoom'].value = String(Math.round((crop.scale / crop.min) * 100));
+}
+function bindCrop() {
+  const cv = el['crop-canvas'];
+  const pos = (e) => { const r = cv.getBoundingClientRect(); return { px: (e.clientX - r.left) * (CROP_VIEW / r.width), py: (e.clientY - r.top) * (CROP_VIEW / r.height) }; };
+  cv.addEventListener('pointerdown', (e) => {
+    if (!crop) return;
+    cv.setPointerCapture(e.pointerId);
+    crop.pointers.set(e.pointerId, pos(e));
+    if (crop.pointers.size === 2) {
+      const [a, b] = [...crop.pointers.values()];
+      crop.pinch = { d: Math.hypot(a.px - b.px, a.py - b.py), scale: crop.scale };
+    }
+  });
+  cv.addEventListener('pointermove', (e) => {
+    if (!crop || !crop.pointers.has(e.pointerId)) return;
+    const p = pos(e), prev = crop.pointers.get(e.pointerId);
+    crop.pointers.set(e.pointerId, p);
+    if (crop.pointers.size === 2 && crop.pinch) {
+      const [a, b] = [...crop.pointers.values()];
+      const d = Math.hypot(a.px - b.px, a.py - b.py);
+      cropSetScale(crop.pinch.scale * (d / crop.pinch.d), (a.px + b.px) / 2, (a.py + b.py) / 2);
+    } else if (crop.pointers.size === 1) {
+      crop.x -= (p.px - prev.px) / crop.scale;
+      crop.y -= (p.py - prev.py) / crop.scale;
+      clampCrop(); drawCrop();
+    }
+  });
+  const up = (e) => { if (!crop) return; crop.pointers.delete(e.pointerId); if (crop.pointers.size < 2) crop.pinch = null; };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  el['crop-zoom'].addEventListener('input', () => { if (crop) cropSetScale(crop.min * (Number(el['crop-zoom'].value) / 100)); });
+}
+function cropUse() {
+  if (!crop) return;
+  const out = document.createElement('canvas');
+  out.width = THUMB; out.height = THUMB;
+  const g = out.getContext('2d');
+  const src = CROP_VIEW / crop.scale;
+  g.drawImage(crop.img, crop.x - src / 2, crop.y - src / 2, src, src, 0, 0, THUMB, THUMB);
+  let url = out.toDataURL('image/jpeg', 0.72);
+  if (url.length > 13000) url = out.toDataURL('image/jpeg', 0.6); // garante folga sob o teto do evento
+  profileSel.photo = url;
+  paintProfileHero();
+  crop = null;
+  el['overlay-crop'].hidden = true;
 }
 
 // ---------- Novo item ----------
@@ -587,7 +729,7 @@ export function renderBill(vm) {
     const pay = r.isSelf ? '' : `<button class="b-pay ${r.iPayThem ? 'on' : ''}" title="${t('bill.payTitle')}">🙌</button>`;
     return `<li class="bill-row" data-user="${esc(r.user)}">
       ${sel}
-      <span class="peer-avatar" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
+      <span class="peer-avatar" style="background:${safeColor(r.color)}">${avInner(r.photo, r.emoji)}</span>
       <div class="b-main">
         <span class="b-name">${esc(r.name || t('common.anon'))}${r.isSelf ? ` <span class="peer-you">${t('common.youParen')}</span>` : ''}</span>
         <span class="b-items">${items}</span>
@@ -870,7 +1012,7 @@ export function openRoulette(vm) {
   el['roulette-result'].hidden = true;
   el['btn-roulette-spin'].disabled = entrants.length < 2 || rouletteRunning;
   el['roulette-list'].innerHTML = entrants.map((e, i) => `<li class="roul-item" data-i="${i}">
-    <span class="peer-avatar" style="background:${safeColor(e.color)}">${esc(e.avatar || '🍺')}</span>
+    <span class="peer-avatar" style="background:${safeColor(e.color)}">${avInner(e.photo, e.avatar)}</span>
     <span class="roul-name">${esc(e.name || t('common.anon'))}${e.isSelf ? ` <span class="peer-you">${t('common.youParen')}</span>` : ''}</span></li>`).join('')
     || `<li class="roul-item">${t('roul.empty')}</li>`;
   el['overlay-roulette'].hidden = false;
@@ -1000,7 +1142,7 @@ export function renderPresence(list) {
   if (!others.length) { bar.hidden = true; bar.innerHTML = ''; return; }
   bar.hidden = false;
   // quem apagou a tela / caiu há pouco fica esmaecido com 💤 (em vez de sumir da barra)
-  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' zz'} ${frameClass(p.level)}" title="${esc(p.name || '')}${p.online ? '' : t('pres.away')}" style="background:${safeColor(p.color)}">${esc(p.emoji || '🍺')}${p.online ? '' : '<i class="zz-b">💤</i>'}</span>`).join('');
+  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' zz'} ${frameClass(p.level)}" title="${esc(p.name || '')}${p.online ? '' : t('pres.away')}" style="background:${safeColor(p.color)}">${avInner(p.photo, p.emoji)}${p.online ? '' : '<i class="zz-b">💤</i>'}</span>`).join('');
 }
 
 // ---------- Comanda individual ----------
@@ -1212,7 +1354,7 @@ export function purrinhaSealed(vm) {
   el['purr-waitcount'].textContent = `🔒 ${vm.count}/${vm.total}`;
   el['purr-waitsub'].textContent = vm.sub || t('purr.waiting');
   el['purr-seals'].innerHTML = (vm.seals || []).map((s) => `<li class="purr-seal${s.sealed ? ' done' : ''}">
-    <span class="purr-sav">${esc(s.avatar || '🍺')}</span><span class="purr-sname">${esc(s.name)}</span>
+    <span class="purr-sav">${avInner(s.photo, s.avatar, false)}</span><span class="purr-sname">${esc(s.name)}</span>
     <span class="purr-sst">${s.sealed ? t('purr.sealed') : t('purr.choosing')}</span></li>`).join('');
   el['btn-purr-end'].hidden = false;
   purrPhase('wait');
@@ -1223,7 +1365,7 @@ export function purrinhaGuessing(vm) {
   purrSaid = null;
   el['purr-status'].textContent = vm.status || '';
   el['purr-said'].innerHTML = (vm.said || []).map((s) => `<li class="purr-sd${s.isSelf ? ' me' : ''}">
-    <span class="purr-sdav">${esc(s.avatar || '🍺')}</span><span class="purr-sdn">${esc(s.name)}</span>
+    <span class="purr-sdav">${avInner(s.photo, s.avatar, false)}</span><span class="purr-sdn">${esc(s.name)}</span>
     <b class="purr-sdg">${s.guess}</b></li>`).join('');
   if (vm.myTurn) {
     el['purr-turnrow'].textContent = t('purr.yourSay');
@@ -1252,7 +1394,7 @@ export function purrinhaResult(vm) {
   el['purr-reveals'].innerHTML = (vm.rows || []).map((r) => {
     const tag = r.isSeer ? `<span class="purr-tag seer">${t('purr.tagSeer')}</span>` : (r.isLoser ? `<span class="purr-tag loser">${t('purr.tagPays')}</span>` : '');
     return `<li class="purr-rev${r.isSeer ? ' seer' : ''}${r.isLoser ? ' loser' : ''}">
-      <span class="purr-av">${esc(r.avatar || '🍺')}</span>
+      <span class="purr-av">${avInner(r.photo, r.avatar, false)}</span>
       <span class="purr-rname">${esc(r.name)}${r.isSelf ? ` <small>${t('common.youParen')}</small>` : ''}</span>
       <span class="purr-rhand">${purrSticks(r.hand, true)}</span>
       <span class="purr-rguess">🎯 ${r.guess}</span>
@@ -1316,7 +1458,7 @@ export function renderDomino(vm) {
     el['dom-verified'].className = 'dom-verified' + (vm.verified.ok === true ? ' ok' : vm.verified.ok === false ? ' bad' : '');
   } else { el['dom-verified'].hidden = true; }
   el['dom-opps'].innerHTML = (vm.opponents || []).map((o) => `<span class="dom-opp${o.isTurn ? ' turn' : ''}${o.justPlayed ? ' played' : ''}">
-    <span class="dom-oav">${esc(o.avatar || '🍺')}</span><span class="dom-oname">${esc(o.name)}</span><span class="dom-ocount">🁫 ${o.count}</span></span>`).join('');
+    <span class="dom-oav">${avInner(o.photo, o.avatar, false)}</span><span class="dom-oname">${esc(o.name)}</span><span class="dom-ocount">🁫 ${o.count}</span></span>`).join('');
   el['dom-turn'].textContent = vm.turn || '';
   el['dom-turn'].className = 'dom-turn' + (vm.myTurn ? ' mine' : '');
   // tabuleiro: UMA linha que escala pra caber; pontas abertas brilham (sem banner dedicado); a
@@ -1326,7 +1468,7 @@ export function renderDomino(vm) {
     ? board.map((t, i) => {
       const open = i === 0 || i === board.length - 1;
       const just = i === vm.lastPlayIdx;
-      const chip = just && vm.lastPlayAvatar ? `<span class="dom-played-av" title="${esc(vm.lastPlayName || '')}">${esc(vm.lastPlayAvatar)}</span>` : '';
+      const chip = just && vm.lastPlayAvatar ? `<span class="dom-played-av" title="${esc(vm.lastPlayName || '')}">${avInner(vm.lastPlayPhoto, vm.lastPlayAvatar)}</span>` : '';
       return domTileHTML(t.a, t.b, { cls: (open ? 'open' : '') + (just ? ' just' : ''), chip });
     }).join('')
     : `<span class="dom-empty">${t('dom.starting')}</span>`;
@@ -1390,7 +1532,7 @@ export function renderTruco(vm) {
   else el['tru-audit'].hidden = true;
   el['tru-status'].textContent = vm.handshake || vm.turnName || '';
   el['tru-table'].innerHTML = (vm.table || []).map((p) => `<span class="tru-played${p.self ? ' me' : ''}">
-    ${truCardHTML(p.card && p.card.r ? p.card.r + ':' + p.card.s : p.card)}<small>${esc(p.avatar || '')} ${esc(p.name)}</small></span>`).join('');
+    ${truCardHTML(p.card && p.card.r ? p.card.r + ':' + p.card.s : p.card)}<small>${avInner(p.photo, p.avatar, false)} ${esc(p.name)}</small></span>`).join('');
   el['tru-hand'].innerHTML = (vm.mine || []).map((m) =>
     `<button class="tru-hcard${vm.myTurn ? '' : ' dim'}" data-card="${esc(m.card)}"${vm.myTurn ? '' : ' disabled'}>${truCardHTML(m.card)}</button>`).join('');
   el['tru-hand'].querySelectorAll('.tru-hcard:not([disabled])').forEach((b) => b.addEventListener('click', () => H.onTrucoPlay(b.dataset.card)));

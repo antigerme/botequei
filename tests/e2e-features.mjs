@@ -66,6 +66,43 @@ async function main() {
     if (!hasNet) throw new Error('sem indicador de conexão no placar');
   });
 
+  await step('foto de perfil: A recorta uma imagem e a fotinho aparece pra MESA toda', async () => {
+    await pageA.click('#btn-menu');
+    await pageA.click('#menu-profile');
+    await visible(pageA, 'overlay-profile');
+    // PNG 1×1 basta: o caminho selfie/galeria é o MESMO input — só muda o atributo capture
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    await pageA.setInputFiles('#avatar-file', { name: 'selfie.png', mimeType: 'image/png', buffer: png });
+    await visible(pageA, 'overlay-crop');
+    await pageA.click('#btn-crop-use');
+    await pageA.waitForFunction(() => !document.getElementById('profile-photo-img').hidden, null, { timeout: 5000 });
+    await pageA.click('#btn-profile-save');
+    // eu me vejo com foto na presença; B recebe pelo PROFILE (CRDT) e vê a mesma foto
+    await pageA.waitForFunction(() => !!document.querySelector('#presence-bar .pres-av img.av-img'), null, { timeout: T });
+    await pageB.waitForFunction(() => !!document.querySelector('#presence-bar .pres-av img.av-img'), null, { timeout: T });
+  });
+
+  await step('tocar num emoji VOLTA pro emoji (sem botão extra)', async () => {
+    await pageA.click('#btn-menu');
+    await pageA.click('#menu-profile');
+    await visible(pageA, 'overlay-profile');
+    const comFoto = await pageA.evaluate(() => !document.getElementById('profile-photo-img').hidden);
+    if (!comFoto) throw new Error('herói deveria mostrar a foto salva');
+    await pageA.click('#profile-avatars .emoji-pick');
+    const voltou = await pageA.evaluate(() => document.getElementById('profile-photo-img').hidden && !document.getElementById('profile-preview-emoji').hidden);
+    if (!voltou) throw new Error('tocar no emoji não voltou o herói pro emoji');
+    await closeAll(pageA); // fecha SEM salvar — a foto segue valendo pra mesa (passo do reload de B)
+  });
+
+  await step('B recarrega e a foto de A volta (log salvo + anti-entropy em lotes)', async () => {
+    await pageB.reload();
+    await pageB.waitForSelector('#screen-table.is-active', { timeout: T });
+    await pageB.waitForFunction(() => !!document.querySelector('#presence-bar .pres-av img.av-img'), null, { timeout: T });
+    // espera a MALHA re-formar (a foto acima volta já do log salvo, antes da reconexão) —
+    // os passos seguintes (roleta etc.) precisam dos dois peers online de novo
+    await Promise.all([peers(pageA, 2), peers(pageB, 2)]);
+  });
+
   // consumo p/ dar substância à conta/estatísticas
   await pageA.click('.item-card[data-item="cerveja"]');
   await pageB.click('.item-card[data-item="cerveja"]');

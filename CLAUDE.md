@@ -58,9 +58,11 @@ padrão Auto segue o navegador).
   peer e converge). Peers manuais ficam fora da reconexão via signaling (re-pareia com novo QR).
 - **Estado por eventos (CRDT PN-Counter)** (`js/events.js`): eventos imutáveis
   `{type,user,item,ts,eventId}`. Total = soma (comutativa → converge). Dedup por `eventId`.
-  Anti-entropy no join (troca o log completo) + gossip (repassa eventos novos). LWW (ts→eventId)
+  Anti-entropy no join (troca o log completo, em **lotes de 64 eventos** — mensagem única
+  estouraria o teto do DataChannel com o log grande) + gossip (repassa eventos novos). LWW (ts→eventId)
   p/ ITEM/PROFILE/TABLE/HAPPYHOUR/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
-  O `PROFILE` também leva o **nível** (liga) pra galera ver no placar. `SONG` (jukebox) **acumula**
+  O `PROFILE` também leva o **nível** (liga) e a **foto** (miniatura 128px, dataURL ≤20k chars,
+  validada por `cleanPhoto` na entrada E na saída do fio — emoji é o fallback eterno). `SONG` (jukebox) **acumula**
   (não é LWW) — a fila de músicas da mesa.
 - **Efeitos efêmeros (não entram no log)** via `mesh.sendFx` → `onFx`. Os de **jogo** (dominó/
   purrinha) levam `mid` e são **repassados com dedup** (gossip via `gameFx`/`seenFx`) pra toda
@@ -178,7 +180,7 @@ padrão Auto segue o navegador).
 - `js/scan.js` — leitor de QR por câmera (BarcodeDetector + jsQR); só no fluxo offline
 - `js/events.js` — eventos + reducer (CRDT, inclui PAYFOR). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
 - `js/stats.js` — ritmo/linha do tempo/BAC/última dose/hidratação (puro) · `js/lifestats.js` — estatísticas de vida + streak + retrô (puro) · `js/league.js` — nível/XP/desafios/troféu (puro)
-- `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia/retrô)
+- `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia/retrô; recap e conta desenham a FOTO de perfil redonda quando tem)
 - `js/sound.js` — efeitos (WebAudio) · `js/music.js` — trilha lo-fi procedural + espectro (WebAudio, fora do puro)
 - `js/tournament.js` — placar acumulado da galera (puro) · `js/deck.js` — cartas de desafio (puro)
 - `js/purrinha.js` — jogo da purrinha: commit-reveal (SHA-256) + apuração determinística (puro)

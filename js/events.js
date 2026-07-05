@@ -147,10 +147,15 @@ export function itemTotal(state, item) {
   return t;
 }
 
-export function userTotal(state, user) {
+// Total PESSOAL. Com `resolveItem`, itens compartilhados (def.share — garrafa/litrão/torre)
+// ficam DE FORA: quem tocou só avisou que chegou mais uma da mesa, não bebeu uma inteira.
+// Sem resolver, soma tudo (compat com chamadas antigas/testes).
+export function userTotal(state, user, resolveItem) {
   let t = 0;
   for (const [k, v] of state.counts) {
-    if (k.startsWith(user + '\x00')) t += Math.max(0, v);
+    if (!k.startsWith(user + '\x00')) continue;
+    if (resolveItem) { const def = resolveItem(k.slice(user.length + 1)); if (def && def.share) continue; }
+    t += Math.max(0, v);
   }
   return t;
 }
@@ -161,16 +166,49 @@ export function tableTotal(state) {
   return t;
 }
 
-// Gasto de um usuario, somando preco * quantidade de cada item.
+// Gasto INDIVIDUAL de um usuario (preço × quantidade). Itens compartilhados ficam de fora:
+// o dinheiro deles vive no sharePool e é rateado na conta, não pendurado em quem tocou.
 export function userMoney(state, user, resolveItem) {
   let total = 0;
   for (const [k, v] of state.counts) {
     const [u, item] = k.split('\x00');
     if (u !== user) continue;
     const def = resolveItem(item);
-    if (def && def.price) total += Math.max(0, v) * def.price;
+    if (!def || def.share) continue;
+    if (def.price) total += Math.max(0, v) * def.price;
   }
   return total;
+}
+
+// O "bolo" da mesa: tudo que foi pedido em itens COMPARTILHADOS (garrafa 600, litrão,
+// torre, custom com share) — quantas unidades e quanto custou. A conta rateia isso.
+export function sharePool(state, resolveItem) {
+  const byItem = new Map(); // item -> count
+  for (const [k, v] of state.counts) {
+    const item = k.slice(k.indexOf('\x00') + 1);
+    const def = resolveItem(item);
+    if (!def || !def.share) continue;
+    byItem.set(item, (byItem.get(item) || 0) + Math.max(0, v));
+  }
+  const lines = [];
+  let total = 0;
+  for (const [item, count] of byItem) {
+    if (count <= 0) continue;
+    const def = resolveItem(item);
+    const unit = (def && def.price) || 0;
+    lines.push({ id: item, count, unit, subtotal: count * unit });
+    total += count * unit;
+  }
+  return { total, lines };
+}
+
+// Quem entra no rateio do bolo da mesa. Padrão de boteco: motorista não paga a
+// cerveja que não bebeu (fica fora); `shareAll` liga "todo mundo entra". Se só
+// sobrou motorista na conta, o fallback racha entre todos (ninguém bebe de graça).
+export function shareSplit(state, users, { shareAll = false } = {}) {
+  let heads = users.filter((u) => shareAll || !isDriver(state, u));
+  if (!heads.length) heads = [...users];
+  return new Set(heads);
 }
 
 export function getProfile(state, user) {
@@ -229,7 +267,7 @@ export function summary(state, resolveItem) {
     const p = getProfile(state, u);
     rows.push({
       user: u, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, driver: p.driver,
-      total: userTotal(state, u),
+      total: userTotal(state, u, resolveItem),
       money: userMoney(state, u, resolveItem),
     });
   }

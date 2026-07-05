@@ -47,22 +47,22 @@ async function main() {
 
   await step('A e B conectam', async () => { await Promise.all([peers(A, 2), peers(B, 2)]); });
   await step('+1 em A sincroniza em B', async () => {
-    await A.click('.item-card[data-item="cerveja"]');
-    await itemQty(B, 'cerveja', 1);
+    await A.click('.item-card[data-item="chopp"]');
+    await itemQty(B, 'chopp', 1);
   });
 
   await step('B "sai e volta" (reload) e recupera o estado', async () => {
     await B.reload({ waitUntil: 'domcontentloaded' });
     await B.waitForSelector('#screen-table.is-active', { timeout: T });
-    await itemQty(B, 'cerveja', 1); // cache local + anti-entropy
+    await itemQty(B, 'chopp', 1); // cache local + anti-entropy
   });
 
   await step('reconecta sozinho e o sync AO VIVO volta', async () => {
     await Promise.all([peers(A, 2), peers(B, 2)]);       // voltaram a se ver
-    await A.click('.item-card[data-item="cerveja"]');     // evento novo pos-reconexao
-    await itemQty(B, 'cerveja', 2);
-    await B.click('.item-card[data-item="chopp"]');       // e no sentido contrario
-    await itemQty(A, 'chopp', 1);
+    await A.click('.item-card[data-item="chopp"]');       // evento novo pos-reconexao
+    await itemQty(B, 'chopp', 2);
+    await B.click('.item-card[data-item="lata"]');        // e no sentido contrario
+    await itemQty(A, 'lata', 1);
   });
 
   await b.close();

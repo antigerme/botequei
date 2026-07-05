@@ -30,11 +30,11 @@
 
 import { clientId, getName, setName, newRoomCode } from './identity.js';
 import { t } from './i18n.js';
-import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar, catOf } from './catalog.js';
+import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar, catOf, isShare, isCup, isDefault } from './catalog.js';
 import {
   emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor, makeSong,
   getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver, happyHour,
-  paysFor, payerOf, songs,
+  paysFor, payerOf, songs, sharePool, shareSplit,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
 import { paceInfo, timeline, estimateBAC, lastDrinkAt, hydration, driveVerdict, projectAt, coachTips } from './stats.js';
@@ -106,7 +106,9 @@ let lastCard = null;         // última carta sorteada (p/ mostrar pra mesa)
 let shakeHandler = null, shakeLast = 0; // mãos livres (chacoalhar pra +1)
 
 // itens alcoolicos (motorista nao registra esses; contam pro lembrete de agua)
-const ALCOHOL = new Set(['cerveja', 'chopp', 'dose', 'drink']);
+// Álcool INDIVIDUAL (trava do motorista + lembrete de água). Recipientes da mesa (share)
+// ficam de fora de propósito: motorista PODE marcar "chegou mais uma garrafa" — ele não bebe.
+const ALCOHOL = new Set(['chopp', 'lata', 'longneck', 'copo', 'dose', 'drink']);
 function myAlcohol() { let n = 0; for (const id of ALCOHOL) n += getCount(state, self, id); return n; }
 function leaderName() {
   let best = null, bestN = -1;
@@ -140,6 +142,11 @@ function allItems() {
   customs.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   return out.concat(customs);
 }
+// Nome de exibição de um item: PADRÃO é localizado no aparelho (o evento carrega só o id,
+// então cada peer vê no próprio idioma — a dor "na Europa cerveja é chopp"); item
+// PERSONALIZADO é dado da mesa e fica como foi digitado.
+function itemLabel(def) { return def && isDefault(def.id) ? t('item.' + def.id) : ((def && def.name) || ''); }
+
 function profOf(user) {
   const p = getProfile(state, user);
   return { name: p.name || (user === self ? getName() : ''), color: p.color || autoColor(user), emoji: p.emoji || autoAvatar(user), driver: p.driver, level: p.level || 0, photo: p.photo || '' };
@@ -176,7 +183,7 @@ function act(type, item) {
 }
 function showUndo(item, label) {
   const it = resolveItem(item);
-  ui.actionToast(`${it.emoji} ${label} · ${it.name}`, t('common.undo'), undoLast);
+  ui.actionToast(`${it.emoji} ${label} · ${itemLabel(it)}`, t('common.undo'), undoLast);
 }
 function undoLast() {
   if (!lastAction) return;
@@ -186,7 +193,7 @@ function undoLast() {
 }
 function checkLimit() {
   if (settings.limit <= 0) return;
-  const mine = userTotal(state, self);
+  const mine = userTotal(state, self, resolveItem);
   if (mine >= settings.limit && !limitAlerted) {
     limitAlerted = true;
     sound.alarm(); ui.vibrate([100, 50, 100]);
@@ -272,24 +279,36 @@ function tickHappyHour() {
   }
 }
 
-function addCustomItem({ emoji, name, price, cat, note }) {
+function addCustomItem({ emoji, name, price, cat, note, share }) {
   const id = itemIdFromName(name);
-  if (emitLocal(makeItem({ id, emoji, name, price: price || 0, cat: cat || 'outros', note: (note || '').slice(0, 40) }))) { render(); ui.toast(t('toast.itemAdded', { emoji: emoji, name: name })); }
+  const def = { id, emoji, name, price: price || 0, cat: cat || 'outros', note: (note || '').slice(0, 40) };
+  if (share) def.share = 1; // "da mesa": dinheiro rateado, não entra no corpo de ninguém
+  if (emitLocal(makeItem(def))) { render(); ui.toast(t('toast.itemAdded', { emoji: emoji, name: name })); }
 }
 
-// ---- Rodada coletiva ----
-function rodada() {
-  const item = 'cerveja';
+// ---- Rodada coletiva (do item que você escolher; garrafa da mesa não precisa: o card dela
+// JÁ é coletivo). Motorista só fica de fora se o item for alcoólico — rodada de refri/água
+// inclui todo mundo. ----
+function roundChoices() {
+  return allItems()
+    .filter((it) => !isShare(it) && ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it)))
+    .map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it) }));
+}
+function rodada(item) {
+  const def = resolveItem(item);
+  if (!def || isShare(def)) return;
+  const alcoholic = ALCOHOL.has(item) || (def.g || 0) > 0;
   const targets = [{ user: self, name: getName() }];
   if (mesh) for (const p of mesh.peers()) if (p.online) targets.push({ user: p.user, name: profOf(p.user).name });
   let n = 0;
   for (const t of targets) {
-    if (isDriver(state, t.user)) continue;
+    if (alcoholic && isDriver(state, t.user)) continue;
     if (emitLocal(makeAdd(item, t.user, t.name))) n++;
   }
-  if (mesh) mesh.sendFx({ kind: 'react', emoji: '🍻' });
-  ui.floatReaction('🍻'); ui.floatReaction('🍻'); sound.cheers();
-  ui.celebrate(['🍻', '🎉', '🥂']);
+  settings = setSettings({ roundItem: item }); // lembra a escolha pra próxima
+  if (mesh) mesh.sendFx({ kind: 'react', emoji: def.emoji || '🍻' });
+  ui.floatReaction(def.emoji || '🍻'); ui.floatReaction('🍻'); sound.cheers();
+  ui.celebrate([def.emoji || '🍻', '🎉', '🥂']);
   afterChange(item, 'add');
   lastTableMilestone = Math.floor(tableTotal(state) / 10); // sincroniza o marco (evita confete duplo)
   ui.toast(n ? t('toast.roundN', { n: n }) : t('toast.round0'));
@@ -417,16 +436,21 @@ function afterChange(item, kind) {
 function render() {
   if (!room) return;
   const list = allItems();
-  const items = list.map((it) => ({
-    id: it.id, emoji: it.emoji, name: it.name, cat: catOf(it), note: it.note || '',
-    qty: itemTotal(state, it.id), sub: t('item.sub', { n: getCount(state, self, it.id) }),
+  // copo da mesa não vira card (mora DENTRO dos cards compartilhados); share mostra o
+  // contador DA MESA no número grande e os MEUS copos na zona de baixo
+  const items = list.filter((it) => !isCup(it)).map((it) => ({
+    id: it.id, emoji: it.emoji, name: itemLabel(it), cat: catOf(it), note: it.note || '',
+    share: isShare(it),
+    qty: itemTotal(state, it.id),
+    sub: isShare(it) ? '' : t('item.sub', { n: getCount(state, self, it.id) }),
+    cups: isShare(it) ? getCount(state, self, 'copo') : 0,
   }));
   const info = tableInfo(state);
   const tt = tableTotal(state);
   ui.renderTable({
     code: room,
     title: info.title || '',
-    myTotal: userTotal(state, self),
+    myTotal: userTotal(state, self, resolveItem),
     tableTotal: tt,
     peerCount: (mesh ? mesh.connectedCount() : 0) + 1,
     showMoney: list.some((i) => i.price > 0),
@@ -473,8 +497,8 @@ function renderPeers() {
 }
 
 function bebedeiraItem() {
-  let best = 'cerveja', bestN = -1;
-  for (const it of allItems()) { const n = getCount(state, self, it.id); if (n > bestN) { bestN = n; best = it.id; } }
+  let best = 'chopp', bestN = -1;
+  for (const it of allItems()) { if (isShare(it) || isCup(it)) continue; const n = getCount(state, self, it.id); if (n > bestN) { bestN = n; best = it.id; } }
   return best;
 }
 
@@ -584,7 +608,7 @@ async function loadIce() {
 
 function myItems() {
   const m = {};
-  for (const it of allItems()) { const n = getCount(state, self, it.id); if (n > 0) m[it.id] = n; }
+  for (const it of allItems()) { if (isShare(it)) continue; const n = getCount(state, self, it.id); if (n > 0) m[it.id] = n; }
   return m;
 }
 function leaveTable() {
@@ -593,7 +617,7 @@ function leaveTable() {
     const info = tableInfo(state);
     store.pushHistory({
       room, at: Date.now(),
-      myTotal: userTotal(state, self), tableTotal: tableTotal(state),
+      myTotal: userTotal(state, self, resolveItem), tableTotal: tableTotal(state),
       myMoney: userMoney(state, self, resolveItem),
       title: info.title || '',
       items: myItems(),
@@ -679,26 +703,33 @@ async function offlineGenAnswer(text) {
 // ---- Conta ----
 function itemizeFor(user) {
   const out = [];
-  for (const it of allItems()) { const n = getCount(state, user, it.id); if (n > 0) out.push({ emoji: it.emoji, n }); }
+  // recipientes da mesa (share) não são consumo PESSOAL — ficam fora da comanda individual
+  for (const it of allItems()) { if (isShare(it)) continue; const n = getCount(state, user, it.id); if (n > 0) out.push({ emoji: it.emoji, n }); }
   return out;
 }
 function computeBill() {
-  const o = ui.billOptions();               // { tipPct, couvert, equal, excluded:[] }
+  const o = ui.billOptions();               // { tipPct, couvert, equal, shareAll, excluded:[] }
   const rows = summary(state, resolveItem);
   const excluded = new Set(o.excluded || []);
   const included = (u) => !excluded.has(u);
   const tipMult = 1 + (Math.max(0, o.tipPct) || 0) / 100;
   if (o.tipPct !== settings.tipPct) settings = setSettings({ tipPct: o.tipPct }); // lembra a gorjeta escolhida
 
+  // o bolo da mesa (garrafas/litrões/torres não têm dono): divide entre os incluídos
+  // que não são motoristas — o toggle "shareAll" chama todo mundo pro rateio
+  const pool = sharePool(state, resolveItem);
+  const incRows = rows.filter((r) => included(r.user));
+  const inPool = pool.total > 0 ? shareSplit(state, incRows.map((r) => r.user), { shareAll: o.shareAll }) : new Set();
+  const shareEach = inPool.size ? pool.total / inPool.size : 0;
+
   // base de consumo por pessoa (rateio igual entre os incluídos, ou por consumo real)
   const base = new Map();
   if (o.equal) {
-    const inc = rows.filter((r) => included(r.user));
-    const pool = rows.reduce((a, r) => a + r.money, 0);
-    const per = inc.length ? pool / inc.length : 0;
+    const all = rows.reduce((a, r) => a + r.money, 0) + pool.total; // rachar igual = TUDO ÷ N (bolo junto)
+    const per = incRows.length ? all / incRows.length : 0;
     for (const r of rows) base.set(r.user, included(r.user) ? per : 0);
   } else {
-    for (const r of rows) base.set(r.user, r.money);
+    for (const r of rows) base.set(r.user, r.money + (inPool.has(r.user) ? shareEach : 0));
   }
   // gorjeta sobre o consumo + couvert por pessoa incluída
   const amount = new Map();
@@ -727,12 +758,22 @@ function computeBill() {
       isSelf: r.user === self,
     };
   });
-  return { rows: out, total: out.reduce((a, r) => a + r.amount, 0), equal: o.equal, hasPrices: allItems().some((i) => i.price > 0) };
+  // resumo do bolo pro overlay: o que a mesa pediu, quanto deu e a fatia de cada um
+  const poolVm = pool.total > 0 ? {
+    total: pool.total,
+    each: o.equal ? (incRows.length ? pool.total / incRows.length : 0) : shareEach,
+    heads: o.equal ? incRows.length : inPool.size,
+    lines: pool.lines.map((l) => ({ ...l, name: itemLabel(resolveItem(l.id)) })),
+    // o toggle só aparece quando muda algo: fora do "rachar igual" e com motorista na roda
+    canToggle: !o.equal && incRows.some((r) => isDriver(state, r.user)),
+    shareAll: !!o.shareAll,
+  } : null;
+  return { rows: out, total: out.reduce((a, r) => a + r.amount, 0), equal: o.equal, hasPrices: allItems().some((i) => i.price > 0), pool: poolVm };
 }
 function renderBill() {
   const b = computeBill(); lastBill = b;
   const note = b.hasPrices ? t('bill.noteCons') : t('bill.notePriceless');
-  ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self });
+  ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self, pool: b.pool });
 }
 
 // ---- Meu ritmo (consciência) ----
@@ -2020,7 +2061,7 @@ function renderTruco() {
 
 // ---- Cutucar / desafiar ----
 function openPokeFor(user) {
-  const items = ['dose', 'cerveja', 'drink'].map((id) => { const d = resolveItem(id); return { id, emoji: d.emoji, name: d.name }; });
+  const items = ['dose', 'chopp', 'drink'].map((id) => { const d = resolveItem(id); return { id, emoji: d.emoji, name: itemLabel(d) }; });
   ui.openPoke({ user, name: profOf(user).name || t('common.someoneLow'), items });
 }
 function sendPoke(user, kind, item) {
@@ -2134,11 +2175,14 @@ const handlers = {
   onAdd: (item) => act('ADD', item),
   onRemove: (item) => act('REMOVE', item),
   onAddItemConfirm: addCustomItem,
+  onCup: () => act('ADD', 'copo'),
+  onCupRemove: () => act('REMOVE', 'copo'),
   onInvite: openInvite,
   onPeers: () => { renderPeers(); renderLeagueInfo(); ui.openPeers(); },
   onBrinde, onReact,
   // rodada é generosa demais pra sair num toque acidental: explica e confirma antes
-  onRodada: () => ui.actionToast(t('toast.roundConfirm'), t('common.letsGo'), rodada, 6000),
+  onRodada: () => ui.openRound(roundChoices(), settings.roundItem || 'chopp'),
+  onRoundPick: (id) => rodada(id),
   onBrindeGo: () => sound.cheers(),
   onProfile: () => { const p = profOf(self); ui.openProfile({ name: getName(), color: p.color, emoji: p.emoji, driver: myDriver, photo: settings.profPhoto || p.photo || '' }); },
   onProfileSave: ({ name, color, emoji, driver, photo }) => {
@@ -2164,7 +2208,7 @@ const handlers = {
     if (res === 'download') ui.toast(t('toast.imgSaved')); else if (res === 'error') ui.toast(t('toast.imgError'));
   },
   onPayFor: (user, on) => { emitLocal(makePayFor({ to: user, on })); renderBill(); },
-  onPrices: () => ui.openPrices(allItems()),
+  onPrices: () => ui.openPrices(allItems().filter((it) => !isCup(it)).map((it) => ({ ...it, name: itemLabel(it) }))),
   onPriceChange: (id, price) => {
     const it = resolveItem(id);
     // preserva emoji/nome/g/cat/note; só troca o preço (senão perde as gramas de álcool!)

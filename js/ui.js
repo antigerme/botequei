@@ -43,6 +43,7 @@ const IDS = [
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'btn-brinde', 'btn-react', 'btn-rodada', 'btn-games', 'overlay-games', 'games-grid',
+  'overlay-round', 'round-grid',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
@@ -54,8 +55,9 @@ const IDS = [
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
   'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-selfie', 'btn-avatar-upload', 'avatar-file',
   'overlay-crop', 'crop-canvas', 'crop-zoom', 'btn-crop-use',
-  'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'btn-additem-confirm',
+  'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'add-share', 'btn-additem-confirm',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
+  'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
   'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-limit', 'set-water', 'set-nudges',
   'set-lang', 'set-weight', 'set-sex', 'set-responsa', 'set-carapp', 'set-trustname', 'set-trustphone',
@@ -278,7 +280,7 @@ export function init(handlers) {
   $('btn-pix-copy').addEventListener('click', () => H.onPixCopy());
 
   // conta: recalcular ao mudar opcoes + presets de gorjeta + compartilhar
-  ['bill-couvert', 'bill-equal'].forEach((id) => {
+  ['bill-couvert', 'bill-equal', 'bill-shareall'].forEach((id) => {
     el[id].addEventListener('change', () => H.onBillChange());
     el[id].addEventListener('input', () => H.onBillChange());
   });
@@ -425,13 +427,21 @@ export function renderTable(vm) {
   el['money-block'].hidden = !vm.showMoney;
   if (vm.showMoney) el['my-money'].textContent = fmtMoney(vm.myMoney);
 
-  const sig = vm.items.map((i) => i.id + ':' + (i.cat || '')).join(',');
+  const sig = vm.items.map((i) => i.id + ':' + (i.cat || '') + (i.share ? ':s' : '')).join(',');
   if (sig !== lastIds) {
     el['items-grid'].innerHTML = gridHTML(vm.items);
     el['items-grid'].querySelectorAll('.item-card').forEach((card) => {
       const id = card.dataset.item;
       attachGesture(card, () => H.onAdd(id), () => H.onRemove(id));
       card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); H.onAdd(id); } });
+      const cup = card.querySelector('.item-cup');
+      if (cup) {
+        // a zona do copo é um mundo à parte: nada vaza pro gesto do card (senão um toque
+        // no copo também marcaria uma garrafa da mesa)
+        for (const evn of ['pointerdown', 'pointermove', 'pointerup', 'click']) cup.addEventListener(evn, (e) => e.stopPropagation());
+        cup.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); H.onCup(); } });
+        attachGesture(cup, () => H.onCup(), () => H.onCupRemove());
+      }
     });
     lastIds = sig;
   }
@@ -443,7 +453,8 @@ export function renderTable(vm) {
     card.querySelector('.item-emoji').textContent = it.emoji;
     card.querySelector('.item-name').textContent = it.name;
     countTo(card.querySelector('.item-qty'), it.qty);
-    card.querySelector('.item-sub').textContent = it.sub;
+    if (it.share) { const n = card.querySelector('.item-cup-n'); if (n) countTo(n, it.cups); }
+    else { const sub = card.querySelector('.item-sub'); if (sub) sub.textContent = it.sub; }
     card.toggleAttribute('data-zero', (Number(it.qty) || 0) === 0);
     card.classList.toggle('hot', it.id === topId && topQ > 0);
   }
@@ -451,7 +462,18 @@ export function renderTable(vm) {
 }
 function cardHTML(it) {
   const note = it.note ? ` title="${esc(it.note)}"` : '';
-  return `<div class="item-card" data-item="${esc(it.id)}" role="button" tabindex="0" aria-label="${esc(it.name)}: toque para +1, segure para −1"${note}>
+  if (it.share) {
+    // COMPARTILHADO: o número grande é DA MESA ("chegou mais uma" — qualquer um marca);
+    // a zona 🥂 embaixo marca o MEU copo (toque +1, segure −1) — é ela que fala com o corpo
+    return `<div class="item-card share" data-item="${esc(it.id)}" role="button" tabindex="0" aria-label="${esc(it.name)}: ${t('card.ariaShare')}"${note}>
+    <div class="item-qty">${it.qty}</div>
+    <div class="item-emoji">${esc(it.emoji)}</div>
+    <div class="item-name">${esc(it.name)}</div>
+    <button class="item-cup" type="button" aria-label="${t('card.myCupAria')}">🥂 ${t('card.myCup')} · <b class="item-cup-n">${it.cups}</b></button>
+    <div class="item-plus">+1</div>
+    <div class="share-flag" aria-hidden="true">${t('card.mesa')}</div></div>`;
+  }
+  return `<div class="item-card" data-item="${esc(it.id)}" role="button" tabindex="0" aria-label="${esc(it.name)}: ${t('card.aria')}"${note}>
     <div class="item-qty">${it.qty}</div>
     <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
@@ -710,7 +732,7 @@ function submitAddItem() {
   const name = el['add-name'].value.trim();
   if (!name) { toast(t('toast.itemName')); return; }
   const price = parseFloat(String(el['add-price'].value).replace(',', '.')) || 0;
-  H.onAddItemConfirm({ emoji: pickedEmoji, name, price, cat: el['add-cat'].value, note: el['add-note'].value.trim() });
+  H.onAddItemConfirm({ emoji: pickedEmoji, name, price, cat: el['add-cat'].value, note: el['add-note'].value.trim(), share: el['add-share'].checked });
   closeOverlays();
 }
 
@@ -731,6 +753,7 @@ function markTip() {
 }
 export function openBill(vm) {
   billExcluded = new Set();
+  el['bill-shareall'].checked = false; // cada fechamento começa no padrão: motorista fora do bolo
   if (vm && Number.isFinite(vm.tipPct)) billTip = vm.tipPct;
   markTip();
   el['overlay-bill'].hidden = false;
@@ -740,11 +763,20 @@ export function billOptions() {
     tipPct: billTip,
     couvert: Math.max(0, parseFloat(String(el['bill-couvert'].value).replace(',', '.')) || 0),
     equal: el['bill-equal'].checked,
+    shareAll: el['bill-shareall'].checked,
     excluded: [...billExcluded],
   };
 }
 export function renderBill(vm) {
   el['bill-note'].textContent = vm.note || '';
+  // bolo da mesa (garrafas/torres compartilhadas): resumo + fatia; toggle do motorista quando muda algo
+  const pool = vm.pool;
+  el['bill-pool'].hidden = !pool;
+  if (pool) {
+    const items = pool.lines.map((l) => `${l.count}× ${l.name}`).join(' + ');
+    el['bill-pool-line'].textContent = t('bill.pool', { items, total: fmtMoney(pool.total), each: fmtMoney(pool.each), n: pool.heads });
+    el['bill-shareall-wrap'].hidden = !pool.canToggle;
+  }
   const equal = !!vm.equal;
   el['bill-list'].innerHTML = vm.rows.map((r) => {
     const items = (r.items || []).map((it) => `${esc(it.emoji)}${it.n}`).join(' ');
@@ -891,6 +923,15 @@ export function brinde() {
       setTimeout(() => { b.hidden = true; brindeRunning = false; }, 1400);
     }
   }, 800);
+}
+
+// ---------- Rodada: escolher o item (2 toques no total; sem disparo acidental) ----------
+export function openRound(items, lastId) {
+  el['round-grid'].innerHTML = items.map((it) => `
+    <button class="btn ${it.id === lastId ? 'btn-primary' : 'btn-ghost'}" data-id="${esc(it.id)}">${esc(it.emoji)} ${esc(it.name)}</button>`).join('');
+  el['round-grid'].querySelectorAll('button[data-id]').forEach((b) =>
+    b.addEventListener('click', () => { closeOverlays(); H.onRoundPick(b.dataset.id); }));
+  el['overlay-round'].hidden = false;
 }
 
 // ---------- Jogos (atalho rápido da mesa) ----------

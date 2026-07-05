@@ -52,8 +52,8 @@ async function main() {
   await A.click('#btn-create');
   await A.waitForSelector('#screen-table.is-active', { timeout: T });
   await A.click('#overlay-invite [data-close]').catch(() => {});
-  await A.click('.item-card[data-item="cerveja"]');
-  await A.click('.item-card[data-item="cerveja"]');
+  await A.click('.item-card[data-item="chopp"]');
+  await A.click('.item-card[data-item="chopp"]');
 
   // ---- A gera o convite offline (offer) ----
   await A.click('#btn-invite');
@@ -85,13 +85,13 @@ async function main() {
   });
 
   await step('+1 em A aparece em B ao vivo (P2P puro, sem servidor)', async () => {
-    await A.click('.item-card[data-item="cerveja"]');
-    await B.waitForFunction((js) => eval(js) === '3', qtyOf('cerveja'), { timeout: T });
+    await A.click('.item-card[data-item="chopp"]');
+    await B.waitForFunction((js) => eval(js) === '3', qtyOf('chopp'), { timeout: T });
   });
 
   await step('+1 em B aparece em A (bidirecional)', async () => {
-    await B.click('.item-card[data-item="chopp"]');
-    await A.waitForFunction((js) => eval(js) === '1', qtyOf('chopp'), { timeout: T });
+    await B.click('.item-card[data-item="lata"]');
+    await A.waitForFunction((js) => eval(js) === '1', qtyOf('lata'), { timeout: T });
   });
 
   await browser.close();

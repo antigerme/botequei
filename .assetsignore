@@ -1,6 +1,7 @@
 # O que NÃO sobe como asset estático pra Cloudflare (código de servidor, testes, config).
 # Mesmo espírito do bloqueio de caminhos privados do server/node.mjs — o site é o resto.
 server/
+docs/
 worker/
 tests/
 .github/

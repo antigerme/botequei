@@ -29,16 +29,23 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; }
 body {
-  /* poeira de giz + lousa */
-  background:
-    radial-gradient(rgba(255,255,255,.05) .5px, transparent .6px) 0 0 / 7px 7px,
-    radial-gradient(135% 100% at 50% -10%, #20281b 0%, #141a10 55%, #0b0e07 100%);
-  background-attachment: fixed;
+  /* Cor SÓLIDA de segurança (overscroll etc.); o "céu" do tema vive no ::before abaixo.
+     Motivo: background-attachment:fixed NÃO existe no iOS Safari — com a página mais alta
+     que a tela, o gradiente repetia e pintava uma faixa mais clara embaixo (e a emenda
+     dançava junto com a barra do navegador). position:fixed no ::before o iOS respeita. */
+  background: #0b0e07;
   color: var(--cream);
   font-family: var(--hand);
   font-size: 17px;
   overscroll-behavior: none;
   -webkit-user-select: none; user-select: none;
+}
+/* fundo do tema (poeira de giz + lousa), PRESO à viewport — ver comentário no body */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(rgba(255,255,255,.05) .5px, transparent .6px) 0 0 / 7px 7px,
+    radial-gradient(135% 100% at 50% -10%, #20281b 0%, #141a10 55%, #0b0e07 100%);
 }
 /* moldura de madeira fixa em volta da tela */
 body::after {
@@ -270,7 +277,8 @@ body.light {
   --line: #d8c39c; --chalk-line: rgba(90,70,40,.4); --cream: #2e2314; --muted: #7a6a4c;
   --gold: #c9791a; --gold-deep: #a95f10;
 }
-body.light { background:
+body.light { background: #ece0c7; }
+body.light::before { background:
   radial-gradient(rgba(120,90,50,.06) .5px, transparent .6px) 0 0 / 7px 7px,
   radial-gradient(135% 100% at 50% -10%, #fdf6e6 0%, #ece0c7 60%); }
 body.light .btn-primary { color: #fff; }
@@ -286,7 +294,8 @@ body.neon {
   --line: #4a2f7a; --chalk-line: rgba(200,160,255,.28); --cream: #f3ebff; --muted: #a79bd0;
   --gold: #ff5cc8; --gold-deep: #b23c9c;
 }
-body.neon { background:
+body.neon { background: #060418; }
+body.neon::before { background:
   radial-gradient(rgba(180,120,255,.06) .5px, transparent .6px) 0 0 / 7px 7px,
   radial-gradient(135% 100% at 50% -10%, #1a1140 0%, #0c0a1e 55%, #060418 100%); }
 body.neon .btn-primary { box-shadow: 0 0 16px rgba(255,92,200,.5); }
@@ -298,7 +307,8 @@ body.retro {
   --line: #6e4a24; --chalk-line: rgba(255,210,150,.3); --cream: #ffe9c9; --muted: #c8a878;
   --gold: #ff8c1a; --gold-deep: #d46a00;
 }
-body.retro { background:
+body.retro { background: #1a0f06; }
+body.retro::before { background:
   radial-gradient(rgba(255,180,90,.05) .5px, transparent .6px) 0 0 / 7px 7px,
   radial-gradient(135% 100% at 50% -10%, #3a2410 0%, #2a1a0e 60%, #1a0f06 100%); }
 

@@ -211,6 +211,7 @@ padrão Auto segue o navegador).
 - `wrangler.jsonc` — config da CF (assets na raiz, `run_worker_first`, DO + migrations `new_sqlite_classes`) · `.assetsignore` — o que NÃO sobe como asset · `_headers` — cache dos assets na CF (espelha as regras do `server/node.mjs`)
 - `tests/` — `reducer.test.mjs` + `features.test.mjs` + `stats.test.mjs` + `core.test.mjs` (unit) · `audit.mjs` (auditoria estática pura) · `e2e.mjs` / `e2e-ws.mjs` / `e2e-reconnect.mjs` / `e2e-offline.mjs` / `e2e-features.mjs` (Playwright)
 - `.github/workflows/ci.yml` — CI (lint/auditoria/unit/e2e nos DOIS alvos: Node e wrangler dev; unit+e2e auto-descobertos) · `eslint.config.mjs` — ESLint só de correção (dev/CI; o app segue buildless)
+- `docs/ARQUITETURA.md` — tour guiado pra quem chega (fluxo do +1, camadas, os três "correios", onde mexer pra cada mudança). **Documentação viva**: mudou a arquitetura, atualize no MESMO PR.
 
 ## Convenções / gotchas
 - **URLs sempre relativas** (`new URL('signaling', location.href)`, `fetch('turn')`,

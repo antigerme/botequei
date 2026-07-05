@@ -220,6 +220,8 @@ const DICT = {
     // ---- conta / pix ----
     'bill.title': 'Fechar a conta', 'menu.bill': '💸 Fechar a conta',
     'bill.tip': 'Gorjeta', 'bill.couvert': 'Couvert p/ pessoa', 'bill.equal': 'Rachar igual (marque quem entra)',
+    'bill.pool': '🍻 Da mesa: {items} · {total} → {each} × {n}',
+    'bill.shareAll': 'Motorista entra no rateio da mesa',
     'bill.share': '📸 Mandar no grupo', 'bill.total': 'Total: {v}',
     'bill.noteCons': 'Por consumo — 🙌 = eu pago; ou rache igual.',
     'bill.notePriceless': 'Sem preços: use “rachar igual” ou o couvert.',
@@ -583,6 +585,8 @@ const DICT = {
     // ---- bill / pix ----
     'bill.title': 'Settle the tab', 'menu.bill': '💸 Settle the tab',
     'bill.tip': 'Tip', 'bill.couvert': 'Cover charge p/ person', 'bill.equal': 'Split evenly (check who’s in)',
+    'bill.pool': '🍻 Table share: {items} · {total} → {each} × {n}',
+    'bill.shareAll': 'Driver joins the table share',
     'bill.share': '📸 Send to the group', 'bill.total': 'Total: {v}',
     'bill.noteCons': 'By consumption — 🙌 = on me; or split evenly.',
     'bill.notePriceless': 'No prices: use “split evenly” or the cover charge.',
@@ -946,6 +950,8 @@ const DICT = {
     // ---- cuenta / pix ----
     'bill.title': 'Cerrar la cuenta', 'menu.bill': '💸 Cerrar la cuenta',
     'bill.tip': 'Propina', 'bill.couvert': 'Cover p/ persona', 'bill.equal': 'Dividir en partes iguales (marca quién entra)',
+    'bill.pool': '🍻 De la mesa: {items} · {total} → {each} × {n}',
+    'bill.shareAll': 'El conductor entra en el reparto de la mesa',
     'bill.share': '📸 Mandar al grupo', 'bill.total': 'Total: {v}',
     'bill.noteCons': 'Por consumo — 🙌 = yo invito; o divide en partes iguales.',
     'bill.notePriceless': 'Sin precios: usa “dividir igual” o el cover.',

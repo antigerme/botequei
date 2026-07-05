@@ -34,7 +34,7 @@ import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar, catOf, isShare, i
 import {
   emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor, makeSong,
   getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver, happyHour,
-  paysFor, payerOf, songs,
+  paysFor, payerOf, songs, sharePool, shareSplit,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
 import { paceInfo, timeline, estimateBAC, lastDrinkAt, hydration, driveVerdict, projectAt, coachTips } from './stats.js';
@@ -708,22 +708,28 @@ function itemizeFor(user) {
   return out;
 }
 function computeBill() {
-  const o = ui.billOptions();               // { tipPct, couvert, equal, excluded:[] }
+  const o = ui.billOptions();               // { tipPct, couvert, equal, shareAll, excluded:[] }
   const rows = summary(state, resolveItem);
   const excluded = new Set(o.excluded || []);
   const included = (u) => !excluded.has(u);
   const tipMult = 1 + (Math.max(0, o.tipPct) || 0) / 100;
   if (o.tipPct !== settings.tipPct) settings = setSettings({ tipPct: o.tipPct }); // lembra a gorjeta escolhida
 
+  // o bolo da mesa (garrafas/litrões/torres não têm dono): divide entre os incluídos
+  // que não são motoristas — o toggle "shareAll" chama todo mundo pro rateio
+  const pool = sharePool(state, resolveItem);
+  const incRows = rows.filter((r) => included(r.user));
+  const inPool = pool.total > 0 ? shareSplit(state, incRows.map((r) => r.user), { shareAll: o.shareAll }) : new Set();
+  const shareEach = inPool.size ? pool.total / inPool.size : 0;
+
   // base de consumo por pessoa (rateio igual entre os incluídos, ou por consumo real)
   const base = new Map();
   if (o.equal) {
-    const inc = rows.filter((r) => included(r.user));
-    const pool = rows.reduce((a, r) => a + r.money, 0);
-    const per = inc.length ? pool / inc.length : 0;
+    const all = rows.reduce((a, r) => a + r.money, 0) + pool.total; // rachar igual = TUDO ÷ N (bolo junto)
+    const per = incRows.length ? all / incRows.length : 0;
     for (const r of rows) base.set(r.user, included(r.user) ? per : 0);
   } else {
-    for (const r of rows) base.set(r.user, r.money);
+    for (const r of rows) base.set(r.user, r.money + (inPool.has(r.user) ? shareEach : 0));
   }
   // gorjeta sobre o consumo + couvert por pessoa incluída
   const amount = new Map();
@@ -752,12 +758,22 @@ function computeBill() {
       isSelf: r.user === self,
     };
   });
-  return { rows: out, total: out.reduce((a, r) => a + r.amount, 0), equal: o.equal, hasPrices: allItems().some((i) => i.price > 0) };
+  // resumo do bolo pro overlay: o que a mesa pediu, quanto deu e a fatia de cada um
+  const poolVm = pool.total > 0 ? {
+    total: pool.total,
+    each: o.equal ? (incRows.length ? pool.total / incRows.length : 0) : shareEach,
+    heads: o.equal ? incRows.length : inPool.size,
+    lines: pool.lines.map((l) => ({ ...l, name: itemLabel(resolveItem(l.id)) })),
+    // o toggle só aparece quando muda algo: fora do "rachar igual" e com motorista na roda
+    canToggle: !o.equal && incRows.some((r) => isDriver(state, r.user)),
+    shareAll: !!o.shareAll,
+  } : null;
+  return { rows: out, total: out.reduce((a, r) => a + r.amount, 0), equal: o.equal, hasPrices: allItems().some((i) => i.price > 0), pool: poolVm };
 }
 function renderBill() {
   const b = computeBill(); lastBill = b;
   const note = b.hasPrices ? t('bill.noteCons') : t('bill.notePriceless');
-  ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self });
+  ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self, pool: b.pool });
 }
 
 // ---- Meu ritmo (consciência) ----

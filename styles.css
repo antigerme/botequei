@@ -402,6 +402,12 @@ body.bigfont .btn, body.bigfont .chip { font-size: 19px; }
 .item-cup .item-cup-n { color: var(--gold); font-size: 16px; }
 body.light .item-cup { background: rgba(120,90,50,.07); }
 
+/* Conta: faixa do bolo da mesa (o que foi compartilhado + a fatia de cada um) */
+.bill-pool { display: grid; gap: 6px; margin: 2px 0 10px; padding: 9px 12px; border-radius: 12px;
+  border: 1px dashed var(--gold); background: rgba(255, 200, 87, .07); font-size: 15px; }
+.bill-pool .check { margin: 0; font-size: 14px; }
+body.light .bill-pool { background: rgba(178, 108, 0, .06); }
+
 /* Foto de perfil: a fotinho no lugar do emoji (fill nos círculos fixos; mini segue a fonte) */
 .av-img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }
 .av-mini { width: 1.15em; height: 1.15em; object-fit: cover; border-radius: 50%; display: inline-block; vertical-align: -0.18em; }

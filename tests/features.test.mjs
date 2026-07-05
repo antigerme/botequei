@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, sharePool, summary, happyHour, paysFor, payerOf, songs } from '../js/events.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs } from '../js/events.js';
 import { badgesFor, mvp, ceremonyAwards } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
@@ -82,6 +82,13 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.strictEqual(ra.total, 5);
   assert.strictEqual(ra.money, 27);
   ok('compartilhado: summary usa o total/dinheiro pessoais');
+
+  // rateio do bolo: motorista fora por padrão; toggle "todos"; fallback se só tem motorista
+  applyEvent(s, { type: 'PROFILE', user: 'm', name: 'Mari', emoji: '🚗', driver: true, ts: 9, eventId: 'pm' });
+  assert.deepStrictEqual([...shareSplit(s, ['a', 'b', 'm'])].sort(), ['a', 'b'], 'motorista fica fora do bolo');
+  assert.deepStrictEqual([...shareSplit(s, ['a', 'b', 'm'], { shareAll: true })].sort(), ['a', 'b', 'm'], 'toggle inclui todo mundo');
+  assert.deepStrictEqual([...shareSplit(s, ['m'])], ['m'], 'só motorista na conta → racha entre quem tem');
+  ok('compartilhado: shareSplit (motorista fora / toggle todos / fallback)');
 }
 
 // ---------- Foto de perfil (miniatura no PROFILE, validada) ----------

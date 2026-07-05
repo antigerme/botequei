@@ -57,6 +57,7 @@ const IDS = [
   'overlay-crop', 'crop-canvas', 'crop-zoom', 'btn-crop-use',
   'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'add-share', 'btn-additem-confirm',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
+  'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
   'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-limit', 'set-water', 'set-nudges',
   'set-lang', 'set-weight', 'set-sex', 'set-responsa', 'set-carapp', 'set-trustname', 'set-trustphone',
@@ -279,7 +280,7 @@ export function init(handlers) {
   $('btn-pix-copy').addEventListener('click', () => H.onPixCopy());
 
   // conta: recalcular ao mudar opcoes + presets de gorjeta + compartilhar
-  ['bill-couvert', 'bill-equal'].forEach((id) => {
+  ['bill-couvert', 'bill-equal', 'bill-shareall'].forEach((id) => {
     el[id].addEventListener('change', () => H.onBillChange());
     el[id].addEventListener('input', () => H.onBillChange());
   });
@@ -752,6 +753,7 @@ function markTip() {
 }
 export function openBill(vm) {
   billExcluded = new Set();
+  el['bill-shareall'].checked = false; // cada fechamento começa no padrão: motorista fora do bolo
   if (vm && Number.isFinite(vm.tipPct)) billTip = vm.tipPct;
   markTip();
   el['overlay-bill'].hidden = false;
@@ -761,11 +763,20 @@ export function billOptions() {
     tipPct: billTip,
     couvert: Math.max(0, parseFloat(String(el['bill-couvert'].value).replace(',', '.')) || 0),
     equal: el['bill-equal'].checked,
+    shareAll: el['bill-shareall'].checked,
     excluded: [...billExcluded],
   };
 }
 export function renderBill(vm) {
   el['bill-note'].textContent = vm.note || '';
+  // bolo da mesa (garrafas/torres compartilhadas): resumo + fatia; toggle do motorista quando muda algo
+  const pool = vm.pool;
+  el['bill-pool'].hidden = !pool;
+  if (pool) {
+    const items = pool.lines.map((l) => `${l.count}× ${l.name}`).join(' + ');
+    el['bill-pool-line'].textContent = t('bill.pool', { items, total: fmtMoney(pool.total), each: fmtMoney(pool.each), n: pool.heads });
+    el['bill-shareall-wrap'].hidden = !pool.canToggle;
+  }
   const equal = !!vm.equal;
   el['bill-list'].innerHTML = vm.rows.map((r) => {
     const items = (r.items || []).map((it) => `${esc(it.emoji)}${it.n}`).join(' ');

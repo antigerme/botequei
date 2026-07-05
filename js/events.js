@@ -202,6 +202,15 @@ export function sharePool(state, resolveItem) {
   return { total, lines };
 }
 
+// Quem entra no rateio do bolo da mesa. Padrão de boteco: motorista não paga a
+// cerveja que não bebeu (fica fora); `shareAll` liga "todo mundo entra". Se só
+// sobrou motorista na conta, o fallback racha entre todos (ninguém bebe de graça).
+export function shareSplit(state, users, { shareAll = false } = {}) {
+  let heads = users.filter((u) => shareAll || !isDriver(state, u));
+  if (!heads.length) heads = [...users];
+  return new Set(heads);
+}
+
 export function getProfile(state, user) {
   const p = state.profiles.get(user);
   const def = p ? p.def : {};

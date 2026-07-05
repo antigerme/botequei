@@ -159,7 +159,13 @@ padrão Auto segue o navegador).
   abre a **comanda** daquela pessoa.
 - **Cardápio por categoria**: `catalog.js` (`cat` + `CATEGORIES`/`catOf`); itens custom levam
   `cat`/`note` no def do evento `ITEM` (⚠️ ao editar preço, faça `makeItem({...it, price})` pra
-  não perder `g`/`cat`/`note`).
+  não perder `g`/`cat`/`note`/`share`). **Itens compartilhados** (`share:1` — garrafa 600
+  [id `cerveja`, mantido por compat], litrão, torre): pedido é DA MESA — g=0 (não entra no BAC
+  de quem tocou), dinheiro vai pro bolo (`sharePool`) e racheia na conta via `shareSplit`
+  (puro: motorista fora por padrão, toggle "todos", fallback se só tem motorista); o card tem
+  a zona "🥂 meu copo" (item `copo`, `cup:1`, R$0 e g=11) = dose PESSOAL que alimenta
+  BAC/estatísticas e não vira card próprio. `userTotal`/`userMoney`/`summary` aceitam
+  `resolveItem` e excluem share do pessoal; `tableTotal` soma tudo (herói é da mesa).
 - **Consciência & estatísticas (puro)**: `js/stats.js` (ritmo, linha do tempo, teor alcoólico por
   Widmark — peso/sexo locais, **não é bafômetro** —, `lastDrinkAt`/`hydration`/`driveVerdict`) e
   `js/lifestats.js` (média/recorde/mês/favorita/streak + `monthlyTrend`/`weekdayInsight`/`retro`/
@@ -243,8 +249,11 @@ padrão Auto segue o navegador).
 - **i18n total e sempre em paridade**: TODA string de UI (shell, toasts, templates, aria) nasce
   no dicionário de `js/i18n.js` nas **três** línguas via `t(chave, vars)` — a auditoria
   (`tests/audit.mjs`, roda no CI) falha se alguma língua ficar de fora ou sobrar chave. Conteúdo
-  compartilhado via CRDT (nomes de itens do catálogo, cartas do deck, conquistas, coach, cards de
+  compartilhado via CRDT (nomes de itens CUSTOM, cartas do deck, conquistas, coach, cards de
   share) segue pt-BR por design: é DADO da mesa, não chrome — traduzir dessincronizaria os peers.
+  EXCEÇÃO deliberada: item PADRÃO do catálogo viaja só pelo `id` e cada aparelho rotula via
+  `t('item.'+id)` (`itemLabel` no `app.js`) — rótulo de item padrão é percepção local
+  ("cerveja" europeia = chopp BR), o dado sincronizado (id+contagem) segue idêntico.
   Nos e2e, force `lang:'pt'` no addInitScript (o CI roda Chromium en-US e os asserts são pt).
   Cuidado clássico: `const t = algumaCoisa()` SOMBREIA o `t()` do i18n — renomeie o local.
 - Ao adicionar `js/*.js` do shell, atualize a lista do `sw.js` **e** bump o `CACHE` (`botequei-vN`).

@@ -103,10 +103,36 @@ async function main() {
     await Promise.all([peers(pageA, 2), peers(pageB, 2)]);
   });
 
-  // consumo p/ dar substância à conta/estatísticas
-  await pageA.click('.item-card[data-item="cerveja"]');
-  await pageB.click('.item-card[data-item="cerveja"]');
-  await pageA.waitForTimeout(400);
+  // consumo p/ dar substância à conta/estatísticas — cobrindo o fluxo COMPARTILHADO
+  await step('garrafa da mesa: pedido é da MESA; "meu copo" é só de quem bebeu', async () => {
+    const box = await (await pageA.$('.item-card[data-item="cerveja"]')).boundingBox();
+    await pageA.mouse.click(box.x + box.width / 2, box.y + 18); // topo do card = mesa pediu +1 (longe da zona do copo)
+    await Promise.all([pageA, pageB].map((p) => p.waitForFunction(
+      () => document.querySelector('.item-card[data-item="cerveja"] .item-qty')?.textContent.trim() === '1',
+      null, { timeout: T })));
+    await pageB.click('.item-card[data-item="cerveja"] .item-cup'); // Bia bebeu um copo do bolo
+    await pageB.waitForFunction(() => document.querySelector('.item-card[data-item="cerveja"] .item-cup-n')?.textContent.trim() === '1', null, { timeout: T });
+    const cupA = await pageA.evaluate(() => document.querySelector('.item-card[data-item="cerveja"] .item-cup-n')?.textContent.trim());
+    if (cupA !== '0') throw new Error('contador do copo é PESSOAL — em A deveria seguir 0, vi ' + cupA);
+    await pageB.click('.item-card[data-item="chopp"]'); // e um chopp individual (estatística da Bia)
+    await pageA.waitForTimeout(400);
+  });
+
+  await step('conta: bolo da mesa aparece com preço e racheia entre os dois', async () => {
+    await pageA.click('#btn-menu'); await pageA.click('#menu-prices');
+    await visible(pageA, 'overlay-prices');
+    await pageA.fill('#price-list input[data-id="cerveja"]', '12');
+    await pageA.$eval('#price-list input[data-id="cerveja"]', (e) => e.dispatchEvent(new Event('change')));
+    await closeAll(pageA);
+    await pageA.click('#btn-menu'); await pageA.click('#menu-bill');
+    await visible(pageA, 'overlay-bill');
+    await pageA.waitForFunction(() => {
+      const p = document.getElementById('bill-pool');
+      const l = document.getElementById('bill-pool-line');
+      return p && !p.hidden && l && l.textContent.includes('12') && l.textContent.includes('× 2');
+    }, null, { timeout: T });
+    await closeAll(pageA);
+  });
 
   await step('roleta: mesmo vencedor nos dois aparelhos', async () => {
     await pageA.click('#btn-menu'); await pageA.click('#menu-roulette');

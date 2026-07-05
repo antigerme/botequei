@@ -59,24 +59,24 @@ async function main() {
   });
 
   await step('+1 em A aparece em B em tempo real', async () => {
-    await pageA.click('.item-card[data-item="cerveja"]');
-    await itemQty(pageB, 'cerveja', 1);
+    await pageA.click('.item-card[data-item="chopp"]');
+    await itemQty(pageB, 'chopp', 1);
     await tableTotal(pageB, 1);
   });
 
   await step('+1 em B aparece em A (bidirecional)', async () => {
-    await pageB.click('.item-card[data-item="chopp"]');
-    await itemQty(pageA, 'chopp', 1);
+    await pageB.click('.item-card[data-item="lata"]');
+    await itemQty(pageA, 'lata', 1);
     await tableTotal(pageA, 2);
   });
 
   await step('toque longo em A faz -1 e propaga', async () => {
-    const box = await (await pageA.$('.item-card[data-item="cerveja"]')).boundingBox();
+    const box = await (await pageA.$('.item-card[data-item="chopp"]')).boundingBox();
     await pageA.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await pageA.mouse.down();
     await pageA.waitForTimeout(650); // segura > 480ms
     await pageA.mouse.up();
-    await itemQty(pageB, 'cerveja', 0);
+    await itemQty(pageB, 'chopp', 0);
     await tableTotal(pageB, 1);
   });
 
@@ -84,8 +84,8 @@ async function main() {
     const C = await mkCtx('Caio'); const pageC = await C.newPage();
     await pageC.goto(BASE + '#/join?room=' + code);
     await pageC.waitForSelector('#screen-table.is-active', { timeout: T });
-    await tableTotal(pageC, 1);       // recebeu o estado via sync
-    await itemQty(pageC, 'chopp', 1); // sem ter presenciado o evento ao vivo
+    await tableTotal(pageC, 1);      // recebeu o estado via sync
+    await itemQty(pageC, 'lata', 1); // sem ter presenciado o evento ao vivo
   });
 
   await browser.close();

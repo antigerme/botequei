@@ -15,8 +15,8 @@ só apresenta um navegador ao outro e sai de cena.
 ## O fluxo de um "+1" (entenda isso e você entendeu o app)
 
 ```
- dedo toca o card "Cerveja"                       (ui.js: gesto de toque curto)
-   → H.onAdd('cerveja')                           (ui.js dispara o handler do app.js)
+ dedo toca o card "Chopp"                         (ui.js: gesto de toque curto)
+   → H.onAdd('chopp')                             (ui.js dispara o handler do app.js)
      → makeAdd() cria o EVENTO imutável           (events.js: {type:'ADD', user, item, ts, eventId})
        → emitLocal(ev):                           (app.js)
            1. applyEvent(state, ev)               (events.js: reducer — soma no total)
@@ -30,6 +30,13 @@ só apresenta um navegador ao outro e sai de cena.
 Somar é comutativo ⇒ a ordem de chegada não importa ⇒ **todo mundo converge**. Quem entra
 atrasado recebe o log inteiro no aperto de mão (anti-entropy, em lotes de 64 eventos) e
 chega no mesmo estado.
+
+**Itens compartilhados** (garrafa 600/litrão/torre, `share:1` no catálogo) usam o MESMO
+evento ADD — o que muda é a leitura: o dinheiro deles não pendura em quem tocou
+(`userMoney` pula, `sharePool` junta o bolo da mesa e `shareSplit` decide quem racheia na
+conta — motorista fora por padrão), e o corpo é medido pelo **copo** (`copo`, `cup:1`,
+R$0 e g>0): a zona "🥂 meu copo" dentro do card marca a dose PESSOAL que alimenta
+BAC/estatísticas. Recipiente = dinheiro da mesa; copo = corpo de quem bebeu.
 
 ## O mapa das camadas
 
@@ -76,8 +83,12 @@ chega no mesmo estado.
 
 - **Sem framework, sem build** — a "toolchain" é o navegador. Qualquer `git clone` roda.
   Não introduza bundler: o custo permanente supera o ganho pontual.
-- **Conteúdo compartilhado fica em pt-BR** (nomes de itens, cartas, conquistas) mesmo com
-  UI em 3 línguas: é DADO da mesa (viaja via CRDT) — se cada peer traduzisse, dessincronizava.
+- **Conteúdo compartilhado fica em pt-BR** (nomes de itens CUSTOM, cartas, conquistas)
+  mesmo com UI em 3 línguas: é DADO da mesa (viaja via CRDT) — se cada peer traduzisse,
+  dessincronizava. **Exceção de propósito**: itens PADRÃO do catálogo viajam só pelo `id`
+  (`chopp`, `cerveja`…), e cada aparelho mostra o nome via `t('item.'+id)` — na Europa a
+  "cerveja" do brasileiro é o chopp deles, então o RÓTULO é percepção local (`itemLabel`
+  em `app.js`), não dado. O que os peers sincronizam (id + contagem) continua idêntico.
 - **Jogos confiam como na vida real**: quem embaralha é o dono da mesa; a MESA VERIFICADA
   (commit-to-deck + corte coletivo + auditoria no fim) pega trapaça no embaralho, e cada
   jogada é validada por TODOS os peers. O que não dá pra esconder sem "mental poker"

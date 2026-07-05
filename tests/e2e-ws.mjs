@@ -60,7 +60,7 @@ async function main() {
     await B.page.waitForSelector('#screen-table.is-active', { timeout: T });
     await Promise.all([peers(A.page, 2), peers(B.page, 2)]);
     await waitTransport(B.page, WANT);
-    await A.page.click('.item-card[data-item="cerveja"]');
+    await A.page.click('.item-card[data-item="chopp"]');
     await Promise.all([total(A.page, 1), total(B.page, 1)]);
   });
 
@@ -83,7 +83,7 @@ async function main() {
       await Promise.all([peers(A.page, 3), peers(B.page, 3), peers(D.page, 3)]);
       if ((await transport(D.page)) !== 'poll') throw new Error('Dani sem WebSocket deveria estar em poll, vi ' + await transport(D.page));
       if ((await transport(A.page)) !== 'ws') throw new Error('Andre deveria seguir em ws');
-      await D.page.click('.item-card[data-item="cerveja"]');
+      await D.page.click('.item-card[data-item="chopp"]');
       await Promise.all([total(A.page, 2), total(B.page, 2), total(D.page, 2)]);
       await D.ctx.close();
     });

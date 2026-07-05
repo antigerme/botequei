@@ -884,11 +884,17 @@ function maybeStartTour() {
   const tick = setInterval(() => {
     if (!room) { clearInterval(tick); return; } // saiu antes do tour começar
     if (document.querySelector('.overlay:not([hidden])')) return; // convite/QR ainda aberto
-    if (!document.querySelector('.item-card')) return; // cardápio ainda não renderizou
+    const hasCards = !!document.querySelector('.item-card');
+    const emptyOpen = !!document.querySelector('#menu-empty:not([hidden])');
+    if (!hasCards && !emptyOpen) return; // miolo ainda não renderizou
     clearInterval(tick);
     store.setFlag('tourSeen'); // marca ao MOSTRAR (pular também conta como visto)
     ui.startTour([
-      { sel: '.item-card', title: t('tour.t1'), text: t('tour.x1') },
+      // mesa nova nasce vazia → a 1ª parada ensina a MONTAR o cardápio; se já tem cards
+      // (entrou numa mesa rodando), ensina o toque no card
+      hasCards
+        ? { sel: '.item-card', title: t('tour.t1'), text: t('tour.x1') }
+        : { sel: '#menu-empty', title: t('tour.t0'), text: t('tour.x0') },
       { sel: '.total-hero', title: t('tour.t2'), text: t('tour.x2') },
       { sel: '#btn-games', title: t('tour.t3'), text: t('tour.x3') },
       { sel: '#btn-menu', title: t('tour.t4'), text: t('tour.x4') },
@@ -2214,7 +2220,11 @@ const handlers = {
   onPeers: () => { renderPeers(); renderLeagueInfo(); ui.openPeers(); },
   onBrinde, onReact,
   // rodada é generosa demais pra sair num toque acidental: explica e confirma antes
-  onRodada: () => ui.openRound(roundChoices(), settings.roundItem || 'chopp'),
+  onRodada: () => {
+    const choices = roundChoices();
+    if (!choices.length) { ui.toast(t('round.empty')); return; } // mesa sem bebida individual ainda
+    ui.openRound(choices, settings.roundItem || 'chopp');
+  },
   onRoundPick: (id) => rodada(id),
   onBrindeGo: () => sound.cheers(),
   onProfile: () => { const p = profOf(self); ui.openProfile({ name: getName(), color: p.color, emoji: p.emoji, driver: myDriver, photo: settings.profPhoto || p.photo || '' }); },

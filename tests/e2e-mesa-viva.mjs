@@ -145,8 +145,12 @@ async function main() {
       void guest; // (a página dela não age — o objetivo é derrubá-la na vez dela)
       await ctxs[1].close(); // Bia some no meio da vez dela
       await host.waitForFunction(() => (window.__toasts || []).some((t) => /Pulando a vez/.test(t)), null, { timeout: 60000 });
+      // 60s (não 10s): com o azar do embaralho, o host pode estar SEM pedra jogável — ele
+      // auto-passa (5s), a vez volta pra Bia offline e roda MAIS um ciclo de skip (~20s)
+      // antes de voltar (ou de trancar e abrir o resultado). O assert é "a mesa não trava":
+      // mesa travada de verdade não resolve nem em 60s.
       await host.waitForFunction(() => /Sua vez/.test(document.getElementById('dom-turn')?.textContent || '') ||
-        !document.getElementById('dom-result')?.hidden, null, { timeout: 10000 });
+        !document.getElementById('dom-result')?.hidden, null, { timeout: 60000 });
     });
 
     for (const c of ctxs) await c.close();

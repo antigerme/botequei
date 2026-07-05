@@ -147,16 +147,16 @@ async function main() {
       if (JSON.stringify(grid) !== JSON.stringify(menu)) throw new Error(`menu e grid divergem!\n  menu: ${menu.join(' | ')}\n  grid: ${grid.join(' | ')}`);
     });
 
-    await step('tocar em "Rodada" NÃO marca direto: explica e espera o "Bora!"', async () => {
+    await step('tocar em "Rodada" NÃO marca direto: abre a ESCOLHA do item (total segue 0)', async () => {
       await A.click('#btn-rodada');
-      await A.waitForFunction(() => { const t = document.getElementById('toast'); return !t.hidden && /Rodada/.test(t.textContent); }, null, { timeout: 5000 });
-      await A.waitForTimeout(400); // ninguém confirmou ainda → total segue 0
+      await A.waitForFunction(() => !document.getElementById('overlay-round').hidden, null, { timeout: 5000 });
+      await A.waitForTimeout(400); // ninguém escolheu ainda → total segue 0
       const tot = (await A.textContent('#table-total')).trim();
-      if (tot !== '0') throw new Error('rodada marcou sem confirmação! total=' + tot);
+      if (tot !== '0') throw new Error('rodada marcou sem escolher! total=' + tot);
     });
 
-    await step('confirmou → +1 cerveja pra cada um online, sincronizado nos dois', async () => {
-      await A.click('#toast'); // "Bora!"
+    await step('escolheu chopp → +1 pra cada um online, sincronizado nos dois', async () => {
+      await A.click('#round-grid button[data-id="chopp"]');
       await Promise.all([A, B].map((p) => p.waitForFunction(() => document.getElementById('table-total')?.textContent.trim() === '2', null, { timeout: T })));
     });
 

@@ -286,19 +286,29 @@ function addCustomItem({ emoji, name, price, cat, note, share }) {
   if (emitLocal(makeItem(def))) { render(); ui.toast(t('toast.itemAdded', { emoji: emoji, name: name })); }
 }
 
-// ---- Rodada coletiva ----
-function rodada() {
-  const item = 'cerveja';
+// ---- Rodada coletiva (do item que você escolher; garrafa da mesa não precisa: o card dela
+// JÁ é coletivo). Motorista só fica de fora se o item for alcoólico — rodada de refri/água
+// inclui todo mundo. ----
+function roundChoices() {
+  return allItems()
+    .filter((it) => !isShare(it) && ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it)))
+    .map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it) }));
+}
+function rodada(item) {
+  const def = resolveItem(item);
+  if (!def || isShare(def)) return;
+  const alcoholic = ALCOHOL.has(item) || (def.g || 0) > 0;
   const targets = [{ user: self, name: getName() }];
   if (mesh) for (const p of mesh.peers()) if (p.online) targets.push({ user: p.user, name: profOf(p.user).name });
   let n = 0;
   for (const t of targets) {
-    if (isDriver(state, t.user)) continue;
+    if (alcoholic && isDriver(state, t.user)) continue;
     if (emitLocal(makeAdd(item, t.user, t.name))) n++;
   }
-  if (mesh) mesh.sendFx({ kind: 'react', emoji: '🍻' });
-  ui.floatReaction('🍻'); ui.floatReaction('🍻'); sound.cheers();
-  ui.celebrate(['🍻', '🎉', '🥂']);
+  settings = setSettings({ roundItem: item }); // lembra a escolha pra próxima
+  if (mesh) mesh.sendFx({ kind: 'react', emoji: def.emoji || '🍻' });
+  ui.floatReaction(def.emoji || '🍻'); ui.floatReaction('🍻'); sound.cheers();
+  ui.celebrate([def.emoji || '🍻', '🎉', '🥂']);
   afterChange(item, 'add');
   lastTableMilestone = Math.floor(tableTotal(state) / 10); // sincroniza o marco (evita confete duplo)
   ui.toast(n ? t('toast.roundN', { n: n }) : t('toast.round0'));
@@ -2155,7 +2165,8 @@ const handlers = {
   onPeers: () => { renderPeers(); renderLeagueInfo(); ui.openPeers(); },
   onBrinde, onReact,
   // rodada é generosa demais pra sair num toque acidental: explica e confirma antes
-  onRodada: () => ui.actionToast(t('toast.roundConfirm'), t('common.letsGo'), rodada, 6000),
+  onRodada: () => ui.openRound(roundChoices(), settings.roundItem || 'chopp'),
+  onRoundPick: (id) => rodada(id),
   onBrindeGo: () => sound.cheers(),
   onProfile: () => { const p = profOf(self); ui.openProfile({ name: getName(), color: p.color, emoji: p.emoji, driver: myDriver, photo: settings.profPhoto || p.photo || '' }); },
   onProfileSave: ({ name, color, emoji, driver, photo }) => {

@@ -386,6 +386,10 @@ body.bigfont .btn, body.bigfont .chip { font-size: 19px; }
 .theme-row .btn { width: 100%; }
 .theme-row .btn:last-child { grid-column: 1 / -1; }
 
+/* Rodada: grid de escolha do item */
+.round-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.round-grid .btn { width: 100%; }
+
 /* Item COMPARTILHADO (garrafa 600, litrão, torre): selo "da mesa" + zona do meu copo */
 .item-card.share { border-style: solid; }
 .share-flag { position: absolute; top: 8px; left: 10px; font-size: 11px; letter-spacing: .4px;

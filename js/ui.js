@@ -43,6 +43,7 @@ const IDS = [
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'btn-brinde', 'btn-react', 'btn-rodada', 'btn-games', 'overlay-games', 'games-grid',
+  'overlay-round', 'round-grid',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
@@ -911,6 +912,15 @@ export function brinde() {
       setTimeout(() => { b.hidden = true; brindeRunning = false; }, 1400);
     }
   }, 800);
+}
+
+// ---------- Rodada: escolher o item (2 toques no total; sem disparo acidental) ----------
+export function openRound(items, lastId) {
+  el['round-grid'].innerHTML = items.map((it) => `
+    <button class="btn ${it.id === lastId ? 'btn-primary' : 'btn-ghost'}" data-id="${esc(it.id)}">${esc(it.emoji)} ${esc(it.name)}</button>`).join('');
+  el['round-grid'].querySelectorAll('button[data-id]').forEach((b) =>
+    b.addEventListener('click', () => { closeOverlays(); H.onRoundPick(b.dataset.id); }));
+  el['overlay-round'].hidden = false;
 }
 
 // ---------- Jogos (atalho rápido da mesa) ----------

@@ -158,7 +158,7 @@ function ingest(ev) {
   seen.add(ev.eventId); log.push(ev); applyEvent(state, ev); scheduleSave();
   return true;
 }
-function rebuildFrom(events) { log = []; seen = new Set(); state = emptyState(); for (const ev of events) ingest(ev); lastTableMilestone = Math.floor(tableTotal(state) / 10); const hh0 = happyHour(state); hhEndedFor = hh0 && hh0.until <= Date.now() ? hh0.until : 0; }
+function rebuildFrom(events) { log = []; seen = new Set(); state = emptyState(); for (const ev of events) ingest(ev); lastTableMilestone = Math.floor(tableTotal(state, resolveItem) / 10); const hh0 = happyHour(state); hhEndedFor = hh0 && hh0.until <= Date.now() ? hh0.until : 0; }
 function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { if (room) store.saveEvents(room, log); }, 400); }
 
 // evento local: registra + propaga
@@ -250,7 +250,7 @@ function callCar() {
 }
 // Marco da mesa: a cada 10 rodadas, joga confete + aviso. Reajusta se desfizerem.
 function checkTableMilestone() {
-  const total = tableTotal(state);
+  const total = tableTotal(state, resolveItem);
   const m = Math.floor(total / 10);
   if (total > 0 && m > lastTableMilestone) {
     lastTableMilestone = m;
@@ -267,13 +267,13 @@ function tickHappyHour() {
   if (hh && hh.until > now) {
     const r = hh.until - now;
     const mm = Math.floor(r / 60000), ss = Math.floor((r % 60000) / 1000);
-    const rounds = Math.max(0, tableTotal(state) - hh.startTotal);
+    const rounds = Math.max(0, tableTotal(state, resolveItem) - hh.startTotal);
     ui.setHappyHour(t(rounds === 1 ? 'hh.banner1' : 'hh.bannerN', { time: `${mm}:${String(ss).padStart(2, '0')}`, n: rounds }));
   } else {
     ui.setHappyHour(null);
     if (hh && hh.until && hhEndedFor !== hh.until) {
       hhEndedFor = hh.until;
-      const rounds = Math.max(0, tableTotal(state) - hh.startTotal);
+      const rounds = Math.max(0, tableTotal(state, resolveItem) - hh.startTotal);
       if (rounds > 0) { ui.celebrate(['🍺', '🏆', '🎉', '🥂']); ui.toast(t(rounds === 1 ? 'hh.closed1' : 'hh.closedN', { n: rounds })); }
     }
   }
@@ -310,7 +310,7 @@ function rodada(item) {
   ui.floatReaction(def.emoji || '🍻'); ui.floatReaction('🍻'); sound.cheers();
   ui.celebrate([def.emoji || '🍻', '🎉', '🥂']);
   afterChange(item, 'add');
-  lastTableMilestone = Math.floor(tableTotal(state) / 10); // sincroniza o marco (evita confete duplo)
+  lastTableMilestone = Math.floor(tableTotal(state, resolveItem) / 10); // sincroniza o marco (evita confete duplo)
   ui.toast(n ? t('toast.roundN', { n: n }) : t('toast.round0'));
 }
 
@@ -411,7 +411,7 @@ function onRemoteEvent(ev, fromPeer, isSync) {
   if (mesh) mesh.broadcast({ k: 'ev', ev }, fromPeer); // gossip
   if (ev.type === 'HAPPYHOUR' && Number(ev.until) <= Date.now()) hhEndedFor = Number(ev.until); // happy hour já vencido (veio no sync): não comemora
   if (ev.type === 'ADD' && ev.user === self) checkLimit(); // alguém somou pra mim (rodada)
-  if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state) / 10); scheduleRender(); return; }
+  if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state, resolveItem) / 10); scheduleRender(); return; }
   if (ev.type === 'ADD') checkTableMilestone();
   if (ev.type === 'SONG') ui.renderJukebox(songs(state));
   if (ev.type === 'ADD' && ev.user !== self) {
@@ -446,7 +446,7 @@ function render() {
     cups: isShare(it) ? getCount(state, self, 'copo') : 0,
   }));
   const info = tableInfo(state);
-  const tt = tableTotal(state);
+  const tt = tableTotal(state, resolveItem);
   ui.renderTable({
     code: room,
     title: info.title || '',
@@ -617,7 +617,7 @@ function leaveTable() {
     const info = tableInfo(state);
     store.pushHistory({
       room, at: Date.now(),
-      myTotal: userTotal(state, self, resolveItem), tableTotal: tableTotal(state),
+      myTotal: userTotal(state, self, resolveItem), tableTotal: tableTotal(state, resolveItem),
       myMoney: userMoney(state, self, resolveItem),
       title: info.title || '',
       items: myItems(),
@@ -2414,7 +2414,7 @@ const handlers = {
   onHappyHour: (minutes) => {
     if (!room) { ui.toast(t('toast.needTableFirst')); return; }
     hhEndedFor = 0;
-    emitLocal(makeHappyHour({ minutes, startTotal: tableTotal(state) }));
+    emitLocal(makeHappyHour({ minutes, startTotal: tableTotal(state, resolveItem) }));
     tickHappyHour();
     ui.toast(t('hh.on', { n: minutes }));
   },

@@ -160,9 +160,15 @@ export function userTotal(state, user, resolveItem) {
   return t;
 }
 
-export function tableTotal(state) {
+// Total DA MESA (o número grande): tudo que foi PEDIDO. O copo (cup) fica de fora —
+// ele é a dose pessoal de um recipiente que JÁ contou quando a mesa pediu (garrafa/
+// litrão/torre); somar os dois seria contar a mesma cerveja duas vezes.
+export function tableTotal(state, resolveItem) {
   let t = 0;
-  for (const v of state.counts.values()) t += Math.max(0, v);
+  for (const [k, v] of state.counts) {
+    if (resolveItem) { const def = resolveItem(k.slice(k.indexOf('\x00') + 1)); if (def && def.cup) continue; }
+    t += Math.max(0, v);
+  }
   return t;
 }
 

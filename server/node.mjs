@@ -147,7 +147,7 @@ const MIME = {
 // revalida sempre o que é shell (ES modules sem hash — mesma regra do _headers da Cloudflare)
 const NO_CACHE = new Set(['.html', '.js', '.mjs', '.css', '.webmanifest']);
 // o que NUNCA sai pela web (equivalente do antigo bloqueio no .htaccess)
-const PRIVATE = /^\/(server|worker|tests|tools|node_modules|\.)|\.(jsonc|md|example)$|^\/(eslint\.config\.mjs|_headers|\.assetsignore|\.gitignore|package(-lock)?\.json)$/;
+const PRIVATE = /^\/(server|worker|tests|tools|docs|node_modules|\.)|\.(jsonc|md|example)$|^\/(eslint\.config\.mjs|_headers|\.assetsignore|\.gitignore|package(-lock)?\.json)$/;
 
 async function statics(req, res, url) {
   let path = decodeURIComponent(url.pathname);

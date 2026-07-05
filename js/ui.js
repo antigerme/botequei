@@ -1,5 +1,32 @@
-// Camada de apresentacao: telas, cards, gestos, efeitos sociais, placar, conta, configs.
-// Nao guarda estado do dominio — renderiza o "view model" do app.js e dispara handlers.
+// ============================================================================
+// ui.js — A CAMADA DE APRESENTAÇÃO. Telas, overlays, cards, gestos e efeitos.
+//
+// Contrato com o app.js (mão dupla, e SÓ com ele):
+//   entrada → o app chama funções exportadas (render*, open*, toast…) passando
+//             um VIEW-MODEL pronto (objetos simples; nada de estado de domínio
+//             vive aqui — este arquivo não sabe o que é CRDT nem WebRTC);
+//   saída   → interações do usuário disparam handlers do objeto H (H.onAdd,
+//             H.onProfileSave…), registrado em init(handlers) pelo app.js.
+//
+// Regras da casa que este arquivo carrega:
+//   - TODO id de elemento usado aqui PRECISA estar no array IDS abaixo —
+//     init() amarra os listeners por ele e a auditoria (tests/audit.mjs)
+//     confere IDS ↔ index.html (id fantasma quebra o CI, não a produção);
+//   - toda string visível nasce do t() de i18n.js (três línguas; audit trava);
+//   - overlays seguem o padrão .overlay > .sheet (a11y automática: role=dialog,
+//     foco preso e ESC via setupA11y); gestos: toque = +1, toque longo = −1.
+//
+// SUMÁRIO (âncoras "// ----------" na ordem do arquivo):
+//   Gesto curto/longo · Init · A11y · Home · Mesa · Placar · Convite · Perfil
+//   (+ foto: captura e recorte) · Novo item · Preços · Conta · PIX · Configs ·
+//   Reações · Efeitos · Jogos (grid) · Bebedeira · Offline (QR) · Scanner ·
+//   Meu ritmo · Roleta · Cutucar · Cerimônia · Meus números · Presença ·
+//   Comanda · Tour · Tô de boa? · Retrospectiva · Liga · Modo bar · Torneio ·
+//   Carta da mesa · Purrinha · Jogo minimizado · Dominó · Truco · Jukebox ·
+//   Modo festa · Passaporte de botecos · Foto da noite · Guia de boas-vindas ·
+//   Overlays/toast (tema e idioma vivem na seção Configurações: resolveTheme/
+//   applyTheme/applyLang; a escolha de tema do fim do tour idem: openThemePick)
+// ============================================================================
 
 import { EMOJIS, COLORS, AVATARS, CATEGORIES } from './catalog.js';
 import { scanQR, scanSupported } from './scan.js';

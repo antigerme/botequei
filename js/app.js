@@ -1,4 +1,32 @@
-// Orquestrador do Botequei: amarra identidade, eventos, malha WebRTC, UI, sons, PIX e share.
+// ============================================================================
+// app.js — O ORQUESTRADOR. Único módulo que conhece todo mundo: amarra
+// identidade, eventos (CRDT), malha WebRTC, UI, jogos, sons, PIX e share.
+//
+// O fluxo de UM +1 (o coração do app, vale pra tudo):
+//   toque no card (ui.js) → handler H.onAdd aqui → makeAdd() cria o EVENTO
+//   imutável (events.js) → emitLocal(): aplica no reducer, salva no
+//   localStorage (store.js) e faz broadcast pela malha (mesh.js) → cada peer
+//   recebe, deduplica por eventId e aplica no PRÓPRIO reducer → render().
+//   Total = soma dos eventos (comutativa) ⇒ todo mundo converge.
+//
+// Papéis das camadas (regra de dependência: elas NÃO se importam entre si —
+// só o app.js importa todas):
+//   - events.js/stats.js/league.js/…  → LÓGICA PURA (testável em Node)
+//   - mesh.js + signaling.js          → TRANSPORTE (WebRTC + sala de sinalização)
+//   - ui.js                           → APRESENTAÇÃO (recebe view-model, dispara H.*)
+//   - store.js/settings.js/identity.js→ PERSISTÊNCIA LOCAL (só localStorage)
+//   - jogos (purrinha/domino/truco)   → motor puro no js/*.js; PROTOCOLO aqui
+//     (fases via fx efêmero com dedup por mid — não entram no log da mesa)
+//
+// SUMÁRIO (as âncoras "// ----" abaixo, na ordem do arquivo):
+//   Estado em memória · Signaling room (PIN) · Catálogo · Log/dedup · Ações de
+//   consumo · Rodada coletiva · Efeitos sociais · Eventos remotos · Render ·
+//   Mesa · Convite · Pareamento sem internet · Conta · Meu ritmo · Roleta ·
+//   Jogo minimizado · Atualização automática (SW) · Tour guiado · Purrinha
+//   (rápida/clássica/3-2-1) · Dominó (+ ausente + mesa verificada) · Truco ·
+//   Cutucar · Cerimônia · Meus números · Tô de boa? · Retrospectiva · Liga ·
+//   Modo bar · Handlers (objeto H — a API que a ui.js chama) · Boot
+// ============================================================================
 
 import { clientId, getName, setName, newRoomCode } from './identity.js';
 import { t } from './i18n.js';

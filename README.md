@@ -10,6 +10,9 @@ celular, tudo sincroniza direto **entre os navegadores (peer-to-peer via WebRTC)
 
 ## Como funciona (arquitetura)
 
+> 🧭 Vai mexer no código? O tour guiado completo pra quem chega — fluxo de dados, camadas,
+> onde mexer pra cada tipo de mudança — está em [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+
 - **PWA** em HTML + CSS + **JavaScript puro** (ES modules), sem framework nem build.
 - **WebRTC `RTCDataChannel`** em **malha completa** (_full-mesh_): cada celular conecta a
   todos os outros da mesa. Não há hub central — se qualquer um sair (inclusive quem criou a

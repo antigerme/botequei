@@ -114,7 +114,7 @@ function allItems() {
 }
 function profOf(user) {
   const p = getProfile(state, user);
-  return { name: p.name || (user === self ? getName() : ''), color: p.color || autoColor(user), emoji: p.emoji || autoAvatar(user), driver: p.driver, level: p.level || 0 };
+  return { name: p.name || (user === self ? getName() : ''), color: p.color || autoColor(user), emoji: p.emoji || autoAvatar(user), driver: p.driver, level: p.level || 0, photo: p.photo || '' };
 }
 
 // ---- Log / dedup ----
@@ -535,8 +535,8 @@ function startMesh(iceServers) {
     getSyncPayload: () => log,
   });
   mesh.start();
-  // publica meu perfil (cor/avatar) pra galera
-  emitLocal(makeProfile({ color: settings.profColor || autoColor(self), emoji: settings.profEmoji || autoAvatar(self), driver: myDriver, level: myLevel() }));
+  // publica meu perfil (cor/avatar/foto) pra galera
+  emitLocal(makeProfile({ color: settings.profColor || autoColor(self), emoji: settings.profEmoji || autoAvatar(self), driver: myDriver, level: myLevel(), photo: settings.profPhoto || '' }));
 }
 
 function restartMesh() {
@@ -2111,12 +2111,12 @@ const handlers = {
   // rodada é generosa demais pra sair num toque acidental: explica e confirma antes
   onRodada: () => ui.actionToast(t('toast.roundConfirm'), t('common.letsGo'), rodada, 6000),
   onBrindeGo: () => sound.cheers(),
-  onProfile: () => { const p = profOf(self); ui.openProfile({ name: getName(), color: p.color, emoji: p.emoji, driver: myDriver }); },
-  onProfileSave: ({ name, color, emoji, driver }) => {
+  onProfile: () => { const p = profOf(self); ui.openProfile({ name: getName(), color: p.color, emoji: p.emoji, driver: myDriver, photo: settings.profPhoto || p.photo || '' }); },
+  onProfileSave: ({ name, color, emoji, driver, photo }) => {
     if (name) { setName(name); ui.setNameInput(getName()); }
-    settings = setSettings({ profColor: color, profEmoji: emoji });
+    settings = setSettings({ profColor: color, profEmoji: emoji, profPhoto: photo || '' });
     myDriver = !!driver;
-    emitLocal(makeProfile({ color, emoji, driver })); render(); ui.toast(t('toast.profileSaved'));
+    emitLocal(makeProfile({ color, emoji, driver, photo, level: myLevel() })); render(); ui.toast(t('toast.profileSaved'));
   },
   onTableName: (name) => setTable({ title: name }),
   onTableEmoji: (emoji) => setTable({ emoji }),

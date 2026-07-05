@@ -376,6 +376,14 @@ body.bigfont .btn, body.bigfont .chip { font-size: 19px; }
 .theme-row .btn { width: 100%; }
 .theme-row .btn:last-child { grid-column: 1 / -1; }
 
+/* Foto de perfil: preview + recorte */
+.photo-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 2px; }
+.photo-preview { width: 52px; height: 52px; border-radius: 50%; overflow: hidden; flex: 0 0 auto; border: 2px solid var(--muted); }
+.photo-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.crop-wrap { display: flex; justify-content: center; margin: 8px 0; }
+#crop-canvas { border-radius: 16px; background: #000; touch-action: none; max-width: 100%; }
+#crop-zoom { width: 100%; }
+
 /* Camada de efeitos */
 .fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 70; overflow: hidden; }
 .fx-float { position: absolute; font-size: 44px; animation: floatUp 2.2s ease-out forwards; }

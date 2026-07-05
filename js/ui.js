@@ -25,6 +25,8 @@ const IDS = [
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list', 'btn-save-menu',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
+  'profile-photo-preview', 'profile-photo-img', 'btn-avatar-selfie', 'btn-avatar-upload', 'btn-avatar-clear', 'avatar-file',
+  'overlay-crop', 'crop-canvas', 'crop-zoom', 'btn-crop-use',
   'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'btn-additem-confirm',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
@@ -230,6 +232,13 @@ export function init(handlers) {
   el['btn-welcome-go'].addEventListener('click', () => closeOverlays());
 
   $('btn-profile-save').addEventListener('click', () => submitProfile());
+  // foto de perfil: selfie/galeria compartilham o MESMO input (só troca o capture)
+  el['btn-avatar-selfie'].addEventListener('click', () => openAvatarPicker(true));
+  el['btn-avatar-upload'].addEventListener('click', () => openAvatarPicker(false));
+  el['btn-avatar-clear'].addEventListener('click', () => { profileSel.photo = ''; paintProfilePhoto(); });
+  el['avatar-file'].addEventListener('change', () => avatarFilePicked());
+  el['btn-crop-use'].addEventListener('click', () => cropUse());
+  bindCrop();
   $('btn-pix-copy').addEventListener('click', () => H.onPixCopy());
 
   // conta: recalcular ao mudar opcoes + presets de gorjeta + compartilhar
@@ -504,9 +513,16 @@ export function openJoin(code, needPin) {
 }
 
 // ---------- Perfil ----------
-let profileSel = { color: COLORS[0], emoji: AVATARS[0] };
+let profileSel = { color: COLORS[0], emoji: AVATARS[0], photo: '' };
+function paintProfilePhoto() {
+  const has = !!profileSel.photo;
+  el['profile-photo-preview'].hidden = !has;
+  el['btn-avatar-clear'].hidden = !has;
+  if (has) el['profile-photo-img'].src = profileSel.photo;
+  else el['profile-photo-img'].removeAttribute('src');
+}
 export function openProfile(cur) {
-  profileSel = { color: cur.color || COLORS[0], emoji: cur.emoji || AVATARS[0] };
+  profileSel = { color: cur.color || COLORS[0], emoji: cur.emoji || AVATARS[0], photo: cur.photo || '' };
   el['profile-name'].value = cur.name || '';
   el['profile-driver'].checked = !!cur.driver;
   el['profile-colors'].innerHTML = COLORS.map((c) => `<button class="swatch ${c === profileSel.color ? 'sel' : ''}" style="background:${c}" data-c="${c}"></button>`).join('');
@@ -517,11 +533,122 @@ export function openProfile(cur) {
   el['profile-avatars'].querySelectorAll('.emoji-pick').forEach((b) => b.addEventListener('click', () => {
     profileSel.emoji = b.dataset.e; el['profile-avatars'].querySelectorAll('.emoji-pick').forEach((x) => x.classList.remove('sel')); b.classList.add('sel');
   }));
+  paintProfilePhoto();
   el['overlay-profile'].hidden = false;
 }
 function submitProfile() {
-  H.onProfileSave({ name: el['profile-name'].value.trim(), color: profileSel.color, emoji: profileSel.emoji, driver: el['profile-driver'].checked });
+  H.onProfileSave({ name: el['profile-name'].value.trim(), color: profileSel.color, emoji: profileSel.emoji, driver: el['profile-driver'].checked, photo: profileSel.photo });
   closeOverlays();
+}
+
+// ---------- Foto de perfil: captura + recorte (arrasta/pinça/slider) ----------
+// A foto original NUNCA sai do aparelho: aqui ela vira uma miniatura 128×128 (JPEG) e SÓ
+// essa miniatura entra no perfil (e, ao salvar, no evento PROFILE pra mesa ver).
+const CROP_VIEW = 280, THUMB = 128;
+let crop = null; // { img, w, h, scale, min, x, y, pointers:Map, pinch:null }
+
+function openAvatarPicker(selfie) {
+  const inp = el['avatar-file'];
+  // selfie = câmera frontal do SISTEMA (padrão da "foto da noite"); galeria = sem capture
+  if (selfie) inp.setAttribute('capture', 'user');
+  else inp.removeAttribute('capture');
+  inp.click();
+}
+
+async function avatarFilePicked() {
+  const f = el['avatar-file'].files && el['avatar-file'].files[0];
+  el['avatar-file'].value = '';
+  if (!f) return;
+  let img;
+  try {
+    // createImageBitmap respeita a orientação EXIF (selfie de celular vem rotacionada)
+    img = await createImageBitmap(f, { imageOrientation: 'from-image' });
+  } catch {
+    img = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = r.result; };
+      r.onerror = rej; r.readAsDataURL(f);
+    }).catch(() => null);
+  }
+  if (!img || !img.width || !img.height) return;
+  const min = CROP_VIEW / Math.min(img.width, img.height); // cobre a janela inteira
+  crop = { img, w: img.width, h: img.height, scale: min, min, x: img.width / 2, y: img.height / 2, pointers: new Map(), pinch: null };
+  el['crop-zoom'].value = '100';
+  el['overlay-crop'].hidden = false;
+  drawCrop();
+}
+
+// centro (x,y) em coordenadas DA IMAGEM; clamp mantém a janela sempre coberta
+function clampCrop() {
+  const half = CROP_VIEW / 2 / crop.scale;
+  crop.x = Math.min(crop.w - half, Math.max(half, crop.x));
+  crop.y = Math.min(crop.h - half, Math.max(half, crop.y));
+}
+function drawCrop() {
+  if (!crop) return;
+  const g = el['crop-canvas'].getContext('2d');
+  const src = CROP_VIEW / crop.scale;
+  g.clearRect(0, 0, CROP_VIEW, CROP_VIEW);
+  g.drawImage(crop.img, crop.x - src / 2, crop.y - src / 2, src, src, 0, 0, CROP_VIEW, CROP_VIEW);
+  // guia circular (é assim que a mesa vai ver)
+  g.save();
+  g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 2; g.setLineDash([6, 6]);
+  g.beginPath(); g.arc(CROP_VIEW / 2, CROP_VIEW / 2, CROP_VIEW / 2 - 3, 0, Math.PI * 2); g.stroke();
+  g.restore();
+}
+function cropSetScale(s, cx, cy) { // cx/cy = ponto fixo na TELA (âncora do zoom)
+  const old = crop.scale;
+  crop.scale = Math.min(crop.min * 3, Math.max(crop.min, s));
+  if (cx != null) { // mantém o ponto sob o dedo parado enquanto o zoom muda
+    crop.x += (cx - CROP_VIEW / 2) * (1 / old - 1 / crop.scale);
+    crop.y += (cy - CROP_VIEW / 2) * (1 / old - 1 / crop.scale);
+  }
+  clampCrop(); drawCrop();
+  el['crop-zoom'].value = String(Math.round((crop.scale / crop.min) * 100));
+}
+function bindCrop() {
+  const cv = el['crop-canvas'];
+  const pos = (e) => { const r = cv.getBoundingClientRect(); return { px: (e.clientX - r.left) * (CROP_VIEW / r.width), py: (e.clientY - r.top) * (CROP_VIEW / r.height) }; };
+  cv.addEventListener('pointerdown', (e) => {
+    if (!crop) return;
+    cv.setPointerCapture(e.pointerId);
+    crop.pointers.set(e.pointerId, pos(e));
+    if (crop.pointers.size === 2) {
+      const [a, b] = [...crop.pointers.values()];
+      crop.pinch = { d: Math.hypot(a.px - b.px, a.py - b.py), scale: crop.scale };
+    }
+  });
+  cv.addEventListener('pointermove', (e) => {
+    if (!crop || !crop.pointers.has(e.pointerId)) return;
+    const p = pos(e), prev = crop.pointers.get(e.pointerId);
+    crop.pointers.set(e.pointerId, p);
+    if (crop.pointers.size === 2 && crop.pinch) {
+      const [a, b] = [...crop.pointers.values()];
+      const d = Math.hypot(a.px - b.px, a.py - b.py);
+      cropSetScale(crop.pinch.scale * (d / crop.pinch.d), (a.px + b.px) / 2, (a.py + b.py) / 2);
+    } else if (crop.pointers.size === 1) {
+      crop.x -= (p.px - prev.px) / crop.scale;
+      crop.y -= (p.py - prev.py) / crop.scale;
+      clampCrop(); drawCrop();
+    }
+  });
+  const up = (e) => { if (!crop) return; crop.pointers.delete(e.pointerId); if (crop.pointers.size < 2) crop.pinch = null; };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  el['crop-zoom'].addEventListener('input', () => { if (crop) cropSetScale(crop.min * (Number(el['crop-zoom'].value) / 100)); });
+}
+function cropUse() {
+  if (!crop) return;
+  const out = document.createElement('canvas');
+  out.width = THUMB; out.height = THUMB;
+  const g = out.getContext('2d');
+  const src = CROP_VIEW / crop.scale;
+  g.drawImage(crop.img, crop.x - src / 2, crop.y - src / 2, src, src, 0, 0, THUMB, THUMB);
+  let url = out.toDataURL('image/jpeg', 0.72);
+  if (url.length > 13000) url = out.toDataURL('image/jpeg', 0.6); // garante folga sob o teto do evento
+  profileSel.photo = url;
+  paintProfilePhoto();
+  crop = null;
+  el['overlay-crop'].hidden = true;
 }
 
 // ---------- Novo item ----------

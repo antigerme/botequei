@@ -894,14 +894,22 @@ export function brinde() {
 }
 
 // ---------- Jogos (atalho rápido da mesa) ----------
+// FONTE ÚNICA por jogo: as MESMAS chaves *.title que o menu "…" usa (emoji + nome juntos).
+// Lição aprendida: quando o grid tinha emoji próprio E o i18n do truco também carregava um,
+// a mesa mostrou "🂠 🂠 Truco" — duas fontes de verdade SEMPRE acabam divergindo. O split
+// abaixo só separa o 1º token (emoji) pra estilizar maior; o texto continua vindo inteiro
+// da chave. O e2e-liso compara menu ↔ grid e trava qualquer nova divergência no CI.
 const GAMES = () => [
-  ['🫲', t('games.purr'), 'onPurrinha'],
-  ['🁫', t('games.dom'), 'onDomino'],
-  ['🂠', t('games.truco'), 'onTruco'],
-  ['🎰', t('games.roul'), 'onRoulette'],
-  ['🏟️', t('games.tourn'), 'onTournament'],
-  ['🃏', t('games.card'), 'onCard'],
-];
+  [t('purr.title'), 'onPurrinha'],
+  [t('dom.title'), 'onDomino'],
+  [t('tru.title'), 'onTruco'],
+  [t('roul.title'), 'onRoulette'],
+  [t('tourn.title'), 'onTournament'],
+  [t('card.title'), 'onCard'],
+].map(([full, h]) => {
+  const sp = full.indexOf(' ');
+  return sp > 0 ? [full.slice(0, sp), full.slice(sp + 1), h] : ['', full, h];
+});
 function openGames() {
   const games = GAMES();
   el['games-grid'].innerHTML = games.map(([e, n], i) =>

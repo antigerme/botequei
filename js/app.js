@@ -142,10 +142,15 @@ function allItems() {
   customs.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   return out.concat(customs);
 }
-// Nome de exibição de um item: PADRÃO é localizado no aparelho (o evento carrega só o id,
-// então cada peer vê no próprio idioma — a dor "na Europa cerveja é chopp"); item
-// PERSONALIZADO é dado da mesa e fica como foi digitado.
-function itemLabel(def) { return def && isDefault(def.id) ? t('item.' + def.id) : ((def && def.name) || ''); }
+// Nome de exibição de um item: a MARCA/apelido da mesa (dado da mesa, LWW) vence tudo
+// ("Original", "Coca 2L"); sem marca, item PADRÃO é localizado no aparelho (o evento
+// carrega só o id — a dor "na Europa cerveja é chopp") e item PERSONALIZADO fica como
+// foi digitado.
+function itemLabel(def) {
+  if (!def) return '';
+  if (def.brand) return def.brand;
+  return isDefault(def.id) ? t('item.' + def.id) : (def.name || '');
+}
 
 function profOf(user) {
   const p = getProfile(state, user);
@@ -2208,11 +2213,22 @@ const handlers = {
     if (res === 'download') ui.toast(t('toast.imgSaved')); else if (res === 'error') ui.toast(t('toast.imgError'));
   },
   onPayFor: (user, on) => { emitLocal(makePayFor({ to: user, on })); renderBill(); },
-  onPrices: () => ui.openPrices(allItems().filter((it) => !isCup(it)).map((it) => ({ ...it, name: itemLabel(it) }))),
+  onPrices: () => ui.openPrices(allItems().filter((it) => !isCup(it)).map((it) => ({
+    ...it,
+    brand: it.brand || '',
+    // placeholder do campo de marca = o que o item É sem marca (rótulo localizado)
+    name: isDefault(it.id) ? t('item.' + it.id) : (it.name || ''),
+  }))),
   onPriceChange: (id, price) => {
     const it = resolveItem(id);
-    // preserva emoji/nome/g/cat/note; só troca o preço (senão perde as gramas de álcool!)
+    // preserva emoji/nome/g/cat/note/share/brand; só troca o preço (senão perde as gramas de álcool!)
     emitLocal(makeItem({ ...it, price: Math.max(0, parseFloat(String(price).replace(',', '.')) || 0) }));
+    render();
+  },
+  onBrandChange: (id, brand) => {
+    const it = resolveItem(id);
+    // marca/apelido é DADO da mesa (LWW): "Original", "Coca 2L"… vazio = volta pro rótulo padrão
+    emitLocal(makeItem({ ...it, brand: String(brand || '').trim().slice(0, 28) }));
     render();
   },
   onPix: (user) => {

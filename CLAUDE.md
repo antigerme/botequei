@@ -16,7 +16,10 @@ padrão Auto segue o navegador).
 - **Consistência em tudo**: a mesma feature aparece em TODOS os pontos de entrada — menu "…"
   ↔ grid de jogos ↔ atalhos da mesa (já escapou o Truco do menu uma vez). Adicionou
   jogo/feature/tela? VARRA os pontos de entrada e os padrões visuais (mesmos botões, mesmos
-  gestos, mesmas molduras). Grep é seu amigo.
+  gestos, mesmas molduras). Grep é seu amigo. E rótulo repetido tem UMA fonte de verdade:
+  os jogos usam as chaves `*.title` tanto no menu quanto no grid (já escapou um
+  "🂠 🂠 Truco" quando cada lado carregava o próprio emoji) — o e2e-liso compara
+  menu ↔ grid e trava divergência no CI.
 - **Não perder o que já temos**: cada evolução PRESERVA o que existe — rode unit + audit +
   a suíte e2e antes de commitar; toda feature nova ganha assert de e2e (auto-descoberto);
   nunca remover/alterar comportamento existente sem pedido explícito; mexeu em algo

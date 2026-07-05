@@ -124,6 +124,29 @@ async function main() {
     await B.waitForSelector('#screen-table.is-active', { timeout: T });
     await Promise.all([A, B].map((p) => p.waitForFunction(() => document.getElementById('peer-count')?.textContent === '2', null, { timeout: T })));
 
+    await step('CONSISTÊNCIA: menu "…" e grid de jogos mostram os MESMOS jogos (mesmo emoji+nome)', async () => {
+      // fonte única = chaves *.title; este guarda trava divergência futura (já escapou um
+      // "🂠 🂠 Truco" quando grid e i18n carregavam o emoji cada um por si)
+      const norm = (x) => x.replace(/\s+/g, '');
+      await A.click('#btn-games');
+      await A.waitForFunction(() => !document.getElementById('overlay-games').hidden, null, { timeout: T });
+      const grid = (await A.$$eval('#games-grid .game-pick', (bs) => bs.map((b) => b.textContent))).map(norm).sort();
+      await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+      await A.click('#btn-menu');
+      const menu = (await A.evaluate(() => {
+        const items = [];
+        let sec = null;
+        for (const el of document.querySelectorAll('#overlay-menu .menu-sec, #overlay-menu .menu-item')) {
+          if (el.classList.contains('menu-sec')) { sec = el.textContent.trim(); continue; }
+          if (sec === 'Jogos') items.push(el.textContent);
+        }
+        return items;
+      })).map(norm).sort();
+      await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+      if (grid.length === 0 || menu.length === 0) throw new Error(`coleta vazia (grid=${grid.length}, menu=${menu.length})`);
+      if (JSON.stringify(grid) !== JSON.stringify(menu)) throw new Error(`menu e grid divergem!\n  menu: ${menu.join(' | ')}\n  grid: ${grid.join(' | ')}`);
+    });
+
     await step('tocar em "Rodada" NÃO marca direto: explica e espera o "Bora!"', async () => {
       await A.click('#btn-rodada');
       await A.waitForFunction(() => { const t = document.getElementById('toast'); return !t.hidden && /Rodada/.test(t.textContent); }, null, { timeout: 5000 });

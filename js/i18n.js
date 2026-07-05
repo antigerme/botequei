@@ -15,7 +15,7 @@ const DICT = {
     'tru.florWon': '🌸 Flor! +{n} pra nós', 'tru.florLost': '🌸 Flor deles… +{n} pra lá',
     'tru.envLie': '🚫 {name} cantou envido que a mão não sustenta!',
     // ---- truco ----
-    'games.truco': '🂠 Truco', 'game.pillTru': '🂠 Truco rolando', 'game.pillTruTurn': '🂠 SUA VEZ no truco',
+    'game.pillTru': '🂠 Truco rolando', 'game.pillTruTurn': '🂠 SUA VEZ no truco',
     'tru.title': '🂠 Truco', 'tru.handLbl': 'Sua mão — toque pra jogar',
     'tru.need2': 'Truco é de 2 ou 4 (duplas) 🂠', 'tru.how': 'Qual truco vai ser?',
     'tru.vPaulista': 'Paulista — vira e zap', 'tru.vMineira': 'Mineira — manilhas fixas, mão de 2',
@@ -132,8 +132,7 @@ const DICT = {
     'hh.on': '⏰ Happy hour de {n} min ligado!',
     // ---- jogos (pill / atalhos) ----
     'games.title': '🎮 Jogos',
-    'games.purr': 'Purrinha', 'games.dom': 'Dominó', 'games.roul': 'Quem paga a próxima?',
-    'games.tourn': 'Torneio da galera', 'games.card': 'Carta da mesa',
+    'games.tourn': 'Torneio da galera',
     'game.pillDomTurn': '🁫 SUA VEZ no dominó', 'game.pillDom': '🁫 Dominó rolando',
     'game.pillPurr': '🫲 Purrinha rolando', 'game.pillBack': ' — voltar',
     'game.end': 'Encerrar', 'game.endAll': '🛑 Encerrar a partida pra mesa toda', 'game.how': 'Como quer jogar?',
@@ -369,7 +368,7 @@ const DICT = {
     'tru.florWon': '🌸 Flor! +{n} for us', 'tru.florLost': '🌸 Their flor… +{n} for them',
     'tru.envLie': '🚫 {name} called envido points the hand cannot back!',
     // ---- truco ----
-    'games.truco': '🂠 Truco', 'game.pillTru': '🂠 Truco in play', 'game.pillTruTurn': '🂠 YOUR TURN at truco',
+    'game.pillTru': '🂠 Truco in play', 'game.pillTruTurn': '🂠 YOUR TURN at truco',
     'tru.title': '🂠 Truco', 'tru.handLbl': 'Your hand — tap to play',
     'tru.need2': 'Truco takes 2 or 4 (teams) 🂠', 'tru.how': 'Which truco are we playing?',
     'tru.vPaulista': 'Paulista — turned card, zap', 'tru.vMineira': 'Mineira — fixed trumps, hand worth 2',
@@ -486,8 +485,7 @@ const DICT = {
     'hh.on': '⏰ {n}-minute happy hour is on!',
     // ---- games (pill / shortcuts) ----
     'games.title': '🎮 Games',
-    'games.purr': 'Purrinha', 'games.dom': 'Dominoes', 'games.roul': 'Who pays the next one?',
-    'games.tourn': 'Crew tournament', 'games.card': 'Table card',
+    'games.tourn': 'Crew tournament',
     'game.pillDomTurn': '🁫 YOUR TURN at dominoes', 'game.pillDom': 'Dominoes in play 🁫',
     'game.pillPurr': '🫲 Purrinha in play', 'game.pillBack': ' — back',
     'game.end': 'End it', 'game.endAll': '🛑 End the game for the whole table', 'game.how': 'How do you want to play?',
@@ -723,7 +721,7 @@ const DICT = {
     'tru.florWon': '🌸 ¡Flor! +{n} para nosotros', 'tru.florLost': '🌸 Flor de ellos… +{n} para allá',
     'tru.envLie': '🚫 ¡{name} cantó un envido que la mano no sostiene!',
     // ---- truco ----
-    'games.truco': '🂠 Truco', 'game.pillTru': '🂠 Truco en juego', 'game.pillTruTurn': '🂠 TU TURNO en el truco',
+    'game.pillTru': '🂠 Truco en juego', 'game.pillTruTurn': '🂠 TU TURNO en el truco',
     'tru.title': '🂠 Truco', 'tru.handLbl': 'Tu mano — toca para jugar',
     'tru.need2': 'El truco es de 2 o 4 (parejas) 🂠', 'tru.how': '¿Qué truco jugamos?',
     'tru.vPaulista': 'Paulista — vira y zap', 'tru.vMineira': 'Mineira — triunfos fijos, mano de 2',
@@ -840,8 +838,7 @@ const DICT = {
     'hh.on': '⏰ ¡Happy hour de {n} min activado!',
     // ---- juegos (pill / atajos) ----
     'games.title': '🎮 Juegos',
-    'games.purr': 'Purrinha', 'games.dom': 'Dominó', 'games.roul': '¿Quién paga la próxima?',
-    'games.tourn': 'Torneo de la banda', 'games.card': 'Carta de la mesa',
+    'games.tourn': 'Torneo de la banda',
     'game.pillDomTurn': '🁫 TU TURNO en el dominó', 'game.pillDom': '🁫 Dominó en juego',
     'game.pillPurr': '🫲 Purrinha en juego', 'game.pillBack': ' — volver',
     'game.end': 'Terminar', 'game.endAll': '🛑 Terminar la partida para toda la mesa', 'game.how': '¿Cómo quieres jugar?',

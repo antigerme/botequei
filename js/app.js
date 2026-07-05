@@ -133,14 +133,29 @@ function resolveItem(id) {
   if (c) return c.def;
   return DEFAULT_ITEMS.find((i) => i.id === id) || { id, emoji: '🍺', name: id, price: 0 };
 }
+// A mesa nasce VAZIA: item do catálogo só entra quando alguém o adiciona (evento ITEM).
+// Item também conta como "da mesa" se tem contagem > 0 — mesas antigas (criadas quando o
+// cardápio vinha pronto) e rodadas de itens que o receptor ainda não tinha seguem inteiras.
 function allItems() {
   const seenIds = new Set();
   const out = [];
-  for (const d of DEFAULT_ITEMS) { const o = state.items.get(d.id); out.push(o ? o.def : d); seenIds.add(d.id); }
+  for (const d of DEFAULT_ITEMS) {
+    seenIds.add(d.id);
+    const o = state.items.get(d.id);
+    if (!o && itemTotal(state, d.id) <= 0) continue; // catálogo é SUGESTÃO, não cardápio
+    out.push(o ? o.def : d);
+  }
   const customs = [];
   for (const [id, rec] of state.items) if (!seenIds.has(id)) customs.push(rec.def);
   customs.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   return out.concat(customs);
+}
+// Sugestões de 1 toque (empty state + overlay ➕ item): o que o catálogo tem e a mesa ainda não.
+function suggestions() {
+  const inTable = new Set(allItems().map((i) => i.id));
+  return DEFAULT_ITEMS
+    .filter((d) => !isCup(d) && !inTable.has(d.id))
+    .map((d) => ({ id: d.id, emoji: d.emoji, name: t('item.' + d.id) }));
 }
 // Nome de exibição de um item: a MARCA/apelido da mesa (dado da mesa, LWW) vence tudo
 // ("Original", "Coca 2L"); sem marca, item PADRÃO é localizado no aparelho (o evento
@@ -462,6 +477,7 @@ function render() {
     myMoney: userMoney(state, self, resolveItem),
     heroFill: tt === 0 ? 0 : ((tt - 1) % 10 + 1) / 10 * 100, // nível de chopp: enche a cada 10
     items,
+    suggest: suggestions(),
   });
   renderPeers();
   renderPresence();
@@ -2225,6 +2241,12 @@ const handlers = {
     if (res === 'download') ui.toast(t('toast.imgSaved')); else if (res === 'error') ui.toast(t('toast.imgError'));
   },
   onPayFor: (user, on) => { emitLocal(makePayFor({ to: user, on })); renderBill(); },
+  onSuggest: (id) => {
+    const d = DEFAULT_ITEMS.find((x) => x.id === id);
+    if (!d || state.items.get(id)) return;
+    emitLocal(makeItem({ ...d })); // o item entra pro cardápio DA MESA (sincroniza pra todos)
+    render();
+  },
   onPrices: () => ui.openPrices(menuEditorItems()),
   onItemToggle: (id) => {
     const it = resolveItem(id);

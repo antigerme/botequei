@@ -42,6 +42,7 @@ const IDS = [
   'home-history', 'history-list', 'home-hint', 'home-extras', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-bar', 'btn-passport',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
+  'menu-empty', 'empty-suggest', 'btn-empty-custom', 'add-suggest-wrap', 'add-suggest',
   'btn-brinde', 'btn-react', 'btn-rodada', 'btn-games', 'overlay-games', 'games-grid',
   'overlay-round', 'round-grid',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
@@ -182,6 +183,7 @@ export function init(handlers) {
   $('btn-menu').addEventListener('click', () => { el['overlay-menu'].hidden = false; });
   $('btn-games').addEventListener('click', () => openGames());
   $('btn-additem').addEventListener('click', () => openAddItem());
+  $('btn-empty-custom').addEventListener('click', () => openAddItem());
   $('btn-brinde').addEventListener('click', () => H.onBrinde());
   $('btn-react').addEventListener('click', () => openReact());
   $('btn-rodada').addEventListener('click', () => H.onRodada());
@@ -458,7 +460,26 @@ export function renderTable(vm) {
     card.toggleAttribute('data-zero', (Number(it.qty) || 0) === 0);
     card.classList.toggle('hot', it.id === topId && topQ > 0);
   }
-  if (el['table-hint']) el['table-hint'].hidden = Number(vm.tableTotal) > 0;
+  // mesa sem nenhum card: empty state assume o miolo ("monte o cardápio") — o catálogo
+  // vira sugestão de 1 toque; o botão de item custom do rodapé sai de cena (o empty tem o dele)
+  const empty = vm.items.length === 0;
+  el['menu-empty'].hidden = !empty;
+  el['items-grid'].hidden = empty;
+  el['btn-additem'].hidden = empty;
+  renderSuggest(vm.suggest || []);
+  if (el['table-hint']) el['table-hint'].hidden = empty || Number(vm.tableTotal) > 0;
+}
+let lastSuggestSig = null;
+function renderSuggest(list) {
+  const sig = list.map((s) => s.id).join(',');
+  if (sig === lastSuggestSig) return;
+  lastSuggestSig = sig;
+  const html = list.map((s) => `<button class="sug-chip" type="button" data-id="${esc(s.id)}">${esc(s.emoji)} ${esc(s.name)}</button>`).join('');
+  for (const target of [el['empty-suggest'], el['add-suggest']]) {
+    target.innerHTML = html;
+    target.querySelectorAll('.sug-chip').forEach((b) => b.addEventListener('click', () => H.onSuggest(b.dataset.id)));
+  }
+  el['add-suggest-wrap'].hidden = list.length === 0; // no ➕ item, a seção some quando o catálogo esgotou
 }
 function cardHTML(it) {
   const note = it.note ? ` title="${esc(it.note)}"` : '';

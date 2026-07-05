@@ -100,6 +100,14 @@
 
     <p class="table-hint" id="table-hint" hidden data-i18n="table.hint">👆 toque no card = +1 · segure = −1</p>
 
+    <!-- mesa nova nasce vazia: o catálogo vira sugestão de 1 toque -->
+    <div class="menu-empty" id="menu-empty" hidden>
+      <p class="empty-title" data-i18n="empty.title">O que a mesa vai pedir hoje?</p>
+      <p class="empty-sub" data-i18n="empty.sub">Toque pra adicionar — o cardápio vale pra mesa toda.</p>
+      <div class="sug-grid" id="empty-suggest"></div>
+      <button class="btn btn-ghost" id="btn-empty-custom" data-i18n="empty.custom">➕ Criar outro item</button>
+    </div>
+
     <div class="items-grid" id="items-grid"><!-- cards via JS --></div>
 
     <button class="btn btn-ghost btn-additem" id="btn-additem" data-i18n="table.addItem">+ item personalizado</button>
@@ -262,6 +270,11 @@
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="add.title">Novo item</h2>
+    <div id="add-suggest-wrap" hidden>
+      <p class="sheet-sub" data-i18n="add.suggest">Do catálogo — um toque e entra:</p>
+      <div class="sug-grid" id="add-suggest"></div>
+      <p class="sheet-sub" data-i18n="add.orCustom">…ou crie o seu:</p>
+    </div>
     <div class="emoji-row" id="emoji-row"></div>
     <label class="field"><span data-i18n="add.name">Nome</span>
       <input id="add-name" type="text" maxlength="24" placeholder="ex: Caipirinha" data-i18n-ph="add.namePh" /></label>

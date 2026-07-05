@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, happyHour, paysFor, payerOf, songs } from '../js/events.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, sharePool, summary, happyHour, paysFor, payerOf, songs } from '../js/events.js';
 import { badgesFor, mvp, ceremonyAwards } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
@@ -46,6 +46,42 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   applyEvent(s, { type: 'TABLE', title: 'antiga', emoji: '🥴', ts: 1, eventId: 't0' }); // ts menor, não vence
   assert.strictEqual(tableInfo(s).title, 'Mesa do Fundão');
   ok('mesa: nome/emoji com LWW');
+}
+
+// ---------- Itens compartilhados (garrafa/litrão/torre): pessoal × mesa ----------
+{
+  const defs = {
+    cerveja: { id: 'cerveja', price: 12, share: 1 }, // garrafa 600 da mesa
+    chopp: { id: 'chopp', price: 9 },
+    copo: { id: 'copo', price: 0, g: 11, cup: 1 },
+  };
+  const resolve = (id) => defs[id];
+  const s = emptyState();
+  const add = (user, item, n) => { for (let i = 0; i < n; i++) applyEvent(s, { type: 'ADD', user, item, ts: i + 1, eventId: user + item + i }); };
+  add('a', 'cerveja', 2); // "chegaram 2 garrafas" (a marcou pela mesa)
+  add('a', 'chopp', 3);
+  add('a', 'copo', 2);
+  add('b', 'cerveja', 1);
+
+  assert.strictEqual(userTotal(s, 'a'), 7, 'sem resolver: soma tudo (compat)');
+  assert.strictEqual(userTotal(s, 'a', resolve), 5, 'pessoal: garrafas da mesa ficam de fora');
+  ok('compartilhado: total pessoal não conta o recipiente da mesa');
+
+  assert.strictEqual(userMoney(s, 'a', resolve), 27, 'só os 3 chopps (copo é R$0; garrafa é do bolo)');
+  assert.strictEqual(userMoney(s, 'b', resolve), 0, 'b só marcou garrafa da mesa');
+  ok('compartilhado: dinheiro do recipiente não pendura em quem tocou');
+
+  const pool = sharePool(s, resolve);
+  assert.strictEqual(pool.total, 36, '3 garrafas × 12');
+  assert.strictEqual(pool.lines.length, 1);
+  assert.strictEqual(pool.lines[0].count, 3);
+  ok('compartilhado: sharePool junta o bolo da mesa (3 garrafas, R$36)');
+
+  const rows = summary(s, resolve);
+  const ra = rows.find((r) => r.user === 'a');
+  assert.strictEqual(ra.total, 5);
+  assert.strictEqual(ra.money, 27);
+  ok('compartilhado: summary usa o total/dinheiro pessoais');
 }
 
 // ---------- Foto de perfil (miniatura no PROFILE, validada) ----------

@@ -190,6 +190,7 @@
       <button class="menu-item" id="menu-roulette" data-i18n="roul.title">🎰 Quem paga a próxima?</button>
       <button class="menu-item" id="menu-purrinha" data-i18n="purr.title">🫲 Purrinha</button>
       <button class="menu-item" id="menu-domino" data-i18n="dom.title">🁫 Dominó</button>
+      <button class="menu-item" id="menu-truco" data-i18n="tru.title">🂠 Truco</button>
       <button class="menu-item" id="menu-tournament" data-i18n="tourn.title">🏟️ Torneio da galera</button>
       <button class="menu-item" id="menu-card" data-i18n="card.title">🃏 Carta da mesa</button>
       <p class="menu-sec" data-i18n="menu.title">Mesa</p>
@@ -217,20 +218,21 @@
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="prof.title">Meu perfil</h2>
-    <label class="field"><span data-i18n="prof.nick">Apelido</span>
-      <input id="profile-name" type="text" maxlength="20" placeholder="seu apelido" data-i18n-ph="prof.nickPh" /></label>
+    <!-- herói: preview AO VIVO de como a mesa te vê (cor + foto ou emoji) -->
+    <div class="prof-hero">
+      <span class="prof-hero-av" id="profile-preview"><img id="profile-photo-img" alt="" hidden /><span id="profile-preview-emoji">🍺</span></span>
+      <label class="field prof-hero-name"><span data-i18n="prof.nick">Apelido</span>
+        <input id="profile-name" type="text" maxlength="20" placeholder="seu apelido" data-i18n-ph="prof.nickPh" /></label>
+    </div>
     <p class="lbl" data-i18n="prof.color">Cor</p>
     <div class="swatch-row" id="profile-colors"></div>
-    <p class="lbl" data-i18n="prof.avatar">Avatar</p>
+    <p class="lbl" data-i18n="prof.avatar">Avatar — um emoji ou sua foto</p>
     <div class="emoji-row" id="profile-avatars"></div>
-    <p class="lbl" data-i18n="prof.photo">📷 Ou uma foto sua</p>
     <div class="photo-row">
-      <span class="photo-preview" id="profile-photo-preview" hidden><img id="profile-photo-img" alt="" /></span>
       <button class="btn btn-ghost" id="btn-avatar-selfie" data-i18n="prof.selfie">🤳 Tirar selfie</button>
       <button class="btn btn-ghost" id="btn-avatar-upload" data-i18n="prof.gallery">🖼️ Da galeria</button>
-      <button class="btn btn-ghost" id="btn-avatar-clear" data-i18n="prof.noPhoto" hidden>↩️ Voltar pro emoji</button>
     </div>
-    <p class="hint" data-i18n="prof.photoHint">A foto vira uma miniatura, fica no seu aparelho e só quem está na mesa vê. Nenhum servidor recebe nada.</p>
+    <p class="hint" data-i18n="prof.photoHint">A foto vira uma miniatura, fica no seu aparelho e só quem está na mesa vê. Tocar num emoji volta pro emoji.</p>
     <input id="avatar-file" type="file" accept="image/*" hidden />
     <label class="check"><input type="checkbox" id="profile-driver" />
       <span data-i18n="prof.driver">🚗 Sou o motorista da rodada (não bebo)</span></label>

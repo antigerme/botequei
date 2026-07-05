@@ -25,7 +25,7 @@ const IDS = [
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list', 'btn-save-menu',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
-  'profile-photo-preview', 'profile-photo-img', 'btn-avatar-selfie', 'btn-avatar-upload', 'btn-avatar-clear', 'avatar-file',
+  'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-selfie', 'btn-avatar-upload', 'avatar-file',
   'overlay-crop', 'crop-canvas', 'crop-zoom', 'btn-crop-use',
   'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'btn-additem-confirm',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
@@ -51,7 +51,7 @@ const IDS = [
   'purr-guessing', 'purr-status', 'purr-said', 'purr-turnrow', 'purr-gpick', 'btn-purr-say',
   'purr-result', 'purr-rstatus', 'purr-total', 'purr-reveals', 'purr-verdict',
   'btn-purr-again', 'btn-purr-close', 'btn-purr-end',
-  'menu-domino', 'overlay-domino', 'btn-dom-close', 'dom-setup', 'dom-game', 'dom-verified',
+  'menu-domino', 'menu-truco', 'overlay-domino', 'btn-dom-close', 'dom-setup', 'dom-game', 'dom-verified',
   'dom-opps', 'dom-turn', 'dom-board', 'dom-result',
   'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
   'btn-dom-pass', 'btn-dom-again', 'btn-dom-end', 'game-pill',
@@ -174,6 +174,7 @@ export function init(handlers) {
   $('menu-roulette').addEventListener('click', () => { closeOverlays(); H.onRoulette(); });
   $('menu-purrinha').addEventListener('click', () => { closeOverlays(); H.onPurrinha(); });
   $('menu-domino').addEventListener('click', () => { closeOverlays(); H.onDomino(); });
+  $('menu-truco').addEventListener('click', () => { closeOverlays(); H.onTruco(); });
   $('menu-water').addEventListener('click', () => { closeOverlays(); H.onWaterRound(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
   $('menu-festa').addEventListener('click', () => { closeOverlays(); openFesta(); });
@@ -244,7 +245,6 @@ export function init(handlers) {
   // foto de perfil: selfie/galeria compartilham o MESMO input (só troca o capture)
   el['btn-avatar-selfie'].addEventListener('click', () => openAvatarPicker(true));
   el['btn-avatar-upload'].addEventListener('click', () => openAvatarPicker(false));
-  el['btn-avatar-clear'].addEventListener('click', () => { profileSel.photo = ''; paintProfilePhoto(); });
   el['avatar-file'].addEventListener('change', () => avatarFilePicked());
   el['btn-crop-use'].addEventListener('click', () => cropUse());
   bindCrop();
@@ -523,12 +523,15 @@ export function openJoin(code, needPin) {
 
 // ---------- Perfil ----------
 let profileSel = { color: COLORS[0], emoji: AVATARS[0], photo: '' };
-function paintProfilePhoto() {
+// Herói do perfil: preview AO VIVO de como a mesa te vê — cor de fundo + foto OU emoji.
+function paintProfileHero() {
+  el['profile-preview'].style.background = safeColor(profileSel.color);
   const has = !!profileSel.photo;
-  el['profile-photo-preview'].hidden = !has;
-  el['btn-avatar-clear'].hidden = !has;
+  el['profile-photo-img'].hidden = !has;
   if (has) el['profile-photo-img'].src = profileSel.photo;
   else el['profile-photo-img'].removeAttribute('src');
+  el['profile-preview-emoji'].hidden = has;
+  el['profile-preview-emoji'].textContent = profileSel.emoji || '🍺';
 }
 export function openProfile(cur) {
   profileSel = { color: cur.color || COLORS[0], emoji: cur.emoji || AVATARS[0], photo: cur.photo || '' };
@@ -537,12 +540,15 @@ export function openProfile(cur) {
   el['profile-colors'].innerHTML = COLORS.map((c) => `<button class="swatch ${c === profileSel.color ? 'sel' : ''}" style="background:${c}" data-c="${c}"></button>`).join('');
   el['profile-colors'].querySelectorAll('.swatch').forEach((b) => b.addEventListener('click', () => {
     profileSel.color = b.dataset.c; el['profile-colors'].querySelectorAll('.swatch').forEach((x) => x.classList.remove('sel')); b.classList.add('sel');
+    paintProfileHero();
   }));
   el['profile-avatars'].innerHTML = AVATARS.map((e) => `<button class="emoji-pick ${e === profileSel.emoji ? 'sel' : ''}" data-e="${e}">${e}</button>`).join('');
   el['profile-avatars'].querySelectorAll('.emoji-pick').forEach((b) => b.addEventListener('click', () => {
-    profileSel.emoji = b.dataset.e; el['profile-avatars'].querySelectorAll('.emoji-pick').forEach((x) => x.classList.remove('sel')); b.classList.add('sel');
+    profileSel.emoji = b.dataset.e; profileSel.photo = ''; // tocar num emoji = voltar pro emoji
+    el['profile-avatars'].querySelectorAll('.emoji-pick').forEach((x) => x.classList.remove('sel')); b.classList.add('sel');
+    paintProfileHero();
   }));
-  paintProfilePhoto();
+  paintProfileHero();
   el['overlay-profile'].hidden = false;
 }
 function submitProfile() {
@@ -655,7 +661,7 @@ function cropUse() {
   let url = out.toDataURL('image/jpeg', 0.72);
   if (url.length > 13000) url = out.toDataURL('image/jpeg', 0.6); // garante folga sob o teto do evento
   profileSel.photo = url;
-  paintProfilePhoto();
+  paintProfileHero();
   crop = null;
   el['overlay-crop'].hidden = true;
 }

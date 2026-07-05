@@ -75,11 +75,23 @@ async function main() {
     await pageA.setInputFiles('#avatar-file', { name: 'selfie.png', mimeType: 'image/png', buffer: png });
     await visible(pageA, 'overlay-crop');
     await pageA.click('#btn-crop-use');
-    await pageA.waitForFunction(() => !document.getElementById('profile-photo-preview').hidden, null, { timeout: 5000 });
+    await pageA.waitForFunction(() => !document.getElementById('profile-photo-img').hidden, null, { timeout: 5000 });
     await pageA.click('#btn-profile-save');
     // eu me vejo com foto na presença; B recebe pelo PROFILE (CRDT) e vê a mesma foto
     await pageA.waitForFunction(() => !!document.querySelector('#presence-bar .pres-av img.av-img'), null, { timeout: T });
     await pageB.waitForFunction(() => !!document.querySelector('#presence-bar .pres-av img.av-img'), null, { timeout: T });
+  });
+
+  await step('tocar num emoji VOLTA pro emoji (sem botão extra)', async () => {
+    await pageA.click('#btn-menu');
+    await pageA.click('#menu-profile');
+    await visible(pageA, 'overlay-profile');
+    const comFoto = await pageA.evaluate(() => !document.getElementById('profile-photo-img').hidden);
+    if (!comFoto) throw new Error('herói deveria mostrar a foto salva');
+    await pageA.click('#profile-avatars .emoji-pick');
+    const voltou = await pageA.evaluate(() => document.getElementById('profile-photo-img').hidden && !document.getElementById('profile-preview-emoji').hidden);
+    if (!voltou) throw new Error('tocar no emoji não voltou o herói pro emoji');
+    await closeAll(pageA); // fecha SEM salvar — a foto segue valendo pra mesa (passo do reload de B)
   });
 
   await step('B recarrega e a foto de A volta (log salvo + anti-entropy em lotes)', async () => {

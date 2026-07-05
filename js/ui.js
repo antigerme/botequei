@@ -460,14 +460,16 @@ export function renderTable(vm) {
     card.toggleAttribute('data-zero', (Number(it.qty) || 0) === 0);
     card.classList.toggle('hot', it.id === topId && topQ > 0);
   }
-  // mesa sem nenhum card: empty state assume o miolo ("monte o cardápio") — o catálogo
-  // vira sugestão de 1 toque; o botão de item custom do rodapé sai de cena (o empty tem o dele)
-  const empty = vm.items.length === 0;
-  el['menu-empty'].hidden = !empty;
-  el['items-grid'].hidden = empty;
-  el['btn-additem'].hidden = empty;
-  renderSuggest(vm.suggest || []);
-  if (el['table-hint']) el['table-hint'].hidden = empty || Number(vm.tableTotal) > 0;
+  // fase de MONTAGEM (ninguém bebeu ainda): a área "monte o cardápio" fica à mão pra
+  // adicionar vários itens em sequência; some no primeiro gole (aí o ➕ item assume, com
+  // os mesmos chips). Mesa sem nenhum card mostra a área sempre (não existe outro miolo).
+  const suggest = vm.suggest || [];
+  const building = vm.items.length === 0 || (Number(vm.tableTotal) === 0 && suggest.length > 0);
+  el['menu-empty'].hidden = !building;
+  el['items-grid'].hidden = vm.items.length === 0;
+  el['btn-additem'].hidden = building; // o empty já traz o botão de criar item
+  renderSuggest(suggest);
+  if (el['table-hint']) el['table-hint'].hidden = building || Number(vm.tableTotal) > 0;
 }
 let lastSuggestSig = null;
 function renderSuggest(list) {
@@ -1299,7 +1301,7 @@ function renderTourStep() {
     const bal = el['tour-balloon'];
     bal.style.top = ''; bal.style.bottom = '';
     if (r.top > window.innerHeight / 2) bal.style.bottom = (window.innerHeight - r.top + 16) + 'px'; // balão acima do alvo
-    else bal.style.top = (r.bottom + 16) + 'px';                                                     // ou abaixo
+    else bal.style.top = Math.min(r.bottom + 16, window.innerHeight - 190) + 'px'; // abaixo, mas SEMPRE dentro da tela (alvo alto não expulsa o botão)
     el['tour'].hidden = false;
   });
 }

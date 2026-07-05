@@ -39,6 +39,8 @@ async function main() {
   await A.click('#btn-create');
   await A.waitForSelector('#screen-table.is-active', { timeout: T });
   await A.click('#overlay-invite .sheet-close').catch(() => {});
+  await A.click('#empty-suggest [data-id="chopp"]'); // mesa nasce vazia: monta o cardápio
+  await A.click('#empty-suggest [data-id="lata"]');
   const code = (await A.textContent('#mesa-code')).trim();
 
   const B = await mk('Bia');

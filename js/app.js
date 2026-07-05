@@ -894,7 +894,7 @@ function maybeStartTour() {
       // (entrou numa mesa rodando), ensina o toque no card
       hasCards
         ? { sel: '.item-card', title: t('tour.t1'), text: t('tour.x1') }
-        : { sel: '#menu-empty', title: t('tour.t0'), text: t('tour.x0') },
+        : { sel: '#empty-suggest .sug-chip', title: t('tour.t0'), text: t('tour.x0') },
       { sel: '.total-hero', title: t('tour.t2'), text: t('tour.x2') },
       { sel: '#btn-games', title: t('tour.t3'), text: t('tour.x3') },
       { sel: '#btn-menu', title: t('tour.t4'), text: t('tour.x4') },

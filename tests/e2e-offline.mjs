@@ -52,6 +52,8 @@ async function main() {
   await A.click('#btn-create');
   await A.waitForSelector('#screen-table.is-active', { timeout: T });
   await A.click('#overlay-invite [data-close]').catch(() => {});
+  await A.click('#empty-suggest [data-id="chopp"]'); // mesa nasce vazia: monta o cardápio
+  await A.click('#empty-suggest [data-id="lata"]');
   await A.click('.item-card[data-item="chopp"]');
   await A.click('.item-card[data-item="chopp"]');
 

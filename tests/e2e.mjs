@@ -49,6 +49,18 @@ async function main() {
   console.log('  · mesa criada:', code);
   await pageA.click('#overlay-invite .sheet-close').catch(() => {});
 
+  await step('mesa NOVA nasce vazia (0 cards + "monte o cardápio")', async () => {
+    await pageA.waitForFunction(() => !document.getElementById('menu-empty').hidden, null, { timeout: T });
+    const cards = await pageA.$$eval('.item-card', (l) => l.length);
+    if (cards !== 0) throw new Error('mesa nova deveria ter 0 cards, vi ' + cards);
+  });
+
+  await step('sugestão de 1 toque monta o cardápio (chopp + lata)', async () => {
+    await pageA.click('#empty-suggest [data-id="chopp"]');
+    await pageA.click('#empty-suggest [data-id="lata"]');
+    await pageA.waitForFunction(() => document.querySelectorAll('.item-card').length === 2, null, { timeout: T });
+  });
+
   // ---- B entra pelo link ----
   const B = await mkCtx('Bia'); const pageB = await B.newPage();
   await pageB.goto(BASE + '#/join?room=' + code);

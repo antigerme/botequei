@@ -230,6 +230,7 @@ const DICT = {
     'prices.title': 'Cardápio da mesa', 'menu.prices': '🍻 Cardápio da mesa',
     'prices.sub': 'Dê nome às cervejas (marca), ajuste preços — sincroniza com a mesa toda.',
     'prices.brandAria': 'marca ou apelido do item', 'prices.priceAria': 'preço do item',
+    'prices.hide': 'esconder da mesa', 'prices.show': 'mostrar de novo',
     'prices.save': '💾 Salvar como cardápio do bar',
     // ---- comanda / placar ----
     'comanda.empty': 'Nada pedido ainda 🙂', 'comanda.total': 'Total: {n} 🍺',
@@ -596,6 +597,7 @@ const DICT = {
     'prices.title': 'Table menu', 'menu.prices': '🍻 Table menu',
     'prices.sub': 'Name your beers (brand), set prices — synced with the whole table.',
     'prices.brandAria': 'item brand or nickname', 'prices.priceAria': 'item price',
+    'prices.hide': 'hide from the table', 'prices.show': 'show again',
     'prices.save': '💾 Save as the bar’s menu',
     // ---- tab / leaderboard ----
     'comanda.empty': 'Nothing ordered yet 🙂', 'comanda.total': 'Total: {n} 🍺',
@@ -962,6 +964,7 @@ const DICT = {
     'prices.title': 'Menú de la mesa', 'menu.prices': '🍻 Menú de la mesa',
     'prices.sub': 'Ponle nombre a las cervezas (marca), ajusta precios — se sincroniza con toda la mesa.',
     'prices.brandAria': 'marca o apodo del ítem', 'prices.priceAria': 'precio del ítem',
+    'prices.hide': 'ocultar de la mesa', 'prices.show': 'mostrar de nuevo',
     'prices.save': '💾 Guardar como menú del bar',
     // ---- comanda / marcador ----
     'comanda.empty': 'Nada pedido todavía 🙂', 'comanda.total': 'Total: {n} 🍺',

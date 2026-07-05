@@ -446,6 +446,8 @@ body.light .bill-pool { background: rgba(178, 108, 0, .06); }
 .price-row .pr-emoji { font-size: 22px; flex: 0 0 auto; }
 .price-row .pr-brand { flex: 1; min-width: 0; }
 .price-row .pr-price { width: 88px; flex: 0 0 auto; }
+.price-row .pr-eye { flex: 0 0 auto; background: none; border: 0; font-size: 20px; padding: 6px; cursor: pointer; opacity: .8; }
+.price-row.off .pr-emoji, .price-row.off .pr-brand, .price-row.off .pr-price { opacity: .4; }
 
 /* Comemoração de marcos (confete de emoji, cai do topo) */
 .confetti { position: absolute; top: -8vh; will-change: transform;

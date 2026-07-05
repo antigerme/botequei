@@ -296,7 +296,7 @@ function addCustomItem({ emoji, name, price, cat, note, share }) {
 // inclui todo mundo. ----
 function roundChoices() {
   return allItems()
-    .filter((it) => !isShare(it) && ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it)))
+    .filter((it) => !isShare(it) && !it.off && ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it)))
     .map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it) }));
 }
 function rodada(item) {
@@ -443,7 +443,7 @@ function render() {
   const list = allItems();
   // copo da mesa não vira card (mora DENTRO dos cards compartilhados); share mostra o
   // contador DA MESA no número grande e os MEUS copos na zona de baixo
-  const items = list.filter((it) => !isCup(it)).map((it) => ({
+  const items = list.filter((it) => !isCup(it) && !it.off).map((it) => ({
     id: it.id, emoji: it.emoji, name: itemLabel(it), cat: catOf(it), note: it.note || '',
     share: isShare(it),
     qty: itemTotal(state, it.id),
@@ -503,8 +503,20 @@ function renderPeers() {
 
 function bebedeiraItem() {
   let best = 'chopp', bestN = -1;
-  for (const it of allItems()) { if (isShare(it) || isCup(it)) continue; const n = getCount(state, self, it.id); if (n > bestN) { bestN = n; best = it.id; } }
+  for (const it of allItems()) { if (isShare(it) || isCup(it) || it.off) continue; const n = getCount(state, self, it.id); if (n > bestN) { bestN = n; best = it.id; } }
   return best;
+}
+
+// Linhas da tela "Cardápio da mesa" (marca + preço + esconder). Itens OCULTOS aparecem
+// aqui (esmaecidos, pra poder voltar) — é só dos CARDS da mesa que eles somem.
+function menuEditorItems() {
+  return allItems().filter((it) => !isCup(it)).map((it) => ({
+    ...it,
+    brand: it.brand || '',
+    off: !!it.off,
+    // placeholder do campo de marca = o que o item É sem marca (rótulo localizado)
+    name: isDefault(it.id) ? t('item.' + it.id) : (it.name || ''),
+  }));
 }
 
 // ---- Mesa ----
@@ -2213,12 +2225,14 @@ const handlers = {
     if (res === 'download') ui.toast(t('toast.imgSaved')); else if (res === 'error') ui.toast(t('toast.imgError'));
   },
   onPayFor: (user, on) => { emitLocal(makePayFor({ to: user, on })); renderBill(); },
-  onPrices: () => ui.openPrices(allItems().filter((it) => !isCup(it)).map((it) => ({
-    ...it,
-    brand: it.brand || '',
-    // placeholder do campo de marca = o que o item É sem marca (rótulo localizado)
-    name: isDefault(it.id) ? t('item.' + it.id) : (it.name || ''),
-  }))),
+  onPrices: () => ui.openPrices(menuEditorItems()),
+  onItemToggle: (id) => {
+    const it = resolveItem(id);
+    // esconder = override do def (LWW, mesa toda); contagens/conta/histórico não mudam
+    emitLocal(makeItem({ ...it, off: it.off ? 0 : 1 }));
+    render();
+    ui.openPrices(menuEditorItems()); // re-desenha a lista com o olho/esmaecido atualizados
+  },
   onPriceChange: (id, price) => {
     const it = resolveItem(id);
     // preserva emoji/nome/g/cat/note/share/brand; só troca o preço (senão perde as gramas de álcool!)

@@ -418,11 +418,11 @@ function render() {
 
 function renderPresence() {
   const me = profOf(self);
-  const list = [{ user: self, emoji: me.emoji, color: me.color, name: getName() || t('common.you'), level: me.level, online: true, self: true }];
+  const list = [{ user: self, emoji: me.emoji, photo: me.photo, color: me.color, name: getName() || t('common.you'), level: me.level, online: true, self: true }];
   const listed = new Set([self]);
-  if (mesh) for (const p of mesh.peers()) { listed.add(p.user); const pr = profOf(p.user); list.push({ user: p.user, emoji: pr.emoji, color: pr.color, name: pr.name || t('common.someoneLow'), level: pr.level, online: p.online }); }
+  if (mesh) for (const p of mesh.peers()) { listed.add(p.user); const pr = profOf(p.user); list.push({ user: p.user, emoji: pr.emoji, photo: pr.photo, color: pr.color, name: pr.name || t('common.someoneLow'), level: pr.level, online: p.online }); }
   // quem sumiu há pouco (dentro da graça) segue na barra como 💤, mesmo se a malha já o removeu
-  for (const u of pendingBye.keys()) if (!listed.has(u)) { const pr = profOf(u); list.push({ user: u, emoji: pr.emoji, color: pr.color, name: pr.name || t('common.someoneLow'), level: pr.level, online: false }); }
+  for (const u of pendingBye.keys()) if (!listed.has(u)) { const pr = profOf(u); list.push({ user: u, emoji: pr.emoji, photo: pr.photo, color: pr.color, name: pr.name || t('common.someoneLow'), level: pr.level, online: false }); }
   ui.renderPresence(list);
 }
 
@@ -433,12 +433,12 @@ function renderPeers() {
   const rows = base.map((r) => {
     const p = profOf(r.user);
     const net = nets.get(r.user);
-    return { ...r, name: p.name, color: p.color, emoji: p.emoji, level: p.level, badges: badgesFor(state, r.user), online: net ? net.online : undefined, conn: net ? net.conn : null };
+    return { ...r, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, level: p.level, badges: badgesFor(state, r.user), online: net ? net.online : undefined, conn: net ? net.conn : null };
   });
   // garante que eu apareço mesmo sem ter consumido
   if (!rows.some((r) => r.user === self)) {
     const p = profOf(self);
-    rows.push({ user: self, name: p.name, color: p.color, emoji: p.emoji, driver: p.driver, total: 0, money: 0, badges: badgesFor(state, self) });
+    rows.push({ user: self, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, driver: p.driver, total: 0, money: 0, badges: badgesFor(state, self) });
   }
   const top = base.find((r) => !r.driver && r.total > 0); // MVP derivado (base já vem ordenado)
   ui.renderPeers({ rows, selfId: self, mvp: top ? { name: profOf(top.user).name, total: top.total } : null, myBadges: badgesFor(state, self) });
@@ -690,7 +690,7 @@ function computeBill() {
     const p = profOf(r.user);
     const from = covers.get(r.user);
     return {
-      user: r.user, name: p.name, color: p.color, emoji: p.emoji,
+      user: r.user, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo,
       amount: Math.max(0, final.get(r.user) || 0),
       items: itemizeFor(r.user),
       coveredByName: from ? (profOf(from).name || t('common.someoneLow')) : '',
@@ -723,8 +723,8 @@ function openPace() {
 // ---- Roleta: quem paga a próxima (sincronizada via fx) ----
 function connectedEntrants() {
   const me = profOf(self);
-  const out = [{ user: self, name: getName() || t('common.you'), avatar: me.emoji, color: me.color, isSelf: true }];
-  if (mesh) for (const p of mesh.peers()) if (p.online) { const pr = profOf(p.user); out.push({ user: p.user, name: pr.name || t('common.someoneLow'), avatar: pr.emoji, color: pr.color }); }
+  const out = [{ user: self, name: getName() || t('common.you'), avatar: me.emoji, photo: me.photo, color: me.color, isSelf: true }];
+  if (mesh) for (const p of mesh.peers()) if (p.online) { const pr = profOf(p.user); out.push({ user: p.user, name: pr.name || t('common.someoneLow'), avatar: pr.emoji, photo: pr.photo, color: pr.color }); }
   return out;
 }
 function pickIndex(n) {
@@ -807,8 +807,8 @@ function maybeStartTour() {
 let purr = null;
 function purrEntrants() {
   const me = profOf(self);
-  const out = [{ id: self, name: getName() || t('common.you'), avatar: me.emoji, color: me.color }];
-  if (mesh) for (const p of mesh.peers()) if (p.online) { const pr = profOf(p.user); out.push({ id: p.user, name: pr.name || t('common.someoneLow'), avatar: pr.emoji, color: pr.color }); }
+  const out = [{ id: self, name: getName() || t('common.you'), avatar: me.emoji, photo: me.photo, color: me.color }];
+  if (mesh) for (const p of mesh.peers()) if (p.online) { const pr = profOf(p.user); out.push({ id: p.user, name: pr.name || t('common.someoneLow'), avatar: pr.emoji, photo: pr.photo, color: pr.color }); }
   return out;
 }
 function purrOnline(id) { if (id === self) return true; if (!mesh) return false; const p = mesh.peers().find((x) => x.user === id); return !!(p && p.online); }
@@ -920,7 +920,7 @@ function renderPurrWait() {
   if (!purr) return;
   const exp = purrExpected();
   const done = purr.mode !== 'fast' && purr.phase === 'revealing' ? purr.reveals : purr.commits;
-  const seals = exp.map((id) => ({ name: purrName(id), avatar: profOf(id).emoji, sealed: done.has(id) }));
+  const seals = exp.map((id) => ({ name: purrName(id), avatar: profOf(id).emoji, photo: profOf(id).photo, sealed: done.has(id) }));
   let sub;
   if (purr.mode !== 'fast') {
     if (purr.phase === 'revealing') sub = t('purr.opening');
@@ -963,7 +963,7 @@ function maybePurrResolve() {
   const reveals = exp.map((id) => ({ id, hand: purr.reveals.get(id).hand, guess: purr.reveals.get(id).guess }));
   const r = purrResolve(reveals);
   const rows = reveals.map((x) => ({
-    name: purrName(x.id), avatar: profOf(x.id).emoji, hand: x.hand, guess: x.guess,
+    name: purrName(x.id), avatar: profOf(x.id).emoji, photo: profOf(x.id).photo, hand: x.hand, guess: x.guess,
     isSeer: r.seers.includes(x.id), isLoser: x.id === r.loserId, isSelf: x.id === self,
   })).sort((a, b) => (b.isSeer - a.isSeer) || (a.isLoser - b.isLoser));
   let verdict;
@@ -1032,7 +1032,7 @@ function renderPurrGuessing() {
     : t('purr.statusTable', { n: purr.rd, names: purr.alive.map(purrName).join(', ') }) + livres;
   ui.purrinhaGuessing({
     status,
-    said: purr.saidSeq.map((s) => ({ name: purrName(s.id), avatar: profOf(s.id).emoji, guess: s.guess, isSelf: s.id === self })),
+    said: purr.saidSeq.map((s) => ({ name: purrName(s.id), avatar: profOf(s.id).emoji, photo: profOf(s.id).photo, guess: s.guess, isSelf: s.id === self })),
     myTurn: turnId === self, turnName: turnId ? purrName(turnId) : '',
     maxGuess: purrCeil(), taken: [...purr.guesses.values()],
   });
@@ -1090,7 +1090,7 @@ function finishClassicRound() {
   const step = nextRound(purr.alive, purr.startIdx, winnerId);
   const rdNow = purr.rd;
   const rows = reveals.map((x) => ({
-    name: purrName(x.id), avatar: profOf(x.id).emoji, hand: x.hand,
+    name: purrName(x.id), avatar: profOf(x.id).emoji, photo: profOf(x.id).photo, hand: x.hand,
     guess: purr.guesses.has(x.id) ? purr.guesses.get(x.id) : '—',
     isSeer: x.id === winnerId, isLoser: step.done && x.id === step.loserId, isSelf: x.id === self,
   })).sort((a, b) => (b.isSeer - a.isSeer) || (a.isLoser - b.isLoser));
@@ -1131,7 +1131,7 @@ function finishSticksRound() {
   const step = sticksNext(purr.pools, purr.startIdx, winnerId);
   const rdNow = purr.rd;
   const rows = reveals.map((x) => ({
-    name: purrName(x.id), avatar: profOf(x.id).emoji, hand: x.hand,
+    name: purrName(x.id), avatar: profOf(x.id).emoji, photo: profOf(x.id).photo, hand: x.hand,
     guess: purr.guesses.has(x.id) ? purr.guesses.get(x.id) : '—',
     isSeer: x.id === winnerId, isLoser: step.done && x.id === step.loserId, isSelf: x.id === self,
   })).sort((a, b) => (b.isSeer - a.isSeer) || (a.isLoser - b.isLoser));
@@ -1268,10 +1268,11 @@ function renderDom() {
   const sidesByKey = new Map();
   for (const m of moves) { const k = domKey(m.tile); if (!sidesByKey.has(k)) sidesByKey.set(k, []); sidesByKey.get(k).push(m.side); }
   const hand = dom.myHand.map((t) => ({ key: domKey(t), a: t[0], b: t[1], sides: sidesByKey.get(domKey(t)) || [] }));
-  const opponents = dom.order.filter((id) => id !== self).map((id) => ({ name: domName(id), avatar: profOf(id).emoji, count: dom.counts[id] || 0, isTurn: !dom.over && dom.order[dom.turnIdx] === id, justPlayed: id === dom.lastBy }));
+  const opponents = dom.order.filter((id) => id !== self).map((id) => ({ name: domName(id), avatar: profOf(id).emoji, photo: profOf(id).photo, count: dom.counts[id] || 0, isTurn: !dom.over && dom.order[dom.turnIdx] === id, justPlayed: id === dom.lastBy }));
   // feedback de quem jogou a última peça: índice da peça no tabuleiro (ponta L=0, R=última) + avatar
   const lastPlayIdx = (dom.lastBy && dom.chain.length) ? (dom.lastSide === 'L' ? 0 : dom.chain.length - 1) : -1;
   const lastPlayAvatar = dom.lastBy ? profOf(dom.lastBy).emoji : '';
+  const lastPlayPhoto = dom.lastBy ? profOf(dom.lastBy).photo : '';
   const lastPlayName = dom.lastBy ? (dom.lastBy === self ? t('common.youCap') : domName(dom.lastBy)) : '';
   let result = null;
   if (dom.over) { const wn = dom.winner === self ? t('common.youCap') : domName(dom.winner); result = dom.reason === 'batida' ? t('dom.won', { name: wn }) : t('dom.blockedWin', { name: wn }); }
@@ -1287,7 +1288,7 @@ function renderDom() {
     board: dom.chain.map((t) => ({ a: t[0], b: t[1] })), ends: dom.ends, hand, opponents,
     turn: dom.over ? '' : (myTurn ? t('dom.yourTurn') : t('dom.turnOf', { name: domName(dom.order[dom.turnIdx]) })),
     myTurn, canPass: myTurn && moves.length === 0, over: dom.over, iWon: dom.winner === self, result, verified,
-    lastPlayIdx, lastPlayAvatar, lastPlayName,
+    lastPlayIdx, lastPlayAvatar, lastPlayPhoto, lastPlayName,
   });
   armDomAutoPass(myTurn && moves.length === 0 && !dom.over);
   armDomSkip();       // dono da vez sumiu? conta a graça pro pulo automático
@@ -1954,7 +1955,7 @@ function renderTruco() {
     vm.handOver = st.over;
     vm.turnName = st.over ? '' : (seatTurn === self ? t('tru.yourTurn') : t('tru.turnOf', { name: truName(seatTurn) }));
     vm.myTurn = !st.over && seatTurn === self && !st.pend && truco.onzeDecided;
-    vm.table = st.vazas.flatMap((vz, vi) => vz.map((pl) => ({ card: pl.card, name: truName(pl.p), avatar: profOf(pl.p).emoji, vaza: vi, self: pl.p === self })));
+    vm.table = st.vazas.flatMap((vz, vi) => vz.map((pl) => ({ card: pl.card, name: truName(pl.p), avatar: profOf(pl.p).emoji, photo: profOf(pl.p).photo, vaza: vi, self: pl.p === self })));
     vm.results = st.results;
     vm.mine = (truco.deal.mine || []).filter((m) => !m.played).map((m) => ({ card: m.card }));
     vm.pend = st.pend ? {

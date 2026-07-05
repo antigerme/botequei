@@ -81,6 +81,15 @@ function cssq(s) { return String(s).replace(/["\\]/g, '\\$&'); }
 // Cor vinda da rede vai para style="background:..."; esc() nao barra ';' de CSS.
 // So aceitamos hex (#abc/#aabbcc/#aabbccdd) ou nome CSS simples; senao, cor padrao.
 function safeColor(c) { return /^#[0-9a-f]{3,8}$|^[a-z]+$/i.test(String(c || '')) ? String(c) : '#333'; }
+// Miolo do avatar: foto (miniatura) quando tem, senão emoji. O guard espelha o cleanPhoto
+// do events.js — NUNCA injeta src cru vindo da rede. fill=true preenche círculo de tamanho
+// fixo (.peer-avatar/.pres-av); senão .av-mini acompanha o font-size do emoji local.
+function safePhoto(ph) { return typeof ph === 'string' && /^data:image\/[a-z.+-]+;base64,[A-Za-z0-9+/=]+$/.test(ph) && ph.length <= 20000 ? ph : ''; }
+function avInner(photo, emoji, fill = true) {
+  const ph = safePhoto(photo);
+  if (!ph) return esc(emoji || '🍺');
+  return `<img class="${fill ? 'av-img' : 'av-mini'}" src="${ph}" alt="" />`;
+}
 function fmtMoney(v) { return 'R$' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 // Anima um inteiro do valor atual até o novo (a conta "sobe" em vez de trocar seco).
 function countTo(node, to) {
@@ -457,7 +466,7 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
     const net = r.user === selfId ? `<span class="peer-net" title="${t('common.you')}">📱</span>` : netHTML(r);
     return `<li class="peer-row" data-user="${esc(r.user)}">
       <span class="peer-medal">${medal}</span>
-      <span class="peer-avatar ${frameClass(r.level)}" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
+      <span class="peer-avatar ${frameClass(r.level)}" style="background:${safeColor(r.color)}">${avInner(r.photo, r.emoji)}</span>
       <button class="peer-main" aria-label="Ver comanda de ${esc(r.name || t('common.anon'))}">
         <span class="peer-name">${esc(r.name || t('common.anon'))} ${r.level > 1 ? `<span class="lvl-chip">Nv${r.level}</span>` : ''} ${r.user === selfId ? `<span class="peer-you">${t('common.youParen')}</span>` : ''} ${r.driver ? '🚗' : ''}</span>
         <span class="peer-badges">${badges}${r.money ? ' · ' + fmtMoney(r.money) : ''}</span>
@@ -714,7 +723,7 @@ export function renderBill(vm) {
     const pay = r.isSelf ? '' : `<button class="b-pay ${r.iPayThem ? 'on' : ''}" title="${t('bill.payTitle')}">🙌</button>`;
     return `<li class="bill-row" data-user="${esc(r.user)}">
       ${sel}
-      <span class="peer-avatar" style="background:${safeColor(r.color)}">${esc(r.emoji || '🍺')}</span>
+      <span class="peer-avatar" style="background:${safeColor(r.color)}">${avInner(r.photo, r.emoji)}</span>
       <div class="b-main">
         <span class="b-name">${esc(r.name || t('common.anon'))}${r.isSelf ? ` <span class="peer-you">${t('common.youParen')}</span>` : ''}</span>
         <span class="b-items">${items}</span>
@@ -997,7 +1006,7 @@ export function openRoulette(vm) {
   el['roulette-result'].hidden = true;
   el['btn-roulette-spin'].disabled = entrants.length < 2 || rouletteRunning;
   el['roulette-list'].innerHTML = entrants.map((e, i) => `<li class="roul-item" data-i="${i}">
-    <span class="peer-avatar" style="background:${safeColor(e.color)}">${esc(e.avatar || '🍺')}</span>
+    <span class="peer-avatar" style="background:${safeColor(e.color)}">${avInner(e.photo, e.avatar)}</span>
     <span class="roul-name">${esc(e.name || t('common.anon'))}${e.isSelf ? ` <span class="peer-you">${t('common.youParen')}</span>` : ''}</span></li>`).join('')
     || `<li class="roul-item">${t('roul.empty')}</li>`;
   el['overlay-roulette'].hidden = false;
@@ -1127,7 +1136,7 @@ export function renderPresence(list) {
   if (!others.length) { bar.hidden = true; bar.innerHTML = ''; return; }
   bar.hidden = false;
   // quem apagou a tela / caiu há pouco fica esmaecido com 💤 (em vez de sumir da barra)
-  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' zz'} ${frameClass(p.level)}" title="${esc(p.name || '')}${p.online ? '' : t('pres.away')}" style="background:${safeColor(p.color)}">${esc(p.emoji || '🍺')}${p.online ? '' : '<i class="zz-b">💤</i>'}</span>`).join('');
+  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' zz'} ${frameClass(p.level)}" title="${esc(p.name || '')}${p.online ? '' : t('pres.away')}" style="background:${safeColor(p.color)}">${avInner(p.photo, p.emoji)}${p.online ? '' : '<i class="zz-b">💤</i>'}</span>`).join('');
 }
 
 // ---------- Comanda individual ----------
@@ -1339,7 +1348,7 @@ export function purrinhaSealed(vm) {
   el['purr-waitcount'].textContent = `🔒 ${vm.count}/${vm.total}`;
   el['purr-waitsub'].textContent = vm.sub || t('purr.waiting');
   el['purr-seals'].innerHTML = (vm.seals || []).map((s) => `<li class="purr-seal${s.sealed ? ' done' : ''}">
-    <span class="purr-sav">${esc(s.avatar || '🍺')}</span><span class="purr-sname">${esc(s.name)}</span>
+    <span class="purr-sav">${avInner(s.photo, s.avatar, false)}</span><span class="purr-sname">${esc(s.name)}</span>
     <span class="purr-sst">${s.sealed ? t('purr.sealed') : t('purr.choosing')}</span></li>`).join('');
   el['btn-purr-end'].hidden = false;
   purrPhase('wait');
@@ -1350,7 +1359,7 @@ export function purrinhaGuessing(vm) {
   purrSaid = null;
   el['purr-status'].textContent = vm.status || '';
   el['purr-said'].innerHTML = (vm.said || []).map((s) => `<li class="purr-sd${s.isSelf ? ' me' : ''}">
-    <span class="purr-sdav">${esc(s.avatar || '🍺')}</span><span class="purr-sdn">${esc(s.name)}</span>
+    <span class="purr-sdav">${avInner(s.photo, s.avatar, false)}</span><span class="purr-sdn">${esc(s.name)}</span>
     <b class="purr-sdg">${s.guess}</b></li>`).join('');
   if (vm.myTurn) {
     el['purr-turnrow'].textContent = t('purr.yourSay');
@@ -1379,7 +1388,7 @@ export function purrinhaResult(vm) {
   el['purr-reveals'].innerHTML = (vm.rows || []).map((r) => {
     const tag = r.isSeer ? `<span class="purr-tag seer">${t('purr.tagSeer')}</span>` : (r.isLoser ? `<span class="purr-tag loser">${t('purr.tagPays')}</span>` : '');
     return `<li class="purr-rev${r.isSeer ? ' seer' : ''}${r.isLoser ? ' loser' : ''}">
-      <span class="purr-av">${esc(r.avatar || '🍺')}</span>
+      <span class="purr-av">${avInner(r.photo, r.avatar, false)}</span>
       <span class="purr-rname">${esc(r.name)}${r.isSelf ? ` <small>${t('common.youParen')}</small>` : ''}</span>
       <span class="purr-rhand">${purrSticks(r.hand, true)}</span>
       <span class="purr-rguess">🎯 ${r.guess}</span>
@@ -1443,7 +1452,7 @@ export function renderDomino(vm) {
     el['dom-verified'].className = 'dom-verified' + (vm.verified.ok === true ? ' ok' : vm.verified.ok === false ? ' bad' : '');
   } else { el['dom-verified'].hidden = true; }
   el['dom-opps'].innerHTML = (vm.opponents || []).map((o) => `<span class="dom-opp${o.isTurn ? ' turn' : ''}${o.justPlayed ? ' played' : ''}">
-    <span class="dom-oav">${esc(o.avatar || '🍺')}</span><span class="dom-oname">${esc(o.name)}</span><span class="dom-ocount">🁫 ${o.count}</span></span>`).join('');
+    <span class="dom-oav">${avInner(o.photo, o.avatar, false)}</span><span class="dom-oname">${esc(o.name)}</span><span class="dom-ocount">🁫 ${o.count}</span></span>`).join('');
   el['dom-turn'].textContent = vm.turn || '';
   el['dom-turn'].className = 'dom-turn' + (vm.myTurn ? ' mine' : '');
   // tabuleiro: UMA linha que escala pra caber; pontas abertas brilham (sem banner dedicado); a
@@ -1453,7 +1462,7 @@ export function renderDomino(vm) {
     ? board.map((t, i) => {
       const open = i === 0 || i === board.length - 1;
       const just = i === vm.lastPlayIdx;
-      const chip = just && vm.lastPlayAvatar ? `<span class="dom-played-av" title="${esc(vm.lastPlayName || '')}">${esc(vm.lastPlayAvatar)}</span>` : '';
+      const chip = just && vm.lastPlayAvatar ? `<span class="dom-played-av" title="${esc(vm.lastPlayName || '')}">${avInner(vm.lastPlayPhoto, vm.lastPlayAvatar)}</span>` : '';
       return domTileHTML(t.a, t.b, { cls: (open ? 'open' : '') + (just ? ' just' : ''), chip });
     }).join('')
     : `<span class="dom-empty">${t('dom.starting')}</span>`;
@@ -1517,7 +1526,7 @@ export function renderTruco(vm) {
   else el['tru-audit'].hidden = true;
   el['tru-status'].textContent = vm.handshake || vm.turnName || '';
   el['tru-table'].innerHTML = (vm.table || []).map((p) => `<span class="tru-played${p.self ? ' me' : ''}">
-    ${truCardHTML(p.card && p.card.r ? p.card.r + ':' + p.card.s : p.card)}<small>${esc(p.avatar || '')} ${esc(p.name)}</small></span>`).join('');
+    ${truCardHTML(p.card && p.card.r ? p.card.r + ':' + p.card.s : p.card)}<small>${avInner(p.photo, p.avatar, false)} ${esc(p.name)}</small></span>`).join('');
   el['tru-hand'].innerHTML = (vm.mine || []).map((m) =>
     `<button class="tru-hcard${vm.myTurn ? '' : ' dim'}" data-card="${esc(m.card)}"${vm.myTurn ? '' : ' disabled'}>${truCardHTML(m.card)}</button>`).join('');
   el['tru-hand'].querySelectorAll('.tru-hcard:not([disabled])').forEach((b) => b.addEventListener('click', () => H.onTrucoPlay(b.dataset.card)));

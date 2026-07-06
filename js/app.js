@@ -60,6 +60,7 @@ import {
 import {
   isBot, botProfile, pickBots, makeRng, botThinkMs,
   botPurrHand, botPurrGuess, botDominoMove,
+  botTrucoHandStrength, botTrucoPlay, botTrucoRespondRaise, botTrucoWantRaise, botTrucoOnze,
 } from './bots.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
@@ -1813,21 +1814,22 @@ function truMySeat() { return truco ? truco.order.indexOf(self) : -1; }
 function startTruco() {
   if (!room) { ui.toast(t('toast.needTable')); return; }
   const n = domEntrants().length;
-  if (n < 2) { ui.toast(t('tru.need2')); return; }
-  ui.trucoStartChoice({ mode: n >= 4 ? '2v2' : '1v1' });
+  // solo: a turma virtual completa (1 bot = 1v1). Com 4+ humanos, 2v2 sem bots.
+  ui.trucoStartChoice({ mode: n >= 4 ? '2v2' : '1v1', botsDefault: n < 2 ? 1 : 0 });
 }
-function startTrucoVariant(variant) {
+function startTrucoVariant(variant, botN = 0) {
   if (!TRU_VARIANTS[variant]) return;
   let order = domEntrants();
+  for (const id of pickBots(botN)) if (order.length < 4) order.push(id); // a turma virtual completa a dupla/mesa
   if (order.length >= 4) order = order.slice(0, 4); else order = order.slice(0, 2);
-  if (order.length === 3) order = order.slice(0, 2); // 3 online: 1v1 com os dois primeiros
+  if (order.length === 3) order = order.slice(0, 2); // 3 (humanos): 1v1 com os dois primeiros
   const gameId = 'tr' + cryptoSeed();
   gameFx({ kind: 'truco', ph: 'tsetup', gameId, variant, order, from: self });
-  beginTruco({ gameId, variant, order });
-  truHandStart(); // sou o dealer da mão 0
+  beginTruco({ gameId, variant, order, iHost: true });
+  truHandStart(); // sou o dealer da mão 0 (ou o host que dá as cartas se o dealer for bot)
 }
-function beginTruco({ gameId, variant, order }) {
-  clearGameMin('truco');
+function beginTruco({ gameId, variant, order, iHost = false }) {
+  clearGameMin('truco'); clearBotTimers();
   truco = {
     gameId, variant, order, n: order.length,
     score: [0, 0], handIdx: 0, st: null,
@@ -1835,6 +1837,8 @@ function beginTruco({ gameId, variant, order }) {
     reveals: {},       // seat -> [{i,card}] cartas já abertas (pra UI)
     opens: {},         // h -> {deck,salt,master} auditoria de fim de partida
     audits: null, over: false, winnerTeam: null,
+    // bots: só quem INICIOU hospeda (dá as cartas quando o dealer é bot, joga a vez deles)
+    iHost: !!iHost && order.some((id) => isBot(id)), botCards: {}, botRng: makeRng(hashSeed(gameId)),
   };
   renderTruco();
   const q = trucoPreFx.filter((f) => f.gameId === gameId);
@@ -1842,70 +1846,101 @@ function beginTruco({ gameId, variant, order }) {
   for (const f of q) routeTrucoFx(f);
 }
 function truDealerIdx() { return truco ? truco.handIdx % truco.n : 0; }
-function truIsDealer() { return truco && truco.order[truDealerIdx()] === self; }
+function truDealerId() { return truco ? truco.order[truDealerIdx()] : null; }
+// "eu dou as cartas desta mão?" — sou o dealer, OU sou o host e o dealer é um bot (falo por ele)
+function truActDealer() { const d = truDealerId(); return !!(truco && (d === self || (truco.iHost && isBot(d)))); }
+// seats cujo seed EU gero (o meu, se jogo; + os bots, se sou host) — real peer manda o dele
+function truMySeats() { const s = new Set(); if (truco.order.includes(self)) s.add(self); if (truco.iHost) for (const id of truco.order) if (isBot(id)) s.add(id); return [...s]; }
+async function truCommitMySeeds() {
+  for (const id of truMySeats()) {
+    if (truco.deal.seedCommits[id]) continue;
+    const seed = randomNonce(); const sc = await sha256Hex(seed);
+    truco.deal.seeds[id] = seed; truco.deal.seedCommits[id] = sc;
+    if (id === self) truco.deal.mySeed = seed; else (truco.deal.botSeeds = truco.deal.botSeeds || {})[id] = seed;
+    gameFx({ kind: 'truco', ph: 'thseed', gameId: truco.gameId, h: truco.handIdx, from: id, sc });
+  }
+}
+function truRevealMySeeds() {
+  truco.deal.revd = truco.deal.revd || {};
+  for (const id of truMySeats()) {
+    if (truco.deal.revd[id]) continue;
+    const seed = id === self ? truco.deal.mySeed : (truco.deal.botSeeds || {})[id];
+    if (seed == null) continue;
+    truco.deal.revd[id] = 1;
+    gameFx({ kind: 'truco', ph: 'thseedrev', gameId: truco.gameId, h: truco.handIdx, from: id, seed });
+  }
+}
 
 // -- handshake do embaralho da mão (dealer lacra o baralho ANTES do corte coletivo) --
 async function truHandStart() {
-  if (!truco || truco.over || !truIsDealer()) return;
+  if (!truco || truco.over || !truActDealer()) return;
   const deck = shuffle(truDeckFor(truco.variant), rngFrom(cryptoSeed()));
   const salt = randomNonce(); const master = randomNonce();
   const dc = await sha256Hex(JSON.stringify(deck.map(truStr)) + ':' + salt);
   truco.deal = { dc, deck, salt, master, seedCommits: {}, seeds: {}, phase: 'seed' };
-  const mySeed = randomNonce(); const mySc = await sha256Hex(mySeed);
-  truco.deal.mySeed = mySeed; truco.deal.seedCommits[self] = mySc; truco.deal.seeds[self] = mySeed;
   gameFx({ kind: 'truco', ph: 'thseal', gameId: truco.gameId, h: truco.handIdx, dc });
-  gameFx({ kind: 'truco', ph: 'thseed', gameId: truco.gameId, h: truco.handIdx, from: self, sc: mySc });
+  await truCommitMySeeds(); // o meu seed + o dos bots (o real peer manda o dele por onThseal)
+  truTrySeedReveal();
   renderTruco();
 }
 async function onThseal(fx) {
-  if (!truco || fx.h !== truco.handIdx || truIsDealer()) return;
+  if (!truco || fx.h !== truco.handIdx || truActDealer()) return; // se EU dou as cartas, já montei o deal
   truco.deal = { dc: fx.dc, seedCommits: {}, seeds: {}, phase: 'seed' };
-  const mySeed = randomNonce(); const mySc = await sha256Hex(mySeed);
-  truco.deal.mySeed = mySeed; truco.deal.seedCommits[self] = mySc; truco.deal.seeds[self] = mySeed;
-  gameFx({ kind: 'truco', ph: 'thseed', gameId: truco.gameId, h: truco.handIdx, from: self, sc: mySc });
+  await truCommitMySeeds();
   renderTruco();
 }
 function onThseed(fx) {
   if (!truco || !truco.deal || fx.h !== truco.handIdx) return;
   truco.deal.seedCommits[fx.from] = fx.sc;
-  if (truIsDealer() && truco.deal.phase === 'seed' && truco.order.every((id) => truco.deal.seedCommits[id])) {
-    truco.deal.phase = 'rev';
-    gameFx({ kind: 'truco', ph: 'thgo', gameId: truco.gameId, h: truco.handIdx });
-    gameFx({ kind: 'truco', ph: 'thseedrev', gameId: truco.gameId, h: truco.handIdx, from: self, seed: truco.deal.mySeed });
-  }
+  truTrySeedReveal();
+}
+function truTrySeedReveal() {
+  if (!truco || !truco.deal || truco.deal.phase !== 'seed' || !truActDealer()) return;
+  if (!truco.order.every((id) => truco.deal.seedCommits[id])) return;
+  truco.deal.phase = 'rev';
+  gameFx({ kind: 'truco', ph: 'thgo', gameId: truco.gameId, h: truco.handIdx });
+  truRevealMySeeds();
+  truTryDeal();
 }
 function onThgo(fx) {
-  if (!truco || !truco.deal || fx.h !== truco.handIdx || truIsDealer() || truco.deal.phase !== 'seed') return;
+  if (!truco || !truco.deal || fx.h !== truco.handIdx || truActDealer() || truco.deal.phase !== 'seed') return;
   truco.deal.phase = 'rev';
-  gameFx({ kind: 'truco', ph: 'thseedrev', gameId: truco.gameId, h: truco.handIdx, from: self, seed: truco.deal.mySeed });
+  truRevealMySeeds(); // revelo o meu + o dos bots (se sou host); o real peer dealer apura
 }
-async function onThseedrev(fx) {
+function onThseedrev(fx) {
   if (!truco || !truco.deal || fx.h !== truco.handIdx) return;
   truco.deal.seeds[fx.from] = fx.seed;
-  if (truIsDealer() && truco.deal.phase === 'rev' && truco.order.every((id) => truco.deal.seeds[id])) {
-    truco.deal.phase = 'dealt';
-    const R = await combineSeeds(truco.deal.seeds);
-    const cut = cutDeck(truco.deal.deck, R);
-    const wantVira = !!TRU_VARIANTS[truco.variant].vira;
-    const { commits, hands, vira } = await makeHandDeal(cut, truco.n, truco.deal.master, wantVira);
-    truco.deal.cut = cut;
-    truco.opens[truco.handIdx] = { deck: truco.deal.deck.map(truStr), salt: truco.deal.salt, master: truco.deal.master };
-    const pub = {
-      kind: 'truco', ph: 'tdeal', gameId: truco.gameId, h: truco.handIdx,
-      commits, vira: vira ? truStr(vira) : null, dc: truco.deal.dc,
-      seeds: truco.deal.seeds, seedCommits: truco.deal.seedCommits,
-    };
-    gameFx(pub);
-    for (let k = 0; k < truco.n; k++) {
-      const id = truco.order[k];
-      const cards = hands[k].map((x) => ({ i: x.i, card: truStr(x.card), salt: x.salt }));
-      if (id === self) applyTdeal(pub, cards);
-      else if (mesh) mesh.sendTo(id, { k: 'fx', fx: { kind: 'truco', ph: 'thand', gameId: truco.gameId, h: truco.handIdx, cards } });
-    }
+  truTryDeal();
+}
+async function truTryDeal() {
+  if (!truco || !truco.deal || truco.deal.phase !== 'rev' || !truActDealer()) return;
+  if (!truco.order.every((id) => truco.deal.seeds[id])) return;
+  truco.deal.phase = 'dealt';
+  const R = await combineSeeds(truco.deal.seeds);
+  const cut = cutDeck(truco.deal.deck, R);
+  const wantVira = !!TRU_VARIANTS[truco.variant].vira;
+  const { commits, hands, vira } = await makeHandDeal(cut, truco.n, truco.deal.master, wantVira);
+  truco.deal.cut = cut;
+  truco.opens[truco.handIdx] = { deck: truco.deal.deck.map(truStr), salt: truco.deal.salt, master: truco.deal.master };
+  const pub = {
+    kind: 'truco', ph: 'tdeal', gameId: truco.gameId, h: truco.handIdx,
+    commits, vira: vira ? truStr(vira) : null, dc: truco.deal.dc,
+    seeds: truco.deal.seeds, seedCommits: truco.deal.seedCommits,
+  };
+  gameFx(pub);
+  const seatCards = truco.order.map((id, k) => hands[k].map((x) => ({ i: x.i, card: truStr(x.card), salt: x.salt })));
+  // guarda as mãos dos bots ANTES de aplicar a minha (applyTdeal dispara os bots — eles já
+  // precisam ter as cartas na mão nesse instante, senão o primeiro a jogar sai de mãos vazias)
+  for (let k = 0; k < truco.n; k++) if (isBot(truco.order[k])) truco.botCards[truco.order[k]] = seatCards[k].map((cc) => ({ ...cc }));
+  for (let k = 0; k < truco.n; k++) {
+    const id = truco.order[k];
+    if (id === self) applyTdeal(pub, seatCards[k]);
+    else if (!isBot(id) && mesh) mesh.sendTo(id, { k: 'fx', fx: { kind: 'truco', ph: 'thand', gameId: truco.gameId, h: truco.handIdx, cards: seatCards[k] } });
   }
+  if (!truco.order.includes(self)) botsTrucoAct(); // mesa só de bots (raro): ninguém aplicou → toca aqui
 }
 function onTdeal(fx) {
-  if (!truco || fx.h !== truco.handIdx || truIsDealer()) return;
+  if (!truco || fx.h !== truco.handIdx || truActDealer()) return; // quem deu as cartas já aplicou
   applyTdeal(fx, truco.deal && truco.deal.mineRaw);
 }
 function onThand(fx) {
@@ -1934,8 +1969,99 @@ async function applyTdeal(pub, mineRaw) {
   truco.maoSpecial = special;
   truco.onzeDecided = special.type !== 'maoDe';
   renderTruco();
+  botsTrucoAct();
 }
 function truCardObj(s) { const [r, su] = String(s).split(':'); return { r, s: su }; }
+
+// ---- Bots do truco: o host joga a vez do bot (carta lacrada), responde apostas e envido ----
+function truVira() { return truco.deal && truco.deal.vira ? truCardObj(truco.deal.vira) : null; }
+function botTruStrength(id) {
+  const cards = (truco.botCards[id] || []).filter((c) => !c.played).map((c) => truCardObj(c.card));
+  return botTrucoHandStrength(cards, truco.variant, truVira());
+}
+function botsTrucoAct() {
+  if (!truco || truco.over || !truco.iHost || !truco.st || truco.st.over) return;
+  const st = truco.st;
+  // 1) mão de onze/dez: se o time da regra tem um bot decidindo, ele decide (joga se a mão presta)
+  if (truco.maoSpecial && truco.maoSpecial.type === 'maoDe' && !truco.onzeDecided) {
+    const decider = truco.order.find((id) => isBot(id) && truTeamOfId(id) === truco.maoSpecial.team);
+    if (decider) botDelay(`${truco.gameId}:onze:${truco.handIdx}:${decider}`, () => botTruOnze(decider));
+    return;
+  }
+  // 2) envido no ar (gaúcha): o time que precisa responder tem bot? ele responde
+  //    (envido.resp também é chaveada por ID de jogador, não por time)
+  if (st.envido && st.envido.pendBy != null) {
+    const respTeam = 1 - st.envido.pendBy;
+    const teamResp = truco.order.some((id, i) => teamOf(i) === respTeam && st.envido.resp && st.envido.resp[id] != null);
+    if (!teamResp) {
+      const b = truco.order.find((id) => isBot(id) && truTeamOfId(id) === respTeam);
+      if (b) botDelay(`${truco.gameId}:envr:${truco.handIdx}:${b}:${st.envido.value}`, () => botTruEnvResp(b));
+    }
+    return;
+  }
+  // 3) truco no ar: o time que responde tem bot? responde; senão, se o proponente é bot, o host fecha
+  if (st.pend) {
+    const respTeam = 1 - st.pend.byTeam;
+    // pend.resp é chaveada por ID de jogador (não por time) — o time respondeu se ALGUM dos seus jogou
+    const teamResponded = (team) => truco.order.some((id, i) => teamOf(i) === team && st.pend.resp && st.pend.resp[id] != null);
+    if (!teamResponded(respTeam)) {
+      const b = truco.order.find((id) => isBot(id) && truTeamOfId(id) === respTeam);
+      if (b) botDelay(`${truco.gameId}:tresp:${truco.handIdx}:${b}:${st.stake}`, () => botTruRespond(b));
+      return;
+    }
+    // resposta veio: se o "fechador" do time proponente é bot, o host fecha (o self-proponente já fecha sozinho)
+    const closerSeat = Math.min(...truco.order.map((id, i) => teamOf(i) === st.pend.byTeam ? i : 99).filter((x) => x < 99));
+    if (isBot(truco.order[closerSeat])) botDelay(`${truco.gameId}:tclose:${truco.handIdx}:${st.stake}`, () => {
+      if (truco && truco.st && truco.st.pend) { gameFx({ kind: 'truco', ph: 'trespclose', gameId: truco.gameId, h: truco.handIdx }); if (feedT({ t: 'respClose' })) afterTrucoStep(); }
+    });
+    return;
+  }
+  // 4) vez normal de um bot: joga uma carta (às vezes pede truco antes)
+  const turnId = st.order[st.turnIdx];
+  if (isBot(turnId)) {
+    const vz = st.vazas[st.vazas.length - 1] || [];
+    botDelay(`${truco.gameId}:tplay:${truco.handIdx}:${turnId}:${st.vazas.length}:${vz.length}`, () => botTruPlay(turnId));
+  }
+}
+function botTruPlay(id) {
+  if (!truco || !truco.st || truco.st.over || truco.st.pend || truco.st.order[truco.st.turnIdx] !== id) return;
+  if (truco.st.envido && truco.st.envido.pendBy != null) return; // envido no ar trava a jogada
+  const cards = (truco.botCards[id] || []).filter((c) => !c.played);
+  if (!cards.length) return;
+  // pedir truco? só com mão boa, sem pendência, se a escada permite
+  if (!truco.maoSpecial.type && truCanRaise(truco.variant, truco.st.stake, truco.st.lastRaiserTeam, truTeamOfId(id))
+      && botTrucoWantRaise({ strength: botTruStrength(id), rng: truco.botRng })) {
+    gameFx({ kind: 'truco', ph: 'traise', gameId: truco.gameId, h: truco.handIdx, from: id });
+    if (feedT({ t: 'raise', p: id })) afterTrucoStep();
+    return; // a resposta vem; o bot joga a carta depois
+  }
+  const vaza = truco.st.vazas[truco.st.vazas.length - 1] || []; // cru ({p,team,card}) — botTrucoPlay extrai .card
+  const choice = botTrucoPlay({ myCards: cards.map((c) => truCardObj(c.card)), vaza, variant: truco.variant, vira: truVira(), rng: truco.botRng });
+  const m = cards.find((c) => c.card === truStr(choice)) || cards[0];
+  m.played = true;
+  const reveal = { i: m.i, card: m.card, salt: m.salt };
+  gameFx({ kind: 'truco', ph: 'tplay', gameId: truco.gameId, h: truco.handIdx, from: id, reveal });
+  onTplay({ h: truco.handIdx, from: id, reveal });
+}
+function botTruRespond(id) {
+  if (!truco || !truco.st || !truco.st.pend) return;
+  let r = botTrucoRespondRaise({ strength: botTruStrength(id), rng: truco.botRng });
+  if (r === 'raise' && !truCanRaise(truco.variant, truco.st.stake, truco.st.lastRaiserTeam, truTeamOfId(id))) r = 'accept'; // não dá pra subir → paga
+  gameFx({ kind: 'truco', ph: 'tresp', gameId: truco.gameId, h: truco.handIdx, from: id, r });
+  onTresp({ h: truco.handIdx, from: id, r });
+}
+function botTruOnze(id) {
+  if (!truco || !truco.maoSpecial || truco.maoSpecial.type !== 'maoDe' || truco.onzeDecided) return;
+  const play = botTrucoOnze({ strength: botTruStrength(id), rng: truco.botRng });
+  gameFx({ kind: 'truco', ph: 'tonze', gameId: truco.gameId, h: truco.handIdx, from: id, play });
+  onTonze({ h: truco.handIdx, from: id, play });
+}
+function botTruEnvResp(id) {
+  if (!truco || !truco.st || !truco.st.envido || truco.st.envido.pendBy == null) return;
+  const r = botTrucoRespondRaise({ strength: botTruStrength(id), rng: truco.botRng }) === 'fold' ? 'fold' : 'accept'; // envido: aceita ou corre (bot não re-envida — simples)
+  gameFx({ kind: 'truco', ph: 'tenvresp', gameId: truco.gameId, h: truco.handIdx, from: id, r });
+  onTenvresp({ h: truco.handIdx, from: id, r });
+}
 
 // -- jogo --
 function feedT(ev) { if (truco && truco.st) { const nx = reduceT(truco.st, ev); const changed = nx !== truco.st; truco.st = nx; return changed; } return false; }
@@ -2031,6 +2157,7 @@ function afterTrucoStep() {
     }
   }
   renderTruco();
+  botsTrucoAct(); // toca os bots na fase corrente (jogar, responder, fechar)
 }
 async function truFinishGame() {
   if (!truco) return;
@@ -2080,7 +2207,7 @@ async function tryTruAudit() {
 function cancelTruco(broadcast) {
   if (!truco) return;
   if (broadcast && !truco.over) gameFx({ kind: 'truco', ph: 'tcancel', gameId: truco.gameId, from: self });
-  truco = null; clearTimeout(truRespTimer); clearTimeout(truNextTimer); clearTimeout(truCloseWatch);
+  truco = null; clearTimeout(truRespTimer); clearTimeout(truNextTimer); clearTimeout(truCloseWatch); clearBotTimers();
 }
 
 
@@ -2103,12 +2230,18 @@ function onTflor(fx) { if (truco && fx.h === truco.handIdx && feedT({ t: 'flor',
 function truAutoDeclare() {
   const st = truco && truco.st;
   if (!st || !st.envido || !st.envido.closed || !st.envido.value || st.envido.winner != null) return;
-  if (truco.envDeclared || !truco.deal || !truco.deal.mine) return;
-  truco.envDeclared = true;
-  const pts = envidoPoints(truco.deal.mine.map((m) => truCardObj(m.card)));
-  gameFx({ kind: 'truco', ph: 'tenvpoints', gameId: truco.gameId, h: truco.handIdx, from: self, points: pts });
-  (truco.envLog = truco.envLog || {})[truco.handIdx] = { ...(truco.envLog[truco.handIdx] || {}), [self]: pts };
-  if (feedT({ t: 'envpoints', p: self, points: pts })) { truTrySettleEnvido(); }
+  if (!truco.deal) return;
+  truco.envLog = truco.envLog || {}; truco.envLog[truco.handIdx] = truco.envLog[truco.handIdx] || {};
+  const declare = (id, cards) => {
+    if (truco.envLog[truco.handIdx][id] != null || !cards) return;
+    const pts = envidoPoints(cards.map((m) => truCardObj(m.card)));
+    truco.envLog[truco.handIdx][id] = pts;
+    gameFx({ kind: 'truco', ph: 'tenvpoints', gameId: truco.gameId, h: truco.handIdx, from: id, points: pts });
+    feedT({ t: 'envpoints', p: id, points: pts });
+  };
+  declare(self, truco.deal.mine); // eu declaro os meus pontos
+  if (truco.iHost) for (const id of truco.order) if (isBot(id)) declare(id, truco.botCards[id]); // e os dos bots
+  truTrySettleEnvido();
 }
 function truTrySettleEnvido() {
   const st = truco && truco.st;
@@ -2118,7 +2251,7 @@ function truTrySettleEnvido() {
   truco.st = settleEnvido(st);
   truScoreEnvido();
 }
-function truOnlineHas(id) { if (id === self) return true; if (!mesh) return false; const p = mesh.peers().find((x) => x.user === id); return !!(p && p.online); }
+function truOnlineHas(id) { if (id === self || isBot(id)) return true; if (!mesh) return false; const p = mesh.peers().find((x) => x.user === id); return !!(p && p.online); }
 // pontua envido/flor UMA vez (todo peer chega no mesmo resultado → converge)
 function truScoreEnvido() {
   const st = truco && truco.st;
@@ -2458,7 +2591,7 @@ const handlers = {
   onDomino: () => ui.dominoStartChoice({ botsDefault: domEntrants().length < 2 ? 1 : 0 }),
   onDomStart: (botN) => startDominoVerified(botN), // sempre mesa verificada (regras iguais; só o embaralho é auditável)
   onTruco: startTruco,
-  onTrucoStart: (variant) => startTrucoVariant(variant),
+  onTrucoStart: (variant, botN) => startTrucoVariant(variant, botN),
   onTrucoPlay: (card) => myTruPlay(card),
   onTrucoRaise: myTruRaise,
   onTrucoResp: (r) => myTruResp(r),

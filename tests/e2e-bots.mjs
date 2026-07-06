@@ -132,6 +132,42 @@ async function main() {
     }, null, { timeout: 15000 });
   });
 
+  // fecha o dominó
+  await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+
+  // ---------- TRUCO (paulista 1v1): sozinho + 1 bot — handshake, jogo corre, aposta resolve ----------
+  await A.click('#btn-menu'); await A.click('#menu-truco');
+  await A.waitForFunction(() => !document.getElementById('overlay-truco').hidden, null, { timeout: T });
+
+  await step('truco: handshake da mão FECHA com o bot dando/recebendo as cartas (host proxy)', async () => {
+    await A.click('#tru-setup .bot-chip[data-n="1"]');
+    await A.click('#btn-tru-pta');
+    await A.waitForFunction(() => { const g = document.getElementById('tru-game'); return g && !g.hidden; }, null, { timeout: 15000 });
+  });
+
+  await step('truco: o jogo CORRE (o bot joga e responde) e o placar avança dos 0×0', async () => {
+    // toca por um tempo: eu jogo a 1ª carta e aceito qualquer truco; o bot conduz o resto.
+    // basta o PLACAR sair do 0×0 (uma mão apurou com o bot) OU a partida acabar.
+    let advanced = false, accepts = 0;
+    for (let i = 0; i < 140 && !advanced; i++) {
+      await A.waitForTimeout(250);
+      const st = await A.evaluate(() => ({
+        score: (document.getElementById('tru-score')?.textContent || '').replace(/\s+/g, ' ').trim(),
+        over: /DEU NÓS|Perdeu a partida/.test(document.getElementById('tru-result')?.textContent || '') && !document.getElementById('tru-result')?.hidden,
+        cards: [...document.querySelectorAll('#tru-hand .tru-hcard:not([disabled])')].map((b) => b.dataset.card),
+        acc: !!document.getElementById('btn-tru-acc'), onze: !!document.getElementById('btn-tru-onze-go'), envAcc: !!document.getElementById('btn-tru-env-acc'),
+      }));
+      if (st.over) { advanced = true; break; } // partida fechou = avançou
+      const m = st.score.match(/(\d+) × (\d+)/);
+      if (m && (Number(m[1]) > 0 || Number(m[2]) > 0)) { advanced = true; break; } // saiu do 0×0
+      if (st.onze) { await A.click('#btn-tru-onze-go').catch(() => {}); continue; }
+      if (st.envAcc) { await A.click('#btn-tru-env-acc').catch(() => {}); continue; }
+      if (st.acc) { accepts++; await A.click('#btn-tru-acc').catch(() => {}); continue; }
+      if (st.cards.length) await A.click(`#tru-hand .tru-hcard[data-card="${st.cards[0]}"]`).catch(() => {});
+    }
+    if (!advanced) throw new Error('o placar do truco não saiu do 0×0 (bot não jogou/apurou)');
+  });
+
   await ctx.close();
   await browser.close();
   console.log(`\n${results.length} verificações do modo solo (bots) passaram ✅`);

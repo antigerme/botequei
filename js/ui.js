@@ -1648,16 +1648,19 @@ function truCardHTML(cardStr, { small = false, back = false } = {}) {
   return `<span class="tru-card${red ? ' red' : ''}${small ? ' sm' : ''}"><b>${esc(r)}</b><i>${suit}</i></span>`;
 }
 export function trucoStartChoice(vm) {
+  botPick = Math.max(0, Math.min(3, Number(vm.botsDefault) || 0));
   el['tru-setup'].innerHTML = `<div class="dom-start">
     <p class="dom-start-q">${t('tru.how')} <small>(${vm.mode})</small></p>
     <button class="btn btn-primary btn-lg" id="btn-tru-pta">🂠 ${t('tru.vPaulista')}</button>
     <button class="btn btn-ghost dom-start-alt" id="btn-tru-min">⛏️ ${t('tru.vMineira')}</button>
     <button class="btn btn-ghost dom-start-alt" id="btn-tru-gau">🧉 ${t('tru.vGaucha')}</button>
+    ${botPickerHTML(3)}
     <p class="dom-start-note">${t('tru.note')}</p>
   </div>`;
-  el['tru-setup'].querySelector('#btn-tru-pta').onclick = () => H.onTrucoStart('paulista');
-  el['tru-setup'].querySelector('#btn-tru-min').onclick = () => H.onTrucoStart('mineira');
-  el['tru-setup'].querySelector('#btn-tru-gau').onclick = () => H.onTrucoStart('gaucha');
+  el['tru-setup'].querySelector('#btn-tru-pta').onclick = () => H.onTrucoStart('paulista', botPick);
+  el['tru-setup'].querySelector('#btn-tru-min').onclick = () => H.onTrucoStart('mineira', botPick);
+  el['tru-setup'].querySelector('#btn-tru-gau').onclick = () => H.onTrucoStart('gaucha', botPick);
+  wireBotPicker(el['tru-setup']);
   el['tru-setup'].hidden = false; el['tru-game'].hidden = true;
   el['btn-tru-end'].hidden = true;
   if (!gameMin.truco) el['overlay-truco'].hidden = false;

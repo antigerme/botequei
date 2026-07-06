@@ -57,6 +57,7 @@ const IDS = [
   'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-selfie', 'btn-avatar-upload', 'avatar-file',
   'overlay-crop', 'crop-canvas', 'crop-zoom', 'btn-crop-use',
   'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'add-share', 'btn-additem-confirm',
+  'add-prev-emoji', 'add-prev-name', 'add-prev-sub',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
@@ -182,13 +183,16 @@ export function init(handlers) {
   $('money-block').addEventListener('click', () => H.onBill()); // tocar na conta abre "Fechar a conta"
   $('btn-menu').addEventListener('click', () => { el['overlay-menu'].hidden = false; });
   $('btn-games').addEventListener('click', () => openGames());
-  $('btn-additem').addEventListener('click', () => openAddItem());
-  $('btn-empty-custom').addEventListener('click', () => openAddItem());
+  $('btn-additem').addEventListener('click', () => openAddItem());        // "+ item" da mesa montada: mostra o catálogo
+  $('btn-empty-custom').addEventListener('click', () => openAddItem(true)); // do empty: pula o catálogo e foca o nome
   $('btn-brinde').addEventListener('click', () => H.onBrinde());
   $('btn-react').addEventListener('click', () => openReact());
   $('btn-rodada').addEventListener('click', () => H.onRodada());
 
   $('btn-additem-confirm').addEventListener('click', () => submitAddItem());
+  $('add-name').addEventListener('input', renderAddPreview);   // preview ao vivo enquanto digita
+  $('add-price').addEventListener('input', renderAddPreview);
+  $('add-share').addEventListener('change', renderAddPreview);
   $('btn-join-confirm').addEventListener('click', () => H.onJoinConfirm(el['join-name'].value, el['join-pin'].value));
   $('btn-copy-link').addEventListener('click', () => H.onCopyLink());
   $('btn-share-invite').addEventListener('click', () => H.onShareInvite());
@@ -482,7 +486,7 @@ function renderSuggest(list) {
     target.innerHTML = html;
     target.querySelectorAll('.sug-chip').forEach((b) => b.addEventListener('click', () => H.onSuggest(b.dataset.id)));
   }
-  el['add-suggest-wrap'].hidden = list.length === 0; // no ➕ item, a seção some quando o catálogo esgotou
+  el['add-suggest-wrap'].hidden = addFromEmpty || list.length === 0; // some no empty (já viu) e quando o catálogo esgotou
 }
 function cardHTML(it) {
   const note = it.note ? ` title="${esc(it.note)}"` : '';
@@ -741,16 +745,47 @@ function cropUse() {
 
 // ---------- Novo item ----------
 let pickedEmoji = EMOJIS[0];
-function openAddItem() {
+let addFromEmpty = false; // aberto pelo empty state? então as sugestões (que a pessoa acabou de ver) somem
+// emoji → categoria provável: escolher o ícone já pré-seleciona a categoria (a pessoa ajusta se quiser)
+const EMOJI_CAT = {
+  '🍺': 'cerveja', '🍻': 'cerveja',
+  '🥃': 'destilado', '🍸': 'destilado', '🍹': 'destilado', '🍾': 'destilado', '🍷': 'destilado', '🥂': 'destilado',
+  '🥤': 'sem-alcool', '🧃': 'sem-alcool', '💧': 'sem-alcool', '☕': 'sem-alcool', '🧉': 'sem-alcool',
+  '🍟': 'comida', '🍕': 'comida', '🌭': 'comida', '🧀': 'comida', '🥓': 'comida',
+  '🍗': 'comida', '🥜': 'comida', '🫒': 'comida', '🍤': 'comida', '🥟': 'comida', '🍢': 'comida',
+};
+// preview AO VIVO: o card que vai nascer (emoji + nome + preço · da mesa), a cada toque/tecla
+function renderAddPreview() {
+  if (!el['add-prev-emoji']) return;
+  el['add-prev-emoji'].textContent = pickedEmoji;
+  const nm = el['add-name'].value.trim();
+  el['add-prev-name'].textContent = nm || t('add.previewName');
+  el['add-prev-name'].classList.toggle('ph', !nm);
+  const price = parseFloat(String(el['add-price'].value).replace(',', '.')) || 0;
+  const bits = [];
+  if (price > 0) bits.push(fmtMoney(price));
+  if (el['add-share'].checked) bits.push(t('card.mesa'));
+  const sub = el['add-prev-sub'];
+  if (bits.length) { sub.textContent = bits.join(' · '); sub.hidden = false; } else sub.hidden = true;
+}
+function openAddItem(fromEmpty) {
   pickedEmoji = EMOJIS[0];
-  el['emoji-row'].innerHTML = EMOJIS.map((e, i) => `<button class="emoji-pick ${i === 0 ? 'sel' : ''}" data-e="${e}">${e}</button>`).join('');
+  el['emoji-row'].innerHTML = EMOJIS.map((e, i) => `<button class="emoji-pick ${i === 0 ? 'sel' : ''}" type="button" data-e="${e}" aria-label="${e}">${e}</button>`).join('');
   el['emoji-row'].querySelectorAll('.emoji-pick').forEach((b) => b.addEventListener('click', () => {
     pickedEmoji = b.dataset.e; el['emoji-row'].querySelectorAll('.emoji-pick').forEach((x) => x.classList.remove('sel')); b.classList.add('sel');
+    const guessed = EMOJI_CAT[pickedEmoji];
+    if (guessed) el['add-cat'].value = guessed; // categoria segue o ícone (ainda editável)
+    renderAddPreview();
   }));
   el['add-cat'].innerHTML = CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   el['add-cat'].value = 'outros';
-  el['add-name'].value = ''; el['add-price'].value = ''; el['add-note'].value = '';
+  el['add-name'].value = ''; el['add-price'].value = ''; el['add-note'].value = ''; el['add-share'].checked = false;
+  // sugestões do catálogo: úteis no "+ item" de mesa montada; do empty state você já as viu → some
+  addFromEmpty = !!fromEmpty;
+  el['add-suggest-wrap'].hidden = addFromEmpty || !el['add-suggest'].children.length;
+  renderAddPreview();
   el['overlay-additem'].hidden = false;
+  if (addFromEmpty) setTimeout(() => el['add-name'].focus(), 60); // teclado já no nome (mínimo de toques)
 }
 function submitAddItem() {
   const name = el['add-name'].value.trim();

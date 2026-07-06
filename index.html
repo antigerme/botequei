@@ -271,14 +271,25 @@
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="add.title">Novo item</h2>
+    <!-- catálogo: atalho de 1 toque. Só no "+ item" de mesa já montada; vindo do empty
+         state (que já mostra os mesmos chips) a seção some pra não repetir o que a pessoa
+         acabou de ver. -->
     <div id="add-suggest-wrap" hidden>
       <p class="sheet-sub" data-i18n="add.suggest">Do catálogo — um toque e entra:</p>
       <div class="sug-grid" id="add-suggest"></div>
       <p class="sheet-sub" data-i18n="add.orCustom">…ou crie o seu:</p>
     </div>
-    <div class="emoji-row" id="emoji-row"></div>
+    <!-- preview AO VIVO: o card que vai nascer, atualizando a cada toque/tecla (regra de
+         ouro: preview ao vivo + feedback imediato) -->
+    <div class="add-preview" id="add-preview" aria-hidden="true">
+      <span class="ap-emoji" id="add-prev-emoji">🍺</span>
+      <span class="ap-name ph" id="add-prev-name" data-i18n="add.previewName">seu item</span>
+      <span class="ap-sub" id="add-prev-sub" hidden></span>
+    </div>
     <label class="field"><span data-i18n="add.name">Nome</span>
       <input id="add-name" type="text" maxlength="24" placeholder="ex: Caipirinha" data-i18n-ph="add.namePh" /></label>
+    <p class="field-lbl" data-i18n="add.icon">Ícone</p>
+    <div class="emoji-row" id="emoji-row"></div>
     <label class="field"><span data-i18n="add.cat">Categoria</span>
       <select id="add-cat"></select></label>
     <label class="field"><span data-i18n="add.price">Preço (opcional)</span>

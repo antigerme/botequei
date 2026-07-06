@@ -466,6 +466,7 @@ export function renderTable(vm) {
   const suggest = vm.suggest || [];
   const building = vm.items.length === 0 || (Number(vm.tableTotal) === 0 && suggest.length > 0);
   el['menu-empty'].hidden = !building;
+  el['menu-empty'].classList.toggle('compact', vm.items.length > 0); // já tem cards: só os chips, sem o título
   el['items-grid'].hidden = vm.items.length === 0;
   el['btn-additem'].hidden = building; // o empty já traz o botão de criar item
   renderSuggest(suggest);

@@ -38,6 +38,12 @@ conta — motorista fora por padrão), e o corpo é medido pelo **copo** (`copo`
 R$0 e g>0): a zona "🥂 meu copo" dentro do card marca a dose PESSOAL que alimenta
 BAC/estatísticas. Recipiente = dinheiro da mesa; copo = corpo de quem bebeu.
 
+**A mesa nasce vazia**: o catálogo (`DEFAULT_ITEMS`) é um baralho de SUGESTÕES — item só
+vira card quando alguém o adiciona (chip de 1 toque → evento `ITEM` → sincroniza). A
+regra de leitura em `allItems()` (app.js) é "está na mesa = tem def no estado OU contagem
+> 0" — o segundo lado preserva mesas antigas e cobre rodada de item que o receptor ainda
+não tinha. A área "monte o cardápio" fica no miolo até o primeiro gole da noite.
+
 ## O mapa das camadas
 
 ```

@@ -785,6 +785,7 @@ function openAddItem(fromEmpty) {
   el['add-suggest-wrap'].hidden = addFromEmpty || !el['add-suggest'].children.length;
   renderAddPreview();
   el['overlay-additem'].hidden = false;
+  const sheet = el['overlay-additem'].querySelector('.sheet'); if (sheet) sheet.scrollTop = 0; // abre no topo (título + ✕ à vista)
   if (addFromEmpty) setTimeout(() => el['add-name'].focus(), 60); // teclado já no nome (mínimo de toques)
 }
 function submitAddItem() {

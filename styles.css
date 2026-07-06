@@ -218,12 +218,18 @@ body::after {
   display: flex; align-items: flex-end; justify-content: center; z-index: 40; animation: fade .2s ease; }
 .sheet { background: linear-gradient(180deg, #1c2314, #141a0f); border: 2px dashed var(--chalk-line); border-bottom: 0;
   border-radius: 22px 22px 0 0; width: 100%; max-width: 560px; padding: 22px 18px calc(26px + var(--safe-b));
-  position: relative; animation: rise .28s cubic-bezier(.2,.9,.3,1); box-shadow: 0 -10px 40px rgba(0,0,0,.5); }
+  position: relative; animation: rise .28s cubic-bezier(.2,.9,.3,1); box-shadow: 0 -10px 40px rgba(0,0,0,.5);
+  /* conteúdo alto (ex.: + item com o catálogo) rola DENTRO do sheet: o topo (título + ✕) nunca
+     escapa pra cima da tela. O ✕ gruda no canto pra fechar estar sempre à mão. */
+  max-height: 92vh; overflow-y: auto; overscroll-behavior: contain; }
 @keyframes rise { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .sheet h2 { margin: 0 0 6px; font-family: var(--hand); font-size: 27px; font-weight: 400; }
 .sheet-sub { color: var(--muted); margin: 0 0 16px; font-size: 15px; }
-.sheet-close { position: absolute; top: 14px; right: 14px; background: var(--card);
-  border: 1px solid var(--line); color: var(--cream); width: 44px; height: 44px; border-radius: 50%; font-size: 17px; cursor: pointer; }
+/* ✕ gruda no topo do sheet mesmo rolando (float não empurra o título; margem negativa
+   deixa o conteúdo fluir por baixo, como era no absolute) */
+.sheet-close { position: sticky; float: right; top: 2px; margin: -6px -6px -40px 10px; z-index: 5;
+  background: var(--card); border: 1px solid var(--line); color: var(--cream);
+  width: 44px; height: 44px; border-radius: 50%; font-size: 17px; cursor: pointer; }
 .sheet-actions { display: flex; gap: 10px; margin-top: 18px; }
 .sheet-actions .btn { flex: 1; }
 

@@ -70,6 +70,7 @@ async function main() {
     const { ctxs, pages, host } = await mkTable(['Andre', 'Bia']);
     const guest = pages[1];
     await host.click('#btn-menu'); await host.click('#menu-domino');
+      await host.waitForSelector('#btn-dom-go', { timeout: T }); await host.click('#btn-dom-go'); // tela de início (0 bots no multiplayer)
     await Promise.all(pages.map((p) => vis(p, 'dom-game')));
     await tapToasts(host);
 
@@ -132,6 +133,7 @@ async function main() {
     const { ctxs, pages, host } = await mkTable(['Andre', 'Bia']);
     const guest = pages[1];
     await host.click('#btn-menu'); await host.click('#menu-domino');
+      await host.waitForSelector('#btn-dom-go', { timeout: T }); await host.click('#btn-dom-go'); // tela de início (0 bots no multiplayer)
     await Promise.all(pages.map((p) => vis(p, 'dom-game')));
     await tapToasts(host);
 

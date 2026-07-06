@@ -1563,6 +1563,21 @@ function domFitBoard() {
 }
 let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolha de ponta
 export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }
+// tela de início do dominó: escolhe quantos da turma virtual entram, depois começa (handshake)
+export function dominoStartChoice(vm = {}) {
+  botPick = Math.max(0, Math.min(3, Number(vm.botsDefault) || 0));
+  el['dom-setup'].innerHTML = `<div class="dom-start">
+    <p class="dom-start-q">${t('dom.startTitle')}</p>
+    ${botPickerHTML(3)}
+    <button class="btn btn-primary btn-lg" id="btn-dom-go">${t('dom.startGo')}</button>
+    <p class="dom-start-note">${t('dom.startNote')}</p>
+  </div>`;
+  el['dom-setup'].querySelector('#btn-dom-go').onclick = () => H.onDomStart(botPick);
+  wireBotPicker(el['dom-setup']);
+  el['dom-setup'].hidden = false; el['dom-game'].hidden = true;
+  el['btn-dom-end'].hidden = true;
+  if (!gameMin.dom) el['overlay-domino'].hidden = false;
+}
 // contagem regressiva do auto-passe (sem jogada legal, o passe sai sozinho em 5s)
 export function setDomPassCount(n) {
   el['btn-dom-pass'].textContent = n != null ? t('dom.passN', { n: n }) : t('dom.pass');

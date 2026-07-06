@@ -90,6 +90,48 @@ async function main() {
     if (!resolved) throw new Error('a rodada da clássica não apurou');
   });
 
+  // fecha a purrinha
+  await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+
+  // ---------- DOMINÓ (mesa verificada): sozinho + 1 bot, partida completa + auditoria ----------
+  await A.click('#btn-menu'); await A.click('#menu-domino');
+  await A.waitForFunction(() => !document.getElementById('overlay-domino').hidden, null, { timeout: T });
+
+  await step('dominó: handshake da mesa verificada FECHA com o seed do bot (host fala por ele)', async () => {
+    await A.click('#dom-setup .bot-chip[data-n="1"]');
+    await A.click('#btn-dom-go');
+    await A.waitForFunction(() => { const g = document.getElementById('dom-game'); return g && !g.hidden; }, null, { timeout: 15000 });
+    const opp = await A.evaluate(() => document.querySelector('#dom-opps .dom-opp')?.textContent || '');
+    if (!/Zé|Bigode|Cida|Careca/.test(opp)) throw new Error('bot não sentou na mesa: ' + opp);
+  });
+
+  await step('dominó: a partida corre (o bot joga a vez dele) e chega ao fim', async () => {
+    let over = false;
+    for (let i = 0; i < 90 && !over; i++) {
+      await A.waitForTimeout(350);
+      const st = await A.evaluate(() => {
+        const vis = (id) => { const e = document.getElementById(id); return e && !e.hidden; };
+        return {
+          over: vis('dom-result'),
+          myTurn: document.getElementById('dom-turn')?.classList.contains('mine'),
+          playable: [...document.querySelectorAll('#dom-hand .dom-htile.can')].map((b) => b.dataset.key),
+          canPass: !document.getElementById('btn-dom-pass')?.hidden,
+        };
+      });
+      if (st.over) { over = true; break; }
+      if (st.myTurn && st.playable.length) { await A.click(`#dom-hand .dom-htile[data-key="${st.playable[0]}"]`).catch(() => {}); await A.waitForTimeout(120); if (await A.evaluate(() => !document.getElementById('dom-side-pick')?.hidden)) await A.click('#btn-dom-L').catch(() => {}); }
+      else if (st.myTurn && st.canPass) { await A.click('#btn-dom-pass').catch(() => {}); }
+    }
+    if (!over) throw new Error('a partida de dominó não fechou');
+  });
+
+  await step('dominó: a auditoria da mesa verificada NÃO acusa trapaça (🔒 sem 🚫)', async () => {
+    await A.waitForFunction(() => {
+      const v = document.getElementById('dom-verified');
+      return v && !v.hidden && !v.classList.contains('bad');
+    }, null, { timeout: 15000 });
+  });
+
   await ctx.close();
   await browser.close();
   console.log(`\n${results.length} verificações do modo solo (bots) passaram ✅`);

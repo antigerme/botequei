@@ -59,7 +59,7 @@ import {
 } from './truco.js';
 import {
   isBot, botProfile, pickBots, makeRng, botThinkMs,
-  botPurrHand, botPurrGuess,
+  botPurrHand, botPurrGuess, botDominoMove,
 } from './bots.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
@@ -1418,6 +1418,11 @@ function domBlocked() {
   dom.phase = 'reveal';
   dom.reveals.set(self, dom.myHand.slice());
   gameFx({ kind: 'domino', ph: 'reveal', gameId: dom.gameId, from: self, hand: dom.myHand });
+  // tranca: o host abre a mão dos bots (ele as guarda) — a apuração precisa de todas
+  if (dom.iHost && dom.botHands) for (const id of Object.keys(dom.botHands)) if (!dom.reveals.has(id)) {
+    dom.reveals.set(id, dom.botHands[id].slice());
+    gameFx({ kind: 'domino', ph: 'reveal', gameId: dom.gameId, from: id, hand: dom.botHands[id] });
+  }
   domResolveBlock();
 }
 function domResolveBlock() {
@@ -1491,6 +1496,7 @@ function renderDom() {
   armDomAutoPass(myTurn && moves.length === 0 && !dom.over);
   armDomSkip();       // dono da vez sumiu? conta a graça pro pulo automático
   updateGamePill();   // minimizado: o pill reflete "sua vez" na hora
+  botsDomAct();       // vez de um bot? o host joga por ele (delay humano)
 }
 // Sem encaixe, o passe sai sozinho em 5s (contagem no botão) — ninguém fica esperando quem
 // só tem "passar" a fazer. Com encaixe na mão, nada é automático.
@@ -1522,6 +1528,8 @@ let dvWatch = null;      // handshake verificado: o dono re-embaralha sem quem c
 
 function domOnlineIds() {
   const on = new Set([self]);
+  const ord = (dom && dom.order) || (dv && dv.order) || [];
+  for (const id of ord) if (isBot(id)) on.add(id); // bot é sempre "online" (o host joga por ele; nunca pula/vira noshow)
   if (mesh) for (const p of mesh.peers()) if (p.online) on.add(p.user);
   return on;
 }
@@ -1532,6 +1540,7 @@ function domClearTimers() {
   if (domNoshow) { clearTimeout(domNoshow); domNoshow = null; }
   if (domAuditWait) { clearTimeout(domAuditWait); domAuditWait = null; }
   if (dvWatch) { clearTimeout(dvWatch); dvWatch = null; }
+  clearBotTimers();
 }
 function armDomSkip() {
   const holder = dom && !dom.over ? dom.order[dom.turnIdx] : null;
@@ -1591,25 +1600,67 @@ function onDomNoshow(fx) {
   domResolveBlock();
 }
 
+// ---- Bots do dominó: o host joga a vez do bot pela mão que guarda (jogada pública, validada) ----
+function botsDomAct() {
+  if (!dom || dom.over || !dom.iHost || !dom.botHands) return;
+  const turnId = dom.order[dom.turnIdx];
+  if (!isBot(turnId)) return;
+  botDelay(`${dom.gameId}:dom:${turnId}:${dom.chain.length}:${dom.passes}`, () => botDomPlay(turnId));
+}
+function botDomPlay(id) {
+  if (!dom || dom.over || dom.order[dom.turnIdx] !== id) return; // a vez já andou
+  const hand = dom.botHands[id] || [];
+  const moves = legalMoves(hand, dom.ends);
+  if (!moves.length) { // sem encaixe → passa
+    gameFx({ kind: 'domino', ph: 'pass', gameId: dom.gameId, from: id });
+    domApplyPass(id); renderDom(); domCelebrate();
+    return;
+  }
+  const mv = botDominoMove({ moves, hand, rng: dom.botRng });
+  const k = domKey(mv.tile); const i = hand.findIndex((tt) => domKey(tt) === k); if (i >= 0) hand.splice(i, 1); // tira da mão do bot
+  gameFx({ kind: 'domino', ph: 'play', gameId: dom.gameId, from: id, tile: mv.tile, side: mv.side });
+  domApplyPlay(id, mv.tile, mv.side); sound.pop(); renderDom(); domCelebrate();
+}
+
 // ---- Dominó: MESA VERIFICADA (commit-to-deck + corte coletivo + auditoria no fim) ----
 // Handshake antes do jogo: todos lacram um seed (commit) → revelam → o corte coletivo σ sai dos
 // seeds; o dono lacra o baralho antes de ver σ (não mira num baralho favorável) e entrega cada
 // mão com um lacre que o dono confere na hora. No fim, o baralho é revelado e todos AUDITAM.
 let dv = null;
-async function startDominoVerified() {
+async function startDominoVerified(botN = 0) {
   if (!room) { ui.toast(t('toast.needTable')); return; }
-  const order = domEntrants();
+  let order = domEntrants();
+  for (const id of pickBots(botN)) if (order.length < 4) order.push(id); // a turma virtual pega assento
   if (order.length < 2 || order.length > 4) { ui.toast(t('dom.players')); return; }
   const gameId = 'dv' + cryptoSeed();
   const deck = shuffle(FULL_SET, rngFrom(cryptoSeed())); // baralho do dono (secreto até o fim)
   const salt = randomNonce(); const mySeed = randomNonce();
   const dc = await deckCommit(deck, salt); const mySc = await sha256Hex(mySeed);
-  dv = { gameId, order, host: true, deck, salt, mySeed, deckCommit: dc, seeds: { [self]: mySeed }, seedCommits: { [self]: mySc }, phase: 'commit', began: false };
-  clearGameMin('dom'); // jogo novo abre na cara
+  dv = { gameId, order, host: true, deck, salt, mySeed, deckCommit: dc, seeds: { [self]: mySeed }, seedCommits: { [self]: mySc }, phase: 'commit', began: false, botSeeds: {} };
+  clearGameMin('dom'); clearBotTimers(); // jogo novo abre na cara
   ui.openDomino(); renderVwait();
   gameFx({ kind: 'domino', ph: 'vsetup', gameId, order, deckCommit: dc });
   gameFx({ kind: 'domino', ph: 'vseed', gameId, from: self, sc: mySc });
+  // o host lacra o seed de cada bot (fala por eles); solo → o handshake já pode fechar
+  for (const id of order) if (isBot(id)) {
+    const seed = randomNonce(); dv.botSeeds[id] = seed; dv.seeds[id] = seed; dv.seedCommits[id] = await sha256Hex(seed);
+    gameFx({ kind: 'domino', ph: 'vseed', gameId, from: id, sc: dv.seedCommits[id] });
+  }
+  dvSeedGate();
   armDvWatch();
+}
+// Portão do handshake: quando todos lacraram o seed, o host revela (o seu + o dos bots) e apura o corte.
+function dvSeedGate() {
+  if (!dv || !dv.host || dv.phase !== 'commit' || !dv.order.every((id) => dv.seedCommits[id])) return;
+  dv.phase = 'reveal';
+  gameFx({ kind: 'domino', ph: 'vgo', gameId: dv.gameId });
+  gameFx({ kind: 'domino', ph: 'vseedrev', gameId: dv.gameId, from: self, seed: dv.mySeed });
+  for (const id of dv.order) if (isBot(id)) gameFx({ kind: 'domino', ph: 'vseedrev', gameId: dv.gameId, from: id, seed: dv.botSeeds[id] });
+  dvDealGate();
+}
+function dvDealGate() {
+  if (!dv || !dv.host || dv.phase !== 'reveal' || !dv.order.every((id) => dv.seeds[id])) return;
+  dv.phase = 'dealt'; hostDealVerified();
 }
 // Handshake pendurado (alguém caiu antes de lacrar/revelar o seed): o DONO re-embaralha só com
 // quem ficou; convidado espera o dono — e fecha se foi o próprio dono que caiu.
@@ -1642,21 +1693,17 @@ async function onVsetup(fx) {
 function onVseed(fx) {
   if (!dv || dv.gameId !== fx.gameId) return;
   dv.seedCommits[fx.from] = fx.sc; renderVwait();
-  if (dv.host && dv.phase === 'commit' && dv.order.every((id) => dv.seedCommits[id])) {
-    dv.phase = 'reveal';
-    gameFx({ kind: 'domino', ph: 'vgo', gameId: dv.gameId });
-    gameFx({ kind: 'domino', ph: 'vseedrev', gameId: dv.gameId, from: self, seed: dv.mySeed });
-  }
+  dvSeedGate();
 }
 function onVgo(fx) {
   if (!dv || dv.gameId !== fx.gameId || dv.host || dv.phase !== 'commit') return;
   dv.phase = 'reveal';
   gameFx({ kind: 'domino', ph: 'vseedrev', gameId: dv.gameId, from: self, seed: dv.mySeed });
 }
-async function onVseedrev(fx) {
+function onVseedrev(fx) {
   if (!dv || dv.gameId !== fx.gameId) return;
   dv.seeds[fx.from] = fx.seed; renderVwait(); // guarda sempre (converge); valida vs commit na auditoria
-  if (dv.host && dv.phase === 'reveal' && dv.order.every((id) => dv.seeds[id])) { dv.phase = 'dealt'; await hostDealVerified(); }
+  dvDealGate();
 }
 async function hostDealVerified() {
   dv.began = true; // o watchdog do handshake não vale mais a partir do deal
@@ -1670,10 +1717,18 @@ async function hostDealVerified() {
   // depende do que cada peer juntou do gossip; o cross-check vs o que o peer coletou pega adulteração.
   const pub = { kind: 'domino', ph: 'vdeal', gameId: dv.gameId, order: dv.order, starter: dv.order[op.player], firstTile: op.tile, counts, deckCommit: dv.deckCommit, handCommits, seeds: dv.seeds, seedCommits: dv.seedCommits };
   gameFx(pub);
+  const botHands = {}, botSalts = {};
   for (let k = 0; k < dv.order.length; k++) {
     const id = dv.order[k];
     if (id === self) beginDomino({ ...pub, hand: hands[k], verified: true, isHost: true, vinfo: { deckCommit: dv.deckCommit, handCommits, seeds: dv.seeds, seedCommits: dv.seedCommits, mySalt: salts[k], deck: dv.deck, salt: dv.salt } });
+    else if (isBot(id)) { botHands[id] = hands[k].map((tt) => tt.slice()); botSalts[id] = salts[k]; } // bot: o host guarda a mão (nunca sai do fio)
     else if (mesh) mesh.sendTo(id, { k: 'fx', fx: { kind: 'domino', ph: 'vhand', gameId: dv.gameId, hand: hands[k], salt: salts[k] } });
+  }
+  if (dom) { // anexa as mãos dos bots ao jogo (o host as conduz)
+    dom.botHands = botHands; dom.botSalts = botSalts;
+    dom.botInitial = {}; for (const id in botHands) dom.botInitial[id] = botHands[id].map((tt) => tt.slice());
+    dom.botRng = makeRng(hashSeed(dv.gameId)); dom.iHost = true;
+    botsDomAct();
   }
 }
 function onVdeal(fx) { if (!dv || dv.gameId !== fx.gameId || dv.host) return; dv.deal = fx; tryBeginVerified(); }
@@ -1691,6 +1746,11 @@ function domStartAudit() {
   dom.auditStarted = true;
   dom.opens[self] = { hand: dom.initialHand, salt: dom.vinfo.mySalt };
   gameFx({ kind: 'domino', ph: 'vopenhand', gameId: dom.gameId, from: self, hand: dom.initialHand, salt: dom.vinfo.mySalt });
+  // auditoria: o host abre a mão INICIAL de cada bot (com o salt do deal) — todos conferem o lacre
+  if (dom.iHost && dom.botInitial) for (const id of Object.keys(dom.botInitial)) if (!dom.opens[id]) {
+    dom.opens[id] = { hand: dom.botInitial[id], salt: dom.botSalts[id] };
+    gameFx({ kind: 'domino', ph: 'vopenhand', gameId: dom.gameId, from: id, hand: dom.botInitial[id], salt: dom.botSalts[id] });
+  }
   if (dom.isHost) { dom.revealedDeck = dom.vinfo.deck; dom.revealedSalt = dom.vinfo.salt; gameFx({ kind: 'domino', ph: 'vopen', gameId: dom.gameId, deck: dom.vinfo.deck, salt: dom.vinfo.salt }); }
   armDomAuditWait(); // quem saiu antes de abrir a mão não pendura o badge pra sempre
   tryAudit();
@@ -2395,7 +2455,8 @@ const handlers = {
   onPurrEnd: () => ui.actionToast(t('purr.endConfirm'), t('game.end'), () => {
     cancelPurrinha(true); clearGameMin('purr'); ui.closeOverlays(); ui.toast(t('purr.ended'));
   }),
-  onDomino: () => startDominoVerified(), // sempre mesa verificada (regras iguais; só o embaralho é auditável)
+  onDomino: () => ui.dominoStartChoice({ botsDefault: domEntrants().length < 2 ? 1 : 0 }),
+  onDomStart: (botN) => startDominoVerified(botN), // sempre mesa verificada (regras iguais; só o embaralho é auditável)
   onTruco: startTruco,
   onTrucoStart: (variant) => startTrucoVariant(variant),
   onTrucoPlay: (card) => myTruPlay(card),

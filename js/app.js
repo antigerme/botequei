@@ -57,7 +57,10 @@ import {
   makeHandDeal, verifyOwnHand, verifyPlayReveal, verifyHandAudit,
   newTrucoHand, reduceT, settleEnvido, envidoPoints, hasFlor, florPoints,
 } from './truco.js';
-import { isBot, botProfile } from './bots.js';
+import {
+  isBot, botProfile, pickBots, makeRng, botThinkMs,
+  botPurrHand, botPurrGuess,
+} from './bots.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
@@ -922,7 +925,7 @@ function purrEntrants() {
   if (mesh) for (const p of mesh.peers()) if (p.online) { const pr = profOf(p.user); out.push({ id: p.user, name: pr.name || t('common.someoneLow'), avatar: pr.emoji, photo: pr.photo, color: pr.color }); }
   return out;
 }
-function purrOnline(id) { if (id === self) return true; if (!mesh) return false; const p = mesh.peers().find((x) => x.user === id); return !!(p && p.online); }
+function purrOnline(id) { if (id === self || isBot(id)) return true; if (!mesh) return false; const p = mesh.peers().find((x) => x.user === id); return !!(p && p.online); }
 // só cobra lacre/reveal de quem ainda está online (dropout não trava o jogo)
 function purrExpected() {
   if (!purr) return [];
@@ -954,19 +957,21 @@ function routePurrFx(fx) {
 
 function startPurrinha() { // abre a escolha do modo (quem inicia decide)
   if (!room) { ui.toast(t('toast.needTable')); return; }
-  if (purrEntrants().length < 2) { ui.toast(t('purr.need2')); return; }
-  ui.purrinhaStartChoice();
+  // solo ou com gente: a turma virtual pode completar a mesa (default = 1 bot quando você está só)
+  ui.purrinhaStartChoice({ botsDefault: purrEntrants().length < 2 ? 1 : 0 });
 }
-function startPurrinhaMode(mode) {
+function startPurrinhaMode(mode, botN = 0) {
   if (!room) return;
   const entrants = purrEntrants();
+  for (const id of pickBots(botN)) { const b = botProfile(id); entrants.push({ id, name: b.name, avatar: b.emoji, photo: '', color: b.color }); }
   if (entrants.length < 2) { ui.toast(t('purr.need2')); return; }
   const gameId = randomNonce().slice(0, 8);
   gameFx({ kind: 'purrinha', ph: 'invite', gameId, entrants, mode });
-  beginPurrinha(gameId, entrants, mode);
+  beginPurrinha(gameId, entrants, mode, true); // eu inicio → eu hospedo os bots
 }
-function beginPurrinha(gameId, entrants, mode) {
+function beginPurrinha(gameId, entrants, mode, iHost = false) {
   clearGameMin('purr'); // convite novo abre na cara (jogo anterior minimizado já era)
+  clearBotTimers();
   purr = {
     gameId, mode: mode === 'classic' || mode === 'sticks' ? mode : 'fast', entrants, cheats: new Set(),
     mine: null, commits: new Map(), reveals: new Map(), phase: 'pick',
@@ -975,12 +980,15 @@ function beginPurrinha(gameId, entrants, mode) {
     guesses: new Map(), saidSeq: [], early: [],
     // 3-2-1: estoque público de palitos por pessoa (cravou → descarta; zerou → livre)
     pools: entrants.map((e) => ({ id: e.id, sticks: STICKS_START })),
+    // bots: só quem INICIOU hospeda (gera os segredos e emite as jogadas deles)
+    iHost: !!iHost && entrants.some((e) => isBot(e.id)), botSecret: new Map(), botRng: makeRng(hashSeed(gameId)),
   };
   renderPurrPick();
   // re-aplica fases que chegaram antes do convite (corrida do gossip)
   const q = purrPreFx.filter((f) => f.gameId === gameId);
   purrPreFx = purrPreFx.filter((f) => f.gameId !== gameId);
   for (const f of q) routePurrFx(f);
+  botsPurrAct();
 }
 // helpers do 3-2-1 (estoques públicos, deterministicamente derivados das rodadas)
 function purrPool(id) { const p = purr && purr.pools ? purr.pools.find((x) => x.id === id) : null; return p ? p.sticks : 0; }
@@ -1025,7 +1033,7 @@ async function purrSeal(hand, guess) {
   gameFx({ kind: 'purrinha', ph: 'commit', gameId: purr.gameId, from: self, commit });
   sound.pop();
   renderPurrWait();
-  maybePurrReveal();
+  purrTryGates(); // fast: re-checa reveal/resolve + toca os bots
 }
 function renderPurrWait() {
   if (!purr) return;
@@ -1044,7 +1052,7 @@ function onPurrCommit(fx) {
   if (!purr || purr.mode !== 'fast' || fx.gameId !== purr.gameId) return;
   purr.commits.set(fx.from, fx.commit);
   if (purr.phase === 'sealed') renderPurrWait();
-  maybePurrReveal();
+  purrTryGates();
 }
 function maybePurrReveal() {
   if (!purr || purr.mode !== 'fast' || !purr.mine || purr.phase === 'revealed') return;
@@ -1062,8 +1070,7 @@ async function onPurrReveal(fx) {
   const good = commit && await verifyReveal({ hand: fx.hand, guess: fx.guess, nonce: fx.nonce, commit });
   if (!good) { purr.cheats.add(fx.from); ui.toast(t('purr.cheat', { name: purrName(fx.from) })); return; }
   purr.reveals.set(fx.from, { hand: fx.hand, guess: fx.guess, nonce: fx.nonce });
-  maybePurrReveal();  // o lacre dele pode ter sido o último que faltava pra eu revelar
-  maybePurrResolve();
+  purrTryGates();  // o lacre dele pode ter sido o último que faltava (reveal/resolve + bots)
 }
 function maybePurrResolve() {
   if (!purr || purr.mode !== 'fast' || purr.phase === 'revealed') return;
@@ -1167,7 +1174,7 @@ async function onPurrHReveal(fx) {
 // portões do clássico (e re-check do rápido): avançam a fase quando todo mundo esperado cumpriu
 function purrTryGates() {
   if (!purr) return;
-  if (purr.mode === 'fast') { maybePurrReveal(); maybePurrResolve(); return; }
+  if (purr.mode === 'fast') { maybePurrReveal(); maybePurrResolve(); botsPurrAct(); return; }
   if (purr.phase === 'pick') {
     const exp = purrExpected();
     if (exp.length >= 2 && exp.every((id) => purr.commits.has(id))) {
@@ -1194,6 +1201,7 @@ function purrTryGates() {
       if (purr.mode === 'sticks') finishSticksRound(); else finishClassicRound();
     }
   }
+  botsPurrAct(); // clássica/3-2-1: toca o(s) bot(s) na fase corrente
 }
 function finishClassicRound() {
   const reveals = [...purr.reveals.entries()].map(([id, r]) => ({ id, hand: r.hand }));
@@ -1233,7 +1241,7 @@ function finishClassicRound() {
   purr.phase = 'pick';
   purrDrainEarly();
   const gid = purr.gameId, r = purr.rd;
-  setTimeout(() => { if (purr && purr.gameId === gid && purr.rd === r && purr.phase === 'pick') renderPurrPick(); }, 2600);
+  setTimeout(() => { if (purr && purr.gameId === gid && purr.rd === r && purr.phase === 'pick') { renderPurrPick(); botsPurrAct(); } }, 2600);
 }
 // 3-2-1: cravou → descarta 1 palito (e fala primeiro na próxima); zerou → livre; último com palitos paga
 function finishSticksRound() {
@@ -1279,12 +1287,91 @@ function finishSticksRound() {
   purr.phase = 'pick';
   purrDrainEarly();
   const gid = purr.gameId, r = purr.rd;
-  setTimeout(() => { if (purr && purr.gameId === gid && purr.rd === r && purr.phase === 'pick') renderPurrPick(); }, 2600);
+  setTimeout(() => { if (purr && purr.gameId === gid && purr.rd === r && purr.phase === 'pick') { renderPurrPick(); botsPurrAct(); } }, 2600);
 }
 function cancelPurrinha(broadcast) {
   if (!purr) return;
   if (broadcast && purr.phase !== 'revealed' && purr.phase !== 'done') gameFx({ kind: 'purrinha', ph: 'cancel', gameId: purr.gameId, from: self });
-  purr = null;
+  purr = null; clearBotTimers();
+}
+
+// ---- Bots: infraestrutura comum (o iniciador hospeda; agenda com delay humano) ----
+// Semente estável por jogo (mesmo elenco de aleatoriedade toda vez que o jogo re-renderiza).
+function hashSeed(str) { let h = 2166136261 >>> 0; for (let i = 0; i < String(str).length; i++) { h ^= String(str).charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+const botTimers = new Map(); // chave única (jogo:fase:rodada:bot) -> timeout — evita agendar 2×
+function botDelay(key, fn) {
+  if (botTimers.has(key)) return;
+  const id = setTimeout(() => { botTimers.delete(key); try { fn(); } catch { /* jogo pode ter fechado */ } }, botThinkMs());
+  botTimers.set(key, id);
+}
+function clearBotTimers() { for (const id of botTimers.values()) clearTimeout(id); botTimers.clear(); }
+
+// ---- Bots da purrinha: o host sela/revela/palpita pelos bots, pelo mesmo protocolo fx ----
+function botsPurrAct() {
+  if (!purr || !purr.iHost) return;
+  const bots = purr.entrants.map((e) => e.id).filter(isBot);
+  if (!bots.length) return;
+  if (purr.mode === 'fast') {
+    const exp = purrExpected();
+    const allCommitted = exp.length > 0 && exp.every((id) => purr.commits.has(id));
+    for (const id of bots) {
+      if (purr.phase !== 'revealed' && !purr.commits.has(id)) botDelay(`${purr.gameId}:fseal:${id}`, () => botPurrSealFast(id));
+      else if (allCommitted && !purr.reveals.has(id)) botDelay(`${purr.gameId}:frev:${id}`, () => botPurrRevealFast(id));
+    }
+    return;
+  }
+  // clássica / 3-2-1
+  if (purr.phase === 'pick') {
+    for (const id of bots) if (purr.alive.includes(id) && !purr.commits.has(id)) botDelay(`${purr.gameId}:hc:${purr.rd}:${id}`, () => botPurrSealHand(id));
+  } else if (purr.phase === 'guessing') {
+    const order = guessOrder(purr.alive, purr.startIdx).filter((id) => purr.commits.has(id) && purrOnline(id));
+    const turn = order.find((id) => !purr.guesses.has(id));
+    if (turn && isBot(turn)) botDelay(`${purr.gameId}:gs:${purr.rd}:${turn}`, () => botPurrGuessTurn(turn));
+  } else if (purr.phase === 'revealing') {
+    for (const id of bots) if (purr.alive.includes(id) && purr.commits.has(id) && !purr.reveals.has(id)) botDelay(`${purr.gameId}:hr:${purr.rd}:${id}`, () => botPurrHReveal(id));
+  }
+}
+async function botPurrSealFast(id) {
+  if (!purr || purr.mode !== 'fast' || purr.commits.has(id)) return;
+  const nP = purr.entrants.length, ceil = purrMax(nP);
+  const hand = botPurrHand(3, purr.botRng);
+  const guess = botPurrGuess({ ownHand: hand, nPlayers: nP, ceil, taken: [], rng: purr.botRng });
+  const nonce = randomNonce(); const commit = await makeCommit(hand, guess, nonce);
+  if (!purr || purr.commits.has(id)) return;
+  purr.botSecret.set(id, { hand, guess, nonce }); purr.commits.set(id, commit);
+  gameFx({ kind: 'purrinha', ph: 'commit', gameId: purr.gameId, from: id, commit });
+  renderPurrWait(); purrTryGates();
+}
+function botPurrRevealFast(id) {
+  if (!purr || purr.mode !== 'fast' || purr.reveals.has(id)) return;
+  const s = purr.botSecret.get(id); if (!s) return;
+  purr.reveals.set(id, { hand: s.hand, guess: s.guess, nonce: s.nonce });
+  gameFx({ kind: 'purrinha', ph: 'reveal', gameId: purr.gameId, from: id, hand: s.hand, guess: s.guess, nonce: s.nonce });
+  purrTryGates();
+}
+async function botPurrSealHand(id) {
+  if (!purr || purr.mode === 'fast' || purr.phase !== 'pick' || purr.commits.has(id) || !purr.alive.includes(id)) return;
+  const maxHand = purr.mode === 'sticks' ? purrPool(id) : 3;
+  const hand = botPurrHand(maxHand, purr.botRng);
+  const nonce = randomNonce(); const commit = await makeHandCommit(hand, nonce);
+  if (!purr || purr.commits.has(id)) return;
+  purr.botSecret.set(id, { hand, nonce }); purr.commits.set(id, commit);
+  gameFx({ kind: 'purrinha', ph: 'hcommit', gameId: purr.gameId, rd: purr.rd, from: id, commit });
+  renderPurrWait(); purrTryGates();
+}
+function botPurrGuessTurn(id) {
+  if (!purr || purr.phase !== 'guessing' || purr.guesses.has(id)) return;
+  const s = purr.botSecret.get(id); const own = s ? s.hand : 0;
+  const g = botPurrGuess({ ownHand: own, nPlayers: purr.alive.length, ceil: purrCeil(), taken: [...purr.guesses.values()], rng: purr.botRng });
+  applyPurrGuess(id, g);
+  gameFx({ kind: 'purrinha', ph: 'guess', gameId: purr.gameId, rd: purr.rd, from: id, guess: g });
+}
+function botPurrHReveal(id) {
+  if (!purr || purr.mode === 'fast' || purr.reveals.has(id)) return;
+  const s = purr.botSecret.get(id); if (!s) return;
+  purr.reveals.set(id, { hand: s.hand, nonce: s.nonce });
+  gameFx({ kind: 'purrinha', ph: 'hreveal', gameId: purr.gameId, rd: purr.rd, from: id, hand: s.hand, nonce: s.nonce });
+  renderPurrWait(); purrTryGates();
 }
 
 // ---- Dominó (P2P; MÃOS privadas via canal direto `sendTo`, JOGADAS públicas e validadas) ----
@@ -2297,7 +2384,7 @@ const handlers = {
   onRoulette: () => { if (!room) { ui.toast(t('toast.needTable')); return; } ui.openRoulette({ entrants: connectedEntrants() }); },
   onRouletteSpin: doRoulette,
   onPurrinha: startPurrinha,
-  onPurrStart: (mode) => startPurrinhaMode(mode),
+  onPurrStart: (mode, botN) => startPurrinhaMode(mode, botN),
   onPurrSeal: (hand, guess) => (purr && purr.mode !== 'fast' ? purrSealHand(hand) : purrSeal(hand, guess)),
   onPurrGuess: (n) => myPurrGuess(n),
   // ✕ = minimizar (a partida segue; pill traz de volta). Encerrar pra mesa toda = confirmação.

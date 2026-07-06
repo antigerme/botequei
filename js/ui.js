@@ -1403,18 +1403,37 @@ export function setGamePill(vm) {
   p.hidden = false;
 }
 
-export function purrinhaStartChoice() {
+// Seletor da "turma virtual" (bots) — reutilizado nos setups dos 3 jogos. Guarda a escolha
+// num módulo-var; `botPickCount()` devolve ao iniciar. Um toque num chip escolhe quantos 🤖.
+let botPick = 0;
+function botPickerHTML(max = 3) {
+  const chips = [];
+  for (let n = 0; n <= max; n++) chips.push(`<button class="bot-chip${n === botPick ? ' sel' : ''}" data-n="${n}">${n === 0 ? t('bots.none') : '🤖'.repeat(n)}</button>`);
+  return `<div class="bot-picker"><span class="bot-picker-lbl">${t('bots.call')}</span><div class="bot-chips">${chips.join('')}</div></div>`;
+}
+function wireBotPicker(root) {
+  root.querySelectorAll('.bot-chip').forEach((b) => b.addEventListener('click', () => {
+    botPick = Number(b.dataset.n) || 0;
+    root.querySelectorAll('.bot-chip').forEach((x) => x.classList.toggle('sel', x === b));
+  }));
+}
+export function botPickCount() { return botPick; }
+
+export function purrinhaStartChoice(vm = {}) {
+  botPick = Math.max(0, Math.min(3, Number(vm.botsDefault) || 0));
   el['purr-sub'].textContent = t('purr.subIntro');
   el['purr-setup'].innerHTML = `<div class="dom-start">
     <p class="dom-start-q">${t('game.how')}</p>
     <button class="btn btn-primary btn-lg" id="btn-purr-sticks">${t('purr.modeSticks')}</button>
     <button class="btn btn-ghost dom-start-alt" id="btn-purr-classic">${t('purr.modeClassic')}</button>
     <button class="btn btn-ghost dom-start-alt" id="btn-purr-fast">${t('purr.modeFast')}</button>
+    ${botPickerHTML(3)}
     <p class="dom-start-note">${t('purr.modesNote')}</p>
   </div>`;
-  el['purr-setup'].querySelector('#btn-purr-sticks').onclick = () => H.onPurrStart('sticks');
-  el['purr-setup'].querySelector('#btn-purr-classic').onclick = () => H.onPurrStart('classic');
-  el['purr-setup'].querySelector('#btn-purr-fast').onclick = () => H.onPurrStart('fast');
+  el['purr-setup'].querySelector('#btn-purr-sticks').onclick = () => H.onPurrStart('sticks', botPick);
+  el['purr-setup'].querySelector('#btn-purr-classic').onclick = () => H.onPurrStart('classic', botPick);
+  el['purr-setup'].querySelector('#btn-purr-fast').onclick = () => H.onPurrStart('fast', botPick);
+  wireBotPicker(el['purr-setup']);
   el['btn-purr-end'].hidden = true; // ainda não tem partida
   purrPhase('setup');
   el['overlay-purrinha'].hidden = false;

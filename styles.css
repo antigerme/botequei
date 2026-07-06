@@ -884,6 +884,13 @@ body.light .dom-board-wrap { background: linear-gradient(180deg, #2f6b45, #24553
 .dom-start-q { font-size: 18px; color: var(--cream); margin-bottom: 4px; text-align: center; }
 .dom-start-alt { font-size: 15px; }
 .dom-start-note { font-size: 13px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
+/* Seletor da turma virtual (bots) nos setups dos jogos */
+.bot-picker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 6px 0 2px; padding-top: 10px; border-top: 1px dashed var(--chalk-line); }
+.bot-picker-lbl { font-size: 14px; color: var(--muted); }
+.bot-chips { display: flex; gap: 6px; }
+.bot-chip { font: inherit; font-size: 15px; padding: 7px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: rgba(255,255,255,.04); color: var(--cream); cursor: pointer; touch-action: manipulation; }
+.bot-chip.sel { border-color: var(--gold); background: rgba(255,200,87,.14); color: var(--gold); }
+body.light .bot-chip { background: rgba(120,90,50,.05); }
 @keyframes dompulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.9); } }
 @media (prefers-reduced-motion: reduce) { .dom-setup-spin { animation: none; } }
 

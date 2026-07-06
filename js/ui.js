@@ -42,6 +42,7 @@ const IDS = [
   'home-history', 'history-list', 'home-hint', 'home-extras', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-bar', 'btn-passport',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
+  'menu-empty', 'empty-suggest', 'btn-empty-custom', 'add-suggest-wrap', 'add-suggest',
   'btn-brinde', 'btn-react', 'btn-rodada', 'btn-games', 'overlay-games', 'games-grid',
   'overlay-round', 'round-grid',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
@@ -182,6 +183,7 @@ export function init(handlers) {
   $('btn-menu').addEventListener('click', () => { el['overlay-menu'].hidden = false; });
   $('btn-games').addEventListener('click', () => openGames());
   $('btn-additem').addEventListener('click', () => openAddItem());
+  $('btn-empty-custom').addEventListener('click', () => openAddItem());
   $('btn-brinde').addEventListener('click', () => H.onBrinde());
   $('btn-react').addEventListener('click', () => openReact());
   $('btn-rodada').addEventListener('click', () => H.onRodada());
@@ -458,7 +460,29 @@ export function renderTable(vm) {
     card.toggleAttribute('data-zero', (Number(it.qty) || 0) === 0);
     card.classList.toggle('hot', it.id === topId && topQ > 0);
   }
-  if (el['table-hint']) el['table-hint'].hidden = Number(vm.tableTotal) > 0;
+  // fase de MONTAGEM (ninguém bebeu ainda): a área "monte o cardápio" fica à mão pra
+  // adicionar vários itens em sequência; some no primeiro gole (aí o ➕ item assume, com
+  // os mesmos chips). Mesa sem nenhum card mostra a área sempre (não existe outro miolo).
+  const suggest = vm.suggest || [];
+  const building = vm.items.length === 0 || (Number(vm.tableTotal) === 0 && suggest.length > 0);
+  el['menu-empty'].hidden = !building;
+  el['menu-empty'].classList.toggle('compact', vm.items.length > 0); // já tem cards: só os chips, sem o título
+  el['items-grid'].hidden = vm.items.length === 0;
+  el['btn-additem'].hidden = building; // o empty já traz o botão de criar item
+  renderSuggest(suggest);
+  if (el['table-hint']) el['table-hint'].hidden = building || Number(vm.tableTotal) > 0;
+}
+let lastSuggestSig = null;
+function renderSuggest(list) {
+  const sig = list.map((s) => s.id).join(',');
+  if (sig === lastSuggestSig) return;
+  lastSuggestSig = sig;
+  const html = list.map((s) => `<button class="sug-chip" type="button" data-id="${esc(s.id)}">${esc(s.emoji)} ${esc(s.name)}</button>`).join('');
+  for (const target of [el['empty-suggest'], el['add-suggest']]) {
+    target.innerHTML = html;
+    target.querySelectorAll('.sug-chip').forEach((b) => b.addEventListener('click', () => H.onSuggest(b.dataset.id)));
+  }
+  el['add-suggest-wrap'].hidden = list.length === 0; // no ➕ item, a seção some quando o catálogo esgotou
 }
 function cardHTML(it) {
   const note = it.note ? ` title="${esc(it.note)}"` : '';
@@ -1278,7 +1302,7 @@ function renderTourStep() {
     const bal = el['tour-balloon'];
     bal.style.top = ''; bal.style.bottom = '';
     if (r.top > window.innerHeight / 2) bal.style.bottom = (window.innerHeight - r.top + 16) + 'px'; // balão acima do alvo
-    else bal.style.top = (r.bottom + 16) + 'px';                                                     // ou abaixo
+    else bal.style.top = Math.min(r.bottom + 16, window.innerHeight - 190) + 'px'; // abaixo, mas SEMPRE dentro da tela (alvo alto não expulsa o botão)
     el['tour'].hidden = false;
   });
 }

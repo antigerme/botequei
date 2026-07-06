@@ -171,6 +171,12 @@ padrão Auto segue o navegador).
   (`brand` no def, LWW — `itemLabel` prioriza) e **esconder** (`off` no def — cards/rodada/
   contador gigante filtram; a lista do editor mostra esmaecido pra reativar; contagens e
   conta não mudam). Duas marcas do mesmo formato ao mesmo tempo = criar item custom.
+  **A mesa nasce VAZIA**: `DEFAULT_ITEMS` é catálogo de SUGESTÕES, não cardápio — item só
+  vira card quando alguém o adiciona (chips de 1 toque no empty state "monte o cardápio" e
+  no topo do overlay ➕ item → emitem o `ITEM`; `allItems` só devolve item com def no state
+  OU contagem > 0 — a 2ª regra preserva mesas antigas e rodada de item que o peer não tinha).
+  A área de montagem fica visível até o 1º gole (`tableTotal > 0`); o passo 1 do tour vira
+  "monte o cardápio" quando não há cards.
 - **Consciência & estatísticas (puro)**: `js/stats.js` (ritmo, linha do tempo, teor alcoólico por
   Widmark — peso/sexo locais, **não é bafômetro** —, `lastDrinkAt`/`hydration`/`driveVerdict`) e
   `js/lifestats.js` (média/recorde/mês/favorita/streak + `monthlyTrend`/`weekdayInsight`/`retro`/

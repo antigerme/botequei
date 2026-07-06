@@ -36,6 +36,11 @@ async function main() {
   await pageA.waitForSelector('#screen-table.is-active', { timeout: T });
   const code = (await pageA.textContent('#mesa-code')).trim();
   await closeAll(pageA);
+  // mesa nasce vazia: monta o cardápio da noite (garrafa da mesa + chopp + lata)
+  await pageA.click('#empty-suggest [data-id="cerveja"]');
+  await pageA.click('#empty-suggest [data-id="chopp"]');
+  await pageA.click('#empty-suggest [data-id="lata"]');
+  await pageA.waitForFunction(() => document.querySelectorAll('.item-card').length === 3, null, { timeout: T });
 
   const B = await mkCtx('Bia'); const pageB = await B.newPage();
   await pageB.goto(BASE + '#/join?room=' + code);
@@ -105,7 +110,9 @@ async function main() {
 
   // consumo p/ dar substância à conta/estatísticas — cobrindo o fluxo COMPARTILHADO
   await step('garrafa da mesa: pedido é da MESA; "meu copo" é só de quem bebeu', async () => {
-    const box = await (await pageA.$('.item-card[data-item="cerveja"]')).boundingBox();
+    const cardA = await pageA.$('.item-card[data-item="cerveja"]');
+    await cardA.scrollIntoViewIfNeeded(); // a área "monte o cardápio" empurra o grid pra baixo da dobra
+    const box = await cardA.boundingBox();
     await pageA.mouse.click(box.x + box.width / 2, box.y + 18); // topo do card = mesa pediu +1 (longe da zona do copo)
     await Promise.all([pageA, pageB].map((p) => p.waitForFunction(
       () => document.querySelector('.item-card[data-item="cerveja"] .item-qty')?.textContent.trim() === '1',
@@ -141,11 +148,11 @@ async function main() {
     await visible(pageA, 'overlay-prices');
     await pageA.fill('.price-row[data-id="cerveja"] .pr-brand', 'Original');
     await pageA.$eval('.price-row[data-id="cerveja"] .pr-brand', (e) => e.dispatchEvent(new Event('change')));
-    await pageA.click('.price-row[data-id="torre"] .pr-eye'); // mesa não pediu torre hoje
+    await pageA.click('.price-row[data-id="lata"] .pr-eye'); // ninguém pediu lata hoje
     await closeAll(pageA);
     await Promise.all([pageA, pageB].map((p) => p.waitForFunction(() => {
       const name = document.querySelector('.item-card[data-item="cerveja"] .item-name')?.textContent;
-      return name === 'Original' && !document.querySelector('.item-card[data-item="torre"]');
+      return name === 'Original' && !document.querySelector('.item-card[data-item="lata"]');
     }, null, { timeout: T })));
   });
 

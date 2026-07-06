@@ -120,6 +120,7 @@ async function main() {
     await A.waitForSelector('#screen-table.is-active', { timeout: T });
     const code = (await A.textContent('#mesa-code')).trim();
     await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+    await A.click('#empty-suggest [data-id="chopp"]'); // mesa nasce vazia: monta o cardápio
     await B.goto(BASE + '#/join?room=' + code);
     await B.waitForSelector('#screen-table.is-active', { timeout: T });
     await Promise.all([A, B].map((p) => p.waitForFunction(() => document.getElementById('peer-count')?.textContent === '2', null, { timeout: T })));

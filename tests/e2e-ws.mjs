@@ -50,6 +50,7 @@ async function main() {
   await A.page.waitForSelector('#screen-table.is-active', { timeout: T });
   const code = (await A.page.textContent('#mesa-code')).trim();
   await A.page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+  await A.page.click('#empty-suggest [data-id="chopp"]'); // mesa nasce vazia: monta o cardápio
 
   await step(`quem cria a mesa fica no transporte '${WANT}'`, async () => {
     await waitTransport(A.page, WANT);

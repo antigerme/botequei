@@ -57,6 +57,7 @@ import {
   makeHandDeal, verifyOwnHand, verifyPlayReveal, verifyHandAudit,
   newTrucoHand, reduceT, settleEnvido, envidoPoints, hasFlor, florPoints,
 } from './truco.js';
+import { isBot, botProfile } from './bots.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
@@ -168,6 +169,8 @@ function itemLabel(def) {
 }
 
 function profOf(user) {
+  // bot: identidade vem do elenco fixo (todo aparelho resolve igual; não está no CRDT)
+  if (isBot(user)) { const b = botProfile(user); if (b) return b; }
   const p = getProfile(state, user);
   return { name: p.name || (user === self ? getName() : ''), color: p.color || autoColor(user), emoji: p.emoji || autoAvatar(user), driver: p.driver, level: p.level || 0, photo: p.photo || '' };
 }

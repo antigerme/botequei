@@ -6,6 +6,12 @@ Ninguém mais perde a conta de quantas cervejas rolaram. Cada pessoa usa o próp
 celular, tudo sincroniza direto **entre os navegadores (peer-to-peer via WebRTC)** e
 **nenhum dado de consumo passa ou fica guardado em servidor**.
 
+> **Por quê?** Um dia fui num boteco e saí com a sensação de ter sido enrolado na conta —
+> o garçom comandou cerveja a mais do que a gente pediu. O Botequei nasceu pra tirar essa
+> dúvida: cada um marca o que consome, no próprio celular, e no fim a conta é a soma do que
+> a mesa REALMENTE pediu. E como às vezes dá pra chegar antes da turma, tem a **turma
+> virtual**: dá pra jogar purrinha, dominó e truco **sozinho, contra bots**, enquanto espera.
+
 ---
 
 ## Como funciona (arquitetura)

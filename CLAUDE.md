@@ -144,6 +144,22 @@ padrão Auto segue o navegador).
   `tflor`); aceite → cada um AUTO-DECLARA os pontos (`tenvpoints`, sem input) e o placar anda;
   a PROVA sai na auditoria do fim: a declaração é conferida contra a mão realmente dada
   (cantou o que a mão não sustenta → 🚫 com nome).
+- **Bots / turma virtual** (`js/bots.js` puro + condutor no `app.js`): pra jogar sozinho no bar
+  esperando a turma chegar. Um bot é um **peer LOCAL** — quem INICIA o jogo (`iHost`) hospeda os
+  bots no próprio aparelho e emite as jogadas deles pelo MESMO protocolo fx (commit-reveal, lacre
+  por carta, auditoria); solo é o caso degenerado (mesh com zero peers, fx aplicado localmente).
+  Elenco FIXO (`BOT_ROSTER`: Zé da Esquina/Seu Bigode/Dona Cida/Careca — ids `bot-*`, pt-BR como o
+  deck; `profOf` resolve do elenco, todo aparelho igual, zero sync). Cérebros PUROS por jogo (rng
+  semeável): purrinha (mão triangular + palpite que foge de repetido), dominó (descarta peso/segura
+  número escasso), truco (força por `cardPower`; cobre barato/sacrifica; aceita/corre/blefa).
+  Condutor central: `botDelay` (agenda com delay humano 0,9–2,6s, dedup por chave) + `botsXxxAct()`
+  chamado após cada mudança de estado (olha a fase, joga a vez do bot). **No dominó/truco o host dá
+  as cartas mesmo quando o dealer da vez é bot** (guarda as mãos deles em memória, nunca saem do
+  fio; pré-lacra os seeds do handshake) — `truActDealer`/`dvSeedGate`. Bot NÃO bebe, não entra em
+  conta/presença/estatística: só existe DENTRO do jogo (checks `isBot` em `purrOnline`/`domOnlineIds`/
+  `truOnlineHas` o tratam como sempre-online → dropout não trava). ⚠️ `pend.resp`/`envido.resp` do
+  truco são chaveados por ID de jogador (não por time) — checar time respondeu = `order.some(...)`.
+  Setup: chip "🤖 Chamar a turma" (0–3) em cada jogo; sozinho já vem 1.
 - **Competição & coach (puro)**: `js/tournament.js` (placar acumulado por pessoa entre noites —
   pontos por aparecer + hidratar, não por beber mais), `js/deck.js` (cartas de desafio) e o coach
   em `js/stats.js` (`projectAt` = previsão de ritmo até a meia-noite, `coachTips`). Mãos livres:
@@ -223,6 +239,7 @@ padrão Auto segue o navegador).
 - `js/purrinha.js` — jogo da purrinha: commit-reveal (SHA-256) + apuração determinística (puro)
 - `js/truco.js` — motor do truco (paulista/mineira/gaúcha, puro): hierarquias, vazas com parda e cascata, escadas de aposta (TRUCO→…), `mergeResponses` (resposta da dupla, CRDT max), mão de onze/dez/ferro, envido/flor, deal lacrado POR CARTA (`cardSalt`/`cardCommitT`/`verifyPlayReveal`/`verifyHandAudit`) e reducer determinístico `newTrucoHand`/`reduceT` (protocolo/UI chegam no T2)
 - `js/domino.js` — jogo de dominó: baralho/deal/encaixe/abertura/bater/trancar (puro)
+- `js/bots.js` — turma virtual: elenco fixo + cérebros puros (purrinha/dominó/truco, rng semeável) + delay humano — o condutor mora no `app.js`
 - `js/i18n.js` — dicionário pt/en/es + `applyI18n` sobre o shell (puro)
 - `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, temas (auto/dark/light/neon/retro), i18n do shell, molduras por nível, overlays (ritmo/roleta/cutucar/cerimônia/números/conta/passaporte/foto/boas-vindas)
 - `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)

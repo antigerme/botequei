@@ -1403,18 +1403,37 @@ export function setGamePill(vm) {
   p.hidden = false;
 }
 
-export function purrinhaStartChoice() {
+// Seletor da "turma virtual" (bots) — reutilizado nos setups dos 3 jogos. Guarda a escolha
+// num módulo-var; `botPickCount()` devolve ao iniciar. Um toque num chip escolhe quantos 🤖.
+let botPick = 0;
+function botPickerHTML(max = 3) {
+  const chips = [];
+  for (let n = 0; n <= max; n++) chips.push(`<button class="bot-chip${n === botPick ? ' sel' : ''}" data-n="${n}">${n === 0 ? t('bots.none') : '🤖'.repeat(n)}</button>`);
+  return `<div class="bot-picker"><span class="bot-picker-lbl">${t('bots.call')}</span><div class="bot-chips">${chips.join('')}</div></div>`;
+}
+function wireBotPicker(root) {
+  root.querySelectorAll('.bot-chip').forEach((b) => b.addEventListener('click', () => {
+    botPick = Number(b.dataset.n) || 0;
+    root.querySelectorAll('.bot-chip').forEach((x) => x.classList.toggle('sel', x === b));
+  }));
+}
+export function botPickCount() { return botPick; }
+
+export function purrinhaStartChoice(vm = {}) {
+  botPick = Math.max(0, Math.min(3, Number(vm.botsDefault) || 0));
   el['purr-sub'].textContent = t('purr.subIntro');
   el['purr-setup'].innerHTML = `<div class="dom-start">
     <p class="dom-start-q">${t('game.how')}</p>
     <button class="btn btn-primary btn-lg" id="btn-purr-sticks">${t('purr.modeSticks')}</button>
     <button class="btn btn-ghost dom-start-alt" id="btn-purr-classic">${t('purr.modeClassic')}</button>
     <button class="btn btn-ghost dom-start-alt" id="btn-purr-fast">${t('purr.modeFast')}</button>
+    ${botPickerHTML(3)}
     <p class="dom-start-note">${t('purr.modesNote')}</p>
   </div>`;
-  el['purr-setup'].querySelector('#btn-purr-sticks').onclick = () => H.onPurrStart('sticks');
-  el['purr-setup'].querySelector('#btn-purr-classic').onclick = () => H.onPurrStart('classic');
-  el['purr-setup'].querySelector('#btn-purr-fast').onclick = () => H.onPurrStart('fast');
+  el['purr-setup'].querySelector('#btn-purr-sticks').onclick = () => H.onPurrStart('sticks', botPick);
+  el['purr-setup'].querySelector('#btn-purr-classic').onclick = () => H.onPurrStart('classic', botPick);
+  el['purr-setup'].querySelector('#btn-purr-fast').onclick = () => H.onPurrStart('fast', botPick);
+  wireBotPicker(el['purr-setup']);
   el['btn-purr-end'].hidden = true; // ainda não tem partida
   purrPhase('setup');
   el['overlay-purrinha'].hidden = false;
@@ -1544,6 +1563,21 @@ function domFitBoard() {
 }
 let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolha de ponta
 export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }
+// tela de início do dominó: escolhe quantos da turma virtual entram, depois começa (handshake)
+export function dominoStartChoice(vm = {}) {
+  botPick = Math.max(0, Math.min(3, Number(vm.botsDefault) || 0));
+  el['dom-setup'].innerHTML = `<div class="dom-start">
+    <p class="dom-start-q">${t('dom.startTitle')}</p>
+    ${botPickerHTML(3)}
+    <button class="btn btn-primary btn-lg" id="btn-dom-go">${t('dom.startGo')}</button>
+    <p class="dom-start-note">${t('dom.startNote')}</p>
+  </div>`;
+  el['dom-setup'].querySelector('#btn-dom-go').onclick = () => H.onDomStart(botPick);
+  wireBotPicker(el['dom-setup']);
+  el['dom-setup'].hidden = false; el['dom-game'].hidden = true;
+  el['btn-dom-end'].hidden = true;
+  if (!gameMin.dom) el['overlay-domino'].hidden = false;
+}
 // contagem regressiva do auto-passe (sem jogada legal, o passe sai sozinho em 5s)
 export function setDomPassCount(n) {
   el['btn-dom-pass'].textContent = n != null ? t('dom.passN', { n: n }) : t('dom.pass');
@@ -1614,16 +1648,19 @@ function truCardHTML(cardStr, { small = false, back = false } = {}) {
   return `<span class="tru-card${red ? ' red' : ''}${small ? ' sm' : ''}"><b>${esc(r)}</b><i>${suit}</i></span>`;
 }
 export function trucoStartChoice(vm) {
+  botPick = Math.max(0, Math.min(3, Number(vm.botsDefault) || 0));
   el['tru-setup'].innerHTML = `<div class="dom-start">
     <p class="dom-start-q">${t('tru.how')} <small>(${vm.mode})</small></p>
     <button class="btn btn-primary btn-lg" id="btn-tru-pta">🂠 ${t('tru.vPaulista')}</button>
     <button class="btn btn-ghost dom-start-alt" id="btn-tru-min">⛏️ ${t('tru.vMineira')}</button>
     <button class="btn btn-ghost dom-start-alt" id="btn-tru-gau">🧉 ${t('tru.vGaucha')}</button>
+    ${botPickerHTML(3)}
     <p class="dom-start-note">${t('tru.note')}</p>
   </div>`;
-  el['tru-setup'].querySelector('#btn-tru-pta').onclick = () => H.onTrucoStart('paulista');
-  el['tru-setup'].querySelector('#btn-tru-min').onclick = () => H.onTrucoStart('mineira');
-  el['tru-setup'].querySelector('#btn-tru-gau').onclick = () => H.onTrucoStart('gaucha');
+  el['tru-setup'].querySelector('#btn-tru-pta').onclick = () => H.onTrucoStart('paulista', botPick);
+  el['tru-setup'].querySelector('#btn-tru-min').onclick = () => H.onTrucoStart('mineira', botPick);
+  el['tru-setup'].querySelector('#btn-tru-gau').onclick = () => H.onTrucoStart('gaucha', botPick);
+  wireBotPicker(el['tru-setup']);
   el['tru-setup'].hidden = false; el['tru-game'].hidden = true;
   el['btn-tru-end'].hidden = true;
   if (!gameMin.truco) el['overlay-truco'].hidden = false;

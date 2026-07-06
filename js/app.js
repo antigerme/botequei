@@ -57,6 +57,11 @@ import {
   makeHandDeal, verifyOwnHand, verifyPlayReveal, verifyHandAudit,
   newTrucoHand, reduceT, settleEnvido, envidoPoints, hasFlor, florPoints,
 } from './truco.js';
+import {
+  isBot, botProfile, pickBots, makeRng, botThinkMs,
+  botPurrHand, botPurrGuess, botDominoMove,
+  botTrucoHandStrength, botTrucoPlay, botTrucoRespondRaise, botTrucoWantRaise, botTrucoOnze,
+} from './bots.js';
 import { getSettings, setSettings } from './settings.js';
 import * as store from './store.js';
 import { Mesh } from './mesh.js';
@@ -168,6 +173,8 @@ function itemLabel(def) {
 }
 
 function profOf(user) {
+  // bot: identidade vem do elenco fixo (todo aparelho resolve igual; não está no CRDT)
+  if (isBot(user)) { const b = botProfile(user); if (b) return b; }
   const p = getProfile(state, user);
   return { name: p.name || (user === self ? getName() : ''), color: p.color || autoColor(user), emoji: p.emoji || autoAvatar(user), driver: p.driver, level: p.level || 0, photo: p.photo || '' };
 }
@@ -919,7 +926,7 @@ function purrEntrants() {
   if (mesh) for (const p of mesh.peers()) if (p.online) { const pr = profOf(p.user); out.push({ id: p.user, name: pr.name || t('common.someoneLow'), avatar: pr.emoji, photo: pr.photo, color: pr.color }); }
   return out;
 }
-function purrOnline(id) { if (id === self) return true; if (!mesh) return false; const p = mesh.peers().find((x) => x.user === id); return !!(p && p.online); }
+function purrOnline(id) { if (id === self || isBot(id)) return true; if (!mesh) return false; const p = mesh.peers().find((x) => x.user === id); return !!(p && p.online); }
 // só cobra lacre/reveal de quem ainda está online (dropout não trava o jogo)
 function purrExpected() {
   if (!purr) return [];
@@ -951,19 +958,21 @@ function routePurrFx(fx) {
 
 function startPurrinha() { // abre a escolha do modo (quem inicia decide)
   if (!room) { ui.toast(t('toast.needTable')); return; }
-  if (purrEntrants().length < 2) { ui.toast(t('purr.need2')); return; }
-  ui.purrinhaStartChoice();
+  // solo ou com gente: a turma virtual pode completar a mesa (default = 1 bot quando você está só)
+  ui.purrinhaStartChoice({ botsDefault: purrEntrants().length < 2 ? 1 : 0 });
 }
-function startPurrinhaMode(mode) {
+function startPurrinhaMode(mode, botN = 0) {
   if (!room) return;
   const entrants = purrEntrants();
+  for (const id of pickBots(botN)) { const b = botProfile(id); entrants.push({ id, name: b.name, avatar: b.emoji, photo: '', color: b.color }); }
   if (entrants.length < 2) { ui.toast(t('purr.need2')); return; }
   const gameId = randomNonce().slice(0, 8);
   gameFx({ kind: 'purrinha', ph: 'invite', gameId, entrants, mode });
-  beginPurrinha(gameId, entrants, mode);
+  beginPurrinha(gameId, entrants, mode, true); // eu inicio → eu hospedo os bots
 }
-function beginPurrinha(gameId, entrants, mode) {
+function beginPurrinha(gameId, entrants, mode, iHost = false) {
   clearGameMin('purr'); // convite novo abre na cara (jogo anterior minimizado já era)
+  clearBotTimers();
   purr = {
     gameId, mode: mode === 'classic' || mode === 'sticks' ? mode : 'fast', entrants, cheats: new Set(),
     mine: null, commits: new Map(), reveals: new Map(), phase: 'pick',
@@ -972,12 +981,15 @@ function beginPurrinha(gameId, entrants, mode) {
     guesses: new Map(), saidSeq: [], early: [],
     // 3-2-1: estoque público de palitos por pessoa (cravou → descarta; zerou → livre)
     pools: entrants.map((e) => ({ id: e.id, sticks: STICKS_START })),
+    // bots: só quem INICIOU hospeda (gera os segredos e emite as jogadas deles)
+    iHost: !!iHost && entrants.some((e) => isBot(e.id)), botSecret: new Map(), botRng: makeRng(hashSeed(gameId)),
   };
   renderPurrPick();
   // re-aplica fases que chegaram antes do convite (corrida do gossip)
   const q = purrPreFx.filter((f) => f.gameId === gameId);
   purrPreFx = purrPreFx.filter((f) => f.gameId !== gameId);
   for (const f of q) routePurrFx(f);
+  botsPurrAct();
 }
 // helpers do 3-2-1 (estoques públicos, deterministicamente derivados das rodadas)
 function purrPool(id) { const p = purr && purr.pools ? purr.pools.find((x) => x.id === id) : null; return p ? p.sticks : 0; }
@@ -1022,7 +1034,7 @@ async function purrSeal(hand, guess) {
   gameFx({ kind: 'purrinha', ph: 'commit', gameId: purr.gameId, from: self, commit });
   sound.pop();
   renderPurrWait();
-  maybePurrReveal();
+  purrTryGates(); // fast: re-checa reveal/resolve + toca os bots
 }
 function renderPurrWait() {
   if (!purr) return;
@@ -1041,7 +1053,7 @@ function onPurrCommit(fx) {
   if (!purr || purr.mode !== 'fast' || fx.gameId !== purr.gameId) return;
   purr.commits.set(fx.from, fx.commit);
   if (purr.phase === 'sealed') renderPurrWait();
-  maybePurrReveal();
+  purrTryGates();
 }
 function maybePurrReveal() {
   if (!purr || purr.mode !== 'fast' || !purr.mine || purr.phase === 'revealed') return;
@@ -1059,8 +1071,7 @@ async function onPurrReveal(fx) {
   const good = commit && await verifyReveal({ hand: fx.hand, guess: fx.guess, nonce: fx.nonce, commit });
   if (!good) { purr.cheats.add(fx.from); ui.toast(t('purr.cheat', { name: purrName(fx.from) })); return; }
   purr.reveals.set(fx.from, { hand: fx.hand, guess: fx.guess, nonce: fx.nonce });
-  maybePurrReveal();  // o lacre dele pode ter sido o último que faltava pra eu revelar
-  maybePurrResolve();
+  purrTryGates();  // o lacre dele pode ter sido o último que faltava (reveal/resolve + bots)
 }
 function maybePurrResolve() {
   if (!purr || purr.mode !== 'fast' || purr.phase === 'revealed') return;
@@ -1164,7 +1175,7 @@ async function onPurrHReveal(fx) {
 // portões do clássico (e re-check do rápido): avançam a fase quando todo mundo esperado cumpriu
 function purrTryGates() {
   if (!purr) return;
-  if (purr.mode === 'fast') { maybePurrReveal(); maybePurrResolve(); return; }
+  if (purr.mode === 'fast') { maybePurrReveal(); maybePurrResolve(); botsPurrAct(); return; }
   if (purr.phase === 'pick') {
     const exp = purrExpected();
     if (exp.length >= 2 && exp.every((id) => purr.commits.has(id))) {
@@ -1191,6 +1202,7 @@ function purrTryGates() {
       if (purr.mode === 'sticks') finishSticksRound(); else finishClassicRound();
     }
   }
+  botsPurrAct(); // clássica/3-2-1: toca o(s) bot(s) na fase corrente
 }
 function finishClassicRound() {
   const reveals = [...purr.reveals.entries()].map(([id, r]) => ({ id, hand: r.hand }));
@@ -1230,7 +1242,7 @@ function finishClassicRound() {
   purr.phase = 'pick';
   purrDrainEarly();
   const gid = purr.gameId, r = purr.rd;
-  setTimeout(() => { if (purr && purr.gameId === gid && purr.rd === r && purr.phase === 'pick') renderPurrPick(); }, 2600);
+  setTimeout(() => { if (purr && purr.gameId === gid && purr.rd === r && purr.phase === 'pick') { renderPurrPick(); botsPurrAct(); } }, 2600);
 }
 // 3-2-1: cravou → descarta 1 palito (e fala primeiro na próxima); zerou → livre; último com palitos paga
 function finishSticksRound() {
@@ -1276,12 +1288,91 @@ function finishSticksRound() {
   purr.phase = 'pick';
   purrDrainEarly();
   const gid = purr.gameId, r = purr.rd;
-  setTimeout(() => { if (purr && purr.gameId === gid && purr.rd === r && purr.phase === 'pick') renderPurrPick(); }, 2600);
+  setTimeout(() => { if (purr && purr.gameId === gid && purr.rd === r && purr.phase === 'pick') { renderPurrPick(); botsPurrAct(); } }, 2600);
 }
 function cancelPurrinha(broadcast) {
   if (!purr) return;
   if (broadcast && purr.phase !== 'revealed' && purr.phase !== 'done') gameFx({ kind: 'purrinha', ph: 'cancel', gameId: purr.gameId, from: self });
-  purr = null;
+  purr = null; clearBotTimers();
+}
+
+// ---- Bots: infraestrutura comum (o iniciador hospeda; agenda com delay humano) ----
+// Semente estável por jogo (mesmo elenco de aleatoriedade toda vez que o jogo re-renderiza).
+function hashSeed(str) { let h = 2166136261 >>> 0; for (let i = 0; i < String(str).length; i++) { h ^= String(str).charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+const botTimers = new Map(); // chave única (jogo:fase:rodada:bot) -> timeout — evita agendar 2×
+function botDelay(key, fn) {
+  if (botTimers.has(key)) return;
+  const id = setTimeout(() => { botTimers.delete(key); try { fn(); } catch { /* jogo pode ter fechado */ } }, botThinkMs());
+  botTimers.set(key, id);
+}
+function clearBotTimers() { for (const id of botTimers.values()) clearTimeout(id); botTimers.clear(); }
+
+// ---- Bots da purrinha: o host sela/revela/palpita pelos bots, pelo mesmo protocolo fx ----
+function botsPurrAct() {
+  if (!purr || !purr.iHost) return;
+  const bots = purr.entrants.map((e) => e.id).filter(isBot);
+  if (!bots.length) return;
+  if (purr.mode === 'fast') {
+    const exp = purrExpected();
+    const allCommitted = exp.length > 0 && exp.every((id) => purr.commits.has(id));
+    for (const id of bots) {
+      if (purr.phase !== 'revealed' && !purr.commits.has(id)) botDelay(`${purr.gameId}:fseal:${id}`, () => botPurrSealFast(id));
+      else if (allCommitted && !purr.reveals.has(id)) botDelay(`${purr.gameId}:frev:${id}`, () => botPurrRevealFast(id));
+    }
+    return;
+  }
+  // clássica / 3-2-1
+  if (purr.phase === 'pick') {
+    for (const id of bots) if (purr.alive.includes(id) && !purr.commits.has(id)) botDelay(`${purr.gameId}:hc:${purr.rd}:${id}`, () => botPurrSealHand(id));
+  } else if (purr.phase === 'guessing') {
+    const order = guessOrder(purr.alive, purr.startIdx).filter((id) => purr.commits.has(id) && purrOnline(id));
+    const turn = order.find((id) => !purr.guesses.has(id));
+    if (turn && isBot(turn)) botDelay(`${purr.gameId}:gs:${purr.rd}:${turn}`, () => botPurrGuessTurn(turn));
+  } else if (purr.phase === 'revealing') {
+    for (const id of bots) if (purr.alive.includes(id) && purr.commits.has(id) && !purr.reveals.has(id)) botDelay(`${purr.gameId}:hr:${purr.rd}:${id}`, () => botPurrHReveal(id));
+  }
+}
+async function botPurrSealFast(id) {
+  if (!purr || purr.mode !== 'fast' || purr.commits.has(id)) return;
+  const nP = purr.entrants.length, ceil = purrMax(nP);
+  const hand = botPurrHand(3, purr.botRng);
+  const guess = botPurrGuess({ ownHand: hand, nPlayers: nP, ceil, taken: [], rng: purr.botRng });
+  const nonce = randomNonce(); const commit = await makeCommit(hand, guess, nonce);
+  if (!purr || purr.commits.has(id)) return;
+  purr.botSecret.set(id, { hand, guess, nonce }); purr.commits.set(id, commit);
+  gameFx({ kind: 'purrinha', ph: 'commit', gameId: purr.gameId, from: id, commit });
+  renderPurrWait(); purrTryGates();
+}
+function botPurrRevealFast(id) {
+  if (!purr || purr.mode !== 'fast' || purr.reveals.has(id)) return;
+  const s = purr.botSecret.get(id); if (!s) return;
+  purr.reveals.set(id, { hand: s.hand, guess: s.guess, nonce: s.nonce });
+  gameFx({ kind: 'purrinha', ph: 'reveal', gameId: purr.gameId, from: id, hand: s.hand, guess: s.guess, nonce: s.nonce });
+  purrTryGates();
+}
+async function botPurrSealHand(id) {
+  if (!purr || purr.mode === 'fast' || purr.phase !== 'pick' || purr.commits.has(id) || !purr.alive.includes(id)) return;
+  const maxHand = purr.mode === 'sticks' ? purrPool(id) : 3;
+  const hand = botPurrHand(maxHand, purr.botRng);
+  const nonce = randomNonce(); const commit = await makeHandCommit(hand, nonce);
+  if (!purr || purr.commits.has(id)) return;
+  purr.botSecret.set(id, { hand, nonce }); purr.commits.set(id, commit);
+  gameFx({ kind: 'purrinha', ph: 'hcommit', gameId: purr.gameId, rd: purr.rd, from: id, commit });
+  renderPurrWait(); purrTryGates();
+}
+function botPurrGuessTurn(id) {
+  if (!purr || purr.phase !== 'guessing' || purr.guesses.has(id)) return;
+  const s = purr.botSecret.get(id); const own = s ? s.hand : 0;
+  const g = botPurrGuess({ ownHand: own, nPlayers: purr.alive.length, ceil: purrCeil(), taken: [...purr.guesses.values()], rng: purr.botRng });
+  applyPurrGuess(id, g);
+  gameFx({ kind: 'purrinha', ph: 'guess', gameId: purr.gameId, rd: purr.rd, from: id, guess: g });
+}
+function botPurrHReveal(id) {
+  if (!purr || purr.mode === 'fast' || purr.reveals.has(id)) return;
+  const s = purr.botSecret.get(id); if (!s) return;
+  purr.reveals.set(id, { hand: s.hand, nonce: s.nonce });
+  gameFx({ kind: 'purrinha', ph: 'hreveal', gameId: purr.gameId, rd: purr.rd, from: id, hand: s.hand, nonce: s.nonce });
+  renderPurrWait(); purrTryGates();
 }
 
 // ---- Dominó (P2P; MÃOS privadas via canal direto `sendTo`, JOGADAS públicas e validadas) ----
@@ -1328,6 +1419,11 @@ function domBlocked() {
   dom.phase = 'reveal';
   dom.reveals.set(self, dom.myHand.slice());
   gameFx({ kind: 'domino', ph: 'reveal', gameId: dom.gameId, from: self, hand: dom.myHand });
+  // tranca: o host abre a mão dos bots (ele as guarda) — a apuração precisa de todas
+  if (dom.iHost && dom.botHands) for (const id of Object.keys(dom.botHands)) if (!dom.reveals.has(id)) {
+    dom.reveals.set(id, dom.botHands[id].slice());
+    gameFx({ kind: 'domino', ph: 'reveal', gameId: dom.gameId, from: id, hand: dom.botHands[id] });
+  }
   domResolveBlock();
 }
 function domResolveBlock() {
@@ -1401,6 +1497,7 @@ function renderDom() {
   armDomAutoPass(myTurn && moves.length === 0 && !dom.over);
   armDomSkip();       // dono da vez sumiu? conta a graça pro pulo automático
   updateGamePill();   // minimizado: o pill reflete "sua vez" na hora
+  botsDomAct();       // vez de um bot? o host joga por ele (delay humano)
 }
 // Sem encaixe, o passe sai sozinho em 5s (contagem no botão) — ninguém fica esperando quem
 // só tem "passar" a fazer. Com encaixe na mão, nada é automático.
@@ -1432,6 +1529,8 @@ let dvWatch = null;      // handshake verificado: o dono re-embaralha sem quem c
 
 function domOnlineIds() {
   const on = new Set([self]);
+  const ord = (dom && dom.order) || (dv && dv.order) || [];
+  for (const id of ord) if (isBot(id)) on.add(id); // bot é sempre "online" (o host joga por ele; nunca pula/vira noshow)
   if (mesh) for (const p of mesh.peers()) if (p.online) on.add(p.user);
   return on;
 }
@@ -1442,6 +1541,7 @@ function domClearTimers() {
   if (domNoshow) { clearTimeout(domNoshow); domNoshow = null; }
   if (domAuditWait) { clearTimeout(domAuditWait); domAuditWait = null; }
   if (dvWatch) { clearTimeout(dvWatch); dvWatch = null; }
+  clearBotTimers();
 }
 function armDomSkip() {
   const holder = dom && !dom.over ? dom.order[dom.turnIdx] : null;
@@ -1501,25 +1601,67 @@ function onDomNoshow(fx) {
   domResolveBlock();
 }
 
+// ---- Bots do dominó: o host joga a vez do bot pela mão que guarda (jogada pública, validada) ----
+function botsDomAct() {
+  if (!dom || dom.over || !dom.iHost || !dom.botHands) return;
+  const turnId = dom.order[dom.turnIdx];
+  if (!isBot(turnId)) return;
+  botDelay(`${dom.gameId}:dom:${turnId}:${dom.chain.length}:${dom.passes}`, () => botDomPlay(turnId));
+}
+function botDomPlay(id) {
+  if (!dom || dom.over || dom.order[dom.turnIdx] !== id) return; // a vez já andou
+  const hand = dom.botHands[id] || [];
+  const moves = legalMoves(hand, dom.ends);
+  if (!moves.length) { // sem encaixe → passa
+    gameFx({ kind: 'domino', ph: 'pass', gameId: dom.gameId, from: id });
+    domApplyPass(id); renderDom(); domCelebrate();
+    return;
+  }
+  const mv = botDominoMove({ moves, hand, rng: dom.botRng });
+  const k = domKey(mv.tile); const i = hand.findIndex((tt) => domKey(tt) === k); if (i >= 0) hand.splice(i, 1); // tira da mão do bot
+  gameFx({ kind: 'domino', ph: 'play', gameId: dom.gameId, from: id, tile: mv.tile, side: mv.side });
+  domApplyPlay(id, mv.tile, mv.side); sound.pop(); renderDom(); domCelebrate();
+}
+
 // ---- Dominó: MESA VERIFICADA (commit-to-deck + corte coletivo + auditoria no fim) ----
 // Handshake antes do jogo: todos lacram um seed (commit) → revelam → o corte coletivo σ sai dos
 // seeds; o dono lacra o baralho antes de ver σ (não mira num baralho favorável) e entrega cada
 // mão com um lacre que o dono confere na hora. No fim, o baralho é revelado e todos AUDITAM.
 let dv = null;
-async function startDominoVerified() {
+async function startDominoVerified(botN = 0) {
   if (!room) { ui.toast(t('toast.needTable')); return; }
-  const order = domEntrants();
+  let order = domEntrants();
+  for (const id of pickBots(botN)) if (order.length < 4) order.push(id); // a turma virtual pega assento
   if (order.length < 2 || order.length > 4) { ui.toast(t('dom.players')); return; }
   const gameId = 'dv' + cryptoSeed();
   const deck = shuffle(FULL_SET, rngFrom(cryptoSeed())); // baralho do dono (secreto até o fim)
   const salt = randomNonce(); const mySeed = randomNonce();
   const dc = await deckCommit(deck, salt); const mySc = await sha256Hex(mySeed);
-  dv = { gameId, order, host: true, deck, salt, mySeed, deckCommit: dc, seeds: { [self]: mySeed }, seedCommits: { [self]: mySc }, phase: 'commit', began: false };
-  clearGameMin('dom'); // jogo novo abre na cara
+  dv = { gameId, order, host: true, deck, salt, mySeed, deckCommit: dc, seeds: { [self]: mySeed }, seedCommits: { [self]: mySc }, phase: 'commit', began: false, botSeeds: {} };
+  clearGameMin('dom'); clearBotTimers(); // jogo novo abre na cara
   ui.openDomino(); renderVwait();
   gameFx({ kind: 'domino', ph: 'vsetup', gameId, order, deckCommit: dc });
   gameFx({ kind: 'domino', ph: 'vseed', gameId, from: self, sc: mySc });
+  // o host lacra o seed de cada bot (fala por eles); solo → o handshake já pode fechar
+  for (const id of order) if (isBot(id)) {
+    const seed = randomNonce(); dv.botSeeds[id] = seed; dv.seeds[id] = seed; dv.seedCommits[id] = await sha256Hex(seed);
+    gameFx({ kind: 'domino', ph: 'vseed', gameId, from: id, sc: dv.seedCommits[id] });
+  }
+  dvSeedGate();
   armDvWatch();
+}
+// Portão do handshake: quando todos lacraram o seed, o host revela (o seu + o dos bots) e apura o corte.
+function dvSeedGate() {
+  if (!dv || !dv.host || dv.phase !== 'commit' || !dv.order.every((id) => dv.seedCommits[id])) return;
+  dv.phase = 'reveal';
+  gameFx({ kind: 'domino', ph: 'vgo', gameId: dv.gameId });
+  gameFx({ kind: 'domino', ph: 'vseedrev', gameId: dv.gameId, from: self, seed: dv.mySeed });
+  for (const id of dv.order) if (isBot(id)) gameFx({ kind: 'domino', ph: 'vseedrev', gameId: dv.gameId, from: id, seed: dv.botSeeds[id] });
+  dvDealGate();
+}
+function dvDealGate() {
+  if (!dv || !dv.host || dv.phase !== 'reveal' || !dv.order.every((id) => dv.seeds[id])) return;
+  dv.phase = 'dealt'; hostDealVerified();
 }
 // Handshake pendurado (alguém caiu antes de lacrar/revelar o seed): o DONO re-embaralha só com
 // quem ficou; convidado espera o dono — e fecha se foi o próprio dono que caiu.
@@ -1552,21 +1694,17 @@ async function onVsetup(fx) {
 function onVseed(fx) {
   if (!dv || dv.gameId !== fx.gameId) return;
   dv.seedCommits[fx.from] = fx.sc; renderVwait();
-  if (dv.host && dv.phase === 'commit' && dv.order.every((id) => dv.seedCommits[id])) {
-    dv.phase = 'reveal';
-    gameFx({ kind: 'domino', ph: 'vgo', gameId: dv.gameId });
-    gameFx({ kind: 'domino', ph: 'vseedrev', gameId: dv.gameId, from: self, seed: dv.mySeed });
-  }
+  dvSeedGate();
 }
 function onVgo(fx) {
   if (!dv || dv.gameId !== fx.gameId || dv.host || dv.phase !== 'commit') return;
   dv.phase = 'reveal';
   gameFx({ kind: 'domino', ph: 'vseedrev', gameId: dv.gameId, from: self, seed: dv.mySeed });
 }
-async function onVseedrev(fx) {
+function onVseedrev(fx) {
   if (!dv || dv.gameId !== fx.gameId) return;
   dv.seeds[fx.from] = fx.seed; renderVwait(); // guarda sempre (converge); valida vs commit na auditoria
-  if (dv.host && dv.phase === 'reveal' && dv.order.every((id) => dv.seeds[id])) { dv.phase = 'dealt'; await hostDealVerified(); }
+  dvDealGate();
 }
 async function hostDealVerified() {
   dv.began = true; // o watchdog do handshake não vale mais a partir do deal
@@ -1580,10 +1718,18 @@ async function hostDealVerified() {
   // depende do que cada peer juntou do gossip; o cross-check vs o que o peer coletou pega adulteração.
   const pub = { kind: 'domino', ph: 'vdeal', gameId: dv.gameId, order: dv.order, starter: dv.order[op.player], firstTile: op.tile, counts, deckCommit: dv.deckCommit, handCommits, seeds: dv.seeds, seedCommits: dv.seedCommits };
   gameFx(pub);
+  const botHands = {}, botSalts = {};
   for (let k = 0; k < dv.order.length; k++) {
     const id = dv.order[k];
     if (id === self) beginDomino({ ...pub, hand: hands[k], verified: true, isHost: true, vinfo: { deckCommit: dv.deckCommit, handCommits, seeds: dv.seeds, seedCommits: dv.seedCommits, mySalt: salts[k], deck: dv.deck, salt: dv.salt } });
+    else if (isBot(id)) { botHands[id] = hands[k].map((tt) => tt.slice()); botSalts[id] = salts[k]; } // bot: o host guarda a mão (nunca sai do fio)
     else if (mesh) mesh.sendTo(id, { k: 'fx', fx: { kind: 'domino', ph: 'vhand', gameId: dv.gameId, hand: hands[k], salt: salts[k] } });
+  }
+  if (dom) { // anexa as mãos dos bots ao jogo (o host as conduz)
+    dom.botHands = botHands; dom.botSalts = botSalts;
+    dom.botInitial = {}; for (const id in botHands) dom.botInitial[id] = botHands[id].map((tt) => tt.slice());
+    dom.botRng = makeRng(hashSeed(dv.gameId)); dom.iHost = true;
+    botsDomAct();
   }
 }
 function onVdeal(fx) { if (!dv || dv.gameId !== fx.gameId || dv.host) return; dv.deal = fx; tryBeginVerified(); }
@@ -1601,6 +1747,11 @@ function domStartAudit() {
   dom.auditStarted = true;
   dom.opens[self] = { hand: dom.initialHand, salt: dom.vinfo.mySalt };
   gameFx({ kind: 'domino', ph: 'vopenhand', gameId: dom.gameId, from: self, hand: dom.initialHand, salt: dom.vinfo.mySalt });
+  // auditoria: o host abre a mão INICIAL de cada bot (com o salt do deal) — todos conferem o lacre
+  if (dom.iHost && dom.botInitial) for (const id of Object.keys(dom.botInitial)) if (!dom.opens[id]) {
+    dom.opens[id] = { hand: dom.botInitial[id], salt: dom.botSalts[id] };
+    gameFx({ kind: 'domino', ph: 'vopenhand', gameId: dom.gameId, from: id, hand: dom.botInitial[id], salt: dom.botSalts[id] });
+  }
   if (dom.isHost) { dom.revealedDeck = dom.vinfo.deck; dom.revealedSalt = dom.vinfo.salt; gameFx({ kind: 'domino', ph: 'vopen', gameId: dom.gameId, deck: dom.vinfo.deck, salt: dom.vinfo.salt }); }
   armDomAuditWait(); // quem saiu antes de abrir a mão não pendura o badge pra sempre
   tryAudit();
@@ -1663,21 +1814,22 @@ function truMySeat() { return truco ? truco.order.indexOf(self) : -1; }
 function startTruco() {
   if (!room) { ui.toast(t('toast.needTable')); return; }
   const n = domEntrants().length;
-  if (n < 2) { ui.toast(t('tru.need2')); return; }
-  ui.trucoStartChoice({ mode: n >= 4 ? '2v2' : '1v1' });
+  // solo: a turma virtual completa (1 bot = 1v1). Com 4+ humanos, 2v2 sem bots.
+  ui.trucoStartChoice({ mode: n >= 4 ? '2v2' : '1v1', botsDefault: n < 2 ? 1 : 0 });
 }
-function startTrucoVariant(variant) {
+function startTrucoVariant(variant, botN = 0) {
   if (!TRU_VARIANTS[variant]) return;
   let order = domEntrants();
+  for (const id of pickBots(botN)) if (order.length < 4) order.push(id); // a turma virtual completa a dupla/mesa
   if (order.length >= 4) order = order.slice(0, 4); else order = order.slice(0, 2);
-  if (order.length === 3) order = order.slice(0, 2); // 3 online: 1v1 com os dois primeiros
+  if (order.length === 3) order = order.slice(0, 2); // 3 (humanos): 1v1 com os dois primeiros
   const gameId = 'tr' + cryptoSeed();
   gameFx({ kind: 'truco', ph: 'tsetup', gameId, variant, order, from: self });
-  beginTruco({ gameId, variant, order });
-  truHandStart(); // sou o dealer da mão 0
+  beginTruco({ gameId, variant, order, iHost: true });
+  truHandStart(); // sou o dealer da mão 0 (ou o host que dá as cartas se o dealer for bot)
 }
-function beginTruco({ gameId, variant, order }) {
-  clearGameMin('truco');
+function beginTruco({ gameId, variant, order, iHost = false }) {
+  clearGameMin('truco'); clearBotTimers();
   truco = {
     gameId, variant, order, n: order.length,
     score: [0, 0], handIdx: 0, st: null,
@@ -1685,6 +1837,8 @@ function beginTruco({ gameId, variant, order }) {
     reveals: {},       // seat -> [{i,card}] cartas já abertas (pra UI)
     opens: {},         // h -> {deck,salt,master} auditoria de fim de partida
     audits: null, over: false, winnerTeam: null,
+    // bots: só quem INICIOU hospeda (dá as cartas quando o dealer é bot, joga a vez deles)
+    iHost: !!iHost && order.some((id) => isBot(id)), botCards: {}, botRng: makeRng(hashSeed(gameId)),
   };
   renderTruco();
   const q = trucoPreFx.filter((f) => f.gameId === gameId);
@@ -1692,70 +1846,101 @@ function beginTruco({ gameId, variant, order }) {
   for (const f of q) routeTrucoFx(f);
 }
 function truDealerIdx() { return truco ? truco.handIdx % truco.n : 0; }
-function truIsDealer() { return truco && truco.order[truDealerIdx()] === self; }
+function truDealerId() { return truco ? truco.order[truDealerIdx()] : null; }
+// "eu dou as cartas desta mão?" — sou o dealer, OU sou o host e o dealer é um bot (falo por ele)
+function truActDealer() { const d = truDealerId(); return !!(truco && (d === self || (truco.iHost && isBot(d)))); }
+// seats cujo seed EU gero (o meu, se jogo; + os bots, se sou host) — real peer manda o dele
+function truMySeats() { const s = new Set(); if (truco.order.includes(self)) s.add(self); if (truco.iHost) for (const id of truco.order) if (isBot(id)) s.add(id); return [...s]; }
+async function truCommitMySeeds() {
+  for (const id of truMySeats()) {
+    if (truco.deal.seedCommits[id]) continue;
+    const seed = randomNonce(); const sc = await sha256Hex(seed);
+    truco.deal.seeds[id] = seed; truco.deal.seedCommits[id] = sc;
+    if (id === self) truco.deal.mySeed = seed; else (truco.deal.botSeeds = truco.deal.botSeeds || {})[id] = seed;
+    gameFx({ kind: 'truco', ph: 'thseed', gameId: truco.gameId, h: truco.handIdx, from: id, sc });
+  }
+}
+function truRevealMySeeds() {
+  truco.deal.revd = truco.deal.revd || {};
+  for (const id of truMySeats()) {
+    if (truco.deal.revd[id]) continue;
+    const seed = id === self ? truco.deal.mySeed : (truco.deal.botSeeds || {})[id];
+    if (seed == null) continue;
+    truco.deal.revd[id] = 1;
+    gameFx({ kind: 'truco', ph: 'thseedrev', gameId: truco.gameId, h: truco.handIdx, from: id, seed });
+  }
+}
 
 // -- handshake do embaralho da mão (dealer lacra o baralho ANTES do corte coletivo) --
 async function truHandStart() {
-  if (!truco || truco.over || !truIsDealer()) return;
+  if (!truco || truco.over || !truActDealer()) return;
   const deck = shuffle(truDeckFor(truco.variant), rngFrom(cryptoSeed()));
   const salt = randomNonce(); const master = randomNonce();
   const dc = await sha256Hex(JSON.stringify(deck.map(truStr)) + ':' + salt);
   truco.deal = { dc, deck, salt, master, seedCommits: {}, seeds: {}, phase: 'seed' };
-  const mySeed = randomNonce(); const mySc = await sha256Hex(mySeed);
-  truco.deal.mySeed = mySeed; truco.deal.seedCommits[self] = mySc; truco.deal.seeds[self] = mySeed;
   gameFx({ kind: 'truco', ph: 'thseal', gameId: truco.gameId, h: truco.handIdx, dc });
-  gameFx({ kind: 'truco', ph: 'thseed', gameId: truco.gameId, h: truco.handIdx, from: self, sc: mySc });
+  await truCommitMySeeds(); // o meu seed + o dos bots (o real peer manda o dele por onThseal)
+  truTrySeedReveal();
   renderTruco();
 }
 async function onThseal(fx) {
-  if (!truco || fx.h !== truco.handIdx || truIsDealer()) return;
+  if (!truco || fx.h !== truco.handIdx || truActDealer()) return; // se EU dou as cartas, já montei o deal
   truco.deal = { dc: fx.dc, seedCommits: {}, seeds: {}, phase: 'seed' };
-  const mySeed = randomNonce(); const mySc = await sha256Hex(mySeed);
-  truco.deal.mySeed = mySeed; truco.deal.seedCommits[self] = mySc; truco.deal.seeds[self] = mySeed;
-  gameFx({ kind: 'truco', ph: 'thseed', gameId: truco.gameId, h: truco.handIdx, from: self, sc: mySc });
+  await truCommitMySeeds();
   renderTruco();
 }
 function onThseed(fx) {
   if (!truco || !truco.deal || fx.h !== truco.handIdx) return;
   truco.deal.seedCommits[fx.from] = fx.sc;
-  if (truIsDealer() && truco.deal.phase === 'seed' && truco.order.every((id) => truco.deal.seedCommits[id])) {
-    truco.deal.phase = 'rev';
-    gameFx({ kind: 'truco', ph: 'thgo', gameId: truco.gameId, h: truco.handIdx });
-    gameFx({ kind: 'truco', ph: 'thseedrev', gameId: truco.gameId, h: truco.handIdx, from: self, seed: truco.deal.mySeed });
-  }
+  truTrySeedReveal();
+}
+function truTrySeedReveal() {
+  if (!truco || !truco.deal || truco.deal.phase !== 'seed' || !truActDealer()) return;
+  if (!truco.order.every((id) => truco.deal.seedCommits[id])) return;
+  truco.deal.phase = 'rev';
+  gameFx({ kind: 'truco', ph: 'thgo', gameId: truco.gameId, h: truco.handIdx });
+  truRevealMySeeds();
+  truTryDeal();
 }
 function onThgo(fx) {
-  if (!truco || !truco.deal || fx.h !== truco.handIdx || truIsDealer() || truco.deal.phase !== 'seed') return;
+  if (!truco || !truco.deal || fx.h !== truco.handIdx || truActDealer() || truco.deal.phase !== 'seed') return;
   truco.deal.phase = 'rev';
-  gameFx({ kind: 'truco', ph: 'thseedrev', gameId: truco.gameId, h: truco.handIdx, from: self, seed: truco.deal.mySeed });
+  truRevealMySeeds(); // revelo o meu + o dos bots (se sou host); o real peer dealer apura
 }
-async function onThseedrev(fx) {
+function onThseedrev(fx) {
   if (!truco || !truco.deal || fx.h !== truco.handIdx) return;
   truco.deal.seeds[fx.from] = fx.seed;
-  if (truIsDealer() && truco.deal.phase === 'rev' && truco.order.every((id) => truco.deal.seeds[id])) {
-    truco.deal.phase = 'dealt';
-    const R = await combineSeeds(truco.deal.seeds);
-    const cut = cutDeck(truco.deal.deck, R);
-    const wantVira = !!TRU_VARIANTS[truco.variant].vira;
-    const { commits, hands, vira } = await makeHandDeal(cut, truco.n, truco.deal.master, wantVira);
-    truco.deal.cut = cut;
-    truco.opens[truco.handIdx] = { deck: truco.deal.deck.map(truStr), salt: truco.deal.salt, master: truco.deal.master };
-    const pub = {
-      kind: 'truco', ph: 'tdeal', gameId: truco.gameId, h: truco.handIdx,
-      commits, vira: vira ? truStr(vira) : null, dc: truco.deal.dc,
-      seeds: truco.deal.seeds, seedCommits: truco.deal.seedCommits,
-    };
-    gameFx(pub);
-    for (let k = 0; k < truco.n; k++) {
-      const id = truco.order[k];
-      const cards = hands[k].map((x) => ({ i: x.i, card: truStr(x.card), salt: x.salt }));
-      if (id === self) applyTdeal(pub, cards);
-      else if (mesh) mesh.sendTo(id, { k: 'fx', fx: { kind: 'truco', ph: 'thand', gameId: truco.gameId, h: truco.handIdx, cards } });
-    }
+  truTryDeal();
+}
+async function truTryDeal() {
+  if (!truco || !truco.deal || truco.deal.phase !== 'rev' || !truActDealer()) return;
+  if (!truco.order.every((id) => truco.deal.seeds[id])) return;
+  truco.deal.phase = 'dealt';
+  const R = await combineSeeds(truco.deal.seeds);
+  const cut = cutDeck(truco.deal.deck, R);
+  const wantVira = !!TRU_VARIANTS[truco.variant].vira;
+  const { commits, hands, vira } = await makeHandDeal(cut, truco.n, truco.deal.master, wantVira);
+  truco.deal.cut = cut;
+  truco.opens[truco.handIdx] = { deck: truco.deal.deck.map(truStr), salt: truco.deal.salt, master: truco.deal.master };
+  const pub = {
+    kind: 'truco', ph: 'tdeal', gameId: truco.gameId, h: truco.handIdx,
+    commits, vira: vira ? truStr(vira) : null, dc: truco.deal.dc,
+    seeds: truco.deal.seeds, seedCommits: truco.deal.seedCommits,
+  };
+  gameFx(pub);
+  const seatCards = truco.order.map((id, k) => hands[k].map((x) => ({ i: x.i, card: truStr(x.card), salt: x.salt })));
+  // guarda as mãos dos bots ANTES de aplicar a minha (applyTdeal dispara os bots — eles já
+  // precisam ter as cartas na mão nesse instante, senão o primeiro a jogar sai de mãos vazias)
+  for (let k = 0; k < truco.n; k++) if (isBot(truco.order[k])) truco.botCards[truco.order[k]] = seatCards[k].map((cc) => ({ ...cc }));
+  for (let k = 0; k < truco.n; k++) {
+    const id = truco.order[k];
+    if (id === self) applyTdeal(pub, seatCards[k]);
+    else if (!isBot(id) && mesh) mesh.sendTo(id, { k: 'fx', fx: { kind: 'truco', ph: 'thand', gameId: truco.gameId, h: truco.handIdx, cards: seatCards[k] } });
   }
+  if (!truco.order.includes(self)) botsTrucoAct(); // mesa só de bots (raro): ninguém aplicou → toca aqui
 }
 function onTdeal(fx) {
-  if (!truco || fx.h !== truco.handIdx || truIsDealer()) return;
+  if (!truco || fx.h !== truco.handIdx || truActDealer()) return; // quem deu as cartas já aplicou
   applyTdeal(fx, truco.deal && truco.deal.mineRaw);
 }
 function onThand(fx) {
@@ -1784,8 +1969,99 @@ async function applyTdeal(pub, mineRaw) {
   truco.maoSpecial = special;
   truco.onzeDecided = special.type !== 'maoDe';
   renderTruco();
+  botsTrucoAct();
 }
 function truCardObj(s) { const [r, su] = String(s).split(':'); return { r, s: su }; }
+
+// ---- Bots do truco: o host joga a vez do bot (carta lacrada), responde apostas e envido ----
+function truVira() { return truco.deal && truco.deal.vira ? truCardObj(truco.deal.vira) : null; }
+function botTruStrength(id) {
+  const cards = (truco.botCards[id] || []).filter((c) => !c.played).map((c) => truCardObj(c.card));
+  return botTrucoHandStrength(cards, truco.variant, truVira());
+}
+function botsTrucoAct() {
+  if (!truco || truco.over || !truco.iHost || !truco.st || truco.st.over) return;
+  const st = truco.st;
+  // 1) mão de onze/dez: se o time da regra tem um bot decidindo, ele decide (joga se a mão presta)
+  if (truco.maoSpecial && truco.maoSpecial.type === 'maoDe' && !truco.onzeDecided) {
+    const decider = truco.order.find((id) => isBot(id) && truTeamOfId(id) === truco.maoSpecial.team);
+    if (decider) botDelay(`${truco.gameId}:onze:${truco.handIdx}:${decider}`, () => botTruOnze(decider));
+    return;
+  }
+  // 2) envido no ar (gaúcha): o time que precisa responder tem bot? ele responde
+  //    (envido.resp também é chaveada por ID de jogador, não por time)
+  if (st.envido && st.envido.pendBy != null) {
+    const respTeam = 1 - st.envido.pendBy;
+    const teamResp = truco.order.some((id, i) => teamOf(i) === respTeam && st.envido.resp && st.envido.resp[id] != null);
+    if (!teamResp) {
+      const b = truco.order.find((id) => isBot(id) && truTeamOfId(id) === respTeam);
+      if (b) botDelay(`${truco.gameId}:envr:${truco.handIdx}:${b}:${st.envido.value}`, () => botTruEnvResp(b));
+    }
+    return;
+  }
+  // 3) truco no ar: o time que responde tem bot? responde; senão, se o proponente é bot, o host fecha
+  if (st.pend) {
+    const respTeam = 1 - st.pend.byTeam;
+    // pend.resp é chaveada por ID de jogador (não por time) — o time respondeu se ALGUM dos seus jogou
+    const teamResponded = (team) => truco.order.some((id, i) => teamOf(i) === team && st.pend.resp && st.pend.resp[id] != null);
+    if (!teamResponded(respTeam)) {
+      const b = truco.order.find((id) => isBot(id) && truTeamOfId(id) === respTeam);
+      if (b) botDelay(`${truco.gameId}:tresp:${truco.handIdx}:${b}:${st.stake}`, () => botTruRespond(b));
+      return;
+    }
+    // resposta veio: se o "fechador" do time proponente é bot, o host fecha (o self-proponente já fecha sozinho)
+    const closerSeat = Math.min(...truco.order.map((id, i) => teamOf(i) === st.pend.byTeam ? i : 99).filter((x) => x < 99));
+    if (isBot(truco.order[closerSeat])) botDelay(`${truco.gameId}:tclose:${truco.handIdx}:${st.stake}`, () => {
+      if (truco && truco.st && truco.st.pend) { gameFx({ kind: 'truco', ph: 'trespclose', gameId: truco.gameId, h: truco.handIdx }); if (feedT({ t: 'respClose' })) afterTrucoStep(); }
+    });
+    return;
+  }
+  // 4) vez normal de um bot: joga uma carta (às vezes pede truco antes)
+  const turnId = st.order[st.turnIdx];
+  if (isBot(turnId)) {
+    const vz = st.vazas[st.vazas.length - 1] || [];
+    botDelay(`${truco.gameId}:tplay:${truco.handIdx}:${turnId}:${st.vazas.length}:${vz.length}`, () => botTruPlay(turnId));
+  }
+}
+function botTruPlay(id) {
+  if (!truco || !truco.st || truco.st.over || truco.st.pend || truco.st.order[truco.st.turnIdx] !== id) return;
+  if (truco.st.envido && truco.st.envido.pendBy != null) return; // envido no ar trava a jogada
+  const cards = (truco.botCards[id] || []).filter((c) => !c.played);
+  if (!cards.length) return;
+  // pedir truco? só com mão boa, sem pendência, se a escada permite
+  if (!truco.maoSpecial.type && truCanRaise(truco.variant, truco.st.stake, truco.st.lastRaiserTeam, truTeamOfId(id))
+      && botTrucoWantRaise({ strength: botTruStrength(id), rng: truco.botRng })) {
+    gameFx({ kind: 'truco', ph: 'traise', gameId: truco.gameId, h: truco.handIdx, from: id });
+    if (feedT({ t: 'raise', p: id })) afterTrucoStep();
+    return; // a resposta vem; o bot joga a carta depois
+  }
+  const vaza = truco.st.vazas[truco.st.vazas.length - 1] || []; // cru ({p,team,card}) — botTrucoPlay extrai .card
+  const choice = botTrucoPlay({ myCards: cards.map((c) => truCardObj(c.card)), vaza, variant: truco.variant, vira: truVira(), rng: truco.botRng });
+  const m = cards.find((c) => c.card === truStr(choice)) || cards[0];
+  m.played = true;
+  const reveal = { i: m.i, card: m.card, salt: m.salt };
+  gameFx({ kind: 'truco', ph: 'tplay', gameId: truco.gameId, h: truco.handIdx, from: id, reveal });
+  onTplay({ h: truco.handIdx, from: id, reveal });
+}
+function botTruRespond(id) {
+  if (!truco || !truco.st || !truco.st.pend) return;
+  let r = botTrucoRespondRaise({ strength: botTruStrength(id), rng: truco.botRng });
+  if (r === 'raise' && !truCanRaise(truco.variant, truco.st.stake, truco.st.lastRaiserTeam, truTeamOfId(id))) r = 'accept'; // não dá pra subir → paga
+  gameFx({ kind: 'truco', ph: 'tresp', gameId: truco.gameId, h: truco.handIdx, from: id, r });
+  onTresp({ h: truco.handIdx, from: id, r });
+}
+function botTruOnze(id) {
+  if (!truco || !truco.maoSpecial || truco.maoSpecial.type !== 'maoDe' || truco.onzeDecided) return;
+  const play = botTrucoOnze({ strength: botTruStrength(id), rng: truco.botRng });
+  gameFx({ kind: 'truco', ph: 'tonze', gameId: truco.gameId, h: truco.handIdx, from: id, play });
+  onTonze({ h: truco.handIdx, from: id, play });
+}
+function botTruEnvResp(id) {
+  if (!truco || !truco.st || !truco.st.envido || truco.st.envido.pendBy == null) return;
+  const r = botTrucoRespondRaise({ strength: botTruStrength(id), rng: truco.botRng }) === 'fold' ? 'fold' : 'accept'; // envido: aceita ou corre (bot não re-envida — simples)
+  gameFx({ kind: 'truco', ph: 'tenvresp', gameId: truco.gameId, h: truco.handIdx, from: id, r });
+  onTenvresp({ h: truco.handIdx, from: id, r });
+}
 
 // -- jogo --
 function feedT(ev) { if (truco && truco.st) { const nx = reduceT(truco.st, ev); const changed = nx !== truco.st; truco.st = nx; return changed; } return false; }
@@ -1881,6 +2157,7 @@ function afterTrucoStep() {
     }
   }
   renderTruco();
+  botsTrucoAct(); // toca os bots na fase corrente (jogar, responder, fechar)
 }
 async function truFinishGame() {
   if (!truco) return;
@@ -1930,7 +2207,7 @@ async function tryTruAudit() {
 function cancelTruco(broadcast) {
   if (!truco) return;
   if (broadcast && !truco.over) gameFx({ kind: 'truco', ph: 'tcancel', gameId: truco.gameId, from: self });
-  truco = null; clearTimeout(truRespTimer); clearTimeout(truNextTimer); clearTimeout(truCloseWatch);
+  truco = null; clearTimeout(truRespTimer); clearTimeout(truNextTimer); clearTimeout(truCloseWatch); clearBotTimers();
 }
 
 
@@ -1953,12 +2230,18 @@ function onTflor(fx) { if (truco && fx.h === truco.handIdx && feedT({ t: 'flor',
 function truAutoDeclare() {
   const st = truco && truco.st;
   if (!st || !st.envido || !st.envido.closed || !st.envido.value || st.envido.winner != null) return;
-  if (truco.envDeclared || !truco.deal || !truco.deal.mine) return;
-  truco.envDeclared = true;
-  const pts = envidoPoints(truco.deal.mine.map((m) => truCardObj(m.card)));
-  gameFx({ kind: 'truco', ph: 'tenvpoints', gameId: truco.gameId, h: truco.handIdx, from: self, points: pts });
-  (truco.envLog = truco.envLog || {})[truco.handIdx] = { ...(truco.envLog[truco.handIdx] || {}), [self]: pts };
-  if (feedT({ t: 'envpoints', p: self, points: pts })) { truTrySettleEnvido(); }
+  if (!truco.deal) return;
+  truco.envLog = truco.envLog || {}; truco.envLog[truco.handIdx] = truco.envLog[truco.handIdx] || {};
+  const declare = (id, cards) => {
+    if (truco.envLog[truco.handIdx][id] != null || !cards) return;
+    const pts = envidoPoints(cards.map((m) => truCardObj(m.card)));
+    truco.envLog[truco.handIdx][id] = pts;
+    gameFx({ kind: 'truco', ph: 'tenvpoints', gameId: truco.gameId, h: truco.handIdx, from: id, points: pts });
+    feedT({ t: 'envpoints', p: id, points: pts });
+  };
+  declare(self, truco.deal.mine); // eu declaro os meus pontos
+  if (truco.iHost) for (const id of truco.order) if (isBot(id)) declare(id, truco.botCards[id]); // e os dos bots
+  truTrySettleEnvido();
 }
 function truTrySettleEnvido() {
   const st = truco && truco.st;
@@ -1968,7 +2251,7 @@ function truTrySettleEnvido() {
   truco.st = settleEnvido(st);
   truScoreEnvido();
 }
-function truOnlineHas(id) { if (id === self) return true; if (!mesh) return false; const p = mesh.peers().find((x) => x.user === id); return !!(p && p.online); }
+function truOnlineHas(id) { if (id === self || isBot(id)) return true; if (!mesh) return false; const p = mesh.peers().find((x) => x.user === id); return !!(p && p.online); }
 // pontua envido/flor UMA vez (todo peer chega no mesmo resultado → converge)
 function truScoreEnvido() {
   const st = truco && truco.st;
@@ -2294,7 +2577,7 @@ const handlers = {
   onRoulette: () => { if (!room) { ui.toast(t('toast.needTable')); return; } ui.openRoulette({ entrants: connectedEntrants() }); },
   onRouletteSpin: doRoulette,
   onPurrinha: startPurrinha,
-  onPurrStart: (mode) => startPurrinhaMode(mode),
+  onPurrStart: (mode, botN) => startPurrinhaMode(mode, botN),
   onPurrSeal: (hand, guess) => (purr && purr.mode !== 'fast' ? purrSealHand(hand) : purrSeal(hand, guess)),
   onPurrGuess: (n) => myPurrGuess(n),
   // ✕ = minimizar (a partida segue; pill traz de volta). Encerrar pra mesa toda = confirmação.
@@ -2305,9 +2588,10 @@ const handlers = {
   onPurrEnd: () => ui.actionToast(t('purr.endConfirm'), t('game.end'), () => {
     cancelPurrinha(true); clearGameMin('purr'); ui.closeOverlays(); ui.toast(t('purr.ended'));
   }),
-  onDomino: () => startDominoVerified(), // sempre mesa verificada (regras iguais; só o embaralho é auditável)
+  onDomino: () => ui.dominoStartChoice({ botsDefault: domEntrants().length < 2 ? 1 : 0 }),
+  onDomStart: (botN) => startDominoVerified(botN), // sempre mesa verificada (regras iguais; só o embaralho é auditável)
   onTruco: startTruco,
-  onTrucoStart: (variant) => startTrucoVariant(variant),
+  onTrucoStart: (variant, botN) => startTrucoVariant(variant, botN),
   onTrucoPlay: (card) => myTruPlay(card),
   onTrucoRaise: myTruRaise,
   onTrucoResp: (r) => myTruResp(r),

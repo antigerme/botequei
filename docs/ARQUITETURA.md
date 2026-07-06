@@ -102,6 +102,11 @@ não tinha. A área "monte o cardápio" fica no miolo até o primeiro gole da no
   (commit-to-deck + corte coletivo + auditoria no fim) pega trapaça no embaralho, e cada
   jogada é validada por TODOS os peers. O que não dá pra esconder sem "mental poker"
   (pesadíssimo), a auditoria expõe no fim — 🔒✅ ou 🚫 com nome.
+- **Bot é um peer local** (`js/bots.js`): pra jogar sozinho no bar esperando a turma. Quem
+  inicia hospeda os bots no próprio aparelho e emite as jogadas deles pelo MESMO protocolo
+  (commit-reveal, auditoria) — nada de caminho especial. Solo é só o caso degenerado (mesh
+  com zero peers). O elenco é um baralho FIXO (todo aparelho resolve `bot-ze` → Zé da Esquina,
+  zero sync). O bot não bebe, não entra em conta/presença/estatística: existe só dentro do jogo.
 - **BAC é estimativa local com aviso** — peso/sexo nunca saem do aparelho; não é bafômetro.
 - **A foto de perfil vira miniatura 128px** e viaja DENTRO do evento PROFILE (validada dos
   dois lados do fio) — P2P de verdade, sem upload pra lugar nenhum; o emoji é o fallback.

@@ -150,6 +150,7 @@ const DICT = {
     'game.pillDomTurn': '🁫 SUA VEZ no dominó', 'game.pillDom': '🁫 Dominó rolando',
     'game.pillPurr': '🫲 Purrinha rolando', 'game.pillBack': ' — voltar',
     'game.end': 'Encerrar', 'game.endAll': '🛑 Encerrar a partida pra mesa toda', 'game.how': 'Como quer jogar?',
+    'bots.call': '🤖 Chamar a turma:', 'bots.none': 'Só eu', 'bots.solo': 'jogando com a turma virtual',
     // ---- dominó ----
     'dom.title': '🁫 Dominó',
     'dom.handLbl': 'Sua mão — toque pra jogar', 'dom.sidePick': 'Jogar em qual ponta?',
@@ -164,6 +165,7 @@ const DICT = {
     'dom.skippedYou': '⏭️ Sua vez foi pulada (a mesa não te via online)',
     'dom.noshow': '🁫 Trancou sem a mão de {names} (offline) — apurando entre as abertas',
     'dom.players': 'Dominó é de 2 a 4 pessoas 🙂',
+    'dom.startTitle': 'Dominó — quem senta na mesa?', 'dom.startGo': '🁫 Começar', 'dom.startNote': 'A turma virtual completa a mesa quando falta gente.',
     'dom.reshuffle': '🔄 Alguém caiu no embaralho — re-embaralhando com quem ficou',
     'dom.emptyTable': '🁫 Dominó cancelado — a mesa esvaziou',
     'dom.hostFell': '🁫 Quem embaralhava caiu — dominó cancelado',
@@ -523,6 +525,7 @@ const DICT = {
     'game.pillDomTurn': '🁫 YOUR TURN at dominoes', 'game.pillDom': 'Dominoes in play 🁫',
     'game.pillPurr': '🫲 Purrinha in play', 'game.pillBack': ' — back',
     'game.end': 'End it', 'game.endAll': '🛑 End the game for the whole table', 'game.how': 'How do you want to play?',
+    'bots.call': '🤖 Call the crew:', 'bots.none': 'Just me', 'bots.solo': 'playing with the virtual crew',
     // ---- dominoes ----
     'dom.title': '🁫 Dominoes',
     'dom.handLbl': 'Your hand — tap to play', 'dom.sidePick': 'Play on which end?',
@@ -537,6 +540,7 @@ const DICT = {
     'dom.skippedYou': '⏭️ Your turn was skipped (the table couldn’t see you online)',
     'dom.noshow': '🁫 Locked without {names}’s hand (offline) — scoring the open hands',
     'dom.players': 'Dominoes takes 2 to 4 people 🙂',
+    'dom.startTitle': 'Dominoes — who sits at the table?', 'dom.startGo': '🁫 Start', 'dom.startNote': 'The virtual crew fills the table when you are short on people.',
     'dom.reshuffle': '🔄 Someone dropped during the shuffle — reshuffling with who’s left',
     'dom.emptyTable': '🁫 Dominoes cancelled — the table emptied out',
     'dom.hostFell': '🁫 The dealer dropped — dominoes cancelled',
@@ -896,6 +900,7 @@ const DICT = {
     'game.pillDomTurn': '🁫 TU TURNO en el dominó', 'game.pillDom': '🁫 Dominó en juego',
     'game.pillPurr': '🫲 Purrinha en juego', 'game.pillBack': ' — volver',
     'game.end': 'Terminar', 'game.endAll': '🛑 Terminar la partida para toda la mesa', 'game.how': '¿Cómo quieres jugar?',
+    'bots.call': '🤖 Llamar a la banda:', 'bots.none': 'Solo yo', 'bots.solo': 'jugando con la banda virtual',
     // ---- dominó ----
     'dom.title': '🁫 Dominó',
     'dom.handLbl': 'Tu mano — toca para jugar', 'dom.sidePick': '¿En qué punta juegas?',
@@ -910,6 +915,7 @@ const DICT = {
     'dom.skippedYou': '⏭️ Tu turno fue saltado (la mesa no te veía en línea)',
     'dom.noshow': '🁫 Se trancó sin la mano de {names} (offline) — contando entre las abiertas',
     'dom.players': 'El dominó es de 2 a 4 personas 🙂',
+    'dom.startTitle': 'Dominó — ¿quién se sienta a la mesa?', 'dom.startGo': '🁫 Empezar', 'dom.startNote': 'La banda virtual completa la mesa cuando falta gente.',
     'dom.reshuffle': '🔄 Alguien se cayó en el barajado — rebarajando con quienes quedan',
     'dom.emptyTable': '🁫 Dominó cancelado — la mesa se vació',
     'dom.hostFell': '🁫 Quien barajaba se cayó — dominó cancelado',

@@ -1341,7 +1341,9 @@ async function botPurrSealFast(id) {
   if (!purr || purr.commits.has(id)) return;
   purr.botSecret.set(id, { hand, guess, nonce }); purr.commits.set(id, commit);
   gameFx({ kind: 'purrinha', ph: 'commit', gameId: purr.gameId, from: id, commit });
-  renderPurrWait(); purrTryGates();
+  // só troca pra tela de espera se EU já lacrei; senão o pick fica de pé (não engole minha vez)
+  if (purr.phase === 'sealed') renderPurrWait();
+  purrTryGates();
 }
 function botPurrRevealFast(id) {
   if (!purr || purr.mode !== 'fast' || purr.reveals.has(id)) return;
@@ -1358,7 +1360,9 @@ async function botPurrSealHand(id) {
   if (!purr || purr.commits.has(id)) return;
   purr.botSecret.set(id, { hand, nonce }); purr.commits.set(id, commit);
   gameFx({ kind: 'purrinha', ph: 'hcommit', gameId: purr.gameId, rd: purr.rd, from: id, commit });
-  renderPurrWait(); purrTryGates();
+  // NÃO troca pra tela de espera enquanto EU ainda escolho os palitos (só se já lacrei ou sou plateia)
+  if (purr.phase === 'pick' && (purr.mine || !purr.alive.includes(self))) renderPurrWait();
+  purrTryGates();
 }
 function botPurrGuessTurn(id) {
   if (!purr || purr.phase !== 'guessing' || purr.guesses.has(id)) return;

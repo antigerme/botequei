@@ -46,8 +46,9 @@ celular, tudo sincroniza direto **entre os navegadores (peer-to-peer via WebRTC)
   recebe todo o histórico da mesa); eventos novos são reencaminhados, então funcionam mesmo se
   a malha não estiver 100% completa.
 - **Persistência**: só **localStorage** no próprio aparelho (retomar sessão + histórico de mesas).
-- **Diagnóstico de conexão**: a lista "Na mesa" mostra como cada um está ligado — 🟢 direto,
-  🟡 via STUN ou 🟠 via relay (TURN) — lendo o par de candidatos do `getStats()` em tempo real.
+- **Diagnóstico de conexão**: no placar ("Na mesa"), um ícone por pessoa mostra como cada um
+  está ligado — 📶 na mesma rede, 🌐 pela internet (STUN) ou 🛰️ via relay (TURN) — lendo o par
+  de candidatos do `getStats()` em tempo real (💤 se caiu; 📱 é você). Só aparece com gente na mesa.
 
 ```
 navegador A  ⇄  navegador B          (consumo trafega SÓ aqui, P2P)

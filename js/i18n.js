@@ -202,6 +202,10 @@ const DICT = {
     'purr.endConfirm': 'Encerrar a purrinha pra mesa toda?', 'purr.ended': '🫲 Partida encerrada',
     // ---- conta / pix ----
     'bill.title': 'Fechar a conta', 'menu.bill': '💸 Fechar a conta',
+    'menu.payround': '💸 Pagar uma rodada',
+    'pay.title': '💸 Pagar uma rodada', 'pay.sub': 'O item da mesa sai INTEIRO na sua conta — fora do racha dos outros.',
+    'pay.noShare': 'Sem item da mesa no cardápio ainda 🙂', 'pay.done': '💸 {item} na sua conta',
+    'pay.lostQ': '😅 Perdeu! A rodada é sua…', 'pay.lostGo': '💸 Pagar',
     'bill.tip': 'Gorjeta', 'bill.couvert': 'Couvert p/ pessoa', 'bill.equal': 'Rachar igual (marque quem entra)',
     'bill.pool': '🍻 Da mesa: {items} · {total} → {each} × {n}',
     'bill.shareAll': 'Motorista entra no rateio da mesa',
@@ -216,7 +220,7 @@ const DICT = {
     'prices.hide': 'esconder da mesa', 'prices.show': 'mostrar de novo',
     'prices.save': '💾 Salvar como cardápio do bar',
     // ---- comanda / placar ----
-    'comanda.empty': 'Nada pedido ainda 🙂', 'comanda.total': 'Total: {n} 🍺',
+    'comanda.empty': 'Nada pedido ainda 🙂', 'comanda.total': 'Total: {n} 🍺', 'comanda.paid': 'pagou: {item}',
     'peers.title': '🏆 Placar & conquistas', 'peers.now': 'Mesa agora', 'peers.week': 'Desafios da semana',
     'peers.mvp': '🏆 MVP da noite: <strong>{name}</strong> · {n} 🍺',
     'peers.empty': 'Ninguém ainda 🥲',
@@ -533,6 +537,10 @@ const DICT = {
     'purr.endConfirm': 'End purrinha for the whole table?', 'purr.ended': '🫲 Game ended',
     // ---- bill / pix ----
     'bill.title': 'Settle the tab', 'menu.bill': '💸 Settle the tab',
+    'menu.payround': '💸 Buy a round',
+    'pay.title': '💸 Buy a round', 'pay.sub': "The table's item goes FULLY on your tab — out of everyone else's split.",
+    'pay.noShare': "No table's item on the menu yet 🙂", 'pay.done': '💸 {item} on your tab',
+    'pay.lostQ': '😅 You lost! This round’s on you…', 'pay.lostGo': '💸 Pay up',
     'bill.tip': 'Tip', 'bill.couvert': 'Cover charge p/ person', 'bill.equal': 'Split evenly (check who’s in)',
     'bill.pool': '🍻 Table share: {items} · {total} → {each} × {n}',
     'bill.shareAll': 'Driver joins the table share',
@@ -547,7 +555,7 @@ const DICT = {
     'prices.hide': 'hide from the table', 'prices.show': 'show again',
     'prices.save': '💾 Save as the bar’s menu',
     // ---- tab / leaderboard ----
-    'comanda.empty': 'Nothing ordered yet 🙂', 'comanda.total': 'Total: {n} 🍺',
+    'comanda.empty': 'Nothing ordered yet 🙂', 'comanda.total': 'Total: {n} 🍺', 'comanda.paid': 'paid: {item}',
     'peers.title': '🏆 Leaderboard & badges', 'peers.now': 'Table now', 'peers.week': 'This week’s challenges',
     'peers.mvp': '🏆 MVP of the night: <strong>{name}</strong> · {n} 🍺',
     'peers.empty': 'Nobody yet 🥲',
@@ -864,6 +872,10 @@ const DICT = {
     'purr.endConfirm': '¿Terminar la purrinha para toda la mesa?', 'purr.ended': '🫲 Partida terminada',
     // ---- cuenta / pix ----
     'bill.title': 'Cerrar la cuenta', 'menu.bill': '💸 Cerrar la cuenta',
+    'menu.payround': '💸 Pagar una ronda',
+    'pay.title': '💸 Pagar una ronda', 'pay.sub': 'El ítem de la mesa va ENTERO a tu cuenta — fuera del reparto de los demás.',
+    'pay.noShare': 'Aún no hay ítem de la mesa en el menú 🙂', 'pay.done': '💸 {item} en tu cuenta',
+    'pay.lostQ': '😅 ¡Perdiste! Esta ronda va por ti…', 'pay.lostGo': '💸 Pagar',
     'bill.tip': 'Propina', 'bill.couvert': 'Cover p/ persona', 'bill.equal': 'Dividir en partes iguales (marca quién entra)',
     'bill.pool': '🍻 De la mesa: {items} · {total} → {each} × {n}',
     'bill.shareAll': 'El conductor entra en el reparto de la mesa',
@@ -878,7 +890,7 @@ const DICT = {
     'prices.hide': 'ocultar de la mesa', 'prices.show': 'mostrar de nuevo',
     'prices.save': '💾 Guardar como menú del bar',
     // ---- comanda / marcador ----
-    'comanda.empty': 'Nada pedido todavía 🙂', 'comanda.total': 'Total: {n} 🍺',
+    'comanda.empty': 'Nada pedido todavía 🙂', 'comanda.total': 'Total: {n} 🍺', 'comanda.paid': 'pagó: {item}',
     'peers.title': '🏆 Marcador y logros', 'peers.now': 'Mesa ahora', 'peers.week': 'Retos de la semana',
     'peers.mvp': '🏆 MVP de la noche: <strong>{name}</strong> · {n} 🍺',
     'peers.empty': 'Nadie todavía 🥲',

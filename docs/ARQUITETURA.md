@@ -35,6 +35,9 @@ chega no mesmo estado.
 evento ADD — o que muda é a leitura: o dinheiro deles não pendura em quem tocou
 (`userMoney` pula, `sharePool` junta o bolo da mesa e `shareSplit` decide quem racheia na
 conta — motorista fora por padrão, e a caixinha da conta tira do racha quem não bebe).
+**Garrafa com dono**: o evento ADD/REMOVE aceita `payer` — perdeu o jogo ou bancou a
+rodada (menu "💸 Pagar uma rodada" / toast no aparelho do perdedor) → a unidade sai do
+bolo e cai inteira na conta do pagador; o contador da mesa não muda.
 **Sem contagem de copo** (contar copo é mesquinharia — decisão de produto): o card
 compartilhado é só o contador DA MESA; consumo pessoal vem de item individual. O item
 `copo` segue no catálogo apenas por compat de mesas antigas (`isCup` filtra; nada o emite).

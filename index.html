@@ -205,6 +205,7 @@
       <button class="menu-item" id="menu-bebedeira" data-i18n="menu.bebedeira">🔢 Contador gigante</button>
       <button class="menu-item" id="menu-ceremony" data-i18n="cer.title">🏅 Cerimônia da noite</button>
       <p class="menu-sec" data-i18n="menu.secBill">Conta</p>
+      <button class="menu-item" id="menu-payround" data-i18n="menu.payround">💸 Pagar uma rodada</button>
       <button class="menu-item" id="menu-bill" data-i18n="menu.bill">💸 Fechar a conta</button>
       <button class="menu-item" id="menu-prices" data-i18n="menu.prices">💲 Preços do cardápio</button>
       <p class="menu-sec" data-i18n="menu.secExtra">Extra</p>
@@ -499,6 +500,17 @@
     <h2 id="scan-title">Escanear QR</h2>
     <div class="scan-wrap"><video id="scan-video" playsinline muted></video></div>
     <p class="sheet-sub" id="scan-hint">Aponte a câmera pro QR…</p>
+  </div>
+</div>
+
+<!-- 💸 Pagar uma rodada: item DA MESA com dono (perdeu o jogo / resolveu bancar). O contador
+     da mesa não muda; o valor sai do racha e cai inteiro na conta de quem pagou. -->
+<div class="overlay" id="overlay-payround" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2 data-i18n="pay.title">💸 Pagar uma rodada</h2>
+    <p class="sheet-sub" data-i18n="pay.sub">O item da mesa sai INTEIRO na sua conta — fora do racha dos outros.</p>
+    <div class="pay-list" id="payround-list"></div>
   </div>
 </div>
 

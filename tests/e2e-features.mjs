@@ -188,6 +188,40 @@ async function main() {
     }, null, { timeout: T });
   });
 
+  await step('💸 pagar uma rodada: a garrafa do A sai do racha e cai na conta dele', async () => {
+    await closeAll(pageA);
+    await pageA.click('#btn-menu');
+    await pageA.click('#menu-payround');
+    await visible(pageA, 'overlay-payround');
+    await pageA.click('#payround-list .pay-btn'); // única opção: a garrafa da mesa
+    // a garrafa com dono AINDA é da mesa: o card sobe pra 2 nos DOIS peers
+    await Promise.all([pageA, pageB].map((p) => p.waitForFunction(
+      () => document.querySelector('.item-card[data-item="x-garrafa-600"] .item-qty')?.textContent.trim() === '2',
+      null, { timeout: T })));
+    // na conta (vista da Bia): o bolo racheia SÓ a garrafa sem dono (12, nunca 24)
+    await closeAll(pageB);
+    await pageB.click('#btn-menu'); await pageB.click('#menu-bill');
+    await visible(pageB, 'overlay-bill');
+    await pageB.waitForFunction(() => {
+      const l = document.getElementById('bill-pool-line');
+      return l && l.textContent.includes('12') && !l.textContent.includes('24');
+    }, null, { timeout: T });
+    // e a comanda do André (sem gorjeta/rateio) mostra a linha "💸 pagou" com os R$12
+    await closeAll(pageB);
+    await pageB.click('#btn-peers'); await visible(pageB, 'overlay-peers');
+    await pageB.evaluate(() => {
+      const row = [...document.querySelectorAll('#peers-list .peer-row')].find((r) => /Andre/i.test(r.textContent));
+      row.querySelector('.peer-main').click();
+    });
+    await visible(pageB, 'overlay-comanda');
+    await pageB.waitForFunction(() => {
+      const list = document.getElementById('comanda-list');
+      const tot = document.getElementById('comanda-total');
+      return list && list.textContent.includes('💸') && tot && tot.textContent.includes('12');
+    }, null, { timeout: T });
+    await closeAll(pageB);
+  });
+
   await step('estatísticas: B sai e vê 1 noite', async () => {
     await closeAll(pageB);
     await pageB.click('#btn-leave');

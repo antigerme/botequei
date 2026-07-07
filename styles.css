@@ -520,6 +520,10 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 .poke-actions { display: grid; gap: 10px; }
 .poke-actions .poke-btn { width: 100%; justify-content: flex-start; }
 
+/* 💸 Pagar uma rodada */
+.pay-list { display: grid; gap: 10px; }
+.pay-list .pay-btn { width: 100%; justify-content: flex-start; }
+
 /* Cerimônia de troféus */
 .ceremony-list { list-style: none; padding: 0; margin: 4px 0; display: grid; gap: 10px; }
 .ceremony-row { display: flex; align-items: center; gap: 14px; background: linear-gradient(180deg, rgba(244,177,60,.1), rgba(255,255,255,.02));

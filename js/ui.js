@@ -51,7 +51,7 @@ const IDS = [
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
   'overlay-menu', 'menu-profile', 'menu-board',
-  'menu-jukebox', 'menu-festa', 'menu-bill', 'menu-prices',
+  'menu-jukebox', 'menu-festa', 'menu-payround', 'menu-bill', 'menu-prices',
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list', 'btn-save-menu',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
@@ -67,6 +67,7 @@ const IDS = [
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
   'overlay-poke', 'poke-title', 'poke-actions',
+  'overlay-payround', 'payround-list',
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
   'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
   'overlay-comanda', 'comanda-title', 'comanda-list', 'comanda-total',
@@ -205,6 +206,7 @@ export function init(handlers) {
   $('menu-truco').addEventListener('click', () => { closeOverlays(); H.onTruco(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
   $('menu-festa').addEventListener('click', () => { closeOverlays(); openFesta(); });
+  $('menu-payround').addEventListener('click', () => { closeOverlays(); H.onPayRound(); });
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
   $('menu-hh').addEventListener('click', () => { closeOverlays(); el['overlay-hh'].hidden = false; });
@@ -1030,6 +1032,14 @@ function roundRectPath(g, x, y, w, h, r) {
   g.beginPath(); g.moveTo(x + r, y);
   g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
   g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+
+// ---------- 💸 Pagar uma rodada (item da mesa com dono) ----------
+export function openPayRound(vm) {
+  el['payround-list'].innerHTML = (vm.items || []).map((it) =>
+    `<button class="btn btn-primary pay-btn" data-id="${esc(it.id)}">${esc(it.emoji)} ${esc(it.name)}${it.price ? ' · ' + fmtMoney(it.price) : ''}</button>`).join('');
+  el['payround-list'].querySelectorAll('.pay-btn').forEach((b) => b.addEventListener('click', () => { closeOverlays(); H.onPayPick(b.dataset.id); }));
+  el['overlay-payround'].hidden = false;
 }
 
 // ---------- Cutucar / desafiar ----------

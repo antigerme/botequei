@@ -194,12 +194,9 @@
       <button class="menu-item" id="menu-profile" data-i18n="menu.profile">🎨 Meu perfil</button>
       <button class="menu-item" id="menu-stats" data-i18n="stats">📊 Meus números</button>
       <p class="menu-sec" data-i18n="menu.secGames">Jogos</p>
-      <button class="menu-item" id="menu-roulette" data-i18n="roul.title">🎰 Quem paga a próxima?</button>
       <button class="menu-item" id="menu-purrinha" data-i18n="purr.title">🫲 Purrinha</button>
       <button class="menu-item" id="menu-domino" data-i18n="dom.title">🁫 Dominó</button>
       <button class="menu-item" id="menu-truco" data-i18n="tru.title">🂠 Truco</button>
-      <button class="menu-item" id="menu-tournament" data-i18n="tourn.title">🏟️ Torneio da galera</button>
-      <button class="menu-item" id="menu-card" data-i18n="card.title">🃏 Carta da mesa</button>
       <p class="menu-sec" data-i18n="menu.title">Mesa</p>
       <button class="menu-item" id="menu-board">🏆 Placar &amp; conquistas</button>
       <button class="menu-item" id="menu-waiter" data-i18n="menu.waiter">🔔 Chamar o garçom</button>
@@ -512,28 +509,6 @@
   </div>
 </div>
 
-<!-- Roleta: quem paga a próxima (sincronizada entre todos) -->
-<div class="overlay" id="overlay-roulette" hidden>
-  <div class="sheet">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 data-i18n="roul.title">🎰 Quem paga a próxima?</h2>
-    <ul class="roulette-list" id="roulette-list"></ul>
-    <div class="roulette-result" id="roulette-result" hidden></div>
-    <div class="sheet-actions">
-      <button class="btn btn-primary btn-lg" id="btn-roulette-spin" data-i18n="roul.spin">Girar 🎰</button>
-    </div>
-  </div>
-</div>
-
-<!-- Cutucar / desafiar alguém -->
-<div class="overlay" id="overlay-poke" hidden>
-  <div class="sheet">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 id="poke-title">Cutucar</h2>
-    <div class="poke-actions" id="poke-actions"></div>
-  </div>
-</div>
-
 <!-- Cerimônia de fim de noite (troféus) -->
 <div class="overlay" id="overlay-ceremony" hidden>
   <div class="sheet sheet-tall">
@@ -622,33 +597,6 @@
     <button class="sheet-close" id="btn-festa-close">✕</button>
     <canvas class="festa-canvas" id="festa-canvas" width="480" height="300"></canvas>
     <p class="festa-hint" data-i18n="festa.hint">🎉 modo festa · trilha lo-fi tocando</p>
-  </div>
-</div>
-
-<!-- Torneio da galera (placar acumulado entre noites) -->
-<div class="overlay" id="overlay-tournament" hidden>
-  <div class="sheet sheet-tall">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 data-i18n="tourn.title">🏟️ Torneio da galera</h2>
-    <p class="sheet-sub">Pontos por <b>aparecer</b> e por <b>se hidratar</b> — não por beber mais. Some cada noite.</p>
-    <ol class="tourn-list" id="tourn-list"></ol>
-    <div class="sheet-actions">
-      <button class="btn btn-primary" id="btn-tourn-add" data-i18n="tourn.add">➕ Somar esta noite</button>
-      <button class="btn btn-ghost" id="btn-tourn-reset" data-i18n="tourn.reset">🆕 Recomeçar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Carta da mesa (deck de desafios) -->
-<div class="overlay" id="overlay-card" hidden>
-  <div class="sheet">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 data-i18n="card.title">🃏 Carta da mesa</h2>
-    <div class="card-draw" id="card-draw"></div>
-    <div class="sheet-actions">
-      <button class="btn btn-ghost" id="btn-card-again" data-i18n="card.again">🎴 Outra</button>
-      <button class="btn btn-primary" id="btn-card-show" data-i18n="common.showTable">📣 Mostrar pra mesa</button>
-    </div>
   </div>
 </div>
 

@@ -55,7 +55,7 @@ não tinha. A área "monte o cardápio" fica no miolo até o primeiro gole da no
 │                 render(), protocolos dos jogos, boot                           │
 │  ── lógica pura (testável em Node, sem DOM): ──────────────────────────────    │
 │  events.js      eventos + reducer (a VERDADE da mesa)                          │
-│  stats/lifestats/league/achievements/tournament/deck  derivados e diversão     │
+│  lifestats/league/achievements  derivados e diversão                           │
 │  purrinha/domino/truco  motores dos jogos (commit-reveal, validação, apuração) │
 │  pix/handshake/i18n     BR Code · codec offline · dicionário pt/en/es          │
 │  ── infraestrutura local: ─────────────────────────────────────────────────    │
@@ -79,7 +79,7 @@ não tinha. A área "monte o cardápio" fica no miolo até o primeiro gole da no
 1. **Evento CRDT** (`{k:'ev'}` no DataChannel) — consumo, perfil, itens, mesa, PAYFOR,
    jukebox. **Permanente**: entra no log, persiste, converge. Criou tipo novo? Nasce em
    `events.js` (factory + case no reducer) e o `tests/features.test.mjs` ganha assert.
-2. **Fx efêmero** (`mesh.sendFx`) — brinde, reação, roleta, cutucada, garçom, água, carta e
+2. **Fx efêmero** (`mesh.sendFx`) — brinde, reação, cerimônia, garçom e
    TODAS as fases dos jogos. **Não persiste**; jogadas de jogo levam `mid` e são
    regossipadas com dedup (`gameFx`) pra alcançar todo mundo mesmo com malha incompleta.
 3. **Canal direto** (`mesh.sendTo`) — segredo pra UMA pessoa: a mão do dominó/truco.
@@ -107,7 +107,6 @@ não tinha. A área "monte o cardápio" fica no miolo até o primeiro gole da no
   (commit-reveal, auditoria) — nada de caminho especial. Solo é só o caso degenerado (mesh
   com zero peers). O elenco é um baralho FIXO (todo aparelho resolve `bot-ze` → Zé da Esquina,
   zero sync). O bot não bebe, não entra em conta/presença/estatística: existe só dentro do jogo.
-- **BAC é estimativa local com aviso** — peso/sexo nunca saem do aparelho; não é bafômetro.
 - **A foto de perfil vira miniatura 128px** e viaja DENTRO do evento PROFILE (validada dos
   dois lados do fio) — P2P de verdade, sem upload pra lugar nenhum; o emoji é o fallback.
 

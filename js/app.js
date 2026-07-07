@@ -39,8 +39,6 @@ import {
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
 import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro } from './lifestats.js';
 import { levelFor, weeklyChallenges, seasonAward } from './league.js';
-import { mergeNight, rankTournament } from './tournament.js';
-import { pickCard } from './deck.js';
 import {
   clampHand, maxGuess as purrMax, randomNonce, makeCommit, verifyReveal, resolve as purrResolve, sha256Hex,
   makeHandCommit, verifyHandReveal, validGuessTo, guessOrder, classicRound, nextRound,
@@ -103,7 +101,6 @@ const BYE_GRACE_MS = 45000;  // tela apagada / elevador / xixi não viram toast 
 let sessionMates = new Set(); // nomes que apareceram na mesa (p/ "com quem você mais bebeu")
 let pendingBarMenu = false;  // ao abrir "mesa do bar", carrega o cardápio salvo
 let lastRetro = null;        // dados da última retrospectiva (p/ compartilhar)
-let lastCard = null;         // última carta sorteada (p/ mostrar pra mesa)
 let shakeHandler = null, shakeLast = 0; // mãos livres (chacoalhar pra +1)
 
 // Álcool INDIVIDUAL (trava do motorista + rodada). Recipientes da mesa (share) ficam de fora
@@ -191,9 +188,6 @@ function emitLocal(ev) {
 
 // ---- Acoes de consumo ----
 function act(type, item) {
-  if (type === 'ADD' && isDriver(state, self) && ALCOHOL.has(item)) {
-    ui.toast(t('toast.driver')); return;
-  }
   if (type === 'REMOVE' && getCount(state, self, item) <= 0) { ui.toast(t('toast.nothingHere')); return; }
   const ev = type === 'ADD' ? makeAdd(item) : makeRemove(item);
   if (!emitLocal(ev)) return;
@@ -306,12 +300,8 @@ function onFx(fx, fromId) {
   }
   if (fx.kind === 'brinde') ui.brinde();
   else if (fx.kind === 'react') ui.floatReaction(fx.emoji || '🍻');
-  else if (fx.kind === 'roulette') { if (Array.isArray(fx.entrants)) ui.runRoulette(fx.entrants, fx.winner); }
-  else if (fx.kind === 'poke') { if (fx.to === self) receivePoke(fx); }
-  else if (fx.kind === 'challenge') { if (fx.to === self) receiveChallenge(fx); }
   else if (fx.kind === 'ceremony') { if (Array.isArray(fx.awards)) ui.openCeremony({ awards: fx.awards }); }
   else if (fx.kind === 'waiter') receiveWaiter(fx);
-  else if (fx.kind === 'card') { ui.openCard({ emoji: fx.emoji, text: fx.text }); sound.pop(); }
   else if (fx.kind === 'purrinha') routePurrFx(fx);
   else if (fx.kind === 'truco') routeTrucoFx(fx);
   else if (fx.kind === 'domino') {
@@ -360,15 +350,6 @@ function disableShake() { if (shakeHandler) { window.removeEventListener('device
 function receiveWaiter(fx) {
   ui.toast(t('toast.waiterFrom', { name: fx.fromName || t('common.someone') }));
   sound.alarm(); ui.vibrate([80, 40, 80]); ui.floatReaction('🔔');
-}
-function receivePoke(fx) {
-  ui.toast(t('toast.poked', { name: fx.fromName || t('common.someone') }));
-  sound.poke(); ui.vibrate([30, 40, 30]); ui.floatReaction('👉');
-}
-function receiveChallenge(fx) {
-  const it = resolveItem(fx.item || 'dose');
-  sound.challenge(); ui.vibrate([60, 40, 60, 40, 60]);
-  ui.actionToast(t('toast.challenged', { name: fx.fromName || t('common.someone'), emoji: it.emoji, item: it.name }), t('toast.challengeAccept'), () => act('ADD', fx.item || 'dose'), 7000);
 }
 
 // ---- Eventos remotos ----
@@ -753,24 +734,6 @@ function renderBill() {
   const b = computeBill(); lastBill = b;
   const note = b.hasPrices ? t('bill.noteCons') : t('bill.notePriceless');
   ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self, pool: b.pool });
-}
-
-// ---- Roleta: quem paga a próxima (sincronizada via fx) ----
-function connectedEntrants() {
-  const me = profOf(self);
-  const out = [{ user: self, name: getName() || t('common.you'), avatar: me.emoji, photo: me.photo, color: me.color, isSelf: true }];
-  if (mesh) for (const p of mesh.peers()) if (p.online) { const pr = profOf(p.user); out.push({ user: p.user, name: pr.name || t('common.someoneLow'), avatar: pr.emoji, photo: pr.photo, color: pr.color }); }
-  return out;
-}
-function pickIndex(n) {
-  try { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0] % n; } catch { return Math.floor(Date.now()) % n; }
-}
-function doRoulette() {
-  const entrants = connectedEntrants();
-  if (entrants.length < 2) { ui.toast(t('toast.need2')); return; }
-  const winner = entrants[pickIndex(entrants.length)].user;
-  if (mesh) mesh.sendFx({ kind: 'roulette', entrants, winner });
-  ui.runRoulette(entrants, winner);
 }
 
 // ---- Jogo minimizado (✕ = minimizar; encerrar pra mesa toda é ação explícita) ----
@@ -2349,18 +2312,6 @@ function renderTruco() {
   updateGamePill();
 }
 
-// ---- Cutucar / desafiar ----
-function openPokeFor(user) {
-  const items = ['dose', 'chopp', 'drink'].map((id) => { const d = resolveItem(id); return { id, emoji: d.emoji, name: itemLabel(d) }; });
-  ui.openPoke({ user, name: profOf(user).name || t('common.someoneLow'), items });
-}
-function sendPoke(user, kind, item) {
-  if (!mesh) { ui.toast(t('toast.aloneTable')); return; }
-  const fromName = getName() || t('common.someoneLow');
-  if (kind === 'challenge') { mesh.sendFx({ kind: 'challenge', to: user, from: self, fromName, item: item || 'dose' }); sound.challenge(); ui.toast(t('toast.challengeSent')); }
-  else { mesh.sendFx({ kind: 'poke', to: user, from: self, fromName }); sound.poke(); ui.toast(t('toast.pokeSent')); }
-}
-
 // ---- Cerimônia de fim de noite ----
 function openCeremony() {
   lastAwards = ceremonyAwards(state, resolveItem, { log, now: Date.now() });
@@ -2519,8 +2470,6 @@ const handlers = {
     const res = await shareRecap(state, resolveItem).catch(() => 'error');
     if (res === 'download') ui.toast(t('toast.imgSaved')); else if (res === 'error') ui.toast(t('toast.imgError'));
   },
-  onRoulette: () => { if (!room) { ui.toast(t('toast.needTable')); return; } ui.openRoulette({ entrants: connectedEntrants() }); },
-  onRouletteSpin: doRoulette,
   onPurrinha: startPurrinha,
   onPurrStart: (mode, botN) => startPurrinhaMode(mode, botN),
   onPurrSeal: (hand, guess) => (purr && purr.mode !== 'fast' ? purrSealHand(hand) : purrSeal(hand, guess)),
@@ -2562,8 +2511,6 @@ const handlers = {
       dom = null; dv = null; domClearTimers(); clearGameMin('dom'); ui.closeOverlays(); ui.toast(t('dom.ended'));
     });
   },
-  onPoke: openPokeFor,
-  onPokeSend: sendPoke,
   onCeremony: openCeremony,
   onCeremonyShare: async () => {
     const info = tableInfo(state);
@@ -2598,19 +2545,6 @@ const handlers = {
     const url = song.url && /^https?:\/\//.test(song.url) ? song.url : 'https://music.youtube.com/search?q=' + encodeURIComponent(song.title);
     try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
   },
-  onTournament: () => ui.openTournament({ rank: rankTournament(store.getTournament().standings) }),
-  onTournamentAdd: () => {
-    if (!room) { ui.toast(t('toast.needTable')); return; }
-    const rows = summary(state, resolveItem).map((r) => ({ name: profOf(r.user).name, points: 10 + getCount(state, r.user, 'agua') }));
-    const tourn = store.getTournament();
-    const merged = { name: tourn.name || t('games.tourn'), standings: mergeNight(tourn.standings, rows), at: Date.now() };
-    store.saveTournament(merged);
-    ui.openTournament({ rank: rankTournament(merged.standings) });
-    ui.toast(t('toast.tournAdded'));
-  },
-  onTournamentReset: () => { store.saveTournament({ name: '', standings: {}, at: 0 }); ui.openTournament({ rank: [] }); ui.toast(t('toast.tournReset')); },
-  onCard: () => { lastCard = pickCard(pickIndex(1000)); ui.openCard(lastCard); sound.pop(); },
-  onCardShow: () => { if (lastCard && mesh) mesh.sendFx({ kind: 'card', emoji: lastCard.emoji, text: lastCard.text }); ui.toast(t('toast.cardShown')); },
   // Passaporte de botecos (check-ins locais, opcionalmente com GPS)
   onPassport: () => ui.openPassport({ checkins: store.getCheckins(), suggestName: room ? tableInfo(state).title : '' }),
   onCheckin: (name) => {

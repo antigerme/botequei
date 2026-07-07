@@ -32,7 +32,7 @@ padrão Auto segue o navegador).
   `:8787`, sem conta; o `--persist-to` FORA do repo é obrigatório — assets na raiz + estado
   do miniflare dentro dela = loop infinito de reload do watcher).
 - **Unit, sem dependências:** `node tests/reducer.test.mjs`, `node tests/features.test.mjs`,
-  `node tests/stats.test.mjs` (ritmo/BAC + estatísticas de vida) e `node tests/core.test.mjs`
+  `node tests/stats.test.mjs` (estatísticas de vida + liga + catálogo) e `node tests/core.test.mjs`
   (núcleo da sala de sinalização).
 - **Auditoria estática (sem deps):** `node tests/audit.mjs` — confere grafo de import/export
   (arquivo existe **e** exporta o nome, evitando o "does not provide an export named …"), o shell
@@ -43,7 +43,7 @@ padrão Auto segue o navegador).
   (transporte: default asserta WebSocket; `EXPECT_POLL=1` contra servidor `NO_WS=1` asserta o
   fallback; inclui interop socket↔polling), `tests/e2e-reconnect.mjs` (reconexão),
   `tests/e2e-offline.mjs` (pareamento por QR/código com o signaling desligado) e
-  `tests/e2e-features.mjs` (roleta sincronizada, cutucada, PAYFOR e estatísticas).
+  `tests/e2e-features.mjs` (cardápio da mesa, PAYFOR e estatísticas).
 - **CI (GitHub Actions, `.github/workflows/ci.yml`):** em todo PR/push pro `main` roda **lint**
   (`node --check` + ESLint só de correção via `npx eslint .`, config em `eslint.config.mjs`),
   **auditoria** (`tests/audit.mjs`), **unit** e **e2e em DOIS alvos**: servidor Node (suíte
@@ -87,11 +87,8 @@ padrão Auto segue o navegador).
 - **Efeitos efêmeros (não entram no log)** via `mesh.sendFx` → `onFx`. Os de **jogo** (dominó/
   purrinha) levam `mid` e são **repassados com dedup** (gossip via `gameFx`/`seenFx`) pra toda
   jogada chegar em todos mesmo se a malha não estiver completa (4 pessoas = 6 links); os demais
-  (reações etc.) são disparo único. Tipos: brinde, reação, **roleta**
-  ("quem paga a próxima" — o iniciador sorteia e manda `{entrants,winner}`, todos animam igual e
-  convergem), **cutucar/desafiar** (`to`/`from`, só o alvo reage), **cerimônia** (mostrar troféus
-  pra mesa), **chamar o garçom** (`waiter`), **rodada de água** (`water`) e **carta da mesa**
-  (`card` — deck de desafios). Nada disso persiste.
+  (reações etc.) são disparo único. Tipos: brinde, reação, **cerimônia** (mostrar troféus
+  pra mesa) e **chamar o garçom** (`waiter`). Nada disso persiste.
 - **Purrinha (jogo P2P honesto)** (`js/purrinha.js`, puro): sem "banca" central, cada um esconde a
   mão. **Três modos**, escolhidos por quem inicia (tela "como quer jogar?"): **por palitos (3-2-1)**
   — cada um começa com 3 palitos (estoque **público**; mão ≤ estoque, teto do palpite = soma dos
@@ -174,13 +171,9 @@ padrão Auto segue o navegador).
   respondeu (o motor fecha o fold só com as DUAS respostas — `order.forEach`, não `find` do 1º; senão
   a mão trava). `botsTrucoAct` também roda no `onMeshChange` (re-age quando a presença muda), como
   purrinha/dominó. Setup: chip "🤖 Chamar a turma" (0–3) em cada jogo; sozinho já vem 1.
-- **Competição & coach (puro)**: `js/tournament.js` (placar acumulado por pessoa entre noites —
-  pontos por aparecer + hidratar, não por beber mais), `js/deck.js` (cartas de desafio) e o coach
-  em `js/stats.js` (`projectAt` = previsão de ritmo até a meia-noite, `coachTips`). Mãos livres:
-  `devicemotion` soma +1 ao chacoalhar (settings `shake`).
-- **Clima & cuidado**: `js/music.js` (trilha lo-fi **procedural** via WebAudio, sem arquivo — igual
-  ao `sound.js` — + `spectrum()` pro visualizador do "modo festa"). "Cuida do fulano" deriva o ritmo
-  de um peer do log compartilhado (`paceInfo`, sem expor BAC); "me leva pra casa" usa GPS → WhatsApp.
+- **Mãos livres (puro)**: `devicemotion` soma +1 ao chacoalhar o celular (settings `shake`).
+- **Clima**: `js/music.js` (trilha lo-fi **procedural** via WebAudio, sem arquivo — igual
+  ao `sound.js` — + `spectrum()` pro visualizador do "modo festa").
 - **Presença ao vivo**: `render()` desenha a barra de avatares (self + peers, `mesh.peers()`);
   `onMeshChange` faz o diff de quem entrou/saiu com **histerese** (`diffPresence`): quem some entra
   em 45s de graça (fica 💤 esmaecido na barra, sem toast) — tela apagada/elevador não vira "saiu";
@@ -190,11 +183,11 @@ padrão Auto segue o navegador).
 - **Cardápio por categoria**: `catalog.js` (`cat` + `CATEGORIES`/`catOf`); itens custom levam
   `cat`/`note` no def do evento `ITEM` (⚠️ ao editar preço, faça `makeItem({...it, price})` pra
   não perder `g`/`cat`/`note`/`share`). **Itens compartilhados** (`share:1` — garrafa 600
-  [id `cerveja`, mantido por compat], litrão, torre): pedido é DA MESA — g=0 (não entra no BAC
-  de quem tocou), dinheiro vai pro bolo (`sharePool`) e racheia na conta via `shareSplit`
+  [id `cerveja`, mantido por compat], litrão, torre): pedido é DA MESA — g=0 (não entra nas
+  estatísticas de quem tocou), dinheiro vai pro bolo (`sharePool`) e racheia na conta via `shareSplit`
   (puro: motorista fora por padrão, toggle "todos", fallback se só tem motorista); o card tem
   a zona "🥂 meu copo" (item `copo`, `cup:1`, R$0 e g=11) = dose PESSOAL que alimenta
-  BAC/estatísticas e não vira card próprio. `userTotal`/`userMoney`/`summary` aceitam
+  as estatísticas e não vira card próprio. `userTotal`/`userMoney`/`summary` aceitam
   `resolveItem` e excluem share do pessoal; `tableTotal` (herói) soma os PEDIDOS —
   exclui `cup` (o copo derivaria dupla contagem da garrafa que já contou).
   **Cardápio da mesa** (ex-"Preços", `menu-prices`): cada item aceita **marca/apelido**
@@ -207,11 +200,9 @@ padrão Auto segue o navegador).
   OU contagem > 0 — a 2ª regra preserva mesas antigas e rodada de item que o peer não tinha).
   A área de montagem fica visível até o 1º gole (`tableTotal > 0`); o passo 1 do tour vira
   "monte o cardápio" quando não há cards.
-- **Consciência & estatísticas (puro)**: `js/stats.js` (ritmo, linha do tempo, teor alcoólico por
-  Widmark — peso/sexo locais, **não é bafômetro** —, `lastDrinkAt`/`hydration`/`driveVerdict`) e
-  `js/lifestats.js` (média/recorde/mês/favorita/streak + `monthlyTrend`/`weekdayInsight`/`retro`/
-  `topMate`). Gramas de álcool no `catalog.js` (`g`). A tela "🛟 Tô de boa?" cruza BAC + última
-  dose + hidratação e oferece chamar carro (Uber/99) / contato de confiança (WhatsApp).
+- **Estatísticas de vida (puro)**: `js/lifestats.js` (média/recorde/mês/favorita/streak +
+  `monthlyTrend`/`weekdayInsight`/`retro`/`topMate`) — a tela "📊 Meus números". Gramas de álcool
+  no `catalog.js` (`g`, usado só pra marcar item alcoólico na rodada/exclusão do motorista).
 - **Liga & desafios (puro)**: `js/league.js` — `levelFor` (XP = rodadas×10 + noites×30 → nível),
   `weeklyChallenges` (semana atual + noite em curso) e `seasonAward` (troféu do mês).
 - **Modo bar**: `store.saveBarMenu`/`getBarMenu` guardam o cardápio (defs de `ITEM`) pra reusar;
@@ -246,16 +237,15 @@ padrão Auto segue o navegador).
 - `js/handshake.js` — codec do offer/answer offline (deflate + base64url; puro/isomórfico)
 - `js/scan.js` — leitor de QR por câmera (BarcodeDetector + jsQR); só no fluxo offline
 - `js/events.js` — eventos + reducer (CRDT, inclui PAYFOR). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
-- `js/stats.js` — ritmo/linha do tempo/BAC/última dose/hidratação (puro) · `js/lifestats.js` — estatísticas de vida + streak + retrô (puro) · `js/league.js` — nível/XP/desafios/troféu (puro)
+- `js/lifestats.js` — estatísticas de vida + streak + retrô (puro) · `js/league.js` — nível/XP/desafios/troféu (puro)
 - `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia/retrô; recap e conta desenham a FOTO de perfil redonda quando tem)
 - `js/sound.js` — efeitos (WebAudio) · `js/music.js` — trilha lo-fi procedural + espectro (WebAudio, fora do puro)
-- `js/tournament.js` — placar acumulado da galera (puro) · `js/deck.js` — cartas de desafio (puro)
 - `js/purrinha.js` — jogo da purrinha: commit-reveal (SHA-256) + apuração determinística (puro)
 - `js/truco.js` — motor do truco (paulista/mineira/gaúcha, puro): hierarquias, vazas com parda e cascata, escadas de aposta (TRUCO→…), `mergeResponses` (resposta da dupla, CRDT max), mão de onze/dez/ferro, envido/flor, deal lacrado POR CARTA (`cardSalt`/`cardCommitT`/`verifyPlayReveal`/`verifyHandAudit`) e reducer determinístico `newTrucoHand`/`reduceT` (protocolo/UI chegam no T2)
 - `js/domino.js` — jogo de dominó: baralho/deal/encaixe/abertura/bater/trancar (puro)
 - `js/bots.js` — turma virtual: elenco fixo + cérebros puros (purrinha/dominó/truco, rng semeável) + delay humano — o condutor mora no `app.js`
 - `js/i18n.js` — dicionário pt/en/es + `applyI18n` sobre o shell (puro)
-- `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, temas (auto/dark/light/neon/retro), i18n do shell, molduras por nível, overlays (ritmo/roleta/cutucar/cerimônia/números/conta/passaporte/foto/boas-vindas)
+- `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, temas (auto/dark/light/neon/retro), i18n do shell, molduras por nível, overlays (cerimônia/números/conta/passaporte/foto/boas-vindas)
 - `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)
 - `server/core.mjs` — NÚCLEO puro da sala de sinalização (presença TTL + caixa-postal + `clean`; compartilhado pelos dois adaptadores) · `server/node.mjs` — adaptador VM (estáticos + `/signaling` polling+WS + `/turn`; zero deps, envs `PORT`/`HOST`/`NO_WS`)
 - `worker/index.mjs` — adaptador Cloudflare (roteador: assets / DO da sala / turn) · `worker/room-do.mjs` — Durable Object da sala (Hibernation API + alarms)
@@ -286,12 +276,11 @@ padrão Auto segue o navegador).
   `Cache-Control: no-cache` (o `_headers` na CF e o `server/node.mjs` na VM aplicam as MESMAS
   regras — mudou um, mude o outro) e o `sw.js` faz `cache.add(new Request(u,{cache:'reload'}))`
   no install (fura o cache ao instalar).
-- **BAC é estimativa local, não bafômetro** — sempre com o aviso de não dirigir; peso/sexo ficam só no aparelho.
 - Ao mexer no `ui.js`, todo id novo precisa entrar no array `IDS` (senão `ui.init` quebra ao amarrar o listener).
 - **i18n total e sempre em paridade**: TODA string de UI (shell, toasts, templates, aria) nasce
   no dicionário de `js/i18n.js` nas **três** línguas via `t(chave, vars)` — a auditoria
   (`tests/audit.mjs`, roda no CI) falha se alguma língua ficar de fora ou sobrar chave. Conteúdo
-  compartilhado via CRDT (nomes de itens CUSTOM, cartas do deck, conquistas, coach, cards de
+  compartilhado via CRDT (nomes de itens CUSTOM, conquistas, cards de
   share) segue pt-BR por design: é DADO da mesa, não chrome — traduzir dessincronizaria os peers.
   EXCEÇÃO deliberada: item PADRÃO do catálogo viaja só pelo `id` e cada aparelho rotula via
   `t('item.'+id)` (`itemLabel` no `app.js`) — rótulo de item padrão é percepção local

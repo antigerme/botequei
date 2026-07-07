@@ -1,12 +1,10 @@
-// Testes de estatísticas de vida (lifestats.js), liga, torneio, deck e catálogo — sem deps.
+// Testes de estatísticas de vida (lifestats.js), liga e catálogo — sem deps.
 // Rodar: node tests/stats.test.mjs
 
 import assert from 'node:assert';
 import { DEFAULT_ITEMS, catOf, CATEGORIES } from '../js/catalog.js';
 import { weekStreak, lifeStats, lifeBadges, monthlyTrend, weekdayInsight, topMate, retro } from '../js/lifestats.js';
 import { levelFor, weeklyChallenges, seasonAward } from '../js/league.js';
-import { mergeNight, rankTournament } from '../js/tournament.js';
-import { CARDS, pickCard } from '../js/deck.js';
 
 let passed = 0;
 const ok = (n) => { console.log('  ✓ ' + n); passed++; };
@@ -133,28 +131,4 @@ const close = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   ok('retro: agrega noites + parceiro de rolê');
 }
 
-// ---------- Torneio ----------
-{
-  let s = mergeNight({}, [{ name: 'André', points: 12 }, { name: 'Bia', points: 20 }]);
-  s = mergeNight(s, [{ name: 'André', points: 30 }, { name: 'Zé', points: 5 }, { name: '', points: 9 }]);
-  assert.strictEqual(s['André'].points, 42);
-  assert.strictEqual(s['André'].nights, 2);
-  assert.strictEqual(s['Bia'].nights, 1);
-  assert.ok(!('' in s)); // nome vazio ignorado
-  const rank = rankTournament(s);
-  assert.strictEqual(rank[0].name, 'André'); // 42 > 20 > 5
-  assert.strictEqual(rank[2].name, 'Zé');
-  ok('torneio: acumula pontos/noites e ranqueia');
-}
-
-// ---------- Deck de desafios ----------
-{
-  assert.ok(CARDS.length >= 8);
-  assert.strictEqual(pickCard(0), CARDS[0]);
-  assert.strictEqual(pickCard(CARDS.length), CARDS[0]); // dá a volta
-  assert.strictEqual(pickCard(-1), CARDS[CARDS.length - 1]);
-  assert.ok(CARDS.every((c) => c.emoji && c.text));
-  ok('deck: sorteio dá a volta e cartas são válidas');
-}
-
-console.log(`\n${passed} testes de lifestats/liga/torneio passaram ✅`);
+console.log(`\n${passed} testes de lifestats/liga passaram ✅`);

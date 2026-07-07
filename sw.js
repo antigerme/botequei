@@ -1,6 +1,6 @@
 // Service worker do Botequei — cache do "app shell" para abrir offline e instalar como PWA.
 // Importante: nunca intercepta a sinalizacao (/signaling, /turn) nem o que nao for GET.
-const CACHE = 'botequei-v57';
+const CACHE = 'botequei-v58';
 const SHELL = [
   './',
   'index.html',
@@ -28,8 +28,6 @@ const SHELL = [
   'js/achievements.js',
   'js/lifestats.js',
   'js/league.js',
-  'js/tournament.js',
-  'js/deck.js',
   'js/purrinha.js',
   'js/domino.js',
   'js/truco.js',

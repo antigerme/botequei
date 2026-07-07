@@ -50,8 +50,8 @@ const IDS = [
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
-  'overlay-menu', 'menu-profile', 'menu-board', 'menu-roulette',
-  'menu-jukebox', 'menu-festa', 'menu-card', 'menu-tournament', 'menu-bill', 'menu-prices',
+  'overlay-menu', 'menu-profile', 'menu-board',
+  'menu-jukebox', 'menu-festa', 'menu-bill', 'menu-prices',
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list', 'btn-save-menu',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
@@ -66,16 +66,12 @@ const IDS = [
   'set-lang',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
-  'overlay-roulette', 'roulette-list', 'roulette-result', 'btn-roulette-spin',
-  'overlay-poke', 'poke-title', 'poke-actions',
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
   'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
   'overlay-comanda', 'comanda-title', 'comanda-list', 'comanda-total',
   'overlay-jukebox', 'jukebox-input', 'btn-jukebox-add', 'jukebox-list',
   'overlay-festa', 'festa-canvas', 'btn-festa-close',
   'set-shake',
-  'overlay-tournament', 'tourn-list', 'btn-tourn-add', 'btn-tourn-reset',
-  'overlay-card', 'card-draw', 'btn-card-again', 'btn-card-show',
   'menu-purrinha', 'overlay-purrinha', 'purr-sub', 'purr-setup', 'purr-pick', 'purr-pstatus', 'purr-hands', 'purr-guess-wrap', 'purr-guesses', 'btn-purr-seal',
   'purr-wait', 'purr-waitcount', 'purr-waitsub', 'purr-seals',
   'purr-guessing', 'purr-status', 'purr-said', 'purr-turnrow', 'purr-gpick', 'btn-purr-say',
@@ -203,14 +199,11 @@ export function init(handlers) {
   // menu
   $('menu-profile').addEventListener('click', () => { closeOverlays(); H.onProfile(); });
   $('menu-board').addEventListener('click', () => { closeOverlays(); H.onPeers(); });
-  $('menu-roulette').addEventListener('click', () => { closeOverlays(); H.onRoulette(); });
   $('menu-purrinha').addEventListener('click', () => { closeOverlays(); H.onPurrinha(); });
   $('menu-domino').addEventListener('click', () => { closeOverlays(); H.onDomino(); });
   $('menu-truco').addEventListener('click', () => { closeOverlays(); H.onTruco(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
   $('menu-festa').addEventListener('click', () => { closeOverlays(); openFesta(); });
-  $('menu-card').addEventListener('click', () => { closeOverlays(); H.onCard(); });
-  $('menu-tournament').addEventListener('click', () => { closeOverlays(); H.onTournament(); });
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
   $('menu-hh').addEventListener('click', () => { closeOverlays(); el['overlay-hh'].hidden = false; });
@@ -223,8 +216,7 @@ export function init(handlers) {
   $('menu-settings').addEventListener('click', () => { closeOverlays(); openSettings(); });
   el['overlay-hh'].querySelectorAll('button[data-min]').forEach((b) => b.addEventListener('click', () => { H.onHappyHour(Number(b.dataset.min)); closeOverlays(); }));
 
-  // roleta / cerimônia
-  el['btn-roulette-spin'].addEventListener('click', () => H.onRouletteSpin());
+  // cerimônia
   el['btn-ceremony-share'].addEventListener('click', () => H.onCeremonyShare());
   el['btn-ceremony-broadcast'].addEventListener('click', () => H.onCeremonyBroadcast());
 
@@ -234,10 +226,6 @@ export function init(handlers) {
   el['btn-bar-open'].addEventListener('click', () => H.onBarOpenTable(el['bar-code'].value, el['bar-usemenu'].checked));
   el['btn-jukebox-add'].addEventListener('click', () => submitSong());
   el['btn-festa-close'].addEventListener('click', () => closeOverlays());
-  el['btn-tourn-add'].addEventListener('click', () => H.onTournamentAdd());
-  el['btn-tourn-reset'].addEventListener('click', () => H.onTournamentReset());
-  el['btn-card-again'].addEventListener('click', () => H.onCard());
-  el['btn-card-show'].addEventListener('click', () => H.onCardShow());
   el['btn-purr-seal'].addEventListener('click', () => {
     if (purrPick.hand == null || (!purrClassic && purrPick.guess == null)) return;
     H.onPurrSeal(purrPick.hand, purrPick.guess);
@@ -537,14 +525,8 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
         <span class="peer-badges">${badges}${r.money ? ' · ' + fmtMoney(r.money) : ''}</span>
       </button>
       ${net}
-      ${r.user !== selfId ? `<button class="peer-poke" title="${t('peers.pokeT')}" aria-label="${t('peers.pokeAria')}">👉</button>` : ''}
       <span class="peer-total">${r.total}</span></li>`;
   }).join('') || `<li class="peer-row">${t('peers.empty')}</li>`;
-  el['peers-list'].querySelectorAll('.peer-poke').forEach((b) => b.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const li = b.closest('.peer-row');
-    if (li) H.onPoke(li.dataset.user);
-  }));
   el['peers-list'].querySelectorAll('.peer-main').forEach((b) => b.addEventListener('click', () => {
     const li = b.closest('.peer-row');
     if (li) H.onComanda(li.dataset.user);
@@ -990,9 +972,6 @@ const GAMES = () => [
   [t('purr.title'), 'onPurrinha'],
   [t('dom.title'), 'onDomino'],
   [t('tru.title'), 'onTruco'],
-  [t('roul.title'), 'onRoulette'],
-  [t('tourn.title'), 'onTournament'],
-  [t('card.title'), 'onCard'],
 ].map(([full, h]) => {
   const sp = full.indexOf(' ');
   return sp > 0 ? [full.slice(0, sp), full.slice(sp + 1), h] : ['', full, h];
@@ -1074,71 +1053,6 @@ function roundRectPath(g, x, y, w, h, r) {
   g.beginPath(); g.moveTo(x + r, y);
   g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
   g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
-}
-
-// ---------- Roleta: quem paga a próxima ----------
-let rouletteRunning = false;
-export function openRoulette(vm) {
-  const entrants = (vm && vm.entrants) || [];
-  el['roulette-result'].hidden = true;
-  el['btn-roulette-spin'].disabled = entrants.length < 2 || rouletteRunning;
-  el['roulette-list'].innerHTML = entrants.map((e, i) => `<li class="roul-item" data-i="${i}">
-    <span class="peer-avatar" style="background:${safeColor(e.color)}">${avInner(e.photo, e.avatar)}</span>
-    <span class="roul-name">${esc(e.name || t('common.anon'))}${e.isSelf ? ` <span class="peer-you">${t('common.youParen')}</span>` : ''}</span></li>`).join('')
-    || `<li class="roul-item">${t('roul.empty')}</li>`;
-  el['overlay-roulette'].hidden = false;
-}
-// Anima o giro terminando no vencedor (mesma lista/vencedor em todos os aparelhos → sincronizado).
-export function runRoulette(entrants, winnerUser) {
-  if (rouletteRunning || !entrants || !entrants.length) return;
-  openRoulette({ entrants });
-  const items = [...el['roulette-list'].querySelectorAll('.roul-item')];
-  const n = entrants.length;
-  let winIdx = entrants.findIndex((e) => e.user === winnerUser);
-  if (winIdx < 0) winIdx = 0;
-  const steps = 3 * n + winIdx; // algumas voltas + parar no vencedor
-  const highlight = (idx) => items.forEach((it, i) => it.classList.toggle('on', i === idx % n));
-  const finish = () => {
-    const w = entrants[winIdx];
-    el['roulette-result'].hidden = false;
-    el['roulette-result'].innerHTML = t('roul.result', { name: esc(w.name || t('common.someoneLow')) });
-    if (H.onSfx) H.onSfx('win'); vibrate([60, 40, 120]);
-    celebrate(['🎉', '🎰', '🍻', '🥂']);
-  };
-  if (reducedMotion()) { highlight(winIdx); finish(); return; } // sem giro: mostra o resultado
-  rouletteRunning = true;
-  el['btn-roulette-spin'].disabled = true;
-  let s = 0;
-  const step = () => {
-    highlight(s);
-    if (H.onSfx) H.onSfx('tick'); vibrate(8);
-    s++;
-    if (s <= steps) {
-      const remaining = steps - s;
-      setTimeout(step, remaining < n ? 90 + (n - remaining) * 45 : 70); // desacelera no fim
-    } else {
-      highlight(steps);
-      rouletteRunning = false;
-      el['btn-roulette-spin'].disabled = false;
-      finish();
-    }
-  };
-  step();
-}
-
-// ---------- Cutucar / desafiar ----------
-export function openPoke(vm) {
-  el['poke-title'].textContent = 'Provocar ' + (vm.name || t('common.someoneLow'));
-  const btns = ['<button class="btn btn-primary poke-btn" data-kind="poke">👉 Cutucar</button>'];
-  for (const it of (vm.items || [])) {
-    btns.push(`<button class="btn btn-ghost poke-btn" data-kind="challenge" data-item="${esc(it.id)}">${esc(it.emoji)} Desafiar: ${esc(it.name)}</button>`);
-  }
-  el['poke-actions'].innerHTML = btns.join('');
-  el['poke-actions'].querySelectorAll('.poke-btn').forEach((b) => b.addEventListener('click', () => {
-    H.onPokeSend(vm.user, b.dataset.kind, b.dataset.item || '');
-    closeOverlays();
-  }));
-  el['overlay-poke'].hidden = false;
 }
 
 // ---------- Cerimônia de troféus ----------
@@ -1305,22 +1219,6 @@ export function openBar(vm) {
   el['bar-menu-count'].textContent = n;
   el['bar-usemenu'].checked = n > 0;
   el['overlay-bar'].hidden = false;
-}
-
-// ---------- Torneio da galera ----------
-export function openTournament(vm) {
-  el['tourn-list'].innerHTML = (vm.rank || []).map((r, i) => `<li class="tourn-row">
-    <span class="tourn-medal">${['🥇', '🥈', '🥉'][i] || (i + 1 + 'º')}</span>
-    <span class="tourn-name">${esc(r.name)}</span>
-    <span class="tourn-pts">${r.points} pts <small>· ${r.nights} noite${r.nights === 1 ? '' : 's'}</small></span></li>`).join('')
-    || '<li class="tourn-row">Sem torneio ainda — some a primeira noite! 🏟️</li>';
-  el['overlay-tournament'].hidden = false;
-}
-
-// ---------- Carta da mesa (deck) ----------
-export function openCard(vm) {
-  el['card-draw'].innerHTML = `<div class="card-emoji">${esc(vm.emoji || '🃏')}</div><div class="card-text">${esc(vm.text || '')}</div>`;
-  el['overlay-card'].hidden = false;
 }
 
 // ---------- Purrinha (commit-reveal; modos: rápida = 1 rodada / clássica = eliminação) ----------

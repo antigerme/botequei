@@ -29,11 +29,9 @@ export function weeklyChallenges(history, current, { now }) {
   const nights = (history || []).filter((h) => h && typeof h.at === 'number' && h.at >= weekStart);
   if (current && current.items) nights.push(current);
   const visits = nights.length;
-  const maxOf = (id) => nights.reduce((m, h) => Math.max(m, (h.items && Number(h.items[id])) || 0), 0);
   const maxVariety = nights.reduce((m, h) => Math.max(m, h.items ? Object.keys(h.items).length : 0), 0);
   const defs = [
     { id: 'visits', emoji: '📅', title: 'Ir ao boteco 2x essa semana', goal: 2, progress: visits },
-    { id: 'hydrate', emoji: '💧', title: '3 águas numa noite', goal: 3, progress: maxOf('agua') },
     { id: 'variety', emoji: '🍽️', title: 'Provar 4 itens diferentes', goal: 4, progress: maxVariety },
   ];
   return defs.map((c) => ({ ...c, progress: Math.min(c.progress, c.goal), done: c.progress >= c.goal }));

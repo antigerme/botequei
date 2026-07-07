@@ -192,8 +192,6 @@
     <div class="menu-list">
       <p class="menu-sec" data-i18n="common.youCap">Você</p>
       <button class="menu-item" id="menu-profile" data-i18n="menu.profile">🎨 Meu perfil</button>
-      <button class="menu-item" id="menu-pace" data-i18n="pace.title">📈 Meu ritmo</button>
-      <button class="menu-item" id="menu-safe" data-i18n="safe.title">🛟 Tô de boa?</button>
       <button class="menu-item" id="menu-stats" data-i18n="stats">📊 Meus números</button>
       <p class="menu-sec" data-i18n="menu.secGames">Jogos</p>
       <button class="menu-item" id="menu-roulette" data-i18n="roul.title">🎰 Quem paga a próxima?</button>
@@ -205,7 +203,6 @@
       <p class="menu-sec" data-i18n="menu.title">Mesa</p>
       <button class="menu-item" id="menu-board">🏆 Placar &amp; conquistas</button>
       <button class="menu-item" id="menu-waiter" data-i18n="menu.waiter">🔔 Chamar o garçom</button>
-      <button class="menu-item" id="menu-water" data-i18n="menu.water">💧 Rodada de água</button>
       <button class="menu-item" id="menu-hh" data-i18n="hh.title">⏰ Happy hour</button>
       <button class="menu-item" id="menu-jukebox" data-i18n="menu.jukebox">🎵 Jukebox</button>
       <button class="menu-item" id="menu-festa" data-i18n="menu.festa">🎉 Modo festa</button>
@@ -387,29 +384,6 @@
     <p class="menu-sec">🔊 Som &amp; vibração</p>
     <label class="check"><input type="checkbox" id="set-sound" /><span data-i18n="set.sound">🔊 Sons</span></label>
     <label class="check"><input type="checkbox" id="set-shake" /><span data-i18n="set.shake">📳 Chacoalhar o celular pra +1 (mãos livres)</span></label>
-    <p class="menu-sec" data-i18n="set.secAware">🎯 Consciência</p>
-    <label class="field field-inline"><span data-i18n="set.limit">🎯 Meta de bebidas (alerta)</span>
-      <input id="set-limit" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" data-i18n-ph="set.limitPh" /></label>
-    <label class="field field-inline"><span data-i18n="set.water">💧 Lembrar água a cada</span>
-      <input id="set-water" type="number" inputmode="numeric" min="0" step="1" placeholder="0 = off" data-i18n-ph="set.limitPh" /></label>
-    <label class="check"><input type="checkbox" id="set-nudges" /><span data-i18n="set.nudges">🐢 Avisos de ritmo (bora uma água?)</span></label>
-    <label class="check"><input type="checkbox" id="set-responsa" /><span data-i18n="set.responsa">🛟 Modo responsa (avisos mais firmes)</span></label>
-    <p class="lbl" data-i18n="set.bacNote">📈 Peso e sexo estimam o teor alcoólico — fica só neste aparelho</p>
-    <label class="field field-inline"><span data-i18n="set.weight">⚖️ Peso (kg)</span>
-      <input id="set-weight" type="number" inputmode="numeric" min="0" max="300" step="1" placeholder="0 = não estima" data-i18n-ph="set.weightPh" /></label>
-    <label class="field field-inline"><span data-i18n="set.youAre">👤 Você é</span>
-      <select id="set-sex">
-        <option value="" data-i18n="set.sexNone">prefiro não dizer</option>
-        <option value="m" data-i18n="set.sexM">homem</option>
-        <option value="f" data-i18n="set.sexF">mulher</option>
-      </select></label>
-    <p class="menu-sec" data-i18n="set.secCar">🚗 Carona / carro</p>
-    <label class="field field-inline"><span data-i18n="set.carApp">App de carro</span>
-      <select id="set-carapp"><option value="uber">Uber</option><option value="99">99</option></select></label>
-    <label class="field"><span data-i18n="set.trustName">Contato de confiança (nome)</span>
-      <input id="set-trustname" type="text" maxlength="20" placeholder="ex: Mãe, Bea" data-i18n-ph="set.trustNamePh" /></label>
-    <label class="field"><span data-i18n="set.trustPhone">Telefone dele(a) — WhatsApp</span>
-      <input id="set-trustphone" type="tel" inputmode="tel" maxlength="20" placeholder="ex: 11 99999-9999" data-i18n-ph="set.trustPhonePh" /></label>
     <p class="menu-sec" data-i18n="set.secPix">💸 PIX pra dividir</p>
     <label class="field"><span data-i18n="set.pixKey">Sua chave PIX</span>
       <input id="set-pixkey" type="text" maxlength="77" placeholder="email, telefone, CPF ou aleatória" data-i18n-ph="set.pixKeyPh" /></label>
@@ -538,21 +512,6 @@
   </div>
 </div>
 
-<!-- Meu ritmo (consciência: linha do tempo, ritmo e estimativa de teor alcoólico) -->
-<div class="overlay" id="overlay-pace" hidden>
-  <div class="sheet sheet-tall">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 data-i18n="pace.title">📈 Meu ritmo</h2>
-    <div class="pace-summary" id="pace-summary">—</div>
-    <div class="pace-meter"><div class="pace-bar" id="pace-bar"></div></div>
-    <p class="pace-label" id="pace-label"></p>
-    <canvas class="pace-chart" id="pace-chart" width="600" height="150"></canvas>
-    <div class="pace-bac" id="pace-bac"></div>
-    <div class="pace-coach" id="pace-coach"></div>
-    <p class="seal" data-i18n="pace.disclaimer">Estimativa leve, não é bafômetro. Bebeu? Não dirija. 🚗🚫</p>
-  </div>
-</div>
-
 <!-- Roleta: quem paga a próxima (sincronizada entre todos) -->
 <div class="overlay" id="overlay-roulette" hidden>
   <div class="sheet">
@@ -611,22 +570,6 @@
     <h2 id="comanda-title">Comanda</h2>
     <ul class="comanda-list" id="comanda-list"></ul>
     <div class="bill-total" id="comanda-total"></div>
-  </div>
-</div>
-
-<!-- Tô de boa? (segurança: BAC, última dose, hidratação, chamar carro / contato) -->
-<div class="overlay" id="overlay-safe" hidden>
-  <div class="sheet sheet-tall">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 data-i18n="safe.title">🛟 Tô de boa?</h2>
-    <div class="safe-verdict" id="safe-verdict"></div>
-    <div class="safe-rows" id="safe-rows"></div>
-    <div class="sheet-actions">
-      <button class="btn btn-primary" id="btn-safe-car" data-i18n="safe.car">🚗 Chamar carro</button>
-      <button class="btn btn-ghost" id="btn-safe-trust" hidden data-i18n="safe.trust">🆘 Contato</button>
-    </div>
-    <button class="btn btn-ghost" id="btn-safe-home" hidden data-i18n="safe.home">🏠 Me leva pra casa (manda minha localização)</button>
-    <p class="seal" data-i18n="safe.disclaimer">Estimativa local, não é bafômetro. Bebeu? Não dirija. 🚗🚫</p>
   </div>
 </div>
 
@@ -828,7 +771,6 @@
       <li>🍺 <b>1 toque</b> = +1 · <b>segure</b> = −1</li>
       <li>📴 Tudo é <b>P2P</b>: os dados vivem só nos celulares, sem servidor</li>
       <li>👥 Crie a mesa e mostre o <b>QR</b> — a galera entra escaneando</li>
-      <li>🛟 Tem <b>consciência</b> (ritmo/teor) e <b>cuidado</b> pra voltar bem</li>
     </ul>
     <div class="sheet-actions">
       <button class="btn btn-primary btn-lg" id="btn-welcome-go" data-i18n="common.go">Bora! 🍻</button>

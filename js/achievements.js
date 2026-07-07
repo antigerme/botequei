@@ -12,7 +12,6 @@ export function badgesFor(state, user) {
   if (total >= 5) list.push({ id: 'five', emoji: '🔥', name: 'Esquentou' });
   if (total >= 10) list.push({ id: 'ten', emoji: '🏅', name: 'Maratonista' });
   if (total >= 20) list.push({ id: 'twenty', emoji: '👑', name: 'Lenda da mesa' });
-  if (getCount(state, user, 'agua') >= 1) list.push({ id: 'water', emoji: '💧', name: 'Hidratado' });
   return list;
 }
 
@@ -43,11 +42,6 @@ export function ceremonyAwards(state, resolveItem, opts = {}) {
   let ferro = null, ferroN = 0;
   for (const r of rows) { if (r.driver) continue; const n = getCount(state, r.user, 'dose') + getCount(state, r.user, 'drink'); if (n > ferroN) { ferroN = n; ferro = r.user; } }
   if (ferro && ferroN > 0) add('ferro', '🥃', 'Cabeça de ferro', ferro, `${ferroN} destilado${ferroN === 1 ? '' : 's'}`);
-
-  // 💧 Hidratado: mais águas
-  let agua = null, aguaN = 0;
-  for (const r of rows) { const n = getCount(state, r.user, 'agua'); if (n > aguaN) { aguaN = n; agua = r.user; } }
-  if (agua && aguaN > 0) add('agua', '💧', 'Hidratado', agua, `${aguaN} água${aguaN === 1 ? '' : 's'}`);
 
   // 💸 Patrão: maior gasto
   const spenders = rows.filter((r) => r.money > 0).sort((a, b) => b.money - a.money);

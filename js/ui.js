@@ -50,8 +50,8 @@ const IDS = [
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
-  'overlay-menu', 'menu-profile', 'menu-board', 'menu-pace', 'menu-safe', 'menu-roulette',
-  'menu-water', 'menu-jukebox', 'menu-festa', 'menu-card', 'menu-tournament', 'menu-bill', 'menu-prices',
+  'overlay-menu', 'menu-profile', 'menu-board', 'menu-roulette',
+  'menu-jukebox', 'menu-festa', 'menu-card', 'menu-tournament', 'menu-bill', 'menu-prices',
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list', 'btn-save-menu',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
@@ -62,17 +62,15 @@ const IDS = [
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
-  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-limit', 'set-water', 'set-nudges',
-  'set-lang', 'set-weight', 'set-sex', 'set-responsa', 'set-carapp', 'set-trustname', 'set-trustphone',
+  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound',
+  'set-lang',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
-  'overlay-pace', 'pace-summary', 'pace-bar', 'pace-label', 'pace-chart', 'pace-bac', 'pace-coach',
   'overlay-roulette', 'roulette-list', 'roulette-result', 'btn-roulette-spin',
   'overlay-poke', 'poke-title', 'poke-actions',
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
   'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
   'overlay-comanda', 'comanda-title', 'comanda-list', 'comanda-total',
-  'overlay-safe', 'safe-verdict', 'safe-rows', 'btn-safe-car', 'btn-safe-trust', 'btn-safe-home',
   'overlay-jukebox', 'jukebox-input', 'btn-jukebox-add', 'jukebox-list',
   'overlay-festa', 'festa-canvas', 'btn-festa-close',
   'set-shake',
@@ -205,13 +203,10 @@ export function init(handlers) {
   // menu
   $('menu-profile').addEventListener('click', () => { closeOverlays(); H.onProfile(); });
   $('menu-board').addEventListener('click', () => { closeOverlays(); H.onPeers(); });
-  $('menu-pace').addEventListener('click', () => { closeOverlays(); H.onPace(); });
-  $('menu-safe').addEventListener('click', () => { closeOverlays(); H.onSafe(); });
   $('menu-roulette').addEventListener('click', () => { closeOverlays(); H.onRoulette(); });
   $('menu-purrinha').addEventListener('click', () => { closeOverlays(); H.onPurrinha(); });
   $('menu-domino').addEventListener('click', () => { closeOverlays(); H.onDomino(); });
   $('menu-truco').addEventListener('click', () => { closeOverlays(); H.onTruco(); });
-  $('menu-water').addEventListener('click', () => { closeOverlays(); H.onWaterRound(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
   $('menu-festa').addEventListener('click', () => { closeOverlays(); openFesta(); });
   $('menu-card').addEventListener('click', () => { closeOverlays(); H.onCard(); });
@@ -233,13 +228,10 @@ export function init(handlers) {
   el['btn-ceremony-share'].addEventListener('click', () => H.onCeremonyShare());
   el['btn-ceremony-broadcast'].addEventListener('click', () => H.onCeremonyBroadcast());
 
-  // segurança / retrô / liga / modo bar
+  // retrô / liga / modo bar
   el['btn-save-menu'].addEventListener('click', () => H.onSaveMenu());
-  el['btn-safe-car'].addEventListener('click', () => H.onCallCar());
-  el['btn-safe-trust'].addEventListener('click', () => H.onTrustContact());
   el['btn-retro-share'].addEventListener('click', () => H.onRetroShare());
   el['btn-bar-open'].addEventListener('click', () => H.onBarOpenTable(el['bar-code'].value, el['bar-usemenu'].checked));
-  el['btn-safe-home'].addEventListener('click', () => H.onGoHome());
   el['btn-jukebox-add'].addEventListener('click', () => submitSong());
   el['btn-festa-close'].addEventListener('click', () => closeOverlays());
   el['btn-tourn-add'].addEventListener('click', () => H.onTournamentAdd());
@@ -301,16 +293,7 @@ export function init(handlers) {
   el['set-lang'].addEventListener('change', () => H.onSetting({ lang: el['set-lang'].value }));
   el['set-bigfont'].addEventListener('change', () => H.onSetting({ bigFont: el['set-bigfont'].checked }));
   el['set-sound'].addEventListener('change', () => H.onSetting({ sound: el['set-sound'].checked }));
-  el['set-limit'].addEventListener('change', () => H.onSetting({ limit: Math.max(0, parseInt(el['set-limit'].value, 10) || 0) }));
-  el['set-water'].addEventListener('change', () => H.onSetting({ waterEvery: Math.max(0, parseInt(el['set-water'].value, 10) || 0) }));
-  el['set-nudges'].addEventListener('change', () => H.onSetting({ nudges: el['set-nudges'].checked }));
   el['set-shake'].addEventListener('change', () => H.onShakeToggle(el['set-shake'].checked));
-  el['set-weight'].addEventListener('change', () => H.onSetting({ weightKg: Math.max(0, Math.min(300, parseInt(el['set-weight'].value, 10) || 0)) }));
-  el['set-sex'].addEventListener('change', () => H.onSetting({ sex: el['set-sex'].value }));
-  el['set-responsa'].addEventListener('change', () => H.onSetting({ responsa: el['set-responsa'].checked }));
-  el['set-carapp'].addEventListener('change', () => H.onSetting({ carApp: el['set-carapp'].value }));
-  el['set-trustname'].addEventListener('change', () => H.onSetting({ trustName: el['set-trustname'].value.trim() }));
-  el['set-trustphone'].addEventListener('change', () => H.onSetting({ trustPhone: el['set-trustphone'].value.trim() }));
   el['set-pixkey'].addEventListener('change', () => H.onSetting({ pixKey: el['set-pixkey'].value.trim() }));
   el['set-pixcity'].addEventListener('change', () => H.onSetting({ pixCity: el['set-pixcity'].value.trim() }));
   $('btn-clear-data').addEventListener('click', () => H.onClearData());
@@ -896,16 +879,7 @@ export function fillSettings(s) {
   el['set-lang'].value = s.lang || 'pt';
   el['set-bigfont'].checked = !!s.bigFont;
   el['set-sound'].checked = !!s.sound;
-  el['set-limit'].value = s.limit || '';
-  el['set-water'].value = s.waterEvery || '';
-  el['set-nudges'].checked = s.nudges !== false;
   el['set-shake'].checked = !!s.shake;
-  el['set-weight'].value = s.weightKg || '';
-  el['set-sex'].value = s.sex || '';
-  el['set-responsa'].checked = !!s.responsa;
-  el['set-carapp'].value = s.carApp || 'uber';
-  el['set-trustname'].value = s.trustName || '';
-  el['set-trustphone'].value = s.trustPhone || '';
   el['set-pixkey'].value = s.pixKey || '';
   el['set-pixcity'].value = s.pixCity || '';
 }
@@ -1094,63 +1068,12 @@ export function openScanner(title, onResult) {
   });
 }
 
-// ---------- Meu ritmo (consciência) ----------
-function fmtDur(ms) {
-  const m = Math.round((ms || 0) / 60000);
-  if (m < 60) return m + 'min';
-  const h = Math.floor(m / 60), mm = m % 60;
-  return mm ? `${h}h${String(mm).padStart(2, '0')}` : `${h}h`;
-}
+// Caminho de retângulo arredondado (compartilhado pelo gráfico de tendência do Placar).
 function roundRectPath(g, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   g.beginPath(); g.moveTo(x + r, y);
   g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
   g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
-}
-function drawChart(canvas, bars) {
-  const g = canvas.getContext('2d');
-  const W = canvas.width, Hh = canvas.height;
-  g.clearRect(0, 0, W, Hh);
-  const light = document.body.classList.contains('light');
-  if (!bars || !bars.length) {
-    g.fillStyle = light ? 'rgba(60,40,10,.45)' : 'rgba(255,240,200,.45)';
-    g.font = '20px system-ui, sans-serif'; g.textAlign = 'center';
-    g.fillText('sem bebidas ainda', W / 2, Hh / 2);
-    return;
-  }
-  const max = Math.max(1, ...bars);
-  const n = bars.length, gap = 6;
-  const bw = (W - gap * (n + 1)) / n;
-  g.fillStyle = light ? '#c8811f' : '#f4b13c';
-  for (let i = 0; i < n; i++) {
-    const h = Math.round((bars[i] / max) * (Hh - 20));
-    if (h <= 0) continue;
-    roundRectPath(g, gap + i * (bw + gap), Hh - 4 - h, bw, h, 4);
-    g.fill();
-  }
-}
-export function openPace(vm) {
-  el['pace-summary'].innerHTML = `<strong>${vm.count}</strong> bebida${vm.count === 1 ? '' : 's'} em ${fmtDur(vm.spanMs)}`;
-  el['pace-bar'].style.width = Math.min(100, (vm.recent / 6) * 100) + '%';
-  el['pace-bar'].className = 'pace-bar lvl-' + vm.level;
-  el['pace-label'].textContent = t('pace.lastHour', { label: vm.label, n: vm.recent });
-  drawChart(el['pace-chart'], vm.bars || []);
-  if (vm.bac) {
-    const sober = vm.bac.soberInMs > 0 ? t('pace.soberIn', { t: fmtDur(vm.bac.soberInMs) }) : '';
-    el['pace-bac'].innerHTML = `<div class="bac-big">${vm.bac.bac.toFixed(2)} <small>g/L</small></div>
-      <div class="bac-lbl">${vm.bac.label}${sober}</div>
-      ${vm.bac.canDrive ? '' : `<div class="bac-drive">${t('pace.noDrive')}</div>`}`;
-  } else {
-    el['pace-bac'].innerHTML = `<div class="bac-lbl">${t('pace.setWeight')}</div>`;
-  }
-  if (vm.coach) {
-    const proj = vm.coach.predicted != null ? `<div class="coach-proj">${t('pace.proj', { n: vm.coach.predicted })}</div>` : '';
-    const tips = (vm.coach.tips || []).map((t) => `<div class="coach-tip">${esc(t)}</div>`).join('');
-    el['pace-coach'].innerHTML = `<div class="coach-head">${t('pace.coachHead')}</div>${proj}${tips}`;
-  } else {
-    el['pace-coach'].innerHTML = '';
-  }
-  el['overlay-pace'].hidden = false;
 }
 
 // ---------- Roleta: quem paga a próxima ----------
@@ -1346,21 +1269,6 @@ function renderTourStep() {
     else bal.style.top = Math.min(r.bottom + 16, window.innerHeight - 190) + 'px'; // abaixo, mas SEMPRE dentro da tela (alvo alto não expulsa o botão)
     el['tour'].hidden = false;
   });
-}
-
-// ---------- Tô de boa? (segurança) ----------
-export function openSafe(vm) {
-  const v = vm.verdict;
-  el['safe-verdict'].className = 'safe-verdict lvl-' + v.level;
-  el['safe-verdict'].innerHTML = `<div class="sv-title">${esc(v.title)}</div><div class="sv-advice">${esc(v.advice)}</div>`;
-  const row = (emoji, label, val) => `<div class="safe-row"><span class="sr-emoji">${emoji}</span><span class="sr-label">${esc(label)}</span><span class="sr-val">${esc(val)}</span></div>`;
-  let rows = row('🍺', t('safe.bacRow'), vm.bacText);
-  if (vm.lastText) rows += row('⏱️', t('safe.lastRow'), vm.lastText);
-  if (vm.hydration) rows += row('💧', t('safe.hydRow'), vm.hydration.label);
-  el['safe-rows'].innerHTML = rows;
-  el['btn-safe-trust'].hidden = !vm.hasTrust;
-  el['btn-safe-home'].hidden = !vm.hasTrust;
-  el['overlay-safe'].hidden = false;
 }
 
 // ---------- Retrospectiva "Seu rolê" ----------

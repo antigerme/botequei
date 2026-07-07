@@ -29,6 +29,7 @@
 // ============================================================================
 
 import { EMOJIS, COLORS, AVATARS, CATEGORIES } from './catalog.js';
+import { snakeLayout } from './domino.js';
 import { scanQR, scanSupported } from './scan.js';
 import * as music from './music.js';
 import { applyI18n, setLang, t } from './i18n.js';
@@ -1582,20 +1583,38 @@ function domHalf(n, upright) {
   for (let i = 0; i < 9; i++) cells += `<i class="dp${on.has(i) ? ' on' : ''}"></i>`;
   return `<span class="dom-half">${cells}</span>`;
 }
-// pedra: dobra (carroça) fica atravessada (metades empilhadas); na mão fica sempre deitada (flat).
-function domTileHTML(a, b, { flat = false, cls = '', chip = '' } = {}) {
-  const isDbl = !flat && a === b;
-  return `<span class="dom-tile${isDbl ? ' dbl' : ''}${cls ? ' ' + cls : ''}">${domHalf(a, isDbl)}${domHalf(b, isDbl)}${chip}</span>`;
+// pedra: DEITADA (a|b); EM PÉ (`vert`: bucha atravessada ou quina — metades empilhadas, pips de pé);
+// `flip` mostra b|a (fileira de volta, pra corrente ler contínua); `pos` posiciona no feltro (absoluto).
+function domTileHTML(a, b, { flat = false, cls = '', chip = '', vert = false, flip = false, pos = null } = {}) {
+  const stand = vert || (!flat && a === b);          // em pé: bucha OU pedra da quina
+  const [h1, h2] = flip ? [b, a] : [a, b];
+  const style = pos ? ` style="position:absolute;left:${pos.x}px;top:${pos.y}px"` : '';
+  return `<span class="dom-tile${stand ? ' dbl' : ''}${cls ? ' ' + cls : ''}"${style}>${domHalf(h1, stand)}${domHalf(h2, stand)}${chip}</span>`;
 }
-// ajusta a escala do tabuleiro pra caber TUDO numa linha só (sem quebrar linha nem scroll)
+// tamanho natural da pedra (bate com o CSS: metade 32 + borda 1 = 66×34 deitada, 34×66 em pé)
+const DOM_L = 66, DOM_S = 34;
+let domBoardState = null; // guarda o último tabuleiro pra re-layout no resize/rotação
+// desenha o tabuleiro como SERPENTINA de mesa real (domino.js/snakeLayout): pedras coladas casando
+// pip; buchas atravessadas; vira a quina descendo com 2 pedras em pé; cresce ↓ no retrato / → no
+// deitado. Escala só como último recurso (mesa cheíssima) — nunca volta pro tamanho ilegível.
 function domFitBoard() {
-  const board = el['dom-board'], wrap = board.parentElement;
-  board.style.transform = '';
-  const avail = wrap.clientWidth - 12;
-  if (avail <= 0) return;
-  const natural = board.scrollWidth;
-  const s = natural > avail ? Math.max(0.28, avail / natural) : 1;
-  board.style.transform = s < 1 ? `scale(${s})` : '';
+  if (!domBoardState) return;
+  const boardEl = el['dom-board'], wrap = boardEl.parentElement;
+  const availW = Math.max(160, wrap.clientWidth - 8);
+  const landscape = window.innerWidth > window.innerHeight;
+  const maxH = Math.max(120, Math.round(window.innerHeight * (landscape ? 0.62 : 0.5)));
+  const st = domBoardState;
+  const lay = snakeLayout(st.board.map((t) => [t.a, t.b]), { width: availW, long: DOM_L, short: DOM_S, pad: 6 });
+  boardEl.style.width = lay.width + 'px';
+  boardEl.style.height = lay.height + 'px';
+  boardEl.innerHTML = lay.tiles.map((tile) => {
+    const isJust = tile.idx === st.lastPlayIdx;
+    const chip = (isJust && st.lastPlayAvatar) ? `<span class="dom-played-av" title="${esc(st.lastPlayName || '')}">${avInner(st.lastPlayPhoto, st.lastPlayAvatar)}</span>` : '';
+    return domTileHTML(tile.a, tile.b, { vert: tile.vert, flip: tile.flip, pos: tile, cls: (tile.open ? 'open' : '') + (isJust ? ' just' : ''), chip });
+  }).join('');
+  const s = Math.min(1, availW / lay.width, maxH / lay.height);
+  boardEl.style.transform = s < 1 ? `scale(${s})` : '';
+  wrap.style.height = Math.ceil(lay.height * s) + 4 + 'px';
 }
 let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolha de ponta
 export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }
@@ -1638,18 +1657,18 @@ export function renderDomino(vm) {
     <span class="dom-oav">${avInner(o.photo, o.avatar, false)}</span><span class="dom-oname">${esc(o.name)}</span><span class="dom-ocount">🁫 ${o.count}</span></span>`).join('');
   el['dom-turn'].textContent = vm.turn || '';
   el['dom-turn'].className = 'dom-turn' + (vm.myTurn ? ' mine' : '');
-  // tabuleiro: UMA linha que escala pra caber; pontas abertas brilham (sem banner dedicado); a
-  // peça recém-jogada ganha destaque + o avatar de quem jogou (como acompanhar a mão na mesa real).
+  // tabuleiro: SERPENTINA de mesa real (domSnakeLayout) — pontas abertas brilham; a peça recém-jogada
+  // ganha destaque + o avatar de quem jogou (como acompanhar a mão na mesa). O layout roda no domFitBoard.
   const board = vm.board || [];
-  el['dom-board'].innerHTML = board.length
-    ? board.map((t, i) => {
-      const open = i === 0 || i === board.length - 1;
-      const just = i === vm.lastPlayIdx;
-      const chip = just && vm.lastPlayAvatar ? `<span class="dom-played-av" title="${esc(vm.lastPlayName || '')}">${avInner(vm.lastPlayPhoto, vm.lastPlayAvatar)}</span>` : '';
-      return domTileHTML(t.a, t.b, { cls: (open ? 'open' : '') + (just ? ' just' : ''), chip });
-    }).join('')
-    : `<span class="dom-empty">${t('dom.starting')}</span>`;
-  requestAnimationFrame(domFitBoard);
+  if (!board.length) {
+    domBoardState = null;
+    el['dom-board'].innerHTML = `<span class="dom-empty">${t('dom.starting')}</span>`;
+    el['dom-board'].style.width = el['dom-board'].style.height = el['dom-board'].style.transform = '';
+    el['dom-board'].parentElement.style.height = '';
+  } else {
+    domBoardState = { board, lastPlayIdx: vm.lastPlayIdx, lastPlayAvatar: vm.lastPlayAvatar, lastPlayPhoto: vm.lastPlayPhoto, lastPlayName: vm.lastPlayName };
+    requestAnimationFrame(domFitBoard);
+  }
   el['dom-hand'].innerHTML = (vm.hand || []).map((h) => {
     const playable = h.sides.length > 0 && vm.myTurn;
     return `<button class="dom-htile${playable ? ' can' : ' dim'}" data-key="${h.key}" data-sides="${h.sides.join('')}"${playable ? '' : ' disabled'}>${domTileHTML(h.a, h.b, { flat: true })}</button>`;

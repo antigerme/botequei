@@ -826,12 +826,13 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
 .dom-ocount { font-family: var(--num); color: var(--gold); white-space: nowrap; }
 .dom-turn { text-align: center; font-size: 18px; color: var(--muted); margin: 6px 0 8px; min-height: 22px; flex: none; }
 .dom-turn.mine { color: var(--gold); }
-/* a "mesa" (feltro) — o tabuleiro escala pra caber TUDO numa linha só (sem wrap, sem scroll) */
+/* a "mesa" (feltro) — o tabuleiro SERPENTEIA (pedras posicionadas em absoluto pelo snakeLayout);
+   a altura acompanha o tabuleiro (o JS seta), até um teto, e aí escala. */
 .dom-board-wrap { background: linear-gradient(180deg, #23492f, #1a3623); border: 1px solid rgba(0,0,0,.35);
   border-radius: 14px; padding: 10px; margin-bottom: 14px; box-shadow: inset 0 2px 10px rgba(0,0,0,.35);
-  display: flex; align-items: center; justify-content: center; overflow: hidden; height: 104px; }
+  display: flex; align-items: flex-start; justify-content: center; overflow: hidden; min-height: 92px; }
 body.light .dom-board-wrap { background: linear-gradient(180deg, #2f6b45, #245536); }
-.dom-board { display: inline-flex; flex-wrap: nowrap; gap: 5px; align-items: center; transform-origin: center; will-change: transform; }
+.dom-board { position: relative; transform-origin: top center; will-change: transform; }
 .dom-empty { color: rgba(255,255,255,.7); font-size: 14px; }
 /* pedra: metades com pips, marfim com leve 3D */
 .dom-tile { position: relative; display: inline-flex; background: linear-gradient(180deg, #fbf3e0, #ecdcbb); border: 1px solid #6b5836;
@@ -877,7 +878,7 @@ body.light .dom-board-wrap { background: linear-gradient(180deg, #2f6b45, #24553
 @media (orientation: landscape) and (max-height: 600px) {
   #overlay-domino .sheet { max-width: 96vw; width: 96vw; height: 96vh; max-height: 96vh; }
   #dom-game { flex: 1; }
-  .dom-board-wrap { flex: 1; height: auto; min-height: 0; margin-bottom: 8px; }
+  .dom-board-wrap { flex: none; min-height: 0; margin-bottom: 8px; } /* altura vem do JS (serpentina) */
   .dom-opps { margin-bottom: 4px; }
   .dom-turn { margin: 2px 0 4px; }
   .dom-hand { max-height: 26vh; overflow-y: auto; }

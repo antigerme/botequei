@@ -104,7 +104,10 @@ padrão Auto segue o navegador).
   todos, todo peer **confere** os lacres e **apura igual** (determinístico → converge). Fases fx:
   `invite`(+`mode`)/`commit`/`reveal` (rápida), `hcommit`/`guess`/`hreveal` (por turnos, com `rd` e
   buffer p/ fx adiantado)/`cancel`. Efêmero, não entra no log. Dropout não trava (portões re-checam
-  no `onMeshChange`).
+  no `onMeshChange`). **Piscada ≠ saiu**: a malha derruba `rec.ready` NA HORA numa piscada de rede
+  (tela apaga, wifi↔4G), então o portão da rodada usa `purrOnline` com **graça** (`PURR_GRACE_MS`,
+  `purrSeenAt`) — presente-mas-piscou segura o portão (senão avançava sem o lacre dele e as pontas
+  divergiam); saiu de verdade cai depois da graça (`armPurrGrace` re-checa quando ela vence).
 - **Dominó (jogo P2P)** (`js/domino.js`, puro): dobra-seis de boteco (sem compra). As **mãos são
   privadas** — o dono da mesa embaralha e entrega a mão de cada um **só pra ele** via canal direto
   (`mesh.sendTo(id, {k:'fx',fx})`, não pelo broadcast); as **jogadas são públicas** (`kind:'domino'`,
@@ -166,8 +169,11 @@ padrão Auto segue o navegador).
   fio; pré-lacra os seeds do handshake) — `truActDealer`/`dvSeedGate`. Bot NÃO bebe, não entra em
   conta/presença/estatística: só existe DENTRO do jogo (checks `isBot` em `purrOnline`/`domOnlineIds`/
   `truOnlineHas` o tratam como sempre-online → dropout não trava). ⚠️ `pend.resp`/`envido.resp` do
-  truco são chaveados por ID de jogador (não por time) — checar time respondeu = `order.some(...)`.
-  Setup: chip "🤖 Chamar a turma" (0–3) em cada jogo; sozinho já vem 1.
+  truco são chaveados por ID de jogador (não por time). Pra CHECAR se o time respondeu, `order.some`
+  basta; mas pra AGENDAR o(s) bot(s) do envido no 2v2, agende **TODO** bot do time que ainda não
+  respondeu (o motor fecha o fold só com as DUAS respostas — `order.forEach`, não `find` do 1º; senão
+  a mão trava). `botsTrucoAct` também roda no `onMeshChange` (re-age quando a presença muda), como
+  purrinha/dominó. Setup: chip "🤖 Chamar a turma" (0–3) em cada jogo; sozinho já vem 1.
 - **Competição & coach (puro)**: `js/tournament.js` (placar acumulado por pessoa entre noites —
   pontos por aparecer + hidratar, não por beber mais), `js/deck.js` (cartas de desafio) e o coach
   em `js/stats.js` (`projectAt` = previsão de ritmo até a meia-noite, `coachTips`). Mãos livres:

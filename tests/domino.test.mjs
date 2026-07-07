@@ -5,6 +5,7 @@ import {
   FULL_SET, isDouble, pips, tileKey, pipCount, rngFrom, shuffle, handSizeFor, dealHands,
   opening, legalMoves, canPlay, place, newGame, playTile, pass,
   serializeTiles, deckCommit, combineSeeds, cutDeck, isFullSet, dealFromDeck, verifyDeal,
+  snakeLayout,
 } from '../js/domino.js';
 import { sha256Hex } from '../js/purrinha.js';
 
@@ -176,6 +177,36 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   const fake = hands.map((h) => h.slice()); fake[0] = fake[0].slice(); fake[0][0] = F[F.length - 1];
   assert.strictEqual((await verifyDeal({ deck, salt, deckCommit: dc, seeds, seedCommits, players, initialHands: fake })).ok, false);
   ok('verificada: deal honesto passa; adulterar baralho/seed/mão é PEGO');
+}
+
+// ---------- layout serpentina do tabuleiro ----------
+{
+  const chainFrom = (seq) => seq.slice(0, -1).map((v, k) => [v, seq[k + 1]]); // consecutivas casam
+  const seq = [6, 6, 2, 5, 5, 3, 1, 1, 4, 0, 0, 4, 2, 6, 3, 3, 5, 1, 0, 0, 6, 4, 4, 2, 3]; // 24 pedras, COM buchas
+  const chain = chainFrom(seq);
+  assert.strictEqual(chain.length, 24);
+  for (let k = 0; k + 1 < chain.length; k++) assert.strictEqual(chain[k][1], chain[k + 1][0]); // casa pip
+
+  const lay = snakeLayout(chain, { width: 360, long: 66, short: 34, pad: 8 });
+  assert.strictEqual(lay.tiles.length, 24);                                   // toda pedra desenhada
+  const idxs = lay.tiles.map((t) => t.idx).sort((a, b) => a - b);
+  assert.deepStrictEqual(idxs, Array.from({ length: 24 }, (_, k) => k));      // cada uma exatamente 1×
+  for (const t of lay.tiles) if (t.a === t.b) assert.strictEqual(t.vert, true, 'bucha tem que ser atravessada');
+  for (const t of lay.tiles) { assert.ok(t.x >= 0); assert.ok(t.x + t.w <= lay.width + 1, 'cabe na largura'); }
+  for (let a = 0; a < lay.tiles.length; a++) for (let b = a + 1; b < lay.tiles.length; b++) {   // sem sobrepor
+    const p = lay.tiles[a], q = lay.tiles[b];
+    const sep = p.x + p.w <= q.x + 0.5 || q.x + q.w <= p.x + 0.5 || p.y + p.h <= q.y + 0.5 || q.y + q.h <= p.y + 0.5;
+    assert.ok(sep, `pedras ${p.idx} e ${q.idx} se sobrepõem`);
+  }
+  ok('serpente: 24 pedras 1×, buchas atravessadas, dentro da largura, sem sobrepor');
+
+  const portrait = snakeLayout(chain, { width: 360 });
+  const landscape = snakeLayout(chain, { width: 820 });
+  assert.ok(portrait.height > landscape.height, 'retrato cresce mais pra baixo que o deitado');
+  assert.ok(lay.tiles.some((t) => !t.vert && t.flip), 'tem deitada invertida (fileira de volta)');
+  assert.strictEqual(snakeLayout([], {}).tiles.length, 0);                    // vazio não quebra
+  assert.strictEqual(snakeLayout([[3, 5]], {}).tiles.length, 1);              // 1 pedra ok
+  ok('serpente: retrato cresce vertical / deitado horizontal; flip na volta; vazio e 1 pedra ok');
 }
 
 console.log(`\n${passed} testes de dominó passaram ✅`);

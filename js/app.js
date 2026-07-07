@@ -318,12 +318,12 @@ function addCustomItem({ emoji, name, price, cat, note, share }) {
 // inclui todo mundo. ----
 function roundChoices() {
   return allItems()
-    .filter((it) => !isShare(it) && !it.off && ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it)))
+    .filter((it) => !isShare(it) && !isCup(it) && !it.off && ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it)))
     .map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it) }));
 }
 function rodada(item) {
   const def = resolveItem(item);
-  if (!def || isShare(def)) return;
+  if (!def || isShare(def) || isCup(def)) return; // rodada é de ITEM de verdade — não da dose pessoal (copo)
   const alcoholic = ALCOHOL.has(item) || (def.g || 0) > 0;
   const targets = [{ user: self, name: getName() }];
   if (mesh) for (const p of mesh.peers()) if (p.online) targets.push({ user: p.user, name: profOf(p.user).name });
@@ -1528,7 +1528,8 @@ function renderDom() {
     else if (dom.audit && dom.audit.ok === false) verified = { ok: false, text: '🚫 ' + dom.audit.reason };
     else if (dom.audit) verified = { ok: null, text: '🔒 ' + dom.audit.reason }; // incompleta (alguém saiu sem abrir)
     else if (dom.over) verified = { ok: null, text: t('dom.vAuditing') };
-    else verified = { ok: null, text: t('dom.vBadge') };
+    // durante o jogo NÃO tem badge fixo: "mesa verificada" é sempre-on (virou redundante) — só o
+    // SELO de auditoria do fim (🔒✅/🚫) aparece, que é o que prova que o embaralho foi limpo.
   }
   ui.renderDomino({
     board: dom.chain.map((t) => ({ a: t[0], b: t[1] })), ends: dom.ends, hand, opponents,

@@ -114,7 +114,7 @@
     <button class="btn btn-ghost btn-additem" id="btn-additem" data-i18n="table.addItem">+ item personalizado</button>
 
     <!-- jogo minimizado (✕ não cancela mais): toque pra voltar pra partida rolando -->
-    <button class="game-pill" id="game-pill" hidden></button>
+    <div class="game-pill" id="game-pill" hidden></div><!-- fileira de chips: voltar + ✕ encerrar (setGamePill) -->
 
     <div class="action-bar">
       <button class="chip" id="btn-games" data-i18n="games.title">🎮 Jogos</button>
@@ -756,8 +756,7 @@
       <button class="btn btn-primary btn-lg" id="btn-purr-again" hidden data-i18n="purr.again">🫲 Jogar de novo</button>
     </div>
 
-    <!-- ✕ só minimiza; encerrar pra mesa toda é ação explícita (com confirmação) -->
-    <button class="btn btn-ghost game-end" id="btn-purr-end" hidden data-i18n="game.endAll">🛑 Encerrar a partida pra mesa toda</button>
+    <!-- encerrar pra mesa toda saiu daqui: ✕ minimiza → o ✕ vermelho na pill da mesa encerra (com confirmação) -->
   </div>
 </div>
 
@@ -786,8 +785,7 @@
       <button class="btn btn-primary btn-lg" id="btn-dom-again" hidden data-i18n="dom.again">🁫 Jogar de novo</button>
     </div>
 
-    <!-- ✕ só minimiza; encerrar pra mesa toda é ação explícita (com confirmação) -->
-    <button class="btn btn-ghost game-end" id="btn-dom-end" hidden data-i18n="game.endAll">🛑 Encerrar a partida pra mesa toda</button>
+    <!-- encerrar pra mesa toda saiu daqui: ✕ minimiza → o ✕ vermelho na pill da mesa encerra (com confirmação) -->
   </div>
 </div>
 
@@ -856,7 +854,7 @@
       <div class="tru-hand" id="tru-hand"></div>
       <div class="tru-actions" id="tru-actions"></div>
     </div>
-    <button class="btn btn-ghost game-end" id="btn-tru-end" hidden data-i18n="game.endAll">🛑 Encerrar a partida pra mesa toda</button>
+    <!-- encerrar pra mesa toda saiu daqui: ✕ minimiza → o ✕ vermelho na pill da mesa encerra (com confirmação) -->
   </div>
 </div>
 

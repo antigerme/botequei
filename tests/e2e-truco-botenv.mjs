@@ -54,7 +54,7 @@ async function main() {
   await step('minimizar o truco (✕) mostra a pill "voltar" e reabre — antes o jogo sumia sem volta', async () => {
     await A.click('#btn-tru-close'); // ✕ = minimiza (o jogo segue rolando)
     await A.waitForFunction(() => { const p = document.getElementById('game-pill'); return p && !p.hidden && /Truco|🂠/i.test(p.textContent || ''); }, null, { timeout: T });
-    await A.click('#game-pill'); // toca a pill pra voltar
+    await A.click('#game-pill .game-chip-open'); // toca o rótulo do chip pra voltar
     await vis('tru-game');
   });
 

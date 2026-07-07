@@ -192,20 +192,25 @@ body::after {
 
 /* Pill de jogo minimizado: a partida segue rolando; um toque traz de volta.
    O pulso é só de brilho (sem mexer na geometria — alvo de toque parado). */
-.game-pill { position: sticky; z-index: 3; bottom: calc(74px + var(--safe-b)); display: block;
-  margin: 10px auto 0; max-width: 100%; background: var(--gold); color: #241400; border: none;
-  border-radius: 999px; padding: 11px 18px; font-family: var(--hand); font-size: 16px; cursor: pointer;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, .4); animation: pill-glow 2.2s ease-in-out infinite; }
-.game-pill.urgent { background: var(--danger); color: #fff; } /* SUA VEZ */
-.game-pill:active { transform: scale(.97); }
+/* a pill de "jogo rolando" agora é uma FILEIRA de chips (1 por jogo minimizado): tocar no rótulo
+   volta pro jogo; o ✕ vermelho ao lado encerra pra mesa toda (com confirmação). Some o botão gigante. */
+.game-pill { position: sticky; z-index: 3; bottom: calc(74px + var(--safe-b)); display: flex;
+  flex-wrap: wrap; gap: 8px; justify-content: center; margin: 10px auto 0; max-width: 100%; }
+.game-chip { display: inline-flex; align-items: stretch; background: var(--gold); color: #241400;
+  border-radius: 999px; overflow: hidden; box-shadow: 0 6px 18px rgba(0, 0, 0, .4);
+  animation: pill-glow 2.2s ease-in-out infinite; }
+.game-chip.urgent { background: var(--danger); color: #fff; } /* SUA VEZ */
+.game-chip-open, .game-chip-end { background: none; border: none; color: inherit; cursor: pointer; font-family: var(--hand); }
+.game-chip-open { padding: 11px 8px 11px 18px; font-size: 16px; }
+.game-chip-open:active { transform: scale(.97); }
+.game-chip-end { padding: 11px 15px 11px 11px; font-size: 15px; opacity: .8; border-left: 1px solid rgba(0, 0, 0, .18); }
+.game-chip.urgent .game-chip-end { border-left-color: rgba(255, 255, 255, .3); }
+.game-chip-end:hover, .game-chip-end:active { opacity: 1; }
 @keyframes pill-glow {
   0%, 100% { box-shadow: 0 6px 18px rgba(0, 0, 0, .4); filter: brightness(1); }
   50% { box-shadow: 0 6px 26px rgba(244, 177, 60, .55); filter: brightness(1.12); }
 }
-@media (prefers-reduced-motion: reduce) { .game-pill { animation: none; } }
-
-/* "Encerrar a partida" dentro dos jogos (ação explícita; o ✕ só minimiza) */
-.game-end { width: 100%; margin-top: 12px; color: var(--danger); border-color: rgba(232, 115, 95, .55); }
+@media (prefers-reduced-motion: reduce) { .game-chip { animation: none; } }
 
 /* atalho de jogos (picker rápido da mesa) */
 .games-grid { display: grid; gap: 10px; }

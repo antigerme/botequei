@@ -149,7 +149,7 @@ const DICT = {
     'games.tourn': 'Torneio da galera',
     'game.pillDomTurn': '🁫 SUA VEZ no dominó', 'game.pillDom': '🁫 Dominó rolando',
     'game.pillPurr': '🫲 Purrinha rolando', 'game.pillBack': ' — voltar',
-    'game.end': 'Encerrar', 'game.endAll': '🛑 Encerrar a partida pra mesa toda', 'game.how': 'Como quer jogar?',
+    'game.end': 'Encerrar', 'game.pillEndAria': 'Encerrar a partida pra mesa toda', 'game.how': 'Como quer jogar?',
     'bots.call': '🤖 Chamar a turma:', 'bots.none': 'Só eu', 'bots.solo': 'jogando com a turma virtual',
     // ---- dominó ----
     'dom.title': '🁫 Dominó',
@@ -525,7 +525,7 @@ const DICT = {
     'games.tourn': 'Crew tournament',
     'game.pillDomTurn': '🁫 YOUR TURN at dominoes', 'game.pillDom': 'Dominoes in play 🁫',
     'game.pillPurr': '🫲 Purrinha in play', 'game.pillBack': ' — back',
-    'game.end': 'End it', 'game.endAll': '🛑 End the game for the whole table', 'game.how': 'How do you want to play?',
+    'game.end': 'End it', 'game.pillEndAria': 'End the game for the whole table', 'game.how': 'How do you want to play?',
     'bots.call': '🤖 Call the crew:', 'bots.none': 'Just me', 'bots.solo': 'playing with the virtual crew',
     // ---- dominoes ----
     'dom.title': '🁫 Dominoes',
@@ -901,7 +901,7 @@ const DICT = {
     'games.tourn': 'Torneo de la banda',
     'game.pillDomTurn': '🁫 TU TURNO en el dominó', 'game.pillDom': '🁫 Dominó en juego',
     'game.pillPurr': '🫲 Purrinha en juego', 'game.pillBack': ' — volver',
-    'game.end': 'Terminar', 'game.endAll': '🛑 Terminar la partida para toda la mesa', 'game.how': '¿Cómo quieres jugar?',
+    'game.end': 'Terminar', 'game.pillEndAria': 'Terminar la partida para toda la mesa', 'game.how': '¿Cómo quieres jugar?',
     'bots.call': '🤖 Llamar a la banda:', 'bots.none': 'Solo yo', 'bots.solo': 'jugando con la banda virtual',
     // ---- dominó ----
     'dom.title': '🁫 Dominó',

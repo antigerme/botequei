@@ -577,9 +577,11 @@ function enterTableOffline(code) {
 function onMeshChange() {
   diffPresence();
   render();
+  if (purr && mesh) for (const p of mesh.peers()) if (p.online) purrSeenAt.set(p.user, Date.now()); // presença fresca p/ a graça da rodada
   purrTryGates(); // dropout não trava a purrinha: portões re-checam quando alguém cai/volta
   armDomSkip();   // idem no dominó: quem caiu na vez tem a vez pulada
   if (dom && !dom.over && dom.phase === 'reveal') domResolveBlock(); // tranca esperando mão de quem caiu
+  if (truco && !truco.over) botsTrucoAct(); // idem no truco: bot re-age quando a presença muda (dedup no botDelay)
   updateGamePill();
   // convidado: assim que a conexão sobe, fecha o painel de pareamento offline sozinho
   if (offlineWaiting && mesh && mesh.connectedCount() > 0) {
@@ -867,6 +869,10 @@ function updateGamePill() {
     parts.push({ urgent: myTurn, label: myTurn ? t('game.pillDomTurn') : t('game.pillDom') });
   }
   if (gameMinned.has('purr')) parts.push({ urgent: false, label: t('game.pillPurr') });
+  if (gameMinned.has('truco')) { // faltava a pill do truco: minimizar sumia com o jogo (sem volta)
+    const myTurn = truco && truco.st && !truco.st.over && truco.st.order[truco.st.turnIdx] === self;
+    parts.push({ urgent: myTurn, label: myTurn ? t('game.pillTruTurn') : t('game.pillTru') });
+  }
   ui.setGamePill(parts.length ? { label: parts.map((p) => p.label).join(' · ') + t('game.pillBack'), urgent: parts.some((p) => p.urgent) } : null);
 }
 
@@ -920,18 +926,49 @@ function maybeStartTour() {
 //               em voz alta na vez de cada um (girando a mesa, SEM repetir número). Quem crava o
 //               total se livra e sai; os que sobram jogam de novo; o ÚLTIMO que resta paga.
 let purr = null;
+let purrSeenAt = new Map();  // purrinha: última vez que vi cada peer online (graça anti-piscada no portão)
+const PURR_GRACE_MS = 12000; // piscada de rede (tela apaga, wifi↔4G) não tira ninguém da rodada NA HORA
 function purrEntrants() {
   const me = profOf(self);
   const out = [{ id: self, name: getName() || t('common.you'), avatar: me.emoji, photo: me.photo, color: me.color }];
   if (mesh) for (const p of mesh.peers()) if (p.online) { const pr = profOf(p.user); out.push({ id: p.user, name: pr.name || t('common.someoneLow'), avatar: pr.emoji, photo: pr.photo, color: pr.color }); }
   return out;
 }
-function purrOnline(id) { if (id === self || isBot(id)) return true; if (!mesh) return false; const p = mesh.peers().find((x) => x.user === id); return !!(p && p.online); }
+// Presença "grudenta" pro portão da rodada: a malha derruba rec.ready NA HORA numa piscada de rede
+// (ICE 'disconnected'/DataChannel close — tela apaga, wifi↔4G), sem carência. Se o portão confiasse
+// nisso cru, quem piscou some da rodada, o portão acha que "todos lacraram" e AVANÇA sem o lacre
+// dele (os bots palpitam sozinhos; as pontas divergem). Então: online agora → conta e anota; offline
+// → só cai da rodada DEPOIS da graça (piscou ≠ saiu). Bot é sempre-online; self idem.
+function purrOnline(id) {
+  if (id === self || isBot(id)) return true;
+  if (!mesh) return false;
+  const p = mesh.peers().find((x) => x.user === id);
+  if (p && p.online) { purrSeenAt.set(id, Date.now()); return true; }
+  const seen = purrSeenAt.get(id);
+  return seen != null && Date.now() - seen < PURR_GRACE_MS;
+}
 // só cobra lacre/reveal de quem ainda está online (dropout não trava o jogo)
 function purrExpected() {
   if (!purr) return [];
   const base = purr.mode === 'fast' ? purr.entrants.map((e) => e.id) : purr.alive;
   return base.filter((id) => purrOnline(id));
+}
+// re-checa os portões quando a graça de um piscante vencer — senão a rodada esperaria pra sempre por
+// quem não vai voltar (nenhum fx/mesh dispararia o portão de novo). Assim o dropout não trava.
+let purrGraceTimer = null;
+function armPurrGrace() {
+  if (purrGraceTimer) { clearTimeout(purrGraceTimer); purrGraceTimer = null; }
+  if (!purr || purr.phase === 'done' || purr.phase === 'revealed') return;
+  const base = purr.mode === 'fast' ? purr.entrants.map((e) => e.id) : purr.alive;
+  let wait = 0;
+  for (const id of base) {
+    if (id === self || isBot(id)) continue;
+    const p = mesh && mesh.peers().find((x) => x.user === id);
+    if (p && p.online) continue;             // online: sem graça pendente
+    const seen = purrSeenAt.get(id);
+    if (seen != null) { const left = PURR_GRACE_MS - (Date.now() - seen); if (left > 0) wait = Math.max(wait, left); }
+  }
+  if (wait > 0) purrGraceTimer = setTimeout(() => { purrGraceTimer = null; if (purr) purrTryGates(); }, wait + 80);
 }
 function purrName(id) { return profOf(id).name || (purr.entrants.find((e) => e.id === id) || {}).name || t('common.someoneLow'); }
 
@@ -1175,7 +1212,7 @@ async function onPurrHReveal(fx) {
 // portões do clássico (e re-check do rápido): avançam a fase quando todo mundo esperado cumpriu
 function purrTryGates() {
   if (!purr) return;
-  if (purr.mode === 'fast') { maybePurrReveal(); maybePurrResolve(); botsPurrAct(); return; }
+  if (purr.mode === 'fast') { maybePurrReveal(); maybePurrResolve(); botsPurrAct(); armPurrGrace(); return; }
   if (purr.phase === 'pick') {
     const exp = purrExpected();
     if (exp.length >= 2 && exp.every((id) => purr.commits.has(id))) {
@@ -1203,6 +1240,7 @@ function purrTryGates() {
     }
   }
   botsPurrAct(); // clássica/3-2-1: toca o(s) bot(s) na fase corrente
+  armPurrGrace(); // se alguém está piscando, re-checa o portão quando a graça vencer
 }
 function finishClassicRound() {
   const reveals = [...purr.reveals.entries()].map(([id, r]) => ({ id, hand: r.hand }));
@@ -1996,11 +2034,12 @@ function botsTrucoAct() {
   //    (envido.resp também é chaveada por ID de jogador, não por time)
   if (st.envido && st.envido.pendBy != null) {
     const respTeam = 1 - st.envido.pendBy;
-    const teamResp = truco.order.some((id, i) => teamOf(i) === respTeam && st.envido.resp && st.envido.resp[id] != null);
-    if (!teamResp) {
-      const b = truco.order.find((id) => isBot(id) && truTeamOfId(id) === respTeam);
-      if (b) botDelay(`${truco.gameId}:envr:${truco.handIdx}:${b}:${st.envido.value}`, () => botTruEnvResp(b));
-    }
+    // CADA bot do time que ainda não respondeu responde — no 2v2 o motor exige as DUAS respostas
+    // (reduceT fecha o fold só com resp.length >= 2). Agendar só o 1º bot travava a mão pra sempre.
+    truco.order.forEach((id, i) => {
+      if (teamOf(i) === respTeam && isBot(id) && !(st.envido.resp && st.envido.resp[id] != null))
+        botDelay(`${truco.gameId}:envr:${truco.handIdx}:${id}:${st.envido.value}`, () => botTruEnvResp(id));
+    });
     return;
   }
   // 3) truco no ar: o time que responde tem bot? responde; senão, se o proponente é bot, o host fecha

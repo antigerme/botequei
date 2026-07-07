@@ -1099,10 +1099,10 @@ export function openStats(vm) {
     + cell(s.thisMonth || 0, t('stats.month'))
     + cell(s.record ? s.record.total : 0, t('stats.record'))
     + cell('🔥' + (s.streakWeeks || 0), t('stats.weeks'));
-  if (s.favDrink) html += cell(vm.favEmoji || '🍺', 'favorita: ' + (vm.favName || s.favDrink), true);
+  if (s.favDrink) html += cell(vm.favEmoji || '🍺', t('stats.fav', { name: vm.favName || s.favDrink }), true);
   if (s.totalSpent > 0) html += cell(fmtMoney(s.totalSpent), t('stats.spent'), true);
   el['stats-grid'].innerHTML = html;
-  el['stats-badges'].innerHTML = (vm.badges || []).map((b) => `<span class="badge">${b.emoji} ${esc(b.name)}</span>`).join('') || '<span class="seal">Suas conquistas aparecem aqui 🏅</span>';
+  el['stats-badges'].innerHTML = (vm.badges || []).map((b) => `<span class="badge">${b.emoji} ${esc(t('lbadge.' + b.id, b.n != null ? { n: b.n } : undefined))}</span>`).join('') || `<span class="seal">${t('stats.badgesEmpty')}</span>`;
   const trend = vm.trend || [];
   const hasTrend = trend.some((t) => t.total > 0);
   el['stats-chart'].hidden = !hasTrend;
@@ -1110,16 +1110,16 @@ export function openStats(vm) {
   if (hasTrend) drawBars(el['stats-chart'], trend);
   const ins = vm.insight;
   if (ins && ins.best && ins.worst && ins.best.wd !== ins.worst.wd) {
-    el['stats-insight'].textContent = t('stats.insight', { best: ins.best.day, worst: ins.worst.day });
+    el['stats-insight'].textContent = t('stats.insight', { best: t('wd.' + ins.best.wd), worst: t('wd.' + ins.worst.wd) });
     el['stats-insight'].hidden = false;
   } else {
     el['stats-insight'].hidden = true;
   }
   el['stats-history'].innerHTML = (vm.history || []).slice(0, 12).map((h) => {
     const d = new Date(h.at);
-    const when = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    const when = d.toLocaleDateString(document.documentElement.lang || 'pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
     return `<li><span>${esc(h.title || h.room)} <small>· ${when}</small></span><small>${t('home.histLine', { me: h.myTotal || 0, tt: h.tableTotal || 0 })}</small></li>`;
-  }).join('') || '<li>Sem noites ainda — bora criar a primeira? 🍻</li>';
+  }).join('') || `<li>${t('stats.noNights')}</li>`;
   el['overlay-stats'].hidden = false;
 }
 // Barras com rótulo (tendência mensal).
@@ -1138,7 +1138,7 @@ function drawBars(canvas, items) {
     const h = Math.round((items[i].total / max) * (Hh - padB - 10));
     const x = gap + i * (bw + gap);
     if (h > 0) { g.fillStyle = col; roundRectPath(g, x, Hh - padB - h, bw, h, 4); g.fill(); }
-    g.fillStyle = lab; g.fillText(items[i].label, x + bw / 2, Hh - 7);
+    g.fillStyle = lab; g.fillText(t('mon.' + items[i].monthIdx), x + bw / 2, Hh - 7);
   }
 }
 
@@ -1220,17 +1220,17 @@ export function openRetro(vm) {
 export function renderLeague(vm) {
   const L = vm.level;
   const pct = L.xpForNext > 0 ? Math.min(100, (L.xpInLevel / L.xpForNext) * 100) : 100;
-  el['league-level'].innerHTML = `<div class="ll-top"><span class="ll-badge">${t('league.level', { n: L.level })}</span><span class="ll-title">${esc(L.title)}</span></div>
+  el['league-level'].innerHTML = `<div class="ll-top"><span class="ll-badge">${t('league.level', { n: L.level })}</span><span class="ll-title">${esc(t('league.title.' + Math.min(L.level, 5)))}</span></div>
     <div class="pace-meter"><div class="pace-bar lvl-medio" style="width:${pct}%"></div></div>
     <div class="ll-xp">${t('league.xp', { a: L.xpInLevel, b: L.xpForNext })}</div>`;
   el['league-challenges'].innerHTML = (vm.challenges || []).map((c) => `<li class="chal-row ${c.done ? 'done' : ''}">
     <span class="chal-emoji">${esc(c.emoji)}</span>
-    <div class="chal-main"><span class="chal-title">${esc(c.title)}</span>
+    <div class="chal-main"><span class="chal-title">${esc(t('league.chal.' + c.id))}</span>
       <div class="pace-meter sm"><div class="pace-bar lvl-calmo" style="width:${Math.min(100, (c.progress / c.goal) * 100)}%"></div></div></div>
     <span class="chal-tick">${c.done ? '✅' : `${c.progress}/${c.goal}`}</span></li>`).join('');
   const s = vm.season;
   el['league-season'].innerHTML = s ? `<div class="season-card"><span class="season-emoji">${esc(s.emoji)}</span>
-    <div><div class="season-title">${esc(s.title)}</div><div class="season-sub">${s.month} rodada${s.month === 1 ? '' : 's'} em ${esc(s.label)}</div></div></div>` : '';
+    <div><div class="season-title">${esc(t('league.season.' + s.tier))}</div><div class="season-sub">${esc(t(s.month === 1 ? 'league.season1' : 'league.seasonN', { n: s.month, label: t('mon.' + s.monthIdx) }))}</div></div></div>` : '';
 }
 
 // ---------- Modo bar ----------
@@ -1678,7 +1678,7 @@ export function openPassport(vm) {
     : t('pass.empty');
   el['passport-list'].innerHTML = list.map((c) => {
     const d = new Date(c.at);
-    const when = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    const when = d.toLocaleDateString(document.documentElement.lang || 'pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
     const map = (c.lat != null && c.lng != null) ? `https://maps.google.com/?q=${c.lat},${c.lng}` : '';
     return `<li class="pass-row"><span class="pass-pin">📍</span>
       <div class="pass-main"><span class="pass-name">${esc(c.name || t('pass.fallback'))}</span><span class="pass-when">${when}</span></div>

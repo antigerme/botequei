@@ -75,7 +75,7 @@ const close = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
     { at: Date.UTC(2026, 0, 1), myTotal: 99 },  // jan (fora da janela de 3)
   ];
   const t = monthlyTrend(hist, { now, months: 3 });
-  assert.deepStrictEqual(t.map((x) => x.label), ['mai', 'jun', 'jul']);
+  assert.deepStrictEqual(t.map((x) => x.monthIdx), [4, 5, 6]); // mai/jun/jul → índices (a UI traduz)
   assert.deepStrictEqual(t.map((x) => x.total), [2, 3, 5]);
   ok('tendência mensal: soma por mês, janela e ordem certas');
 }
@@ -100,9 +100,8 @@ const close = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   assert.strictEqual(l.level, 2);
   assert.strictEqual(l.xpInLevel, 10);
   assert.strictEqual(l.xpForNext, 300);
-  assert.strictEqual(l.title, 'Frequentador');
   assert.strictEqual(levelFor({ totalDrinks: 0, nights: 0 }).level, 1);
-  ok('liga: XP → nível e título');
+  ok('liga: XP → nível (o título viaja por número, traduzido na UI)');
 
   const WEEK = 7 * 864e5, now = 100 * WEEK + 3 * 864e5;
   const hist = [{ at: now, items: { cerveja: 1 } }];
@@ -116,8 +115,8 @@ const close = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
 
   const sa = seasonAward([{ at: Date.UTC(2026, 6, 15), myTotal: 30 }, { at: Date.UTC(2026, 4, 1), myTotal: 99 }], { now: Date.UTC(2026, 6, 20) });
   assert.strictEqual(sa.month, 30); // só julho
-  assert.strictEqual(sa.title, 'Destaque do mês');
-  assert.strictEqual(sa.label, 'jul');
+  assert.strictEqual(sa.tier, 2); // 25 <= 30 < 50 → tier "destaque" (a UI traduz)
+  assert.strictEqual(sa.monthIdx, 6); // julho → índice
   ok('liga: troféu do mês pelo total do mês corrente');
 }
 

@@ -43,8 +43,8 @@ export function lifeStats(history, { now }) {
   };
 }
 
-const MON = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 // Total de bebidas por mês, dos últimos `months` até o atual (mais antigo → recente).
+// O mês viaja por ÍNDICE (0-11) — a UI traduz via t('mon.'+monthIdx).
 export function monthlyTrend(history, { now, months = 6 }) {
   const byKey = {};
   for (const h of history || []) {
@@ -58,7 +58,7 @@ export function monthlyTrend(history, { now, months = 6 }) {
   const out = [];
   for (let i = months - 1; i >= 0; i--) {
     const key = baseKey - i;
-    out.push({ key, label: MON[((key % 12) + 12) % 12], total: byKey[key] || 0 });
+    out.push({ key, monthIdx: ((key % 12) + 12) % 12, total: byKey[key] || 0 });
   }
   return out;
 }
@@ -71,13 +71,13 @@ export function weekdayInsight(history) {
     const wd = new Date(h.at).getUTCDay();
     sum[wd] += Math.max(0, Number(h.myTotal) || 0); cnt[wd] += 1;
   }
-  const days = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+  // o dia viaja por ÍNDICE (0=domingo..6=sábado) — a UI traduz via t('wd.'+wd)
   let best = null, worst = null;
   for (let i = 0; i < 7; i++) {
     if (!cnt[i]) continue;
     const avg = sum[i] / cnt[i];
-    if (!best || avg < best.avg) best = { wd: i, day: days[i], avg };
-    if (!worst || avg > worst.avg) worst = { wd: i, day: days[i], avg };
+    if (!best || avg < best.avg) best = { wd: i, avg };
+    if (!worst || avg > worst.avg) worst = { wd: i, avg };
   }
   return { best, worst };
 }
@@ -101,14 +101,15 @@ export function retro(history, { now }) {
   };
 }
 
-// Conquistas acumuladas (derivadas dos números de vida).
+// Conquistas acumuladas (derivadas dos números de vida). O rótulo viaja pelo id
+// — a UI traduz via t('lbadge.'+id, {n}); emoji é universal, n alimenta os interpolados.
 export function lifeBadges(stats) {
   const b = [];
-  if (stats.nights >= 1) b.push({ id: 'goer1', emoji: '🍺', name: 'Primeira ida' });
-  if (stats.nights >= 5) b.push({ id: 'goer5', emoji: '🎉', name: 'Frequentador' });
-  if (stats.nights >= 15) b.push({ id: 'goer15', emoji: '🏅', name: 'Veterano do boteco' });
-  if (stats.record && stats.record.total >= 10) b.push({ id: 'rec10', emoji: '🔥', name: `Recorde: ${stats.record.total} numa noite` });
-  if (stats.streakWeeks >= 3) b.push({ id: 'streak3', emoji: '📅', name: `${stats.streakWeeks} semanas seguidas` });
-  if (stats.totalDrinks >= 100) b.push({ id: 'd100', emoji: '💯', name: '100 rodadas na vida' });
+  if (stats.nights >= 1) b.push({ id: 'goer1', emoji: '🍺' });
+  if (stats.nights >= 5) b.push({ id: 'goer5', emoji: '🎉' });
+  if (stats.nights >= 15) b.push({ id: 'goer15', emoji: '🏅' });
+  if (stats.record && stats.record.total >= 10) b.push({ id: 'rec10', emoji: '🔥', n: stats.record.total });
+  if (stats.streakWeeks >= 3) b.push({ id: 'streak3', emoji: '📅', n: stats.streakWeeks });
+  if (stats.totalDrinks >= 100) b.push({ id: 'd100', emoji: '💯' });
   return b;
 }

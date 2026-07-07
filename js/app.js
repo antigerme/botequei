@@ -385,14 +385,13 @@ function afterChange(item, kind) {
 function render() {
   if (!room) return;
   const list = allItems();
-  // copo da mesa não vira card (mora DENTRO dos cards compartilhados); share mostra o
-  // contador DA MESA no número grande e os MEUS copos na zona de baixo
+  // `copo` de mesa antiga nunca vira card (isCup filtra — hoje é só compat de log velho);
+  // share mostra o contador DA MESA no número grande (sem contagem pessoal de copo)
   const items = list.filter((it) => !isCup(it) && !it.off).map((it) => ({
     id: it.id, emoji: it.emoji, name: itemLabel(it), cat: catOf(it), note: it.note || '',
     share: isShare(it),
     qty: itemTotal(state, it.id),
     sub: isShare(it) ? '' : t('item.sub', { n: getCount(state, self, it.id) }),
-    cups: isShare(it) ? getCount(state, self, 'copo') : 0,
   }));
   const info = tableInfo(state);
   const tt = tableTotal(state, resolveItem);
@@ -2409,8 +2408,6 @@ const handlers = {
   onAdd: (item) => act('ADD', item),
   onRemove: (item) => act('REMOVE', item),
   onAddItemConfirm: addCustomItem,
-  onCup: () => act('ADD', 'copo'),
-  onCupRemove: () => act('REMOVE', 'copo'),
   onInvite: openInvite,
   onPeers: () => { renderPeers(); renderLeagueInfo(); ui.openPeers(); },
   onBrinde, onReact,

@@ -415,14 +415,6 @@ export function renderTable(vm) {
       const id = card.dataset.item;
       attachGesture(card, () => H.onAdd(id), () => H.onRemove(id));
       card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); H.onAdd(id); } });
-      const cup = card.querySelector('.item-cup');
-      if (cup) {
-        // a zona do copo é um mundo à parte: nada vaza pro gesto do card (senão um toque
-        // no copo também marcaria uma garrafa da mesa)
-        for (const evn of ['pointerdown', 'pointermove', 'pointerup', 'click']) cup.addEventListener(evn, (e) => e.stopPropagation());
-        cup.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); H.onCup(); } });
-        attachGesture(cup, () => H.onCup(), () => H.onCupRemove());
-      }
     });
     lastIds = sig;
   }
@@ -434,8 +426,7 @@ export function renderTable(vm) {
     card.querySelector('.item-emoji').textContent = it.emoji;
     card.querySelector('.item-name').textContent = it.name;
     countTo(card.querySelector('.item-qty'), it.qty);
-    if (it.share) { const n = card.querySelector('.item-cup-n'); if (n) countTo(n, it.cups); }
-    else { const sub = card.querySelector('.item-sub'); if (sub) sub.textContent = it.sub; }
+    if (!it.share) { const sub = card.querySelector('.item-sub'); if (sub) sub.textContent = it.sub; }
     card.toggleAttribute('data-zero', (Number(it.qty) || 0) === 0);
     card.classList.toggle('hot', it.id === topId && topQ > 0);
   }
@@ -450,14 +441,13 @@ export function renderTable(vm) {
 function cardHTML(it) {
   const note = it.note ? ` title="${esc(it.note)}"` : '';
   if (it.share) {
-    // COMPARTILHADO: o número grande é DA MESA ("chegou mais uma" — qualquer um marca);
-    // a zona 🥂 embaixo marca o MEU copo (toque +1, segure −1) — é ela que fala com o corpo
+    // COMPARTILHADO: o número grande é DA MESA ("chegou mais uma" — qualquer um marca).
+    // SEM contagem de copo (mesquinharia): quem não bebe sai do racha na própria conta.
     return `<div class="item-card share" data-item="${esc(it.id)}" role="button" tabindex="0" aria-label="${esc(it.name)}: ${t('card.ariaShare')}"${note}>
     <div class="item-qty">${it.qty}</div>
     <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
     ${it.note ? `<div class="item-note">📝 ${esc(it.note)}</div>` : ''}
-    <button class="item-cup" type="button" aria-label="${t('card.myCupAria')}">🥂 ${t('card.myCup')} · <b class="item-cup-n">${it.cups}</b></button>
     <div class="item-plus">+1</div>
     <div class="share-flag" aria-hidden="true">${t('card.mesa')}</div></div>`;
   }

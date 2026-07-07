@@ -118,20 +118,16 @@ async function main() {
   });
 
   // consumo p/ dar substância à conta/estatísticas — cobrindo o fluxo COMPARTILHADO
-  await step('garrafa da mesa: pedido é da MESA; "meu copo" é só de quem bebeu', async () => {
-    const cardA = await pageA.$('.item-card[data-item="x-garrafa-600"]');
-    await cardA.scrollIntoViewIfNeeded(); // a área "monte o cardápio" empurra o grid pra baixo da dobra
-    const box = await cardA.boundingBox();
-    await pageA.mouse.click(box.x + box.width / 2, box.y + 18); // topo do card = mesa pediu +1 (longe da zona do copo)
+  await step('garrafa da mesa: +1 é DA MESA e SEM zona de copo (contar copo é mesquinharia)', async () => {
+    // o card compartilhado é só o contador da mesa — quem não bebe sai do racha na conta
+    const temCup = await pageA.evaluate(() => !!document.querySelector('.item-card[data-item="x-garrafa-600"] .item-cup'));
+    if (temCup) throw new Error('o card compartilhado não devia ter zona de copo');
+    await pageA.click('.item-card[data-item="x-garrafa-600"]'); // chegou mais uma garrafa (qualquer um marca)
     await Promise.all([pageA, pageB].map((p) => p.waitForFunction(
       () => document.querySelector('.item-card[data-item="x-garrafa-600"] .item-qty')?.textContent.trim() === '1',
       null, { timeout: T })));
-    await pageB.click('.item-card[data-item="x-garrafa-600"] .item-cup'); // Bia bebeu um copo do bolo
-    await pageB.waitForFunction(() => document.querySelector('.item-card[data-item="x-garrafa-600"] .item-cup-n')?.textContent.trim() === '1', null, { timeout: T });
-    const cupA = await pageA.evaluate(() => document.querySelector('.item-card[data-item="x-garrafa-600"] .item-cup-n')?.textContent.trim());
-    if (cupA !== '0') throw new Error('contador do copo é PESSOAL — em A deveria seguir 0, vi ' + cupA);
     const totB = (await pageB.textContent('#table-total')).trim();
-    if (totB !== '1') throw new Error('copo NÃO sobe o "a mesa mandou" (a garrafa já contou) — vi ' + totB);
+    if (totB !== '1') throw new Error('a garrafa sobe o "a mesa mandou" — vi ' + totB);
     await pageB.click('.item-card[data-item="x-chopp"]'); // e um chopp individual (estatística da Bia)
     await pageA.waitForTimeout(400);
   });

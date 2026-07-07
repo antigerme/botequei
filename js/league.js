@@ -7,7 +7,7 @@ function xpOf(stats) {
 }
 // XP total necessário pra CHEGAR no nível L (cresce quadrático: 150·(1+2+…+(L-1))).
 const cum = (L) => 75 * L * (L - 1);
-const TITLES = ['', 'Novato do boteco', 'Frequentador', 'Veterano', 'Mestre da mesa', 'Lenda do boteco'];
+// O título do nível (1..5) viaja como NÚMERO — a UI traduz via t('league.title.'+n). Nada de PT aqui.
 
 export function levelFor(stats) {
   const xp = xpOf(stats);
@@ -18,7 +18,6 @@ export function levelFor(stats) {
     xp, level,
     xpInLevel: xp - base,
     xpForNext: next - base,
-    title: TITLES[Math.min(level, TITLES.length - 1)] || 'Lenda do boteco',
   };
 }
 
@@ -29,12 +28,11 @@ export function weeklyChallenges(history, current, { now }) {
   const nights = (history || []).filter((h) => h && typeof h.at === 'number' && h.at >= weekStart);
   if (current && current.items) nights.push(current);
   const visits = nights.length;
-  const maxOf = (id) => nights.reduce((m, h) => Math.max(m, (h.items && Number(h.items[id])) || 0), 0);
   const maxVariety = nights.reduce((m, h) => Math.max(m, h.items ? Object.keys(h.items).length : 0), 0);
+  // o texto viaja pelo id (a UI traduz via t('league.chal.'+id)); emoji é universal
   const defs = [
-    { id: 'visits', emoji: '📅', title: 'Ir ao boteco 2x essa semana', goal: 2, progress: visits },
-    { id: 'hydrate', emoji: '💧', title: '3 águas numa noite', goal: 3, progress: maxOf('agua') },
-    { id: 'variety', emoji: '🍽️', title: 'Provar 4 itens diferentes', goal: 4, progress: maxVariety },
+    { id: 'visits', emoji: '📅', goal: 2, progress: visits },
+    { id: 'variety', emoji: '🍽️', goal: 4, progress: maxVariety },
   ];
   return defs.map((c) => ({ ...c, progress: Math.min(c.progress, c.goal), done: c.progress >= c.goal }));
 }
@@ -49,10 +47,10 @@ export function seasonAward(history, { now }) {
     const hd = new Date(h.at);
     if (hd.getUTCFullYear() * 100 + (hd.getUTCMonth() + 1) === key) { month += Math.max(0, Number(h.myTotal) || 0); nights++; }
   }
-  const MON = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][d.getUTCMonth()];
-  let emoji = '🌱', title = 'Começando o mês';
-  if (month >= 50) { emoji = '👑'; title = 'Rei do mês'; }
-  else if (month >= 25) { emoji = '🏆'; title = 'Destaque do mês'; }
-  else if (month >= 10) { emoji = '🔥'; title = 'Esquentando'; }
-  return { month, nights, label: MON, emoji, title };
+  // rótulo do mês e do tier viajam por índice — a UI traduz (t('mon.'+monthIdx), t('league.season.'+tier))
+  let emoji = '🌱', tier = 0;
+  if (month >= 50) { emoji = '👑'; tier = 3; }
+  else if (month >= 25) { emoji = '🏆'; tier = 2; }
+  else if (month >= 10) { emoji = '🔥'; tier = 1; }
+  return { month, nights, monthIdx: d.getUTCMonth(), emoji, tier };
 }

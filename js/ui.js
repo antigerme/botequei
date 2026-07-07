@@ -50,8 +50,8 @@ const IDS = [
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
-  'overlay-menu', 'menu-profile', 'menu-board', 'menu-pace', 'menu-safe', 'menu-roulette',
-  'menu-water', 'menu-jukebox', 'menu-festa', 'menu-card', 'menu-tournament', 'menu-bill', 'menu-prices',
+  'overlay-menu', 'menu-profile', 'menu-board',
+  'menu-jukebox', 'menu-festa', 'menu-bill', 'menu-prices',
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list', 'btn-save-menu',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
@@ -62,22 +62,17 @@ const IDS = [
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
-  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-limit', 'set-water', 'set-nudges',
-  'set-lang', 'set-weight', 'set-sex', 'set-responsa', 'set-carapp', 'set-trustname', 'set-trustphone',
+  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound',
+  'set-lang',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
-  'overlay-pace', 'pace-summary', 'pace-bar', 'pace-label', 'pace-chart', 'pace-bac', 'pace-coach',
-  'overlay-roulette', 'roulette-list', 'roulette-result', 'btn-roulette-spin',
   'overlay-poke', 'poke-title', 'poke-actions',
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
   'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
   'overlay-comanda', 'comanda-title', 'comanda-list', 'comanda-total',
-  'overlay-safe', 'safe-verdict', 'safe-rows', 'btn-safe-car', 'btn-safe-trust', 'btn-safe-home',
   'overlay-jukebox', 'jukebox-input', 'btn-jukebox-add', 'jukebox-list',
   'overlay-festa', 'festa-canvas', 'btn-festa-close',
   'set-shake',
-  'overlay-tournament', 'tourn-list', 'btn-tourn-add', 'btn-tourn-reset',
-  'overlay-card', 'card-draw', 'btn-card-again', 'btn-card-show',
   'menu-purrinha', 'overlay-purrinha', 'purr-sub', 'purr-setup', 'purr-pick', 'purr-pstatus', 'purr-hands', 'purr-guess-wrap', 'purr-guesses', 'btn-purr-seal',
   'purr-wait', 'purr-waitcount', 'purr-waitsub', 'purr-seals',
   'purr-guessing', 'purr-status', 'purr-said', 'purr-turnrow', 'purr-gpick', 'btn-purr-say',
@@ -205,17 +200,11 @@ export function init(handlers) {
   // menu
   $('menu-profile').addEventListener('click', () => { closeOverlays(); H.onProfile(); });
   $('menu-board').addEventListener('click', () => { closeOverlays(); H.onPeers(); });
-  $('menu-pace').addEventListener('click', () => { closeOverlays(); H.onPace(); });
-  $('menu-safe').addEventListener('click', () => { closeOverlays(); H.onSafe(); });
-  $('menu-roulette').addEventListener('click', () => { closeOverlays(); H.onRoulette(); });
   $('menu-purrinha').addEventListener('click', () => { closeOverlays(); H.onPurrinha(); });
   $('menu-domino').addEventListener('click', () => { closeOverlays(); H.onDomino(); });
   $('menu-truco').addEventListener('click', () => { closeOverlays(); H.onTruco(); });
-  $('menu-water').addEventListener('click', () => { closeOverlays(); H.onWaterRound(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
   $('menu-festa').addEventListener('click', () => { closeOverlays(); openFesta(); });
-  $('menu-card').addEventListener('click', () => { closeOverlays(); H.onCard(); });
-  $('menu-tournament').addEventListener('click', () => { closeOverlays(); H.onTournament(); });
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
   $('menu-hh').addEventListener('click', () => { closeOverlays(); el['overlay-hh'].hidden = false; });
@@ -228,24 +217,16 @@ export function init(handlers) {
   $('menu-settings').addEventListener('click', () => { closeOverlays(); openSettings(); });
   el['overlay-hh'].querySelectorAll('button[data-min]').forEach((b) => b.addEventListener('click', () => { H.onHappyHour(Number(b.dataset.min)); closeOverlays(); }));
 
-  // roleta / cerimônia
-  el['btn-roulette-spin'].addEventListener('click', () => H.onRouletteSpin());
+  // cerimônia
   el['btn-ceremony-share'].addEventListener('click', () => H.onCeremonyShare());
   el['btn-ceremony-broadcast'].addEventListener('click', () => H.onCeremonyBroadcast());
 
-  // segurança / retrô / liga / modo bar
+  // retrô / liga / modo bar
   el['btn-save-menu'].addEventListener('click', () => H.onSaveMenu());
-  el['btn-safe-car'].addEventListener('click', () => H.onCallCar());
-  el['btn-safe-trust'].addEventListener('click', () => H.onTrustContact());
   el['btn-retro-share'].addEventListener('click', () => H.onRetroShare());
   el['btn-bar-open'].addEventListener('click', () => H.onBarOpenTable(el['bar-code'].value, el['bar-usemenu'].checked));
-  el['btn-safe-home'].addEventListener('click', () => H.onGoHome());
   el['btn-jukebox-add'].addEventListener('click', () => submitSong());
   el['btn-festa-close'].addEventListener('click', () => closeOverlays());
-  el['btn-tourn-add'].addEventListener('click', () => H.onTournamentAdd());
-  el['btn-tourn-reset'].addEventListener('click', () => H.onTournamentReset());
-  el['btn-card-again'].addEventListener('click', () => H.onCard());
-  el['btn-card-show'].addEventListener('click', () => H.onCardShow());
   el['btn-purr-seal'].addEventListener('click', () => {
     if (purrPick.hand == null || (!purrClassic && purrPick.guess == null)) return;
     H.onPurrSeal(purrPick.hand, purrPick.guess);
@@ -301,16 +282,7 @@ export function init(handlers) {
   el['set-lang'].addEventListener('change', () => H.onSetting({ lang: el['set-lang'].value }));
   el['set-bigfont'].addEventListener('change', () => H.onSetting({ bigFont: el['set-bigfont'].checked }));
   el['set-sound'].addEventListener('change', () => H.onSetting({ sound: el['set-sound'].checked }));
-  el['set-limit'].addEventListener('change', () => H.onSetting({ limit: Math.max(0, parseInt(el['set-limit'].value, 10) || 0) }));
-  el['set-water'].addEventListener('change', () => H.onSetting({ waterEvery: Math.max(0, parseInt(el['set-water'].value, 10) || 0) }));
-  el['set-nudges'].addEventListener('change', () => H.onSetting({ nudges: el['set-nudges'].checked }));
   el['set-shake'].addEventListener('change', () => H.onShakeToggle(el['set-shake'].checked));
-  el['set-weight'].addEventListener('change', () => H.onSetting({ weightKg: Math.max(0, Math.min(300, parseInt(el['set-weight'].value, 10) || 0)) }));
-  el['set-sex'].addEventListener('change', () => H.onSetting({ sex: el['set-sex'].value }));
-  el['set-responsa'].addEventListener('change', () => H.onSetting({ responsa: el['set-responsa'].checked }));
-  el['set-carapp'].addEventListener('change', () => H.onSetting({ carApp: el['set-carapp'].value }));
-  el['set-trustname'].addEventListener('change', () => H.onSetting({ trustName: el['set-trustname'].value.trim() }));
-  el['set-trustphone'].addEventListener('change', () => H.onSetting({ trustPhone: el['set-trustphone'].value.trim() }));
   el['set-pixkey'].addEventListener('change', () => H.onSetting({ pixKey: el['set-pixkey'].value.trim() }));
   el['set-pixcity'].addEventListener('change', () => H.onSetting({ pixCity: el['set-pixcity'].value.trim() }));
   $('btn-clear-data').addEventListener('click', () => H.onClearData());
@@ -875,7 +847,7 @@ export function renderBill(vm) {
     const payb = li.querySelector('.b-pay'); if (payb) payb.addEventListener('click', () => H.onPayFor(u, !payb.classList.contains('on')));
     const selb = li.querySelector('.b-sel'); if (selb) selb.addEventListener('change', () => { if (selb.checked) billExcluded.delete(u); else billExcluded.add(u); H.onBillChange(); });
   });
-  el['bill-total'].textContent = 'Total: ' + fmtMoney(vm.total);
+  el['bill-total'].textContent = t('bill.total', { v: fmtMoney(vm.total) });
 }
 
 // ---------- PIX ----------
@@ -896,16 +868,7 @@ export function fillSettings(s) {
   el['set-lang'].value = s.lang || 'pt';
   el['set-bigfont'].checked = !!s.bigFont;
   el['set-sound'].checked = !!s.sound;
-  el['set-limit'].value = s.limit || '';
-  el['set-water'].value = s.waterEvery || '';
-  el['set-nudges'].checked = s.nudges !== false;
   el['set-shake'].checked = !!s.shake;
-  el['set-weight'].value = s.weightKg || '';
-  el['set-sex'].value = s.sex || '';
-  el['set-responsa'].checked = !!s.responsa;
-  el['set-carapp'].value = s.carApp || 'uber';
-  el['set-trustname'].value = s.trustName || '';
-  el['set-trustphone'].value = s.trustPhone || '';
   el['set-pixkey'].value = s.pixKey || '';
   el['set-pixcity'].value = s.pixCity || '';
 }
@@ -1016,9 +979,6 @@ const GAMES = () => [
   [t('purr.title'), 'onPurrinha'],
   [t('dom.title'), 'onDomino'],
   [t('tru.title'), 'onTruco'],
-  [t('roul.title'), 'onRoulette'],
-  [t('tourn.title'), 'onTournament'],
-  [t('card.title'), 'onCard'],
 ].map(([full, h]) => {
   const sp = full.indexOf(' ');
   return sp > 0 ? [full.slice(0, sp), full.slice(sp + 1), h] : ['', full, h];
@@ -1094,121 +1054,20 @@ export function openScanner(title, onResult) {
   });
 }
 
-// ---------- Meu ritmo (consciência) ----------
-function fmtDur(ms) {
-  const m = Math.round((ms || 0) / 60000);
-  if (m < 60) return m + 'min';
-  const h = Math.floor(m / 60), mm = m % 60;
-  return mm ? `${h}h${String(mm).padStart(2, '0')}` : `${h}h`;
-}
+// Caminho de retângulo arredondado (compartilhado pelo gráfico de tendência do Placar).
 function roundRectPath(g, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   g.beginPath(); g.moveTo(x + r, y);
   g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
   g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
 }
-function drawChart(canvas, bars) {
-  const g = canvas.getContext('2d');
-  const W = canvas.width, Hh = canvas.height;
-  g.clearRect(0, 0, W, Hh);
-  const light = document.body.classList.contains('light');
-  if (!bars || !bars.length) {
-    g.fillStyle = light ? 'rgba(60,40,10,.45)' : 'rgba(255,240,200,.45)';
-    g.font = '20px system-ui, sans-serif'; g.textAlign = 'center';
-    g.fillText('sem bebidas ainda', W / 2, Hh / 2);
-    return;
-  }
-  const max = Math.max(1, ...bars);
-  const n = bars.length, gap = 6;
-  const bw = (W - gap * (n + 1)) / n;
-  g.fillStyle = light ? '#c8811f' : '#f4b13c';
-  for (let i = 0; i < n; i++) {
-    const h = Math.round((bars[i] / max) * (Hh - 20));
-    if (h <= 0) continue;
-    roundRectPath(g, gap + i * (bw + gap), Hh - 4 - h, bw, h, 4);
-    g.fill();
-  }
-}
-export function openPace(vm) {
-  el['pace-summary'].innerHTML = `<strong>${vm.count}</strong> bebida${vm.count === 1 ? '' : 's'} em ${fmtDur(vm.spanMs)}`;
-  el['pace-bar'].style.width = Math.min(100, (vm.recent / 6) * 100) + '%';
-  el['pace-bar'].className = 'pace-bar lvl-' + vm.level;
-  el['pace-label'].textContent = t('pace.lastHour', { label: vm.label, n: vm.recent });
-  drawChart(el['pace-chart'], vm.bars || []);
-  if (vm.bac) {
-    const sober = vm.bac.soberInMs > 0 ? t('pace.soberIn', { t: fmtDur(vm.bac.soberInMs) }) : '';
-    el['pace-bac'].innerHTML = `<div class="bac-big">${vm.bac.bac.toFixed(2)} <small>g/L</small></div>
-      <div class="bac-lbl">${vm.bac.label}${sober}</div>
-      ${vm.bac.canDrive ? '' : `<div class="bac-drive">${t('pace.noDrive')}</div>`}`;
-  } else {
-    el['pace-bac'].innerHTML = `<div class="bac-lbl">${t('pace.setWeight')}</div>`;
-  }
-  if (vm.coach) {
-    const proj = vm.coach.predicted != null ? `<div class="coach-proj">${t('pace.proj', { n: vm.coach.predicted })}</div>` : '';
-    const tips = (vm.coach.tips || []).map((t) => `<div class="coach-tip">${esc(t)}</div>`).join('');
-    el['pace-coach'].innerHTML = `<div class="coach-head">${t('pace.coachHead')}</div>${proj}${tips}`;
-  } else {
-    el['pace-coach'].innerHTML = '';
-  }
-  el['overlay-pace'].hidden = false;
-}
-
-// ---------- Roleta: quem paga a próxima ----------
-let rouletteRunning = false;
-export function openRoulette(vm) {
-  const entrants = (vm && vm.entrants) || [];
-  el['roulette-result'].hidden = true;
-  el['btn-roulette-spin'].disabled = entrants.length < 2 || rouletteRunning;
-  el['roulette-list'].innerHTML = entrants.map((e, i) => `<li class="roul-item" data-i="${i}">
-    <span class="peer-avatar" style="background:${safeColor(e.color)}">${avInner(e.photo, e.avatar)}</span>
-    <span class="roul-name">${esc(e.name || t('common.anon'))}${e.isSelf ? ` <span class="peer-you">${t('common.youParen')}</span>` : ''}</span></li>`).join('')
-    || `<li class="roul-item">${t('roul.empty')}</li>`;
-  el['overlay-roulette'].hidden = false;
-}
-// Anima o giro terminando no vencedor (mesma lista/vencedor em todos os aparelhos → sincronizado).
-export function runRoulette(entrants, winnerUser) {
-  if (rouletteRunning || !entrants || !entrants.length) return;
-  openRoulette({ entrants });
-  const items = [...el['roulette-list'].querySelectorAll('.roul-item')];
-  const n = entrants.length;
-  let winIdx = entrants.findIndex((e) => e.user === winnerUser);
-  if (winIdx < 0) winIdx = 0;
-  const steps = 3 * n + winIdx; // algumas voltas + parar no vencedor
-  const highlight = (idx) => items.forEach((it, i) => it.classList.toggle('on', i === idx % n));
-  const finish = () => {
-    const w = entrants[winIdx];
-    el['roulette-result'].hidden = false;
-    el['roulette-result'].innerHTML = t('roul.result', { name: esc(w.name || t('common.someoneLow')) });
-    if (H.onSfx) H.onSfx('win'); vibrate([60, 40, 120]);
-    celebrate(['🎉', '🎰', '🍻', '🥂']);
-  };
-  if (reducedMotion()) { highlight(winIdx); finish(); return; } // sem giro: mostra o resultado
-  rouletteRunning = true;
-  el['btn-roulette-spin'].disabled = true;
-  let s = 0;
-  const step = () => {
-    highlight(s);
-    if (H.onSfx) H.onSfx('tick'); vibrate(8);
-    s++;
-    if (s <= steps) {
-      const remaining = steps - s;
-      setTimeout(step, remaining < n ? 90 + (n - remaining) * 45 : 70); // desacelera no fim
-    } else {
-      highlight(steps);
-      rouletteRunning = false;
-      el['btn-roulette-spin'].disabled = false;
-      finish();
-    }
-  };
-  step();
-}
 
 // ---------- Cutucar / desafiar ----------
 export function openPoke(vm) {
-  el['poke-title'].textContent = 'Provocar ' + (vm.name || t('common.someoneLow'));
-  const btns = ['<button class="btn btn-primary poke-btn" data-kind="poke">👉 Cutucar</button>'];
+  el['poke-title'].textContent = t('poke.title', { name: vm.name || t('common.someoneLow') });
+  const btns = [`<button class="btn btn-primary poke-btn" data-kind="poke">${t('poke.poke')}</button>`];
   for (const it of (vm.items || [])) {
-    btns.push(`<button class="btn btn-ghost poke-btn" data-kind="challenge" data-item="${esc(it.id)}">${esc(it.emoji)} Desafiar: ${esc(it.name)}</button>`);
+    btns.push(`<button class="btn btn-ghost poke-btn" data-kind="challenge" data-item="${esc(it.id)}">${esc(it.emoji)} ${t('poke.dare', { item: esc(it.name) })}</button>`);
   }
   el['poke-actions'].innerHTML = btns.join('');
   el['poke-actions'].querySelectorAll('.poke-btn').forEach((b) => b.addEventListener('click', () => {
@@ -1240,10 +1099,10 @@ export function openStats(vm) {
     + cell(s.thisMonth || 0, t('stats.month'))
     + cell(s.record ? s.record.total : 0, t('stats.record'))
     + cell('🔥' + (s.streakWeeks || 0), t('stats.weeks'));
-  if (s.favDrink) html += cell(vm.favEmoji || '🍺', 'favorita: ' + (vm.favName || s.favDrink), true);
+  if (s.favDrink) html += cell(vm.favEmoji || '🍺', t('stats.fav', { name: vm.favName || s.favDrink }), true);
   if (s.totalSpent > 0) html += cell(fmtMoney(s.totalSpent), t('stats.spent'), true);
   el['stats-grid'].innerHTML = html;
-  el['stats-badges'].innerHTML = (vm.badges || []).map((b) => `<span class="badge">${b.emoji} ${esc(b.name)}</span>`).join('') || '<span class="seal">Suas conquistas aparecem aqui 🏅</span>';
+  el['stats-badges'].innerHTML = (vm.badges || []).map((b) => `<span class="badge">${b.emoji} ${esc(t('lbadge.' + b.id, b.n != null ? { n: b.n } : undefined))}</span>`).join('') || `<span class="seal">${t('stats.badgesEmpty')}</span>`;
   const trend = vm.trend || [];
   const hasTrend = trend.some((t) => t.total > 0);
   el['stats-chart'].hidden = !hasTrend;
@@ -1251,16 +1110,16 @@ export function openStats(vm) {
   if (hasTrend) drawBars(el['stats-chart'], trend);
   const ins = vm.insight;
   if (ins && ins.best && ins.worst && ins.best.wd !== ins.worst.wd) {
-    el['stats-insight'].textContent = t('stats.insight', { best: ins.best.day, worst: ins.worst.day });
+    el['stats-insight'].textContent = t('stats.insight', { best: t('wd.' + ins.best.wd), worst: t('wd.' + ins.worst.wd) });
     el['stats-insight'].hidden = false;
   } else {
     el['stats-insight'].hidden = true;
   }
   el['stats-history'].innerHTML = (vm.history || []).slice(0, 12).map((h) => {
     const d = new Date(h.at);
-    const when = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    const when = d.toLocaleDateString(document.documentElement.lang || 'pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
     return `<li><span>${esc(h.title || h.room)} <small>· ${when}</small></span><small>${t('home.histLine', { me: h.myTotal || 0, tt: h.tableTotal || 0 })}</small></li>`;
-  }).join('') || '<li>Sem noites ainda — bora criar a primeira? 🍻</li>';
+  }).join('') || `<li>${t('stats.noNights')}</li>`;
   el['overlay-stats'].hidden = false;
 }
 // Barras com rótulo (tendência mensal).
@@ -1279,7 +1138,7 @@ function drawBars(canvas, items) {
     const h = Math.round((items[i].total / max) * (Hh - padB - 10));
     const x = gap + i * (bw + gap);
     if (h > 0) { g.fillStyle = col; roundRectPath(g, x, Hh - padB - h, bw, h, 4); g.fill(); }
-    g.fillStyle = lab; g.fillText(items[i].label, x + bw / 2, Hh - 7);
+    g.fillStyle = lab; g.fillText(t('mon.' + items[i].monthIdx), x + bw / 2, Hh - 7);
   }
 }
 
@@ -1302,7 +1161,7 @@ export function openComanda(vm) {
     <span class="c-qty">×${r.n}</span>
     ${r.money ? `<span class="c-money">${fmtMoney(r.money)}</span>` : ''}</li>`).join('')
     || `<li class="comanda-row">${t('comanda.empty')}</li>`;
-  el['comanda-total'].textContent = `Total: ${vm.total} 🍺${vm.money ? ' · ' + fmtMoney(vm.money) : ''}`;
+  el['comanda-total'].textContent = t('comanda.total', { n: vm.total }) + (vm.money ? ' · ' + fmtMoney(vm.money) : '');
   el['overlay-comanda'].hidden = false;
 }
 
@@ -1348,21 +1207,6 @@ function renderTourStep() {
   });
 }
 
-// ---------- Tô de boa? (segurança) ----------
-export function openSafe(vm) {
-  const v = vm.verdict;
-  el['safe-verdict'].className = 'safe-verdict lvl-' + v.level;
-  el['safe-verdict'].innerHTML = `<div class="sv-title">${esc(v.title)}</div><div class="sv-advice">${esc(v.advice)}</div>`;
-  const row = (emoji, label, val) => `<div class="safe-row"><span class="sr-emoji">${emoji}</span><span class="sr-label">${esc(label)}</span><span class="sr-val">${esc(val)}</span></div>`;
-  let rows = row('🍺', t('safe.bacRow'), vm.bacText);
-  if (vm.lastText) rows += row('⏱️', t('safe.lastRow'), vm.lastText);
-  if (vm.hydration) rows += row('💧', t('safe.hydRow'), vm.hydration.label);
-  el['safe-rows'].innerHTML = rows;
-  el['btn-safe-trust'].hidden = !vm.hasTrust;
-  el['btn-safe-home'].hidden = !vm.hasTrust;
-  el['overlay-safe'].hidden = false;
-}
-
 // ---------- Retrospectiva "Seu rolê" ----------
 export function openRetro(vm) {
   el['retro-slides'].innerHTML = (vm.slides || []).map((s) => `<div class="retro-slide">
@@ -1376,17 +1220,17 @@ export function openRetro(vm) {
 export function renderLeague(vm) {
   const L = vm.level;
   const pct = L.xpForNext > 0 ? Math.min(100, (L.xpInLevel / L.xpForNext) * 100) : 100;
-  el['league-level'].innerHTML = `<div class="ll-top"><span class="ll-badge">Nível ${L.level}</span><span class="ll-title">${esc(L.title)}</span></div>
+  el['league-level'].innerHTML = `<div class="ll-top"><span class="ll-badge">${t('league.level', { n: L.level })}</span><span class="ll-title">${esc(t('league.title.' + Math.min(L.level, 5)))}</span></div>
     <div class="pace-meter"><div class="pace-bar lvl-medio" style="width:${pct}%"></div></div>
-    <div class="ll-xp">${L.xpInLevel}/${L.xpForNext} XP pro próximo nível</div>`;
+    <div class="ll-xp">${t('league.xp', { a: L.xpInLevel, b: L.xpForNext })}</div>`;
   el['league-challenges'].innerHTML = (vm.challenges || []).map((c) => `<li class="chal-row ${c.done ? 'done' : ''}">
     <span class="chal-emoji">${esc(c.emoji)}</span>
-    <div class="chal-main"><span class="chal-title">${esc(c.title)}</span>
+    <div class="chal-main"><span class="chal-title">${esc(t('league.chal.' + c.id))}</span>
       <div class="pace-meter sm"><div class="pace-bar lvl-calmo" style="width:${Math.min(100, (c.progress / c.goal) * 100)}%"></div></div></div>
     <span class="chal-tick">${c.done ? '✅' : `${c.progress}/${c.goal}`}</span></li>`).join('');
   const s = vm.season;
   el['league-season'].innerHTML = s ? `<div class="season-card"><span class="season-emoji">${esc(s.emoji)}</span>
-    <div><div class="season-title">${esc(s.title)}</div><div class="season-sub">${s.month} rodada${s.month === 1 ? '' : 's'} em ${esc(s.label)}</div></div></div>` : '';
+    <div><div class="season-title">${esc(t('league.season.' + s.tier))}</div><div class="season-sub">${esc(t(s.month === 1 ? 'league.season1' : 'league.seasonN', { n: s.month, label: t('mon.' + s.monthIdx) }))}</div></div></div>` : '';
 }
 
 // ---------- Modo bar ----------
@@ -1397,22 +1241,6 @@ export function openBar(vm) {
   el['bar-menu-count'].textContent = n;
   el['bar-usemenu'].checked = n > 0;
   el['overlay-bar'].hidden = false;
-}
-
-// ---------- Torneio da galera ----------
-export function openTournament(vm) {
-  el['tourn-list'].innerHTML = (vm.rank || []).map((r, i) => `<li class="tourn-row">
-    <span class="tourn-medal">${['🥇', '🥈', '🥉'][i] || (i + 1 + 'º')}</span>
-    <span class="tourn-name">${esc(r.name)}</span>
-    <span class="tourn-pts">${r.points} pts <small>· ${r.nights} noite${r.nights === 1 ? '' : 's'}</small></span></li>`).join('')
-    || '<li class="tourn-row">Sem torneio ainda — some a primeira noite! 🏟️</li>';
-  el['overlay-tournament'].hidden = false;
-}
-
-// ---------- Carta da mesa (deck) ----------
-export function openCard(vm) {
-  el['card-draw'].innerHTML = `<div class="card-emoji">${esc(vm.emoji || '🃏')}</div><div class="card-text">${esc(vm.text || '')}</div>`;
-  el['overlay-card'].hidden = false;
 }
 
 // ---------- Purrinha (commit-reveal; modos: rápida = 1 rodada / clássica = eliminação) ----------
@@ -1850,7 +1678,7 @@ export function openPassport(vm) {
     : t('pass.empty');
   el['passport-list'].innerHTML = list.map((c) => {
     const d = new Date(c.at);
-    const when = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    const when = d.toLocaleDateString(document.documentElement.lang || 'pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
     const map = (c.lat != null && c.lng != null) ? `https://maps.google.com/?q=${c.lat},${c.lng}` : '';
     return `<li class="pass-row"><span class="pass-pin">📍</span>
       <div class="pass-main"><span class="pass-name">${esc(c.name || t('pass.fallback'))}</span><span class="pass-when">${when}</span></div>

@@ -11,7 +11,7 @@
 //
 // Papéis das camadas (regra de dependência: elas NÃO se importam entre si —
 // só o app.js importa todas):
-//   - events.js/stats.js/league.js/…  → LÓGICA PURA (testável em Node)
+//   - events.js/lifestats.js/league.js/…  → LÓGICA PURA (testável em Node)
 //   - mesh.js + signaling.js          → TRANSPORTE (WebRTC + sala de sinalização)
 //   - ui.js                           → APRESENTAÇÃO (recebe view-model, dispara H.*)
 //   - store.js/settings.js/identity.js→ PERSISTÊNCIA LOCAL (só localStorage)
@@ -21,10 +21,10 @@
 // SUMÁRIO (as âncoras "// ----" abaixo, na ordem do arquivo):
 //   Estado em memória · Signaling room (PIN) · Catálogo · Log/dedup · Ações de
 //   consumo · Rodada coletiva · Efeitos sociais · Eventos remotos · Render ·
-//   Mesa · Convite · Pareamento sem internet · Conta · Meu ritmo · Roleta ·
+//   Mesa · Convite · Pareamento sem internet · Conta · Roleta ·
 //   Jogo minimizado · Atualização automática (SW) · Tour guiado · Purrinha
 //   (rápida/clássica/3-2-1) · Dominó (+ ausente + mesa verificada) · Truco ·
-//   Cutucar · Cerimônia · Meus números · Tô de boa? · Retrospectiva · Liga ·
+//   Cutucar · Cerimônia · Meus números · Retrospectiva · Liga ·
 //   Modo bar · Handlers (objeto H — a API que a ui.js chama) · Boot
 // ============================================================================
 
@@ -37,11 +37,8 @@ import {
   paysFor, payerOf, songs, sharePool, shareSplit,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
-import { paceInfo, timeline, estimateBAC, lastDrinkAt, hydration, driveVerdict, projectAt, coachTips } from './stats.js';
 import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro } from './lifestats.js';
 import { levelFor, weeklyChallenges, seasonAward } from './league.js';
-import { mergeNight, rankTournament } from './tournament.js';
-import { pickCard } from './deck.js';
 import {
   clampHand, maxGuess as purrMax, randomNonce, makeCommit, verifyReveal, resolve as purrResolve, sha256Hex,
   makeHandCommit, verifyHandReveal, validGuessTo, guessOrder, classicRound, nextRound,
@@ -93,10 +90,8 @@ let settings = getSettings();
 let offlineWaiting = false;   // convidado esperando o anfitrião ler a resposta (fecha sozinho ao conectar)
 let lastTableMilestone = 0;   // comemora a cada 10 rodadas da mesa (marco); sincronizado no sync
 let hhEndedFor = 0;           // 'until' do happy hour cujo fechamento já foi comemorado
-let limitAlerted = false;   // pra a meta alertar uma vez (mesmo se ultrapassar de vez)
 let renderScheduled = false;
 let sessionStart = 0;        // quando entrei nesta mesa (p/ duração no histórico)
-let lastNudge = 0;           // cooldown do aviso de ritmo
 let prevOnline = new Set();  // presença: quem estava online (p/ avisar entrou/saiu)
 let presenceSeeded = false;  // 1ª passada de presença só semeia (sem toast)
 let everSeen = new Set();    // quem já apareceu online na sessão ("entrou!" só na 1ª vez)
@@ -106,15 +101,11 @@ const BYE_GRACE_MS = 45000;  // tela apagada / elevador / xixi não viram toast 
 let sessionMates = new Set(); // nomes que apareceram na mesa (p/ "com quem você mais bebeu")
 let pendingBarMenu = false;  // ao abrir "mesa do bar", carrega o cardápio salvo
 let lastRetro = null;        // dados da última retrospectiva (p/ compartilhar)
-let concernAt = new Map();   // cooldown do "cuida do fulano" por pessoa
-let lastCard = null;         // última carta sorteada (p/ mostrar pra mesa)
 let shakeHandler = null, shakeLast = 0; // mãos livres (chacoalhar pra +1)
 
-// itens alcoolicos (motorista nao registra esses; contam pro lembrete de agua)
-// Álcool INDIVIDUAL (trava do motorista + lembrete de água). Recipientes da mesa (share)
-// ficam de fora de propósito: motorista PODE marcar "chegou mais uma garrafa" — ele não bebe.
+// Álcool INDIVIDUAL (trava do motorista + rodada). Recipientes da mesa (share) ficam de fora
+// de propósito: motorista PODE marcar "chegou mais uma garrafa" — ele não bebe.
 const ALCOHOL = new Set(['chopp', 'lata', 'longneck', 'copo', 'dose', 'drink']);
-function myAlcohol() { let n = 0; for (const id of ALCOHOL) n += getCount(state, self, id); return n; }
 function leaderName() {
   let best = null, bestN = -1;
   for (const u of state.users) { if (isDriver(state, u)) continue; const t = userTotal(state, u); if (t > bestN) { bestN = t; best = u; } }
@@ -197,9 +188,6 @@ function emitLocal(ev) {
 
 // ---- Acoes de consumo ----
 function act(type, item) {
-  if (type === 'ADD' && isDriver(state, self) && ALCOHOL.has(item)) {
-    ui.toast(t('toast.driver')); return;
-  }
   if (type === 'REMOVE' && getCount(state, self, item) <= 0) { ui.toast(t('toast.nothingHere')); return; }
   const ev = type === 'ADD' ? makeAdd(item) : makeRemove(item);
   if (!emitLocal(ev)) return;
@@ -218,62 +206,8 @@ function undoLast() {
   if (emitLocal(inv)) afterChange(lastAction.item, lastAction.type === 'ADD' ? 'remove' : 'add');
   lastAction = null;
 }
-function checkLimit() {
-  if (settings.limit <= 0) return;
-  const mine = userTotal(state, self, resolveItem);
-  if (mine >= settings.limit && !limitAlerted) {
-    limitAlerted = true;
-    sound.alarm(); ui.vibrate([100, 50, 100]);
-    ui.actionToast(t('toast.limit', { n: settings.limit }), t('safe.car'), callCar);
-  } else if (mine < settings.limit) {
-    limitAlerted = false; // desfez e voltou pra baixo -> pode alertar de novo
-  }
-}
-function afterMyAdd(item) {
-  checkLimit();
-  if (ALCOHOL.has(item) && settings.waterEvery > 0) {
-    const alc = myAlcohol();
-    if (alc > 0 && alc % settings.waterEvery === 0) ui.toast(t('toast.water'));
-  }
-  checkPace();
+function afterMyAdd() {
   checkTableMilestone();
-}
-// Aviso de ritmo. No "modo responsa" fica mais firme: dispara já no ritmo médio e insiste mais.
-function checkPace() {
-  if (settings.nudges === false) return;
-  const p = paceInfo(log, self, resolveItem, { now: Date.now() });
-  const firm = !!settings.responsa;
-  const trigger = firm ? (p.level === 'alto' || p.level === 'medio') : p.level === 'alto';
-  const cooldown = firm ? 150000 : 240000;
-  if (trigger && Date.now() - lastNudge > cooldown) {
-    lastNudge = Date.now();
-    ui.toast(firm ? t('pace.firm') : t('pace.soft'));
-    sound.alarm();
-  }
-}
-// "Cuida do fulano": o ritmo de um peer é derivável do log compartilhado (sem expor BAC).
-function maybeConcern(user) {
-  const p = paceInfo(log, user, resolveItem, { now: Date.now() });
-  if (p.level !== 'alto') return;
-  if (Date.now() - (concernAt.get(user) || 0) < 300000) return; // 5 min por pessoa
-  concernAt.set(user, Date.now());
-  ui.toast(t('pace.watch', { name: profOf(user).name || t('common.folks') }));
-}
-// Rodada de água coletiva: +1 água pra todo mundo online + animação sincronizada.
-function waterRound() {
-  const targets = [{ user: self, name: getName() }];
-  if (mesh) for (const p of mesh.peers()) if (p.online) targets.push({ user: p.user, name: profOf(p.user).name });
-  let n = 0;
-  for (const t of targets) if (emitLocal(makeAdd('agua', t.user, t.name))) n++;
-  if (mesh) mesh.sendFx({ kind: 'water' });
-  ui.floatReaction('💧'); ui.floatReaction('💦'); sound.plus();
-  ui.celebrate(['💧', '💦', '🚰', '🫗']);
-  afterChange('agua', 'add');
-  ui.toast(n > 1 ? t('toast.waterRoundN', { n: n }) : t('toast.waterSelf'));
-}
-function callCar() {
-  const url = settings.carApp === '99' ? 'https://99app.com/' : 'https://m.uber.com/ul/';
-  try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
 }
 // Marco da mesa: a cada 10 rodadas, joga confete + aviso. Reajusta se desfizerem.
 function checkTableMilestone() {
@@ -366,13 +300,10 @@ function onFx(fx, fromId) {
   }
   if (fx.kind === 'brinde') ui.brinde();
   else if (fx.kind === 'react') ui.floatReaction(fx.emoji || '🍻');
-  else if (fx.kind === 'roulette') { if (Array.isArray(fx.entrants)) ui.runRoulette(fx.entrants, fx.winner); }
   else if (fx.kind === 'poke') { if (fx.to === self) receivePoke(fx); }
   else if (fx.kind === 'challenge') { if (fx.to === self) receiveChallenge(fx); }
   else if (fx.kind === 'ceremony') { if (Array.isArray(fx.awards)) ui.openCeremony({ awards: fx.awards }); }
   else if (fx.kind === 'waiter') receiveWaiter(fx);
-  else if (fx.kind === 'water') { ui.floatReaction('💧'); ui.celebrate(['💧', '💦', '🚰']); ui.toast(t('toast.waterRoundFx')); sound.plus(); }
-  else if (fx.kind === 'card') { ui.openCard({ emoji: fx.emoji, text: fx.text }); sound.pop(); }
   else if (fx.kind === 'purrinha') routePurrFx(fx);
   else if (fx.kind === 'truco') routeTrucoFx(fx);
   else if (fx.kind === 'domino') {
@@ -437,7 +368,6 @@ function onRemoteEvent(ev, fromPeer, isSync) {
   if (!ingest(ev)) return;
   if (mesh) mesh.broadcast({ k: 'ev', ev }, fromPeer); // gossip
   if (ev.type === 'HAPPYHOUR' && Number(ev.until) <= Date.now()) hhEndedFor = Number(ev.until); // happy hour já vencido (veio no sync): não comemora
-  if (ev.type === 'ADD' && ev.user === self) checkLimit(); // alguém somou pra mim (rodada)
   if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state, resolveItem) / 10); scheduleRender(); return; }
   if (ev.type === 'ADD') checkTableMilestone();
   if (ev.type === 'SONG') ui.renderJukebox(songs(state));
@@ -447,7 +377,6 @@ function onRemoteEvent(ev, fromPeer, isSync) {
     sound.pop();
     const line = milestoneLine(p.name || t('common.someoneLow'), userTotal(state, ev.user), leaderName());
     if (line) ui.toast(line);
-    maybeConcern(ev.user); // "cuida do fulano": ritmo do peer é derivável do log compartilhado
   }
   if (ev.item) afterChange(ev.item, ev.type === 'REMOVE' ? 'remove' : 'add');
   else scheduleRender();
@@ -669,9 +598,9 @@ function leaveTable() {
   }
   if (mesh) { mesh.close(); mesh = null; }
   store.clearCurrent();
-  room = null; roomPin = ''; myDriver = false; limitAlerted = false; offlineWaiting = false;
-  lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastNudge = 0; lastAwards = [];
-  prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set(); concernAt = new Map();
+  room = null; roomPin = ''; myDriver = false; offlineWaiting = false;
+  lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastAwards = [];
+  prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set();
   for (const t of pendingBye.values()) clearTimeout(t);
   pendingBye = new Map(); everSeen = new Set(); wentAway = new Set();
   purr = null; dom = null; dv = null; seenFx.clear(); purrPreFx = [];
@@ -816,37 +745,6 @@ function renderBill() {
   const b = computeBill(); lastBill = b;
   const note = b.hasPrices ? t('bill.noteCons') : t('bill.notePriceless');
   ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self, pool: b.pool });
-}
-
-// ---- Meu ritmo (consciência) ----
-function openPace() {
-  const now = Date.now();
-  const p = paceInfo(log, self, resolveItem, { now });
-  const tl = timeline(log, self, resolveItem, { now, buckets: 12 });
-  const bac = settings.weightKg > 0 ? estimateBAC(log, self, resolveItem, { now, weightKg: settings.weightKg, sex: settings.sex }) : null;
-  const hyd = hydration(log, self, resolveItem);
-  const mid = new Date(now); mid.setHours(24, 0, 0, 0); // próxima meia-noite
-  const proj = projectAt(log, self, resolveItem, { now, targetTs: mid.getTime() });
-  const coach = { predicted: p.count > 0 ? proj.predicted : null, tips: coachTips(p, hyd, bac) };
-  ui.openPace({ count: p.count, spanMs: p.spanMs, recent: p.recent, level: p.level, label: p.label, bars: tl.bars, bac, coach });
-}
-
-// ---- Roleta: quem paga a próxima (sincronizada via fx) ----
-function connectedEntrants() {
-  const me = profOf(self);
-  const out = [{ user: self, name: getName() || t('common.you'), avatar: me.emoji, photo: me.photo, color: me.color, isSelf: true }];
-  if (mesh) for (const p of mesh.peers()) if (p.online) { const pr = profOf(p.user); out.push({ user: p.user, name: pr.name || t('common.someoneLow'), avatar: pr.emoji, photo: pr.photo, color: pr.color }); }
-  return out;
-}
-function pickIndex(n) {
-  try { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0] % n; } catch { return Math.floor(Date.now()) % n; }
-}
-function doRoulette() {
-  const entrants = connectedEntrants();
-  if (entrants.length < 2) { ui.toast(t('toast.need2')); return; }
-  const winner = entrants[pickIndex(entrants.length)].user;
-  if (mesh) mesh.sendFx({ kind: 'roulette', entrants, winner });
-  ui.runRoulette(entrants, winner);
 }
 
 // ---- Jogo minimizado (✕ = minimizar; encerrar pra mesa toda é ação explícita) ----
@@ -2465,29 +2363,7 @@ function openComanda(user) {
   ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user), money: userMoney(state, user, resolveItem) });
 }
 
-function fmtAgo(ms) {
-  const m = Math.round((ms || 0) / 60000);
-  if (m < 1) return t('time.now');
-  if (m < 60) return t('time.min', { n: m });
-  const h = Math.floor(m / 60);
-  return t('time.h', { h: h, mm: String(m % 60).padStart(2, '0') });
-}
 function myLevel() { return levelFor(lifeStats(store.getHistory(), { now: Date.now() })).level; }
-
-// ---- Tô de boa? (segurança) ----
-function openSafe() {
-  const now = Date.now();
-  const bac = settings.weightKg > 0 ? estimateBAC(log, self, resolveItem, { now, weightKg: settings.weightKg, sex: settings.sex }) : null;
-  const ld = lastDrinkAt(log, self, resolveItem, { now });
-  const hyd = hydration(log, self, resolveItem);
-  ui.openSafe({
-    verdict: driveVerdict(bac),
-    bacText: bac ? `${bac.bac.toFixed(2)} g/L · ${bac.label}` : t('safe.setWeight'),
-    lastText: ld ? fmtAgo(ld.agoMs) : '',
-    hydration: hyd.alc > 0 ? hyd : null,
-    hasTrust: !!settings.trustPhone,
-  });
-}
 
 // ---- Retrospectiva "Seu rolê" ----
 function openRetro() {
@@ -2617,9 +2493,6 @@ const handlers = {
     const res = await shareRecap(state, resolveItem).catch(() => 'error');
     if (res === 'download') ui.toast(t('toast.imgSaved')); else if (res === 'error') ui.toast(t('toast.imgError'));
   },
-  onPace: openPace,
-  onRoulette: () => { if (!room) { ui.toast(t('toast.needTable')); return; } ui.openRoulette({ entrants: connectedEntrants() }); },
-  onRouletteSpin: doRoulette,
   onPurrinha: startPurrinha,
   onPurrStart: (mode, botN) => startPurrinhaMode(mode, botN),
   onPurrSeal: (hand, guess) => (purr && purr.mode !== 'fast' ? purrSealHand(hand) : purrSeal(hand, guess)),
@@ -2672,7 +2545,6 @@ const handlers = {
   onCeremonyBroadcast: () => { if (mesh) mesh.sendFx({ kind: 'ceremony', awards: lastAwards }); ui.toast(t('toast.sentToTable')); },
   onStats: openStats,
   onComanda: openComanda,
-  onSafe: openSafe,
   onRetro: openRetro,
   onBarMode: () => ui.openBar({ menuCount: store.getBarMenu().length }),
   onBarOpenTable: (code, useMenu) => {
@@ -2688,8 +2560,6 @@ const handlers = {
     store.saveBarMenu(defs);
     ui.toast(defs.length ? t('bar.menuSaved', { n: defs.length }) : t('bar.menuEmpty'));
   },
-  onCallCar: callCar,
-  onWaterRound: () => { if (!room) { ui.toast(t('toast.needTable')); return; } waterRound(); },
   onJukebox: () => { if (!room) { ui.toast(t('toast.needTable')); return; } ui.openJukebox({ songs: songs(state) }); },
   onSongAdd: (title) => {
     if (!room) return;
@@ -2700,31 +2570,6 @@ const handlers = {
     const url = song.url && /^https?:\/\//.test(song.url) ? song.url : 'https://music.youtube.com/search?q=' + encodeURIComponent(song.title);
     try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
   },
-  onGoHome: () => {
-    const digits = (settings.trustPhone || '').replace(/\D/g, '');
-    if (!digits) { ui.toast(t('toast.trustConfig')); return; }
-    const num = digits.length <= 11 ? '55' + digits : digits;
-    if (!navigator.geolocation) { ui.toast(t('toast.noGps')); return; }
-    ui.toast(t('toast.gettingLoc'));
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const map = `https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`;
-      const msg = encodeURIComponent(t('safe.homeMsg', { name: settings.trustName ? ' ' + settings.trustName : '', map: map }));
-      try { window.open(`https://wa.me/${num}?text=${msg}`, '_blank', 'noopener'); } catch { /* ignore */ }
-    }, () => ui.toast(t('toast.locError')), { timeout: 8000 });
-  },
-  onTournament: () => ui.openTournament({ rank: rankTournament(store.getTournament().standings) }),
-  onTournamentAdd: () => {
-    if (!room) { ui.toast(t('toast.needTable')); return; }
-    const rows = summary(state, resolveItem).map((r) => ({ name: profOf(r.user).name, points: 10 + getCount(state, r.user, 'agua') }));
-    const tourn = store.getTournament();
-    const merged = { name: tourn.name || t('games.tourn'), standings: mergeNight(tourn.standings, rows), at: Date.now() };
-    store.saveTournament(merged);
-    ui.openTournament({ rank: rankTournament(merged.standings) });
-    ui.toast(t('toast.tournAdded'));
-  },
-  onTournamentReset: () => { store.saveTournament({ name: '', standings: {}, at: 0 }); ui.openTournament({ rank: [] }); ui.toast(t('toast.tournReset')); },
-  onCard: () => { lastCard = pickCard(pickIndex(1000)); ui.openCard(lastCard); sound.pop(); },
-  onCardShow: () => { if (lastCard && mesh) mesh.sendFx({ kind: 'card', emoji: lastCard.emoji, text: lastCard.text }); ui.toast(t('toast.cardShown')); },
   // Passaporte de botecos (check-ins locais, opcionalmente com GPS)
   onPassport: () => ui.openPassport({ checkins: store.getCheckins(), suggestName: room ? tableInfo(state).title : '' }),
   onCheckin: (name) => {
@@ -2757,13 +2602,6 @@ const handlers = {
     } catch { ui.toast(t('toast.shareError')); }
   },
   onShakeToggle: (on) => { settings = setSettings({ shake: !!on }); if (on) enableShake(); else disableShake(); ui.toast(on ? t('toast.shakeOn') : t('toast.shakeOff')); },
-  onTrustContact: () => {
-    const digits = (settings.trustPhone || '').replace(/\D/g, '');
-    if (!digits) { ui.toast(t('toast.trustConfig')); return; }
-    const num = digits.length <= 11 ? '55' + digits : digits;
-    const msg = encodeURIComponent(t('safe.trustMsg', { name: settings.trustName ? ' ' + settings.trustName : '' }));
-    try { window.open(`https://wa.me/${num}?text=${msg}`, '_blank', 'noopener'); } catch { /* ignore */ }
-  },
   onRetroShare: async () => {
     if (!lastRetro) return;
     const res = await shareRetro(lastRetro).catch(() => 'error');

@@ -156,16 +156,6 @@ async function main() {
     }, null, { timeout: T })));
   });
 
-  await step('roleta: mesmo vencedor nos dois aparelhos', async () => {
-    await pageA.click('#btn-menu'); await pageA.click('#menu-roulette');
-    await visible(pageA, 'overlay-roulette');
-    await pageA.click('#btn-roulette-spin');
-    await Promise.all([visible(pageA, 'roulette-result'), visible(pageB, 'roulette-result')]);
-    const rA = (await pageA.textContent('#roulette-result')).trim();
-    const rB = (await pageB.textContent('#roulette-result')).trim();
-    if (!rA || rA !== rB) throw new Error(`resultado divergente: A="${rA}" B="${rB}"`);
-  });
-
   await step('cutucada chega no alvo (B)', async () => {
     await closeAll(pageA);
     await pageA.click('#btn-peers'); await visible(pageA, 'overlay-peers');

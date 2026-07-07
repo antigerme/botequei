@@ -138,11 +138,9 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   const s = emptyState();
   applyEvent(s, { type: 'PROFILE', user: 'andre', name: 'André', driver: true, ts: 1, eventId: 'p' });
   for (let i = 0; i < 6; i++) applyEvent(s, { type: 'ADD', user: 'bia', name: 'Bia', item: 'cerveja', ts: 10 + i, eventId: 'b' + i });
-  applyEvent(s, { type: 'ADD', user: 'bia', name: 'Bia', item: 'agua', ts: 30, eventId: 'w' });
-  applyEvent(s, { type: 'ADD', user: 'andre', name: 'André', item: 'agua', ts: 31, eventId: 'wa' });
   const ids = badgesFor(s, 'bia').map((b) => b.id);
-  assert.ok(ids.includes('first') && ids.includes('five') && ids.includes('water'));
-  ok('conquistas: first/five/water');
+  assert.ok(ids.includes('first') && ids.includes('five'));
+  ok('conquistas: first/five');
   const ri = (id) => ({ id, price: 0 });
   assert.strictEqual(mvp(s, ri).name, 'Bia'); // André é motorista -> fora do MVP
   ok('MVP: ignora motorista');
@@ -201,16 +199,13 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   applyEvent(s, { type: 'PROFILE', user: 'andre', name: 'André', driver: true, ts: 1, eventId: 'pa' });
   for (let i = 0; i < 4; i++) applyEvent(s, { type: 'ADD', user: 'bia', name: 'Bia', item: 'cerveja', ts: 10 + i, eventId: 'b' + i });
   applyEvent(s, { type: 'ADD', user: 'bia', name: 'Bia', item: 'dose', ts: 20, eventId: 'bd' });
-  applyEvent(s, { type: 'ADD', user: 'ze', name: 'Zé', item: 'agua', ts: 30, eventId: 'za' });
-  applyEvent(s, { type: 'ADD', user: 'ze', name: 'Zé', item: 'agua', ts: 31, eventId: 'za2' });
   const ri = (id) => ({ id, price: 0, g: id === 'cerveja' ? 13 : id === 'dose' ? 15 : 0 });
   const aw = ceremonyAwards(s, ri, { log: [], now: 0 });
   const byId = Object.fromEntries(aw.map((a) => [a.id, a]));
   assert.strictEqual(byId.mvp.name, 'Bia');   // maior total, não-motorista
-  assert.strictEqual(byId.agua.name, 'Zé');   // mais águas
   assert.strictEqual(byId.driver.name, 'André'); // motorista
   assert.ok(byId.ferro && byId.ferro.name === 'Bia'); // única com destilado
-  ok('cerimônia: MVP, hidratado, motorista, cabeça de ferro');
+  ok('cerimônia: MVP, motorista, cabeça de ferro');
 }
 
 // ---------- Jukebox (fila de músicas) ----------

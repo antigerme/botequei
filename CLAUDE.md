@@ -185,11 +185,18 @@ padrão Auto segue o navegador).
   não perder `g`/`cat`/`note`/`share`). **Itens compartilhados** (`share:1` — garrafa 600
   [id `cerveja`, mantido por compat], litrão, torre): pedido é DA MESA — g=0 (não entra nas
   estatísticas de quem tocou), dinheiro vai pro bolo (`sharePool`) e racheia na conta via `shareSplit`
-  (puro: motorista fora por padrão, toggle "todos", fallback se só tem motorista); o card tem
-  a zona "🥂 meu copo" (item `copo`, `cup:1`, R$0 e g=11) = dose PESSOAL que alimenta
-  as estatísticas e não vira card próprio. `userTotal`/`userMoney`/`summary` aceitam
-  `resolveItem` e excluem share do pessoal; `tableTotal` (herói) soma os PEDIDOS —
-  exclui `cup` (o copo derivaria dupla contagem da garrafa que já contou).
+  (puro: motorista fora por padrão, toggle "todos", fallback se só tem motorista; a caixinha
+  da conta tira qualquer um do racha). **Garrafa com dono** (`payer` no evento ADD/REMOVE):
+  perdeu o jogo ou bancou a rodada → a unidade SAI do bolo (`sharePool` exclui) e cai
+  inteira na conta do pagador (`userMoney` soma; `paidCount` pro detalhe). O contador da
+  mesa NÃO muda. Entradas: menu "💸 Pagar uma rodada" e toast no aparelho do PERDEDOR
+  (purrinha ×3, dominó 2p, truco — é oferta, não automação; sem item da mesa no cardápio,
+  não oferece). **SEM contagem de copo** — contar copo é mesquinharia
+  (decisão de produto): o card compartilhado é só o contador DA MESA; consumo pessoal vem só
+  de item individual. O item `copo` (`cup:1`) segue no catálogo APENAS por compat de mesas
+  antigas (nada o emite; `isCup` filtra de cards/rodada/editor; `tableTotal` segue excluindo
+  `cup` pra log velho não contar dobrado). `userTotal`/`userMoney`/`summary` aceitam
+  `resolveItem` e excluem share do pessoal.
   **Cardápio da mesa** (ex-"Preços", `menu-prices`): cada item aceita **marca/apelido**
   (`brand` no def, LWW — `itemLabel` prioriza) e **esconder** (`off` no def — cards/rodada/
   contador gigante filtram; a lista do editor mostra esmaecido pra reativar; contagens e

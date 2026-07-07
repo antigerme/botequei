@@ -51,7 +51,7 @@ const IDS = [
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
   'overlay-menu', 'menu-profile', 'menu-board',
-  'menu-jukebox', 'menu-festa', 'menu-bill', 'menu-prices',
+  'menu-jukebox', 'menu-festa', 'menu-payround', 'menu-bill', 'menu-prices',
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings',
   'overlay-prices', 'price-list', 'btn-save-menu',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
@@ -67,6 +67,7 @@ const IDS = [
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
   'overlay-poke', 'poke-title', 'poke-actions',
+  'overlay-payround', 'payround-list',
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
   'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
   'overlay-comanda', 'comanda-title', 'comanda-list', 'comanda-total',
@@ -205,6 +206,7 @@ export function init(handlers) {
   $('menu-truco').addEventListener('click', () => { closeOverlays(); H.onTruco(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
   $('menu-festa').addEventListener('click', () => { closeOverlays(); openFesta(); });
+  $('menu-payround').addEventListener('click', () => { closeOverlays(); H.onPayRound(); });
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
   $('menu-hh').addEventListener('click', () => { closeOverlays(); el['overlay-hh'].hidden = false; });
@@ -415,14 +417,6 @@ export function renderTable(vm) {
       const id = card.dataset.item;
       attachGesture(card, () => H.onAdd(id), () => H.onRemove(id));
       card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); H.onAdd(id); } });
-      const cup = card.querySelector('.item-cup');
-      if (cup) {
-        // a zona do copo é um mundo à parte: nada vaza pro gesto do card (senão um toque
-        // no copo também marcaria uma garrafa da mesa)
-        for (const evn of ['pointerdown', 'pointermove', 'pointerup', 'click']) cup.addEventListener(evn, (e) => e.stopPropagation());
-        cup.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); H.onCup(); } });
-        attachGesture(cup, () => H.onCup(), () => H.onCupRemove());
-      }
     });
     lastIds = sig;
   }
@@ -434,8 +428,7 @@ export function renderTable(vm) {
     card.querySelector('.item-emoji').textContent = it.emoji;
     card.querySelector('.item-name').textContent = it.name;
     countTo(card.querySelector('.item-qty'), it.qty);
-    if (it.share) { const n = card.querySelector('.item-cup-n'); if (n) countTo(n, it.cups); }
-    else { const sub = card.querySelector('.item-sub'); if (sub) sub.textContent = it.sub; }
+    if (!it.share) { const sub = card.querySelector('.item-sub'); if (sub) sub.textContent = it.sub; }
     card.toggleAttribute('data-zero', (Number(it.qty) || 0) === 0);
     card.classList.toggle('hot', it.id === topId && topQ > 0);
   }
@@ -450,14 +443,13 @@ export function renderTable(vm) {
 function cardHTML(it) {
   const note = it.note ? ` title="${esc(it.note)}"` : '';
   if (it.share) {
-    // COMPARTILHADO: o número grande é DA MESA ("chegou mais uma" — qualquer um marca);
-    // a zona 🥂 embaixo marca o MEU copo (toque +1, segure −1) — é ela que fala com o corpo
+    // COMPARTILHADO: o número grande é DA MESA ("chegou mais uma" — qualquer um marca).
+    // SEM contagem de copo (mesquinharia): quem não bebe sai do racha na própria conta.
     return `<div class="item-card share" data-item="${esc(it.id)}" role="button" tabindex="0" aria-label="${esc(it.name)}: ${t('card.ariaShare')}"${note}>
     <div class="item-qty">${it.qty}</div>
     <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
     ${it.note ? `<div class="item-note">📝 ${esc(it.note)}</div>` : ''}
-    <button class="item-cup" type="button" aria-label="${t('card.myCupAria')}">🥂 ${t('card.myCup')} · <b class="item-cup-n">${it.cups}</b></button>
     <div class="item-plus">+1</div>
     <div class="share-flag" aria-hidden="true">${t('card.mesa')}</div></div>`;
   }
@@ -1040,6 +1032,14 @@ function roundRectPath(g, x, y, w, h, r) {
   g.beginPath(); g.moveTo(x + r, y);
   g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
   g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+
+// ---------- 💸 Pagar uma rodada (item da mesa com dono) ----------
+export function openPayRound(vm) {
+  el['payround-list'].innerHTML = (vm.items || []).map((it) =>
+    `<button class="btn btn-primary pay-btn" data-id="${esc(it.id)}">${esc(it.emoji)} ${esc(it.name)}${it.price ? ' · ' + fmtMoney(it.price) : ''}</button>`).join('');
+  el['payround-list'].querySelectorAll('.pay-btn').forEach((b) => b.addEventListener('click', () => { closeOverlays(); H.onPayPick(b.dataset.id); }));
+  el['overlay-payround'].hidden = false;
 }
 
 // ---------- Cutucar / desafiar ----------

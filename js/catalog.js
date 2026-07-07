@@ -6,13 +6,14 @@
 // dose 50ml ~40%, drink ~ um destilado.
 //
 // FORMATOS de cerveja (o mundo bebe de dois jeitos — e o Brasil também):
-// - INDIVIDUAIS (chopp, lata, long neck): 1 toque = EU bebi 1 → conta no meu bolso E no
-//   meu corpo (BAC/estatísticas), como sempre foi.
+// - INDIVIDUAIS (chopp, lata, long neck): 1 toque = EU bebi 1 → conta no meu bolso E nas
+//   minhas estatísticas, como sempre foi.
 // - COMPARTILHADOS (`share: 1` — garrafa 600, litrão, torre): o pedido é DA MESA. 1 toque =
-//   "chegou mais uma" (qualquer um marca, UMA vez); o dinheiro vai pro rateio da conta, e o
-//   `g` é 0 de propósito: o recipiente não entra no corpo de quem tocou. O que desceu na
-//   SUA goela se marca no "copo da mesa" (`cup: 1`): item individual, R$ 0 (o dinheiro já
-//   está no recipiente), g > 0 — é ele que alimenta BAC/ritmo/estatísticas.
+//   "chegou mais uma" (qualquer um marca, UMA vez); o dinheiro vai pro rateio da conta
+//   (quem não bebe sai do racha lá; motorista já fica fora), e o `g` é 0 de propósito.
+//   SEM contagem de copo — contar copo é mesquinharia (decisão de produto).
+// O item 'copo' (`cup: 1`) segue no catálogo SÓ por compat: mesas antigas têm contagens
+// dele no log (isCup o filtra de cards/rodada/editor). Nada mais o emite.
 // O id 'cerveja' segue existindo (agora = garrafa 600, que É "a cerveja" do boteco
 // brasileiro): eventos de mesas antigas continuam resolvendo sem buraco no CRDT.
 export const DEFAULT_ITEMS = [
@@ -34,8 +35,8 @@ export const DEFAULT_ITEMS = [
 // Compartilhado ("da mesa"): pedido coletivo — dinheiro rateado na conta, g=0 (não entra
 // no corpo de quem tocou). Vale pros padrões e pra item personalizado criado com a marca.
 export const isShare = (def) => !!(def && def.share);
-// Copo da mesa: a dose INDIVIDUAL de um recipiente compartilhado (R$0, g>0; não vira card —
-// ele mora DENTRO do card compartilhado, na zona "🥂 meu copo").
+// Copo da mesa (LEGADO, só compat): mesas antigas têm contagens de 'copo' no log — este
+// filtro o mantém fora de cards/rodada/editor. A UI não emite mais copo.
 export const isCup = (def) => !!(def && def.cup);
 
 // Categorias do cardápio, na ordem de exibição (a última, "outros", é o padrão de item novo).

@@ -5,8 +5,11 @@
 // navegadores convergem para o mesmo estado mesmo com atrasos, reenvios ou duplicatas.
 //
 // Tipos de evento:
-//   ADD     -> { type:'ADD',    user, name, item, ts, eventId }   (+1 do item p/ o usuario)
-//   REMOVE  -> { type:'REMOVE', user, name, item, ts, eventId }   (-1)
+//   ADD     -> { type:'ADD',    user, name, item, ts, eventId [, payer] }   (+1 do item p/ o usuario)
+//   REMOVE  -> { type:'REMOVE', user, name, item, ts, eventId [, payer] }   (-1)
+//   `payer` (opcional): unidade "com dono" — perdeu o jogo / bancou a rodada. O CONTADOR
+//   fica igual (a garrafa segue da mesa); só o DINHEIRO muda de bolso: sai do rateio
+//   (sharePool) e cai inteiro na conta do pagador (userMoney).
 //   ITEM    -> { type:'ITEM',   def:{id,emoji,name,price}, ts, eventId }  (item novo/preco, LWW)
 //   PROFILE -> { type:'PROFILE', user, name, color, emoji, driver, ts, eventId }  (identidade, LWW)
 //   TABLE   -> { type:'TABLE',  title, emoji, ts, eventId }  (nome/emoji da mesa, LWW)
@@ -20,11 +23,11 @@ export function newEventId() {
 
 // ---- Fabricas (carimbam ts + eventId) ----
 // user/name opcionais: por padrao sou eu; a "rodada" cria ADDs para outros usuarios.
-export function makeAdd(item, user, name) {
-  return { type: 'ADD', user: user || clientId(), name: name !== undefined ? name : getName(), item, ts: Date.now(), eventId: newEventId() };
+export function makeAdd(item, user, name, payer) {
+  return { type: 'ADD', user: user || clientId(), name: name !== undefined ? name : getName(), item, ts: Date.now(), eventId: newEventId(), ...(payer ? { payer } : {}) };
 }
-export function makeRemove(item, user, name) {
-  return { type: 'REMOVE', user: user || clientId(), name: name !== undefined ? name : getName(), item, ts: Date.now(), eventId: newEventId() };
+export function makeRemove(item, user, name, payer) {
+  return { type: 'REMOVE', user: user || clientId(), name: name !== undefined ? name : getName(), item, ts: Date.now(), eventId: newEventId(), ...(payer ? { payer } : {}) };
 }
 export function makeItem(def) {
   return { type: 'ITEM', def, ts: Date.now(), eventId: newEventId() };
@@ -59,6 +62,7 @@ export function makeSong({ title, url }) {
 export function emptyState() {
   return {
     counts: new Map(),   // "user\x00item" -> inteiro (pode ficar negativo transitoriamente)
+    paid: new Map(),     // "payer\x00item" -> unidades "com dono" (dinheiro na conta do pagador)
     items: new Map(),    // id -> { def, ts }        (itens/precos, LWW por ts)
     names: new Map(),    // user -> apelido mais recente visto
     users: new Set(),    // ids que registraram algo ou tem perfil
@@ -88,9 +92,16 @@ export function applyEvent(state, ev) {
     case 'ADD':
     case 'REMOVE': {
       if (!ev.user || !ev.item) return false;
+      const delta = ev.type === 'ADD' ? 1 : -1;
       const k = ckey(ev.user, ev.item);
-      state.counts.set(k, (state.counts.get(k) || 0) + (ev.type === 'ADD' ? 1 : -1));
+      state.counts.set(k, (state.counts.get(k) || 0) + delta);
       state.users.add(ev.user);
+      // unidade "com dono": soma no livro-caixa do pagador (higiene: só string curta)
+      if (typeof ev.payer === 'string' && ev.payer && ev.payer.length <= 64) {
+        const pk = ckey(ev.payer, ev.item);
+        state.paid.set(pk, (state.paid.get(pk) || 0) + delta);
+        state.users.add(ev.payer);
+      }
       applyName(state, ev.user, ev.name, ev);
       return true;
     }
@@ -173,7 +184,8 @@ export function tableTotal(state, resolveItem) {
 }
 
 // Gasto INDIVIDUAL de um usuario (preço × quantidade). Itens compartilhados ficam de fora:
-// o dinheiro deles vive no sharePool e é rateado na conta, não pendurado em quem tocou.
+// o dinheiro deles vive no sharePool e é rateado na conta — EXCETO as unidades "com dono"
+// (payer), que caem inteiras aqui na conta de quem pagou (perdeu o jogo / bancou a rodada).
 export function userMoney(state, user, resolveItem) {
   let total = 0;
   for (const [k, v] of state.counts) {
@@ -183,11 +195,23 @@ export function userMoney(state, user, resolveItem) {
     if (!def || def.share) continue;
     if (def.price) total += Math.max(0, v) * def.price;
   }
+  for (const [k, v] of state.paid) {
+    const [payer, item] = k.split('\x00');
+    if (payer !== user) continue;
+    const def = resolveItem(item);
+    if (def && def.price) total += Math.max(0, v) * def.price;
+  }
   return total;
+}
+
+// Unidades que `user` PAGOU (garrafa "minha" — punição de jogo ou rodada bancada).
+export function paidCount(state, user, item) {
+  return Math.max(0, state.paid.get(ckey(user, item)) || 0);
 }
 
 // O "bolo" da mesa: tudo que foi pedido em itens COMPARTILHADOS (garrafa 600, litrão,
 // torre, custom com share) — quantas unidades e quanto custou. A conta rateia isso.
+// Unidades "com dono" (payer) SAEM do bolo: o dinheiro delas já está na conta do pagador.
 export function sharePool(state, resolveItem) {
   const byItem = new Map(); // item -> count
   for (const [k, v] of state.counts) {
@@ -196,14 +220,20 @@ export function sharePool(state, resolveItem) {
     if (!def || !def.share) continue;
     byItem.set(item, (byItem.get(item) || 0) + Math.max(0, v));
   }
+  const paidBy = new Map(); // item -> unidades com dono
+  for (const [k, v] of state.paid) {
+    const item = k.slice(k.indexOf('\x00') + 1);
+    paidBy.set(item, (paidBy.get(item) || 0) + Math.max(0, v));
+  }
   const lines = [];
   let total = 0;
   for (const [item, count] of byItem) {
-    if (count <= 0) continue;
+    const c = Math.max(0, count - (paidBy.get(item) || 0));
+    if (c <= 0) continue;
     const def = resolveItem(item);
     const unit = (def && def.price) || 0;
-    lines.push({ id: item, count, unit, subtotal: count * unit });
-    total += count * unit;
+    lines.push({ id: item, count: c, unit, subtotal: c * unit });
+    total += c * unit;
   }
   return { total, lines };
 }

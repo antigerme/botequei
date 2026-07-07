@@ -34,9 +34,13 @@ chega no mesmo estado.
 **Itens compartilhados** (garrafa 600/litrão/torre, `share:1` no catálogo) usam o MESMO
 evento ADD — o que muda é a leitura: o dinheiro deles não pendura em quem tocou
 (`userMoney` pula, `sharePool` junta o bolo da mesa e `shareSplit` decide quem racheia na
-conta — motorista fora por padrão), e o corpo é medido pelo **copo** (`copo`, `cup:1`,
-R$0 e g>0): a zona "🥂 meu copo" dentro do card marca a dose PESSOAL que alimenta
-as estatísticas. Recipiente = dinheiro da mesa; copo = corpo de quem bebeu.
+conta — motorista fora por padrão, e a caixinha da conta tira do racha quem não bebe).
+**Garrafa com dono**: o evento ADD/REMOVE aceita `payer` — perdeu o jogo ou bancou a
+rodada (menu "💸 Pagar uma rodada" / toast no aparelho do perdedor) → a unidade sai do
+bolo e cai inteira na conta do pagador; o contador da mesa não muda.
+**Sem contagem de copo** (contar copo é mesquinharia — decisão de produto): o card
+compartilhado é só o contador DA MESA; consumo pessoal vem de item individual. O item
+`copo` segue no catálogo apenas por compat de mesas antigas (`isCup` filtra; nada o emite).
 
 **A mesa nasce limpa (e o ➕ também)**: sem chips de sugestão em lugar nenhum — a tela
 vazia mostra o convite + "➕ Montar o cardápio", e o overlay ➕ abre direto no formulário

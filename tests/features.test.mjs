@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs } from '../js/events.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, itemTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs, paidCount } from '../js/events.js';
 import { badgesFor, mvp, ceremonyAwards } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
@@ -81,6 +81,23 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.strictEqual(pool.lines.length, 1);
   assert.strictEqual(pool.lines[0].count, 3);
   ok('compartilhado: sharePool junta o bolo da mesa (3 garrafas, R$36)');
+
+  // ---- garrafa COM DONO (payer): perdeu o jogo / bancou → sai do bolo, cai na conta ----
+  applyEvent(s, { type: 'ADD', user: 'b', item: 'cerveja', payer: 'b', ts: 20, eventId: 'own1' });
+  assert.strictEqual(itemTotal(s, 'cerveja'), 4, 'a garrafa com dono AINDA conta pra mesa (card/herói)');
+  const pool2 = sharePool(s, resolve);
+  assert.strictEqual(pool2.total, 36, 'o bolo segue com as 3 SEM dono');
+  assert.strictEqual(pool2.lines[0].count, 3);
+  assert.strictEqual(userMoney(s, 'b', resolve), 12, 'a garrafa do B cai inteira na conta dele');
+  assert.strictEqual(paidCount(s, 'b', 'cerveja'), 1);
+  assert.strictEqual(userTotal(s, 'b', resolve), 0, 'pagar não vira consumo pessoal (share segue fora)');
+  ok('payer: garrafa com dono sai do racha e cai na conta de quem pagou');
+
+  applyEvent(s, { type: 'REMOVE', user: 'b', item: 'cerveja', payer: 'b', ts: 21, eventId: 'own2' });
+  assert.strictEqual(userMoney(s, 'b', resolve), 0, 'desfazer devolve tudo');
+  assert.strictEqual(paidCount(s, 'b', 'cerveja'), 0);
+  assert.strictEqual(sharePool(s, resolve).total, 36, 'o bolo não muda com o desfazer');
+  ok('payer: desfazer (REMOVE com payer) zera o dono e preserva o bolo');
 
   const rows = summary(s, resolve);
   const ra = rows.find((r) => r.user === 'a');

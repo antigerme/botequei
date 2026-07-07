@@ -34,7 +34,7 @@ import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar, catOf, isShare, i
 import {
   emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor, makeSong,
   getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver, happyHour,
-  paysFor, payerOf, songs, sharePool, shareSplit,
+  paysFor, payerOf, songs, sharePool, shareSplit, paidCount,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
 import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro } from './lifestats.js';
@@ -268,6 +268,40 @@ function rodada(item) {
   ui.toast(n ? t('toast.roundN', { n: n }) : t('toast.round0'));
 }
 
+// ---- 💸 Pagar uma rodada (perdeu o jogo ou resolveu bancar): item DA MESA com dono ----
+// A garrafa segue contando pra mesa (card/herói); só o DINHEIRO muda de bolso — a unidade
+// sai do racha (sharePool) e cai inteira na conta de quem pagou (`payer` no evento ADD).
+let lastPaid = null; // último pagamento (p/ desfazer)
+function payChoices() {
+  return allItems().filter((it) => isShare(it) && !it.off)
+    .map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it), price: it.price || 0 }));
+}
+function openPayRound() {
+  const items = payChoices();
+  if (!items.length) { ui.toast(t('pay.noShare')); return; }
+  ui.openPayRound({ items });
+}
+function payRoundGo(itemId) {
+  const def = resolveItem(itemId);
+  if (!def || !isShare(def)) return;
+  const ev = makeAdd(itemId, self, getName(), self);
+  if (!emitLocal(ev)) return;
+  lastPaid = ev;
+  if (mesh) mesh.sendFx({ kind: 'react', emoji: '💸' });
+  ui.floatReaction('💸'); sound.cheers(); ui.celebrate([def.emoji || '🍻', '💸', '🎉']);
+  afterChange(itemId, 'add');
+  ui.actionToast(t('pay.done', { item: itemLabel(def) }), t('common.undo'), () => {
+    if (!lastPaid) return;
+    if (emitLocal(makeRemove(lastPaid.item, lastPaid.user, lastPaid.name, self))) { lastPaid = null; scheduleRender(); }
+  }, 7000);
+}
+// Perdeu o jogo NO MEU aparelho: oferece pagar a rodada (abre o escolhedor do item da mesa).
+// É OFERTA, não automação — quem perdeu decide; sem item da mesa no cardápio, a zoeira basta.
+function offerLoserPay() {
+  if (!payChoices().length) return;
+  ui.actionToast(t('pay.lostQ'), t('pay.lostGo'), () => openPayRound(), 12000);
+}
+
 // ---- Efeitos sociais ----
 function onBrinde() { ui.brinde(); if (mesh) mesh.sendFx({ kind: 'brinde' }); }
 function onReact(emoji) { ui.floatReaction(emoji); if (mesh) mesh.sendFx({ kind: 'react', emoji }); }
@@ -385,14 +419,13 @@ function afterChange(item, kind) {
 function render() {
   if (!room) return;
   const list = allItems();
-  // copo da mesa não vira card (mora DENTRO dos cards compartilhados); share mostra o
-  // contador DA MESA no número grande e os MEUS copos na zona de baixo
+  // `copo` de mesa antiga nunca vira card (isCup filtra — hoje é só compat de log velho);
+  // share mostra o contador DA MESA no número grande (sem contagem pessoal de copo)
   const items = list.filter((it) => !isCup(it) && !it.off).map((it) => ({
     id: it.id, emoji: it.emoji, name: itemLabel(it), cat: catOf(it), note: it.note || '',
     share: isShare(it),
     qty: itemTotal(state, it.id),
     sub: isShare(it) ? '' : t('item.sub', { n: getCount(state, self, it.id) }),
-    cups: isShare(it) ? getCount(state, self, 'copo') : 0,
   }));
   const info = tableInfo(state);
   const tt = tableTotal(state, resolveItem);
@@ -1019,6 +1052,7 @@ function maybePurrResolve() {
   else verdict = { text: t('purr.allSeers'), kind: 'win' };
   ui.purrinhaResult({ total: r.total, rows, verdict, final: true });
   if (verdict.kind === 'win') { sound.cheers(); ui.celebrate(['🔮', '🫲', '🎉', '🍻']); } else { sound.alarm(); ui.vibrate([80, 40, 80]); }
+  if (r.loserId === self) offerLoserPay();
 }
 
 // ---------- modo clássico (rodadas de eliminação; palpite falado em turno) ----------
@@ -1152,7 +1186,7 @@ function finishClassicRound() {
     else if (winnerId === self) verdict = { text: t('purr.youNailedPays', { n: total, name: purrName(loser) }), kind: 'win' };
     else verdict = { text: t('purr.pays', { name: purrName(loser) }), kind: 'other' };
     ui.purrinhaResult({ status: t('purr.statusEnd', { n: rdNow }), total, rows, verdict, final: true });
-    if (loser === self) { sound.alarm(); ui.vibrate([80, 40, 80]); } else { sound.cheers(); ui.celebrate(['🫲', '🍀', '🍻']); }
+    if (loser === self) { sound.alarm(); ui.vibrate([80, 40, 80]); offerLoserPay(); } else { sound.cheers(); ui.celebrate(['🫲', '🍀', '🍻']); }
     return;
   }
   if (winnerId) purr.freed.push(winnerId);
@@ -1193,7 +1227,7 @@ function finishSticksRound() {
     else if (winnerId === self) verdict = { text: t('purr.youZeroPays', { name: purrName(loser) }), kind: 'win' };
     else verdict = { text: t('purr.pays', { name: purrName(loser) }), kind: 'other' };
     ui.purrinhaResult({ status: t('purr.statusEnd', { n: rdNow }), total, rows, verdict, final: true });
-    if (loser === self) { sound.alarm(); ui.vibrate([80, 40, 80]); } else { sound.cheers(); ui.celebrate(['🥢', '🍀', '🍻']); }
+    if (loser === self) { sound.alarm(); ui.vibrate([80, 40, 80]); offerLoserPay(); } else { sound.cheers(); ui.celebrate(['🥢', '🍀', '🍻']); }
     return;
   }
   if (step.freedId) purr.freed.push(step.freedId);
@@ -1395,7 +1429,8 @@ function domCelebrate() {
   if (dom.verified) domStartAudit(); // mesa verificada: dispara a auditoria no fim
   if (dom.cheered) return;
   dom.cheered = true;
-  if (dom.winner === self) { sound.cheers(); ui.celebrate(['🁫', '🎉', '🍻', '🏆']); } else { sound.alarm(); ui.vibrate([80, 40, 80]); }
+  if (dom.winner === self) { sound.cheers(); ui.celebrate(['🁫', '🎉', '🍻', '🏆']); }
+  else { sound.alarm(); ui.vibrate([80, 40, 80]); if (dom.winner && dom.order.length === 2) offerLoserPay(); } // 2p: perdedor único
 }
 function renderDom() {
   if (!dom) return;
@@ -2102,7 +2137,8 @@ async function truFinishGame() {
   }
   truco.audits = truco.audits || {};
   tryTruAudit();
-  if (truco.winnerTeam === truTeamOfId(self)) { sound.cheers(); ui.celebrate(['🃏', '🏆', '🍻']); } else { sound.alarm(); ui.vibrate([80, 40, 80]); }
+  if (truco.winnerTeam === truTeamOfId(self)) { sound.cheers(); ui.celebrate(['🃏', '🏆', '🍻']); }
+  else { sound.alarm(); ui.vibrate([80, 40, 80]); offerLoserPay(); } // oferta em cada perdedor (1v1 e dupla)
   renderTruco();
 }
 async function onTopen(fx) {
@@ -2352,6 +2388,8 @@ function openComanda(user) {
   const p = profOf(user);
   const rows = [];
   for (const it of allItems()) { const n = getCount(state, user, it.id); if (n > 0) rows.push({ emoji: it.emoji, name: it.name, n, money: (it.price || 0) * n, note: it.note || '' }); }
+  // unidades que a pessoa PAGOU (perdeu o jogo / bancou): a garrafa "dela" aparece na comanda
+  for (const it of allItems()) { const n = paidCount(state, user, it.id); if (n > 0) rows.push({ emoji: '💸', name: t('comanda.paid', { item: itemLabel(it) }), n, money: (it.price || 0) * n, note: '' }); }
   ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user), money: userMoney(state, user, resolveItem) });
 }
 
@@ -2409,8 +2447,6 @@ const handlers = {
   onAdd: (item) => act('ADD', item),
   onRemove: (item) => act('REMOVE', item),
   onAddItemConfirm: addCustomItem,
-  onCup: () => act('ADD', 'copo'),
-  onCupRemove: () => act('REMOVE', 'copo'),
   onInvite: openInvite,
   onPeers: () => { renderPeers(); renderLeagueInfo(); ui.openPeers(); },
   onBrinde, onReact,
@@ -2421,6 +2457,8 @@ const handlers = {
     ui.openRound(choices, settings.roundItem || 'chopp');
   },
   onRoundPick: (id) => rodada(id),
+  onPayRound: () => openPayRound(),
+  onPayPick: (id) => payRoundGo(id),
   onBrindeGo: () => sound.cheers(),
   onProfile: () => { const p = profOf(self); ui.openProfile({ name: getName(), color: p.color, emoji: p.emoji, driver: myDriver, photo: settings.profPhoto || p.photo || '' }); },
   onProfileSave: ({ name, color, emoji, driver, photo }) => {

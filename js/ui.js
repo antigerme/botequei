@@ -82,15 +82,15 @@ const IDS = [
   'purr-wait', 'purr-waitcount', 'purr-waitsub', 'purr-seals',
   'purr-guessing', 'purr-status', 'purr-said', 'purr-turnrow', 'purr-gpick', 'btn-purr-say',
   'purr-result', 'purr-rstatus', 'purr-total', 'purr-reveals', 'purr-verdict',
-  'btn-purr-again', 'btn-purr-close', 'btn-purr-end',
+  'btn-purr-again', 'btn-purr-close',
   'menu-domino', 'menu-truco', 'overlay-domino', 'btn-dom-close', 'dom-setup', 'dom-game', 'dom-verified',
   'dom-opps', 'dom-turn', 'dom-board', 'dom-result',
   'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
-  'btn-dom-pass', 'btn-dom-again', 'btn-dom-end', 'game-pill',
+  'btn-dom-pass', 'btn-dom-again', 'game-pill',
   'tour', 'tour-spot', 'tour-balloon', 'tour-count', 'tour-title', 'tour-text', 'btn-tour-skip', 'btn-tour-next',
   'overlay-themepick', 'themepick-row',
   'overlay-truco', 'btn-tru-close', 'tru-setup', 'tru-game', 'tru-status', 'tru-score', 'tru-vira', 'tru-table',
-  'tru-hand', 'tru-actions', 'tru-result', 'btn-tru-end', 'tru-audit',
+  'tru-hand', 'tru-actions', 'tru-result', 'tru-audit',
   'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
   'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
   'overlay-welcome', 'btn-welcome-go',
@@ -252,15 +252,17 @@ export function init(handlers) {
   });
   el['btn-purr-say'].addEventListener('click', () => { if (purrSaid != null) H.onPurrGuess(purrSaid); });
   el['btn-purr-again'].addEventListener('click', () => H.onPurrinha());
-  el['btn-purr-close'].addEventListener('click', () => H.onPurrClose()); // minimiza (jogo segue); encerrar é o botão explícito
-  el['btn-purr-end'].addEventListener('click', () => H.onPurrEnd());
+  el['btn-purr-close'].addEventListener('click', () => H.onPurrClose()); // ✕ minimiza (jogo segue); encerrar é o ✕ da pill
   el['btn-dom-pass'].addEventListener('click', () => H.onDomPass());
   el['btn-dom-again'].addEventListener('click', () => H.onDomino());
   el['btn-dom-close'].addEventListener('click', () => H.onDomClose());
-  el['btn-dom-end'].addEventListener('click', () => H.onDomEnd());
-  el['game-pill'].addEventListener('click', () => H.onGameBack());
+  // pill de "jogo rolando": no chip, tocar no rótulo VOLTA pro jogo; o ✕ vermelho ENCERRA pra mesa toda
+  el['game-pill'].addEventListener('click', (e) => {
+    const end = e.target.closest('.game-chip-end'), open = e.target.closest('.game-chip-open');
+    if (end) H.onGamePillEnd(end.dataset.kind);
+    else if (open) H.onGamePillOpen(open.dataset.kind);
+  });
   el['btn-tru-close'].addEventListener('click', () => H.onTrucoClose());
-  el['btn-tru-end'].addEventListener('click', () => H.onTrucoEnd());
   // tour: tocar em qualquer lugar avança; "pular" encerra
   el['tour'].addEventListener('click', () => tourNext());
   el['btn-tour-next'].addEventListener('click', (e) => { e.stopPropagation(); tourNext(); });
@@ -498,6 +500,7 @@ function cardHTML(it) {
     <div class="item-qty">${it.qty}</div>
     <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
+    ${it.note ? `<div class="item-note">📝 ${esc(it.note)}</div>` : ''}
     <button class="item-cup" type="button" aria-label="${t('card.myCupAria')}">🥂 ${t('card.myCup')} · <b class="item-cup-n">${it.cups}</b></button>
     <div class="item-plus">+1</div>
     <div class="share-flag" aria-hidden="true">${t('card.mesa')}</div></div>`;
@@ -507,7 +510,8 @@ function cardHTML(it) {
     <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
     <div class="item-sub">${esc(it.sub)}</div>
-    <div class="item-plus">+1</div>${it.note ? '<div class="item-badge" aria-hidden="true">📝</div>' : ''}</div>`;
+    ${it.note ? `<div class="item-note">📝 ${esc(it.note)}</div>` : ''}
+    <div class="item-plus">+1</div></div>`;
 }
 // Cardápio agrupado por categoria (cabeçalhos só quando há mais de uma categoria).
 function gridHTML(items) {
@@ -1294,7 +1298,7 @@ export function openComanda(vm) {
   el['comanda-title'].textContent = `${vm.emoji || '🍺'} ${vm.name || t('common.anon')}`;
   el['comanda-list'].innerHTML = (vm.rows || []).map((r) => `<li class="comanda-row">
     <span class="c-emoji">${esc(r.emoji || '🍺')}</span>
-    <span class="c-name">${esc(r.name)}</span>
+    <span class="c-name">${esc(r.name)}${r.note ? `<small class="c-note">📝 ${esc(r.note)}</small>` : ''}</span>
     <span class="c-qty">×${r.n}</span>
     ${r.money ? `<span class="c-money">${fmtMoney(r.money)}</span>` : ''}</li>`).join('')
     || `<li class="comanda-row">${t('comanda.empty')}</li>`;
@@ -1432,11 +1436,15 @@ export function showGame(kind) {
   gameMin[kind] = false;
   el[kind === 'dom' ? 'overlay-domino' : kind === 'truco' ? 'overlay-truco' : 'overlay-purrinha'].hidden = false;
 }
-export function setGamePill(vm) {
+// fileira de chips: 1 por jogo minimizado. Tocar no rótulo VOLTA; o ✕ vermelho ENCERRA pra mesa toda.
+export function setGamePill(parts) {
   const p = el['game-pill'];
-  if (!vm) { p.hidden = true; return; }
-  p.textContent = vm.label;
-  p.classList.toggle('urgent', !!vm.urgent);
+  const list = Array.isArray(parts) ? parts : [];
+  if (!list.length) { p.hidden = true; p.innerHTML = ''; return; }
+  p.innerHTML = list.map((g) => `<span class="game-chip${g.urgent ? ' urgent' : ''}">
+    <button class="game-chip-open" data-kind="${g.kind}">${esc(g.label)}${t('game.pillBack')}</button>
+    <button class="game-chip-end" data-kind="${g.kind}" aria-label="${t('game.pillEndAria')}" title="${t('game.pillEndAria')}">✕</button>
+  </span>`).join('');
   p.hidden = false;
 }
 
@@ -1471,7 +1479,6 @@ export function purrinhaStartChoice(vm = {}) {
   el['purr-setup'].querySelector('#btn-purr-classic').onclick = () => H.onPurrStart('classic', botPick);
   el['purr-setup'].querySelector('#btn-purr-fast').onclick = () => H.onPurrStart('fast', botPick);
   wireBotPicker(el['purr-setup']);
-  el['btn-purr-end'].hidden = true; // ainda não tem partida
   purrPhase('setup');
   el['overlay-purrinha'].hidden = false;
 }
@@ -1509,7 +1516,6 @@ export function openPurrinha(vm) {
     sync();
   }));
   el['btn-purr-seal'].disabled = true;
-  el['btn-purr-end'].hidden = false;
   purrPhase('pick');
   if (!gameMin.purr) el['overlay-purrinha'].hidden = false;
 }
@@ -1519,7 +1525,6 @@ export function purrinhaSealed(vm) {
   el['purr-seals'].innerHTML = (vm.seals || []).map((s) => `<li class="purr-seal${s.sealed ? ' done' : ''}">
     <span class="purr-sav">${avInner(s.photo, s.avatar, false)}</span><span class="purr-sname">${esc(s.name)}</span>
     <span class="purr-sst">${s.sealed ? t('purr.sealed') : t('purr.choosing')}</span></li>`).join('');
-  el['btn-purr-end'].hidden = false;
   purrPhase('wait');
   if (!gameMin.purr) el['overlay-purrinha'].hidden = false;
 }
@@ -1546,7 +1551,6 @@ export function purrinhaGuessing(vm) {
     el['purr-turnrow'].textContent = vm.turnName ? t('purr.turnSay', { name: vm.turnName }) : '';
     el['purr-gpick'].hidden = true; el['btn-purr-say'].hidden = true;
   }
-  el['btn-purr-end'].hidden = false;
   purrPhase('guessing');
   if (!gameMin.purr) el['overlay-purrinha'].hidden = false;
 }
@@ -1566,7 +1570,6 @@ export function purrinhaResult(vm) {
   el['purr-verdict'].className = 'purr-verdict ' + (vm.verdict.kind || '');
   el['purr-verdict'].textContent = vm.verdict.text;
   el['btn-purr-again'].hidden = vm.final === false; // rodada intermediária do clássico não tem "de novo"
-  el['btn-purr-end'].hidden = vm.final !== false;   // no fim, o ✕ já resolve; no meio, dá pra encerrar
   purrPhase('result');
   if (!gameMin.purr) el['overlay-purrinha'].hidden = false;
 }
@@ -1630,7 +1633,6 @@ export function dominoStartChoice(vm = {}) {
   el['dom-setup'].querySelector('#btn-dom-go').onclick = () => H.onDomStart(botPick);
   wireBotPicker(el['dom-setup']);
   el['dom-setup'].hidden = false; el['dom-game'].hidden = true;
-  el['btn-dom-end'].hidden = true;
   if (!gameMin.dom) el['overlay-domino'].hidden = false;
 }
 // contagem regressiva do auto-passe (sem jogada legal, o passe sai sozinho em 5s)
@@ -1642,7 +1644,6 @@ export function dominoSetup(msg) {
   el['dom-setup'].innerHTML = `<div class="dom-setup-spin">🔒</div><div class="dom-setup-msg">${esc(msg)}</div>`;
   el['dom-setup'].hidden = false;
   el['dom-game'].hidden = true;
-  el['btn-dom-end'].hidden = false;
   if (!gameMin.dom) el['overlay-domino'].hidden = false;
 }
 export function renderDomino(vm) {
@@ -1689,7 +1690,6 @@ export function renderDomino(vm) {
   el['dom-result'].textContent = vm.over ? (vm.result || '') : '';
   el['dom-result'].className = 'dom-result' + (vm.over && vm.iWon ? ' win' : '');
   el['btn-dom-again'].hidden = !vm.over;
-  el['btn-dom-end'].hidden = !!vm.over; // no fim, o ✕ já resolve; no meio, dá pra encerrar pra mesa
   if (!gameMin.dom) el['overlay-domino'].hidden = false;
 }
 
@@ -1717,7 +1717,6 @@ export function trucoStartChoice(vm) {
   el['tru-setup'].querySelector('#btn-tru-gau').onclick = () => H.onTrucoStart('gaucha', botPick);
   wireBotPicker(el['tru-setup']);
   el['tru-setup'].hidden = false; el['tru-game'].hidden = true;
-  el['btn-tru-end'].hidden = true;
   if (!gameMin.truco) el['overlay-truco'].hidden = false;
 }
 export function renderTruco(vm) {
@@ -1789,7 +1788,6 @@ export function renderTruco(vm) {
   el['tru-result'].textContent = res;
   el['tru-result'].hidden = !res;
   el['tru-result'].className = 'dom-result' + (res && (vm.gameResult ? vm.gameOver : true) && /🏆|!/.test(res) ? '' : '');
-  el['btn-tru-end'].hidden = !!vm.gameOver;
   if (!gameMin.truco) el['overlay-truco'].hidden = false;
 }
 

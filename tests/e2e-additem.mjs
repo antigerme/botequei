@@ -85,14 +85,19 @@ async function main() {
     }, null, { timeout: T });
   });
 
-  await step('Adicionar cria o card na mesa com o emoji e nome escolhidos', async () => {
+  await step('preencher a observação do item', async () => {
+    await A.fill('#add-note', 'bem gelada');
+  });
+
+  await step('Adicionar cria o card com emoji, nome E a observação À MOSTRA (não só tooltip)', async () => {
     await A.click('#btn-additem-confirm');
     await A.waitForFunction(() => !!document.querySelector('.item-card[data-item="x-pizza"]'), null, { timeout: T });
     const card = await A.evaluate(() => {
       const c = document.querySelector('.item-card[data-item="x-pizza"]');
-      return { emoji: c.querySelector('.item-emoji')?.textContent, name: c.querySelector('.item-name')?.textContent };
+      return { emoji: c.querySelector('.item-emoji')?.textContent, name: c.querySelector('.item-name')?.textContent, note: c.querySelector('.item-note')?.textContent || '' };
     });
     if (card.emoji !== '🍕' || card.name !== 'Pizza') throw new Error('card errado: ' + JSON.stringify(card));
+    if (!/bem gelada/.test(card.note)) throw new Error('observação não apareceu no card (legenda visível): ' + JSON.stringify(card));
   });
 
   // ---------- abrir pelo "+ item personalizado" de mesa MONTADA: aí as sugestões APARECEM ----------

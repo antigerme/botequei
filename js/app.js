@@ -318,12 +318,12 @@ function addCustomItem({ emoji, name, price, cat, note, share }) {
 // inclui todo mundo. ----
 function roundChoices() {
   return allItems()
-    .filter((it) => !isShare(it) && !it.off && ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it)))
+    .filter((it) => !isShare(it) && !isCup(it) && !it.off && ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it)))
     .map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it) }));
 }
 function rodada(item) {
   const def = resolveItem(item);
-  if (!def || isShare(def)) return;
+  if (!def || isShare(def) || isCup(def)) return; // rodada é de ITEM de verdade — não da dose pessoal (copo)
   const alcoholic = ALCOHOL.has(item) || (def.g || 0) > 0;
   const targets = [{ user: self, name: getName() }];
   if (mesh) for (const p of mesh.peers()) if (p.online) targets.push({ user: p.user, name: profOf(p.user).name });
@@ -863,17 +863,17 @@ function updateGamePill() {
   if (gameMinned.has('dom') && !((dom && !dom.over) || (dv && !dv.began && !dom))) { gameMinned.delete('dom'); ui.setGameMin('dom', false); }
   if (gameMinned.has('purr') && !purrActive()) { gameMinned.delete('purr'); ui.setGameMin('purr', false); }
   if (gameMinned.has('truco') && !(truco && !truco.over)) { gameMinned.delete('truco'); ui.setGameMin('truco', false); }
-  const parts = [];
+  const parts = []; // 1 chip por jogo minimizado (rótulo = voltar; ✕ vermelho = encerrar pra mesa)
   if (gameMinned.has('dom')) {
     const myTurn = dom && !dom.over && dom.order[dom.turnIdx] === self;
-    parts.push({ urgent: myTurn, label: myTurn ? t('game.pillDomTurn') : t('game.pillDom') });
+    parts.push({ kind: 'dom', urgent: myTurn, label: myTurn ? t('game.pillDomTurn') : t('game.pillDom') });
   }
-  if (gameMinned.has('purr')) parts.push({ urgent: false, label: t('game.pillPurr') });
+  if (gameMinned.has('purr')) parts.push({ kind: 'purr', urgent: false, label: t('game.pillPurr') });
   if (gameMinned.has('truco')) { // faltava a pill do truco: minimizar sumia com o jogo (sem volta)
     const myTurn = truco && truco.st && !truco.st.over && truco.st.order[truco.st.turnIdx] === self;
-    parts.push({ urgent: myTurn, label: myTurn ? t('game.pillTruTurn') : t('game.pillTru') });
+    parts.push({ kind: 'truco', urgent: myTurn, label: myTurn ? t('game.pillTruTurn') : t('game.pillTru') });
   }
-  ui.setGamePill(parts.length ? { label: parts.map((p) => p.label).join(' · ') + t('game.pillBack'), urgent: parts.some((p) => p.urgent) } : null);
+  ui.setGamePill(parts);
 }
 
 // ---- Atualização automática do app (service worker) ----
@@ -1528,7 +1528,8 @@ function renderDom() {
     else if (dom.audit && dom.audit.ok === false) verified = { ok: false, text: '🚫 ' + dom.audit.reason };
     else if (dom.audit) verified = { ok: null, text: '🔒 ' + dom.audit.reason }; // incompleta (alguém saiu sem abrir)
     else if (dom.over) verified = { ok: null, text: t('dom.vAuditing') };
-    else verified = { ok: null, text: t('dom.vBadge') };
+    // durante o jogo NÃO tem badge fixo: "mesa verificada" é sempre-on (virou redundante) — só o
+    // SELO de auditoria do fim (🔒✅/🚫) aparece, que é o que prova que o embaralho foi limpo.
   }
   ui.renderDomino({
     board: dom.chain.map((t) => ({ a: t[0], b: t[1] })), ends: dom.ends, hand, opponents,
@@ -2460,7 +2461,7 @@ function openStats() {
 function openComanda(user) {
   const p = profOf(user);
   const rows = [];
-  for (const it of allItems()) { const n = getCount(state, user, it.id); if (n > 0) rows.push({ emoji: it.emoji, name: it.name, n, money: (it.price || 0) * n }); }
+  for (const it of allItems()) { const n = getCount(state, user, it.id); if (n > 0) rows.push({ emoji: it.emoji, name: it.name, n, money: (it.price || 0) * n, note: it.note || '' }); }
   ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user), money: userMoney(state, user, resolveItem) });
 }
 
@@ -2628,9 +2629,6 @@ const handlers = {
     if (purrActive()) { minimizeGame('purr'); return; }
     purr = null; clearGameMin('purr'); ui.closeOverlays();
   },
-  onPurrEnd: () => ui.actionToast(t('purr.endConfirm'), t('game.end'), () => {
-    cancelPurrinha(true); clearGameMin('purr'); ui.closeOverlays(); ui.toast(t('purr.ended'));
-  }),
   onDomino: () => ui.dominoStartChoice({ botsDefault: domEntrants().length < 2 ? 1 : 0 }),
   onDomStart: (botN) => startDominoVerified(botN), // sempre mesa verificada (regras iguais; só o embaralho é auditável)
   onTruco: startTruco,
@@ -2646,25 +2644,22 @@ const handlers = {
     if (truco && !truco.over) { minimizeGame('truco'); return; }
     cancelTruco(false); clearGameMin('truco'); ui.closeOverlays();
   },
-  onTrucoEnd: () => ui.actionToast(t('tru.endConfirm'), t('game.end'), () => {
-    cancelTruco(true); clearGameMin('truco'); ui.closeOverlays(); ui.toast(t('tru.ended'));
-  }),
   onDomPlay: (key, side) => myDomPlay(key, side),
   onDomPass: myDomPass,
   onDomClose: () => {
     if ((dom && !dom.over) || (dv && !dv.began && !dom)) { minimizeGame('dom'); return; }
     dom = null; domClearTimers(); clearGameMin('dom'); ui.closeOverlays();
   },
-  onDomEnd: () => ui.actionToast(t('dom.endConfirm'), t('game.end'), () => {
-    const gid = dom && !dom.over ? dom.gameId : (dv && !dv.began ? dv.gameId : null);
-    if (gid) gameFx({ kind: 'domino', ph: 'cancel', gameId: gid, from: self });
-    dom = null; dv = null; domClearTimers(); clearGameMin('dom'); ui.closeOverlays(); ui.toast(t('dom.ended'));
-  }),
-  onGameBack: () => {
-    const domTurn = gameMinned.has('dom') && dom && !dom.over && dom.order[dom.turnIdx] === self;
-    const truTurn = gameMinned.has('truco') && truco && truco.st && !truco.st.over && truco.st.order[truco.st.turnIdx] === self;
-    const kind = domTurn ? 'dom' : (truTurn ? 'truco' : (gameMinned.has('dom') ? 'dom' : (gameMinned.has('truco') ? 'truco' : (gameMinned.has('purr') ? 'purr' : null))));
-    if (kind) reopenGame(kind);
+  // pill de "jogo rolando": tocar no rótulo VOLTA pro jogo; o ✕ vermelho ENCERRA pra mesa toda (com confirmação)
+  onGamePillOpen: (kind) => { if (kind && gameMinned.has(kind)) reopenGame(kind); },
+  onGamePillEnd: (kind) => {
+    if (kind === 'purr') ui.actionToast(t('purr.endConfirm'), t('game.end'), () => { cancelPurrinha(true); clearGameMin('purr'); ui.closeOverlays(); ui.toast(t('purr.ended')); });
+    else if (kind === 'truco') ui.actionToast(t('tru.endConfirm'), t('game.end'), () => { cancelTruco(true); clearGameMin('truco'); ui.closeOverlays(); ui.toast(t('tru.ended')); });
+    else if (kind === 'dom') ui.actionToast(t('dom.endConfirm'), t('game.end'), () => {
+      const gid = dom && !dom.over ? dom.gameId : (dv && !dv.began ? dv.gameId : null);
+      if (gid) gameFx({ kind: 'domino', ph: 'cancel', gameId: gid, from: self });
+      dom = null; dv = null; domClearTimers(); clearGameMin('dom'); ui.closeOverlays(); ui.toast(t('dom.ended'));
+    });
   },
   onPoke: openPokeFor,
   onPokeSend: sendPoke,

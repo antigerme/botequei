@@ -58,9 +58,9 @@ async function main() {
     await Promise.all(pages.map((p) => p.waitForFunction(() => document.querySelectorAll('#dom-board .dom-tile').length >= 1, null, { timeout: T })));
   });
 
-  await step('badge "🔒 mesa verificada" visível durante a partida', async () => {
-    const txt = await pageA.textContent('#dom-verified');
-    if (!/verificada/i.test(txt)) throw new Error('sem badge de mesa verificada: ' + txt);
+  await step('durante a partida NÃO há badge fixo de "mesa verificada" (é sempre-on; só o selo do fim)', async () => {
+    const shown = await pageA.evaluate(() => { const e = document.getElementById('dom-verified'); return !!(e && !e.hidden && /verificada|verified/i.test(e.textContent || '')); });
+    if (shown) throw new Error('o badge fixo de mesa verificada deveria ter sumido (virou redundante — sempre-on)');
   });
 
   await step('partida inteira até bater/trancar', async () => {

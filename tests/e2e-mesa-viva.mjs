@@ -84,17 +84,18 @@ async function main() {
       if (!guestOpen) throw new Error('minimizar de um fechou o jogo do outro!');
     });
 
-    await step('toque no pill traz o jogo de volta (mesma partida)', async () => {
-      await host.click('#game-pill');
+    await step('toque no rótulo do chip traz o jogo de volta (mesma partida)', async () => {
+      await host.click('#game-pill .game-chip-open');
       await vis(host, 'dom-game');
       await host.waitForFunction(() => document.getElementById('game-pill').hidden, null, { timeout: 5000 });
     });
 
-    await step('"Encerrar" (do convidado) pede confirmação, fecha pra todos e diz QUEM encerrou', async () => {
-      await guest.click('#btn-dom-end');
+    await step('✕ vermelho na pill (do convidado) pede confirmação, fecha pra todos e diz QUEM encerrou', async () => {
+      await guest.click('#btn-dom-close'); // ✕ minimiza pro convidado → a pill aparece
+      await vis(guest, 'game-pill');
+      await guest.click('#game-pill .game-chip-end[data-kind="dom"]'); // ✕ vermelho = encerrar pra mesa toda
       await guest.waitForFunction(() => !document.getElementById('toast').hidden, null, { timeout: 5000 });
       await guest.click('#toast'); // confirma a ação do actionToast
-      await hid(guest, 'overlay-domino');
       await hid(host, 'overlay-domino');
       await host.waitForFunction(() => (window.__toasts || []).some((t) => /Bia encerrou o dominó/.test(t)), null, { timeout: 8000 });
       const pillGone = await host.evaluate(() => document.getElementById('game-pill').hidden);

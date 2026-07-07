@@ -168,8 +168,10 @@ async function main() {
       await Promise.all(pages.map((p) => p.waitForFunction(() => /4/.test(document.querySelector('#tru-score .tru-stake')?.textContent || ''), null, { timeout: T })));
     });
 
-    await step('encerrar explícito fecha pra mesa toda com atribuição', async () => {
-      await pages[2].click('#btn-tru-end');
+    await step('encerrar (via ✕ da pill) fecha pra mesa toda com atribuição', async () => {
+      await pages[2].click('#btn-tru-close'); // ✕ minimiza → a pill "jogo rolando" aparece
+      await pages[2].waitForFunction(() => { const p = document.getElementById('game-pill'); return p && !p.hidden; }, null, { timeout: T });
+      await pages[2].click('#game-pill .game-chip-end[data-kind="truco"]'); // ✕ vermelho = encerrar pra mesa toda
       await pages[2].waitForFunction(() => !document.getElementById('toast').hidden, null, { timeout: 5000 });
       await pages[2].click('#toast');
       await Promise.all(pages.map((p) => p.waitForFunction(() => document.getElementById('overlay-truco').hidden, null, { timeout: T })));

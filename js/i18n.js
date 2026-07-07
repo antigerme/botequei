@@ -149,7 +149,7 @@ const DICT = {
     'games.tourn': 'Torneio da galera',
     'game.pillDomTurn': '🁫 SUA VEZ no dominó', 'game.pillDom': '🁫 Dominó rolando',
     'game.pillPurr': '🫲 Purrinha rolando', 'game.pillBack': ' — voltar',
-    'game.end': 'Encerrar', 'game.endAll': '🛑 Encerrar a partida pra mesa toda', 'game.how': 'Como quer jogar?',
+    'game.end': 'Encerrar', 'game.pillEndAria': 'Encerrar a partida pra mesa toda', 'game.how': 'Como quer jogar?',
     'bots.call': '🤖 Chamar a turma:', 'bots.none': 'Só eu', 'bots.solo': 'jogando com a turma virtual',
     // ---- dominó ----
     'dom.title': '🁫 Dominó',
@@ -178,9 +178,9 @@ const DICT = {
     'dom.vSeedSwap': 'o dono trocou o seed de {name}',
     'dom.vHandDiff': '{name} revelou mão diferente do lacre',
     'dom.vOk': '🔒✅ Mesa verificada — embaralho auditado, limpo',
-    'dom.vAuditing': '🔒 Auditando o embaralho…', 'dom.vBadge': '🔒 Mesa verificada',
+    'dom.vAuditing': '🔒 Auditando o embaralho…',
     'dom.vClean': '🔒✅ Mesa auditada — embaralho limpo!',
-    'dom.vHandshake': '🔒 Mesa verificada — {phase} ({have}/{total})…',
+    'dom.vHandshake': '🔒 Preparando o baralho — {phase} ({have}/{total})…',
     'dom.vPhaseCommit': 'trocando os lacres', 'dom.vPhaseReveal': 'revelando os cortes',
     // ---- purrinha ----
     'purr.title': '🫲 Purrinha',
@@ -525,7 +525,7 @@ const DICT = {
     'games.tourn': 'Crew tournament',
     'game.pillDomTurn': '🁫 YOUR TURN at dominoes', 'game.pillDom': 'Dominoes in play 🁫',
     'game.pillPurr': '🫲 Purrinha in play', 'game.pillBack': ' — back',
-    'game.end': 'End it', 'game.endAll': '🛑 End the game for the whole table', 'game.how': 'How do you want to play?',
+    'game.end': 'End it', 'game.pillEndAria': 'End the game for the whole table', 'game.how': 'How do you want to play?',
     'bots.call': '🤖 Call the crew:', 'bots.none': 'Just me', 'bots.solo': 'playing with the virtual crew',
     // ---- dominoes ----
     'dom.title': '🁫 Dominoes',
@@ -554,9 +554,9 @@ const DICT = {
     'dom.vSeedSwap': 'the dealer swapped {name}’s seed',
     'dom.vHandDiff': '{name} revealed a hand that doesn’t match the seal',
     'dom.vOk': '🔒✅ Verified table — shuffle audited, clean',
-    'dom.vAuditing': '🔒 Auditing the shuffle…', 'dom.vBadge': '🔒 Verified table',
+    'dom.vAuditing': '🔒 Auditing the shuffle…',
     'dom.vClean': '🔒✅ Table audited — clean shuffle!',
-    'dom.vHandshake': '🔒 Verified table — {phase} ({have}/{total})…',
+    'dom.vHandshake': '🔒 Preparing the deck — {phase} ({have}/{total})…',
     'dom.vPhaseCommit': 'swapping seals', 'dom.vPhaseReveal': 'revealing the cuts',
     // ---- purrinha ----
     'purr.title': '🫲 Purrinha',
@@ -901,7 +901,7 @@ const DICT = {
     'games.tourn': 'Torneo de la banda',
     'game.pillDomTurn': '🁫 TU TURNO en el dominó', 'game.pillDom': '🁫 Dominó en juego',
     'game.pillPurr': '🫲 Purrinha en juego', 'game.pillBack': ' — volver',
-    'game.end': 'Terminar', 'game.endAll': '🛑 Terminar la partida para toda la mesa', 'game.how': '¿Cómo quieres jugar?',
+    'game.end': 'Terminar', 'game.pillEndAria': 'Terminar la partida para toda la mesa', 'game.how': '¿Cómo quieres jugar?',
     'bots.call': '🤖 Llamar a la banda:', 'bots.none': 'Solo yo', 'bots.solo': 'jugando con la banda virtual',
     // ---- dominó ----
     'dom.title': '🁫 Dominó',
@@ -930,9 +930,9 @@ const DICT = {
     'dom.vSeedSwap': 'el dueño cambió el seed de {name}',
     'dom.vHandDiff': '{name} reveló una mano distinta del sello',
     'dom.vOk': '🔒✅ Mesa verificada — barajado auditado, limpio',
-    'dom.vAuditing': '🔒 Auditando el barajado…', 'dom.vBadge': '🔒 Mesa verificada',
+    'dom.vAuditing': '🔒 Auditando el barajado…',
     'dom.vClean': '🔒✅ Mesa auditada — ¡barajado limpio!',
-    'dom.vHandshake': '🔒 Mesa verificada — {phase} ({have}/{total})…',
+    'dom.vHandshake': '🔒 Preparando el mazo — {phase} ({have}/{total})…',
     'dom.vPhaseCommit': 'intercambiando sellos', 'dom.vPhaseReveal': 'revelando los cortes',
     // ---- purrinha ----
     'purr.title': '🫲 Purrinha',

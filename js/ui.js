@@ -498,6 +498,7 @@ function cardHTML(it) {
     <div class="item-qty">${it.qty}</div>
     <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
+    ${it.note ? `<div class="item-note">📝 ${esc(it.note)}</div>` : ''}
     <button class="item-cup" type="button" aria-label="${t('card.myCupAria')}">🥂 ${t('card.myCup')} · <b class="item-cup-n">${it.cups}</b></button>
     <div class="item-plus">+1</div>
     <div class="share-flag" aria-hidden="true">${t('card.mesa')}</div></div>`;
@@ -507,7 +508,8 @@ function cardHTML(it) {
     <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
     <div class="item-sub">${esc(it.sub)}</div>
-    <div class="item-plus">+1</div>${it.note ? '<div class="item-badge" aria-hidden="true">📝</div>' : ''}</div>`;
+    ${it.note ? `<div class="item-note">📝 ${esc(it.note)}</div>` : ''}
+    <div class="item-plus">+1</div></div>`;
 }
 // Cardápio agrupado por categoria (cabeçalhos só quando há mais de uma categoria).
 function gridHTML(items) {
@@ -1294,7 +1296,7 @@ export function openComanda(vm) {
   el['comanda-title'].textContent = `${vm.emoji || '🍺'} ${vm.name || t('common.anon')}`;
   el['comanda-list'].innerHTML = (vm.rows || []).map((r) => `<li class="comanda-row">
     <span class="c-emoji">${esc(r.emoji || '🍺')}</span>
-    <span class="c-name">${esc(r.name)}</span>
+    <span class="c-name">${esc(r.name)}${r.note ? `<small class="c-note">📝 ${esc(r.note)}</small>` : ''}</span>
     <span class="c-qty">×${r.n}</span>
     ${r.money ? `<span class="c-money">${fmtMoney(r.money)}</span>` : ''}</li>`).join('')
     || `<li class="comanda-row">${t('comanda.empty')}</li>`;

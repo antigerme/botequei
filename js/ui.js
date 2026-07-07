@@ -847,7 +847,7 @@ export function renderBill(vm) {
     const payb = li.querySelector('.b-pay'); if (payb) payb.addEventListener('click', () => H.onPayFor(u, !payb.classList.contains('on')));
     const selb = li.querySelector('.b-sel'); if (selb) selb.addEventListener('change', () => { if (selb.checked) billExcluded.delete(u); else billExcluded.add(u); H.onBillChange(); });
   });
-  el['bill-total'].textContent = 'Total: ' + fmtMoney(vm.total);
+  el['bill-total'].textContent = t('bill.total', { v: fmtMoney(vm.total) });
 }
 
 // ---------- PIX ----------
@@ -1064,10 +1064,10 @@ function roundRectPath(g, x, y, w, h, r) {
 
 // ---------- Cutucar / desafiar ----------
 export function openPoke(vm) {
-  el['poke-title'].textContent = 'Provocar ' + (vm.name || t('common.someoneLow'));
-  const btns = ['<button class="btn btn-primary poke-btn" data-kind="poke">👉 Cutucar</button>'];
+  el['poke-title'].textContent = t('poke.title', { name: vm.name || t('common.someoneLow') });
+  const btns = [`<button class="btn btn-primary poke-btn" data-kind="poke">${t('poke.poke')}</button>`];
   for (const it of (vm.items || [])) {
-    btns.push(`<button class="btn btn-ghost poke-btn" data-kind="challenge" data-item="${esc(it.id)}">${esc(it.emoji)} Desafiar: ${esc(it.name)}</button>`);
+    btns.push(`<button class="btn btn-ghost poke-btn" data-kind="challenge" data-item="${esc(it.id)}">${esc(it.emoji)} ${t('poke.dare', { item: esc(it.name) })}</button>`);
   }
   el['poke-actions'].innerHTML = btns.join('');
   el['poke-actions'].querySelectorAll('.poke-btn').forEach((b) => b.addEventListener('click', () => {
@@ -1161,7 +1161,7 @@ export function openComanda(vm) {
     <span class="c-qty">×${r.n}</span>
     ${r.money ? `<span class="c-money">${fmtMoney(r.money)}</span>` : ''}</li>`).join('')
     || `<li class="comanda-row">${t('comanda.empty')}</li>`;
-  el['comanda-total'].textContent = `Total: ${vm.total} 🍺${vm.money ? ' · ' + fmtMoney(vm.money) : ''}`;
+  el['comanda-total'].textContent = t('comanda.total', { n: vm.total }) + (vm.money ? ' · ' + fmtMoney(vm.money) : '');
   el['overlay-comanda'].hidden = false;
 }
 
@@ -1220,9 +1220,9 @@ export function openRetro(vm) {
 export function renderLeague(vm) {
   const L = vm.level;
   const pct = L.xpForNext > 0 ? Math.min(100, (L.xpInLevel / L.xpForNext) * 100) : 100;
-  el['league-level'].innerHTML = `<div class="ll-top"><span class="ll-badge">Nível ${L.level}</span><span class="ll-title">${esc(L.title)}</span></div>
+  el['league-level'].innerHTML = `<div class="ll-top"><span class="ll-badge">${t('league.level', { n: L.level })}</span><span class="ll-title">${esc(L.title)}</span></div>
     <div class="pace-meter"><div class="pace-bar lvl-medio" style="width:${pct}%"></div></div>
-    <div class="ll-xp">${L.xpInLevel}/${L.xpForNext} XP pro próximo nível</div>`;
+    <div class="ll-xp">${t('league.xp', { a: L.xpInLevel, b: L.xpForNext })}</div>`;
   el['league-challenges'].innerHTML = (vm.challenges || []).map((c) => `<li class="chal-row ${c.done ? 'done' : ''}">
     <span class="chal-emoji">${esc(c.emoji)}</span>
     <div class="chal-main"><span class="chal-title">${esc(c.title)}</span>

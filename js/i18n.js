@@ -222,6 +222,7 @@ const DICT = {
     'peers.mvp': '🏆 MVP da noite: <strong>{name}</strong> · {n} 🍺',
     'peers.empty': 'Ninguém ainda 🥲',
     'peers.comandaAria': 'Ver comanda de {name}', 'peers.pokeT': 'cutucar / desafiar', 'peers.pokeAria': 'Cutucar ou desafiar',
+    'poke.title': 'Provocar {name}', 'poke.poke': '👉 Cutucar', 'poke.dare': 'Desafiar: {item}',
     'league.level': 'Nível {n}', 'league.xp': '{a}/{b} XP pro próximo nível',
     'league.season1': '{n} rodada em {label}', 'league.seasonN': '{n} rodadas em {label}',
     // ---- convite / entrar ----
@@ -547,6 +548,7 @@ const DICT = {
     'peers.mvp': '🏆 MVP of the night: <strong>{name}</strong> · {n} 🍺',
     'peers.empty': 'Nobody yet 🥲',
     'peers.comandaAria': 'See {name}’s tab', 'peers.pokeT': 'poke / dare', 'peers.pokeAria': 'Poke or dare',
+    'poke.title': 'Poke {name}', 'poke.poke': '👉 Poke', 'poke.dare': 'Dare: {item}',
     'league.level': 'Level {n}', 'league.xp': '{a}/{b} XP to the next level',
     'league.season1': '{n} round in {label}', 'league.seasonN': '{n} rounds in {label}',
     // ---- invite / join ----
@@ -872,6 +874,7 @@ const DICT = {
     'peers.mvp': '🏆 MVP de la noche: <strong>{name}</strong> · {n} 🍺',
     'peers.empty': 'Nadie todavía 🥲',
     'peers.comandaAria': 'Ver la comanda de {name}', 'peers.pokeT': 'dar un toque / retar', 'peers.pokeAria': 'Dar un toque o retar',
+    'poke.title': 'Provocar a {name}', 'poke.poke': '👉 Dar un toque', 'poke.dare': 'Retar: {item}',
     'league.level': 'Nivel {n}', 'league.xp': '{a}/{b} XP para el próximo nivel',
     'league.season1': '{n} ronda en {label}', 'league.seasonN': '{n} rondas en {label}',
     // ---- invitación / entrar ----

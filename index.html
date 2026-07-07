@@ -102,13 +102,12 @@
 
     <div class="items-grid" id="items-grid"><!-- cards via JS --></div>
 
-    <!-- mesa nasce vazia: o catálogo vira sugestão de 1 toque (embaixo dos cards, pra
-         card novo nascer onde o olho está durante a montagem) -->
+    <!-- mesa nasce LIMPA: nenhum item, nenhum chip — só o convite. O catálogo de
+         1 toque vive DENTRO do ➕ (overlay de adicionar item). -->
     <div class="menu-empty" id="menu-empty" hidden>
       <p class="empty-title" data-i18n="empty.title">O que a mesa vai pedir hoje?</p>
-      <p class="empty-sub" data-i18n="empty.sub">Toque pra adicionar — o cardápio vale pra mesa toda.</p>
-      <div class="sug-grid" id="empty-suggest"></div>
-      <button class="btn btn-ghost" id="btn-empty-custom" data-i18n="empty.custom">➕ Criar outro item</button>
+      <p class="empty-sub" data-i18n="empty.sub">A mesa nasce em branco — monte o cardápio e ele vale pra mesa toda.</p>
+      <button class="btn btn-primary btn-lg" id="btn-empty-custom" data-i18n="empty.custom">➕ Montar o cardápio</button>
     </div>
 
     <button class="btn btn-ghost btn-additem" id="btn-additem" data-i18n="table.addItem">+ item personalizado</button>
@@ -265,14 +264,8 @@
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="add.title">Novo item</h2>
-    <!-- catálogo: atalho de 1 toque. Só no "+ item" de mesa já montada; vindo do empty
-         state (que já mostra os mesmos chips) a seção some pra não repetir o que a pessoa
-         acabou de ver. -->
-    <div id="add-suggest-wrap" hidden>
-      <p class="sheet-sub" data-i18n="add.suggest">Do catálogo — um toque e entra:</p>
-      <div class="sug-grid" id="add-suggest"></div>
-      <p class="sheet-sub" data-i18n="add.orCustom">…ou crie o seu:</p>
-    </div>
+    <!-- SEM catálogo aqui: a tela de novo item nasce LIMPA (só o formulário) — decisão
+         de UX; DEFAULT_ITEMS segue como dado de compat (rótulos, mesas antigas, modo bar). -->
     <!-- preview AO VIVO: o card que vai nascer, atualizando a cada toque/tecla (regra de
          ouro: preview ao vivo + feedback imediato) -->
     <div class="add-preview" id="add-preview" aria-hidden="true">

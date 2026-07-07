@@ -52,10 +52,16 @@ async function main() {
   await A.click('#btn-create');
   await A.waitForSelector('#screen-table.is-active', { timeout: T });
   await A.click('#overlay-invite [data-close]').catch(() => {});
-  await A.click('#empty-suggest [data-id="chopp"]'); // mesa nasce vazia: monta o cardápio
-  await A.click('#empty-suggest [data-id="lata"]');
-  await A.click('.item-card[data-item="chopp"]');
-  await A.click('.item-card[data-item="chopp"]');
+  // mesa nasce limpa: monta o cardápio pelo formulário do ➕
+  for (const nome of ['Chopp', 'Lata']) {
+    const vazio = await A.evaluate(() => !document.getElementById('menu-empty').hidden);
+    await A.click(vazio ? '#btn-empty-custom' : '#btn-additem');
+    await A.fill('#add-name', nome);
+    await A.click('#btn-additem-confirm');
+    await A.waitForFunction(() => document.getElementById('overlay-additem').hidden, null, { timeout: T });
+  }
+  await A.click('.item-card[data-item="x-chopp"]');
+  await A.click('.item-card[data-item="x-chopp"]');
 
   // ---- A gera o convite offline (offer) ----
   await A.click('#btn-invite');
@@ -87,13 +93,13 @@ async function main() {
   });
 
   await step('+1 em A aparece em B ao vivo (P2P puro, sem servidor)', async () => {
-    await A.click('.item-card[data-item="chopp"]');
-    await B.waitForFunction((js) => eval(js) === '3', qtyOf('chopp'), { timeout: T });
+    await A.click('.item-card[data-item="x-chopp"]');
+    await B.waitForFunction((js) => eval(js) === '3', qtyOf('x-chopp'), { timeout: T });
   });
 
   await step('+1 em B aparece em A (bidirecional)', async () => {
-    await B.click('.item-card[data-item="lata"]');
-    await A.waitForFunction((js) => eval(js) === '1', qtyOf('lata'), { timeout: T });
+    await B.click('.item-card[data-item="x-lata"]');
+    await A.waitForFunction((js) => eval(js) === '1', qtyOf('x-lata'), { timeout: T });
   });
 
   await browser.close();

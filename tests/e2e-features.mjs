@@ -1,6 +1,6 @@
-// E2E das features novas em rede (2 navegadores reais, WebRTC): roleta sincronizada
-// ("quem paga"), cutucada entregue ao alvo, "eu pago pra fulano" (PAYFOR) convergindo entre
-// os peers, e as estatísticas de vida após sair da mesa.
+// E2E das features em rede (2 navegadores reais, WebRTC): cardápio da mesa (formulário do
+// ➕, item compartilhado, marca, esconder), cutucada entregue ao alvo, "eu pago pra fulano"
+// (PAYFOR) convergindo entre os peers, e as estatísticas de vida após sair da mesa.
 //
 //   node server/node.mjs &
 //   node tests/e2e-features.mjs
@@ -36,10 +36,19 @@ async function main() {
   await pageA.waitForSelector('#screen-table.is-active', { timeout: T });
   const code = (await pageA.textContent('#mesa-code')).trim();
   await closeAll(pageA);
-  // mesa nasce vazia: monta o cardápio da noite (garrafa da mesa + chopp + lata)
-  await pageA.click('#empty-suggest [data-id="cerveja"]');
-  await pageA.click('#empty-suggest [data-id="chopp"]');
-  await pageA.click('#empty-suggest [data-id="lata"]');
+  // mesa nasce limpa: monta o cardápio da noite pelo formulário do ➕
+  // (Garrafa 600 é "da mesa" = share; ids viram x-garrafa-600 / x-chopp / x-lata)
+  const novoItem = async (name, share) => {
+    const vazio = await pageA.evaluate(() => !document.getElementById('menu-empty').hidden);
+    await pageA.click(vazio ? '#btn-empty-custom' : '#btn-additem');
+    await pageA.fill('#add-name', name);
+    if (share) await pageA.check('#add-share');
+    await pageA.click('#btn-additem-confirm');
+    await pageA.waitForFunction(() => document.getElementById('overlay-additem').hidden, null, { timeout: T });
+  };
+  await novoItem('Garrafa 600', true);
+  await novoItem('Chopp');
+  await novoItem('Lata');
   await pageA.waitForFunction(() => document.querySelectorAll('.item-card').length === 3, null, { timeout: T });
 
   const B = await mkCtx('Bia'); const pageB = await B.newPage();
@@ -110,28 +119,28 @@ async function main() {
 
   // consumo p/ dar substância à conta/estatísticas — cobrindo o fluxo COMPARTILHADO
   await step('garrafa da mesa: pedido é da MESA; "meu copo" é só de quem bebeu', async () => {
-    const cardA = await pageA.$('.item-card[data-item="cerveja"]');
+    const cardA = await pageA.$('.item-card[data-item="x-garrafa-600"]');
     await cardA.scrollIntoViewIfNeeded(); // a área "monte o cardápio" empurra o grid pra baixo da dobra
     const box = await cardA.boundingBox();
     await pageA.mouse.click(box.x + box.width / 2, box.y + 18); // topo do card = mesa pediu +1 (longe da zona do copo)
     await Promise.all([pageA, pageB].map((p) => p.waitForFunction(
-      () => document.querySelector('.item-card[data-item="cerveja"] .item-qty')?.textContent.trim() === '1',
+      () => document.querySelector('.item-card[data-item="x-garrafa-600"] .item-qty')?.textContent.trim() === '1',
       null, { timeout: T })));
-    await pageB.click('.item-card[data-item="cerveja"] .item-cup'); // Bia bebeu um copo do bolo
-    await pageB.waitForFunction(() => document.querySelector('.item-card[data-item="cerveja"] .item-cup-n')?.textContent.trim() === '1', null, { timeout: T });
-    const cupA = await pageA.evaluate(() => document.querySelector('.item-card[data-item="cerveja"] .item-cup-n')?.textContent.trim());
+    await pageB.click('.item-card[data-item="x-garrafa-600"] .item-cup'); // Bia bebeu um copo do bolo
+    await pageB.waitForFunction(() => document.querySelector('.item-card[data-item="x-garrafa-600"] .item-cup-n')?.textContent.trim() === '1', null, { timeout: T });
+    const cupA = await pageA.evaluate(() => document.querySelector('.item-card[data-item="x-garrafa-600"] .item-cup-n')?.textContent.trim());
     if (cupA !== '0') throw new Error('contador do copo é PESSOAL — em A deveria seguir 0, vi ' + cupA);
     const totB = (await pageB.textContent('#table-total')).trim();
     if (totB !== '1') throw new Error('copo NÃO sobe o "a mesa mandou" (a garrafa já contou) — vi ' + totB);
-    await pageB.click('.item-card[data-item="chopp"]'); // e um chopp individual (estatística da Bia)
+    await pageB.click('.item-card[data-item="x-chopp"]'); // e um chopp individual (estatística da Bia)
     await pageA.waitForTimeout(400);
   });
 
   await step('conta: bolo da mesa aparece com preço e racheia entre os dois', async () => {
     await pageA.click('#btn-menu'); await pageA.click('#menu-prices');
     await visible(pageA, 'overlay-prices');
-    await pageA.fill('.price-row[data-id="cerveja"] .pr-price', '12');
-    await pageA.$eval('.price-row[data-id="cerveja"] .pr-price', (e) => e.dispatchEvent(new Event('change')));
+    await pageA.fill('.price-row[data-id="x-garrafa-600"] .pr-price', '12');
+    await pageA.$eval('.price-row[data-id="x-garrafa-600"] .pr-price', (e) => e.dispatchEvent(new Event('change')));
     await closeAll(pageA);
     await pageA.click('#btn-menu'); await pageA.click('#menu-bill');
     await visible(pageA, 'overlay-bill');
@@ -146,13 +155,13 @@ async function main() {
   await step('cardápio da mesa: marca "Original" e item escondido valem pra TODOS', async () => {
     await pageA.click('#btn-menu'); await pageA.click('#menu-prices');
     await visible(pageA, 'overlay-prices');
-    await pageA.fill('.price-row[data-id="cerveja"] .pr-brand', 'Original');
-    await pageA.$eval('.price-row[data-id="cerveja"] .pr-brand', (e) => e.dispatchEvent(new Event('change')));
-    await pageA.click('.price-row[data-id="lata"] .pr-eye'); // ninguém pediu lata hoje
+    await pageA.fill('.price-row[data-id="x-garrafa-600"] .pr-brand', 'Original');
+    await pageA.$eval('.price-row[data-id="x-garrafa-600"] .pr-brand', (e) => e.dispatchEvent(new Event('change')));
+    await pageA.click('.price-row[data-id="x-lata"] .pr-eye'); // ninguém pediu lata hoje
     await closeAll(pageA);
     await Promise.all([pageA, pageB].map((p) => p.waitForFunction(() => {
-      const name = document.querySelector('.item-card[data-item="cerveja"] .item-name')?.textContent;
-      return name === 'Original' && !document.querySelector('.item-card[data-item="lata"]');
+      const name = document.querySelector('.item-card[data-item="x-garrafa-600"] .item-name')?.textContent;
+      return name === 'Original' && !document.querySelector('.item-card[data-item="x-lata"]');
     }, null, { timeout: T })));
   });
 

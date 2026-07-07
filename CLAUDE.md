@@ -194,12 +194,14 @@ padrão Auto segue o navegador).
   (`brand` no def, LWW — `itemLabel` prioriza) e **esconder** (`off` no def — cards/rodada/
   contador gigante filtram; a lista do editor mostra esmaecido pra reativar; contagens e
   conta não mudam). Duas marcas do mesmo formato ao mesmo tempo = criar item custom.
-  **A mesa nasce VAZIA**: `DEFAULT_ITEMS` é catálogo de SUGESTÕES, não cardápio — item só
-  vira card quando alguém o adiciona (chips de 1 toque no empty state "monte o cardápio" e
-  no topo do overlay ➕ item → emitem o `ITEM`; `allItems` só devolve item com def no state
-  OU contagem > 0 — a 2ª regra preserva mesas antigas e rodada de item que o peer não tinha).
-  A área de montagem fica visível até o 1º gole (`tableTotal > 0`); o passo 1 do tour vira
-  "monte o cardápio" quando não há cards.
+  **A mesa nasce LIMPA (e o ➕ também)**: SEM chips de sugestão em lugar nenhum — a tela
+  vazia mostra só o convite + botão "➕ Montar o cardápio", e o overlay ➕ item abre DIRETO
+  no formulário (Nome já focado; todo item nasce dali, com "da mesa" pro compartilhado).
+  `DEFAULT_ITEMS` segue como DADO de compat — `resolveItem`/rótulos `t('item.'+id)` pra
+  mesas antigas, modo bar e afins — não como UI. `allItems` só devolve item com def no
+  state OU contagem > 0 (a 2ª regra preserva mesas antigas e rodada de item que o peer não
+  tinha). Com o 1º item no cardápio o convite some e o "+ item" assume; o passo 1 do tour
+  aponta pro botão quando não há cards.
 - **Estatísticas de vida (puro)**: `js/lifestats.js` (média/recorde/mês/favorita/streak +
   `monthlyTrend`/`weekdayInsight`/`retro`/`topMate`) — a tela "📊 Meus números". Gramas de álcool
   no `catalog.js` (`g`, usado só pra marcar item alcoólico na rodada/exclusão do motorista).

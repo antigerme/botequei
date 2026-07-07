@@ -50,7 +50,11 @@ async function main() {
   await A.page.waitForSelector('#screen-table.is-active', { timeout: T });
   const code = (await A.page.textContent('#mesa-code')).trim();
   await A.page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
-  await A.page.click('#empty-suggest [data-id="chopp"]'); // mesa nasce vazia: monta o cardápio
+  // mesa nasce limpa: cria o item do cardápio pelo formulário do ➕ (id 'x-chopp')
+  await A.page.click('#btn-empty-custom');
+  await A.page.fill('#add-name', 'Chopp');
+  await A.page.click('#btn-additem-confirm');
+  await A.page.waitForFunction(() => document.getElementById('overlay-additem').hidden, null, { timeout: T });
 
   await step(`quem cria a mesa fica no transporte '${WANT}'`, async () => {
     await waitTransport(A.page, WANT);
@@ -61,7 +65,7 @@ async function main() {
     await B.page.waitForSelector('#screen-table.is-active', { timeout: T });
     await Promise.all([peers(A.page, 2), peers(B.page, 2)]);
     await waitTransport(B.page, WANT);
-    await A.page.click('.item-card[data-item="chopp"]');
+    await A.page.click('.item-card[data-item="x-chopp"]');
     await Promise.all([total(A.page, 1), total(B.page, 1)]);
   });
 
@@ -84,7 +88,7 @@ async function main() {
       await Promise.all([peers(A.page, 3), peers(B.page, 3), peers(D.page, 3)]);
       if ((await transport(D.page)) !== 'poll') throw new Error('Dani sem WebSocket deveria estar em poll, vi ' + await transport(D.page));
       if ((await transport(A.page)) !== 'ws') throw new Error('Andre deveria seguir em ws');
-      await D.page.click('.item-card[data-item="chopp"]');
+      await D.page.click('.item-card[data-item="x-chopp"]');
       await Promise.all([total(A.page, 2), total(B.page, 2), total(D.page, 2)]);
       await D.ctx.close();
     });

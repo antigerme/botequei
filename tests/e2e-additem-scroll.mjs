@@ -36,23 +36,26 @@ async function main() {
   await A.waitForSelector('#screen-table.is-active', { timeout: T });
   await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
 
-  // monta a mesa: adiciona uns itens do catálogo e consome 1 (sai do modo montagem → aparece o "+ item")
+  // monta a mesa pelo formulário do ➕ (mesa nasce limpa: sem chips em lugar nenhum)
   await A.waitForFunction(() => !document.getElementById('menu-empty').hidden, null, { timeout: T });
   await step('mesa montada com alguns itens (some o empty, aparece o "+ item personalizado")', async () => {
-    for (const id of ['chopp', 'lata', 'dose']) {
-      await A.click(`#empty-suggest [data-id="${id}"]`).catch(() => {});
-      await A.waitForTimeout(120);
+    for (const nome of ['Chopp', 'Lata', 'Dose']) {
+      const vazio = await A.evaluate(() => !document.getElementById('menu-empty').hidden);
+      await A.click(vazio ? '#btn-empty-custom' : '#btn-additem');
+      await A.fill('#add-name', nome);
+      await A.click('#btn-additem-confirm');
+      await A.waitForFunction(() => document.getElementById('overlay-additem').hidden, null, { timeout: T });
     }
-    await A.click('.item-card[data-item="chopp"]'); // 1 gole → tableTotal > 0
+    await A.click('.item-card[data-item="x-chopp"]'); // 1 gole (toque no card = +1)
     await A.waitForFunction(() => !document.getElementById('btn-additem').hidden, null, { timeout: T });
   });
 
-  await step('abrir "+ item": o overlay traz o catálogo de sugestões no topo', async () => {
+  await step('abrir "+ item": o formulário abre limpo (sem catálogo)', async () => {
     await A.click('#btn-additem');
     await A.waitForFunction(() => !document.getElementById('overlay-additem').hidden, null, { timeout: T });
     await A.waitForTimeout(500); // deixa a animação 'rise' assentar antes de medir a geometria
-    const suggestShown = await A.evaluate(() => !document.getElementById('add-suggest-wrap').hidden);
-    if (!suggestShown) throw new Error('no "+ item" o catálogo devia aparecer');
+    const resto = await A.evaluate(() => document.querySelectorAll('.sug-chip, #add-suggest-wrap').length);
+    if (resto !== 0) throw new Error('o "+ item" devia abrir limpo (sem catálogo), vi ' + resto + ' resto(s)');
   });
 
   await step('o ✕ fechar e o título ficam DENTRO da tela (topo não corta)', async () => {

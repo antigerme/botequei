@@ -120,7 +120,12 @@ async function main() {
     await A.waitForSelector('#screen-table.is-active', { timeout: T });
     const code = (await A.textContent('#mesa-code')).trim();
     await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
-    await A.click('#empty-suggest [data-id="chopp"]'); // mesa nasce vazia: monta o cardápio
+    // mesa nasce limpa: cria o item pelo formulário do ➕ (cat cerveja → entra na Rodada)
+    await A.click('#btn-empty-custom');
+    await A.fill('#add-name', 'Chopp');
+    await A.selectOption('#add-cat', 'cerveja');
+    await A.click('#btn-additem-confirm');
+    await A.waitForFunction(() => document.getElementById('overlay-additem').hidden, null, { timeout: T });
     await B.goto(BASE + '#/join?room=' + code);
     await B.waitForSelector('#screen-table.is-active', { timeout: T });
     await Promise.all([A, B].map((p) => p.waitForFunction(() => document.getElementById('peer-count')?.textContent === '2', null, { timeout: T })));
@@ -157,7 +162,7 @@ async function main() {
     });
 
     await step('escolheu chopp → +1 pra cada um online, sincronizado nos dois', async () => {
-      await A.click('#round-grid button[data-id="chopp"]');
+      await A.click('#round-grid button[data-id="x-chopp"]');
       await Promise.all([A, B].map((p) => p.waitForFunction(() => document.getElementById('table-total')?.textContent.trim() === '2', null, { timeout: T })));
     });
 

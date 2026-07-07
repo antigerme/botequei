@@ -156,6 +156,18 @@ async function main() {
     }, null, { timeout: T })));
   });
 
+  await step('cutucada chega no alvo (B)', async () => {
+    await closeAll(pageA);
+    await pageA.click('#btn-peers'); await visible(pageA, 'overlay-peers');
+    await pageA.click('.peer-poke');                 // único não-eu na lista = Bia
+    await visible(pageA, 'overlay-poke');
+    await pageA.click('.poke-btn[data-kind="poke"]');
+    await pageB.waitForFunction(() => {
+      const t = document.getElementById('toast');
+      return t && !t.hidden && /cutucou/i.test(t.textContent);
+    }, null, { timeout: T });
+  });
+
   await step('"eu pago pra fulano" (PAYFOR) converge em B', async () => {
     await closeAll(pageA);
     await pageA.click('#btn-menu'); await pageA.click('#menu-bill');

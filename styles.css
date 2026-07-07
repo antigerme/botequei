@@ -503,6 +503,11 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 .field-inline select { width: 150px; }
 .btn-stats { font-size: 15px; padding: 12px; }
 
+/* Botão de cutucar no placar */
+.peer-poke { background: rgba(255,255,255,.05); border: 2px dashed var(--chalk-line); color: var(--cream);
+  border-radius: 10px; width: 44px; height: 44px; font-size: 18px; cursor: pointer; flex: none; }
+.peer-poke:active { transform: scale(.9); }
+
 /* Conta: gorjeta em presets + linha rica (itens, cobertura, "eu pago") */
 .tip-row { display: flex; align-items: center; gap: 10px; padding: 6px 0 8px; }
 .tip-row .lbl { margin: 0; flex: none; }
@@ -526,6 +531,10 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 .pace-bar.lvl-alto { background: var(--danger); }
 .pace-chart { width: 100%; height: auto; display: block; background: rgba(255,255,255,.03);
   border: 2px dashed var(--chalk-line); border-radius: 14px; }
+
+/* Cutucar / desafiar */
+.poke-actions { display: grid; gap: 10px; }
+.poke-actions .poke-btn { width: 100%; justify-content: flex-start; }
 
 /* Cerimônia de troféus */
 .ceremony-list { list-style: none; padding: 0; margin: 4px 0; display: grid; gap: 10px; }

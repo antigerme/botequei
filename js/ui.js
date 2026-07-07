@@ -66,6 +66,7 @@ const IDS = [
   'set-lang',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
+  'overlay-poke', 'poke-title', 'poke-actions',
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
   'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
   'overlay-comanda', 'comanda-title', 'comanda-list', 'comanda-total',
@@ -525,8 +526,14 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
         <span class="peer-badges">${badges}${r.money ? ' · ' + fmtMoney(r.money) : ''}</span>
       </button>
       ${net}
+      ${r.user !== selfId ? `<button class="peer-poke" title="${t('peers.pokeT')}" aria-label="${t('peers.pokeAria')}">👉</button>` : ''}
       <span class="peer-total">${r.total}</span></li>`;
   }).join('') || `<li class="peer-row">${t('peers.empty')}</li>`;
+  el['peers-list'].querySelectorAll('.peer-poke').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const li = b.closest('.peer-row');
+    if (li) H.onPoke(li.dataset.user);
+  }));
   el['peers-list'].querySelectorAll('.peer-main').forEach((b) => b.addEventListener('click', () => {
     const li = b.closest('.peer-row');
     if (li) H.onComanda(li.dataset.user);
@@ -1053,6 +1060,21 @@ function roundRectPath(g, x, y, w, h, r) {
   g.beginPath(); g.moveTo(x + r, y);
   g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
   g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+
+// ---------- Cutucar / desafiar ----------
+export function openPoke(vm) {
+  el['poke-title'].textContent = 'Provocar ' + (vm.name || t('common.someoneLow'));
+  const btns = ['<button class="btn btn-primary poke-btn" data-kind="poke">👉 Cutucar</button>'];
+  for (const it of (vm.items || [])) {
+    btns.push(`<button class="btn btn-ghost poke-btn" data-kind="challenge" data-item="${esc(it.id)}">${esc(it.emoji)} Desafiar: ${esc(it.name)}</button>`);
+  }
+  el['poke-actions'].innerHTML = btns.join('');
+  el['poke-actions'].querySelectorAll('.poke-btn').forEach((b) => b.addEventListener('click', () => {
+    H.onPokeSend(vm.user, b.dataset.kind, b.dataset.item || '');
+    closeOverlays();
+  }));
+  el['overlay-poke'].hidden = false;
 }
 
 // ---------- Cerimônia de troféus ----------

@@ -300,6 +300,8 @@ function onFx(fx, fromId) {
   }
   if (fx.kind === 'brinde') ui.brinde();
   else if (fx.kind === 'react') ui.floatReaction(fx.emoji || '🍻');
+  else if (fx.kind === 'poke') { if (fx.to === self) receivePoke(fx); }
+  else if (fx.kind === 'challenge') { if (fx.to === self) receiveChallenge(fx); }
   else if (fx.kind === 'ceremony') { if (Array.isArray(fx.awards)) ui.openCeremony({ awards: fx.awards }); }
   else if (fx.kind === 'waiter') receiveWaiter(fx);
   else if (fx.kind === 'purrinha') routePurrFx(fx);
@@ -350,6 +352,15 @@ function disableShake() { if (shakeHandler) { window.removeEventListener('device
 function receiveWaiter(fx) {
   ui.toast(t('toast.waiterFrom', { name: fx.fromName || t('common.someone') }));
   sound.alarm(); ui.vibrate([80, 40, 80]); ui.floatReaction('🔔');
+}
+function receivePoke(fx) {
+  ui.toast(t('toast.poked', { name: fx.fromName || t('common.someone') }));
+  sound.poke(); ui.vibrate([30, 40, 30]); ui.floatReaction('👉');
+}
+function receiveChallenge(fx) {
+  const it = resolveItem(fx.item || 'dose');
+  sound.challenge(); ui.vibrate([60, 40, 60, 40, 60]);
+  ui.actionToast(t('toast.challenged', { name: fx.fromName || t('common.someone'), emoji: it.emoji, item: it.name }), t('toast.challengeAccept'), () => act('ADD', fx.item || 'dose'), 7000);
 }
 
 // ---- Eventos remotos ----
@@ -2312,6 +2323,18 @@ function renderTruco() {
   updateGamePill();
 }
 
+// ---- Cutucar / desafiar ----
+function openPokeFor(user) {
+  const items = ['dose', 'chopp', 'drink'].map((id) => { const d = resolveItem(id); return { id, emoji: d.emoji, name: itemLabel(d) }; });
+  ui.openPoke({ user, name: profOf(user).name || t('common.someoneLow'), items });
+}
+function sendPoke(user, kind, item) {
+  if (!mesh) { ui.toast(t('toast.aloneTable')); return; }
+  const fromName = getName() || t('common.someoneLow');
+  if (kind === 'challenge') { mesh.sendFx({ kind: 'challenge', to: user, from: self, fromName, item: item || 'dose' }); sound.challenge(); ui.toast(t('toast.challengeSent')); }
+  else { mesh.sendFx({ kind: 'poke', to: user, from: self, fromName }); sound.poke(); ui.toast(t('toast.pokeSent')); }
+}
+
 // ---- Cerimônia de fim de noite ----
 function openCeremony() {
   lastAwards = ceremonyAwards(state, resolveItem, { log, now: Date.now() });
@@ -2511,6 +2534,8 @@ const handlers = {
       dom = null; dv = null; domClearTimers(); clearGameMin('dom'); ui.closeOverlays(); ui.toast(t('dom.ended'));
     });
   },
+  onPoke: openPokeFor,
+  onPokeSend: sendPoke,
   onCeremony: openCeremony,
   onCeremonyShare: async () => {
     const info = tableInfo(state);

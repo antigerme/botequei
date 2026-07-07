@@ -97,6 +97,61 @@ export function place(chain, ends, tile, side) {
   return { chain: c, ends: [L, outer] };
 }
 
+// ---------- Layout do TABULEIRO (serpentina) — PURO/testável, sem DOM ----------
+// Desenha a corrente como numa mesa de verdade (regras conferidas: dominó de bloco/dobra-seis).
+// Recebe a CORRENTE (chain: pedras [a,b] JÁ orientadas — chain[i][1] === chain[i+1][0]) e a largura
+// disponível; devolve as pedras POSICIONADAS:
+//   • pedra normal: DEITADA, encostada na anterior (o pip casa); indo pra ESQUERDA vai `flip` (b|a).
+//   • BUCHA (a===b): ATRAVESSADA (em pé) — a linha passa RETO por ela (não vira, não ramifica).
+//   • vira a QUINA descendo com 2 pedras NORMAIS em pé; BUCHA NUNCA vira quina (entra reto antes).
+// Devolve { tiles:[{a,b,x,y,w,h,vert,flip,idx,open,bucha}], width, height }. A ESCALA fica com quem desenha.
+export function snakeLayout(chain, opts = {}) {
+  const L = Math.max(20, Math.round(opts.long || 66));   // comprimento da pedra deitada
+  const S = Math.max(12, Math.round(opts.short || 34));  // largura da deitada = comprimento da em pé
+  const pad = opts.pad == null ? 8 : opts.pad;
+  const N = (chain || []).length;
+  const width = Math.max(2 * pad + L + S, Math.floor(opts.width || 320));
+  if (!N) return { tiles: [], width, height: 2 * pad + S };
+  const isD = (t) => t[0] === t[1];
+  const usable = width - 2 * pad;
+  const tiles = [];
+  let i = 0, dir = 1, x = pad, yc = pad + L / 2, maxB = pad + L;
+  const open = (k) => k === 0 || k === N - 1;
+  const flat = (k) => {                                  // deitada, ou BUCHA atravessada (em pé, anda só S)
+    const [a, b] = chain[k], bucha = isD(chain[k]);
+    if (bucha) {
+      tiles.push({ a, b, x: dir === 1 ? x : x - S, y: yc - L / 2, w: S, h: L, vert: true, flip: false, idx: k, open: open(k), bucha: true });
+      x += dir * S; maxB = Math.max(maxB, yc + L / 2);
+    } else {
+      tiles.push({ a, b, x: dir === 1 ? x : x - L, y: yc - S / 2, w: L, h: S, vert: false, flip: dir === -1, idx: k, open: open(k), bucha: false });
+      x += dir * L; maxB = Math.max(maxB, yc + S / 2);
+    }
+  };
+  const stand = (k, px, py) => {                          // pedra em pé na quina
+    tiles.push({ a: chain[k][0], b: chain[k][1], x: px, y: py, w: S, h: L, vert: true, flip: false, idx: k, open: open(k), bucha: isD(chain[k]) });
+    maxB = Math.max(maxB, py + L);
+  };
+  while (i < N) {
+    while (i < N) {                                       // enche a corrida, SEMPRE deixando S pra coluna da quina
+      const w = isD(chain[i]) ? S : L;
+      const roomReserve = dir === 1 ? (pad + usable - S - x) : (x - (pad + S));
+      if (roomReserve < w) break;                         // não cabe sem invadir a quina → vira aqui
+      flat(i); i++;
+    }
+    if (i >= N) break;
+    // se a pedra da quina seria BUCHA, ela entra ATRAVESSADA na corrida (não vira) — desde que sobre a quina
+    while (i + 1 < N && isD(chain[i]) && (dir === 1 ? (pad + usable - x) : (x - pad)) >= 2 * S) { flat(i); i++; }
+    if (i >= N) break;
+    const colX = dir === 1 ? x : x - S, yTop = yc - S / 2;
+    const d1 = i; i++; stand(d1, colX, yTop);             // 1ª em pé (quina)
+    if (i >= N) break;
+    const d2 = i; i++; stand(d2, colX, yTop + L);         // 2ª em pé (desce a cobra)
+    yc = yTop + 2 * L - S / 2;                            // nova corrida na metade de baixo da d2
+    dir = -dir;                                           // vira; x fica na coluna da quina
+  }
+  return { tiles, width, height: maxB + pad };
+}
+
 // ---- Partida completa (usada nos testes; no app as mãos ocultas viram contagem) ----
 export function newGame(players, rnd) {
   const { hands, buried } = dealHands(players, rnd);

@@ -37,6 +37,33 @@ async function main() {
   };
   const results = [];
   const step = async (name, fn) => { await fn(); console.log('  ✓ ' + name); results.push(name); };
+  // confere a SERPENTINA real no navegador (js/domino.js/snakeLayout desenhando o tabuleiro): numa
+  // largura de celular a cobra VIRA A QUINA (>1 linha), as pedras ficam posicionadas em ABSOLUTO,
+  // coladas e SEM vazar a largura; ao girar pra paisagem o tabuleiro RE-FLUI (fica mais baixo).
+  const checkSnake = async (page) => {
+    await page.setViewportSize({ width: 380, height: 820 });
+    await page.waitForTimeout(300); // o resize dispara domRefit → snakeLayout
+    const port = await page.evaluate(() => {
+      const board = document.getElementById('dom-board'), wrap = board.parentElement;
+      const tiles = [...board.querySelectorAll('.dom-tile')];
+      const wr = wrap.getBoundingClientRect();
+      return {
+        n: tiles.length,
+        abs: tiles.every((t) => t.style.position === 'absolute' && t.style.left !== '' && t.style.top !== ''),
+        rows: new Set(tiles.map((t) => Math.round(parseFloat(t.style.top)))).size,
+        overflow: tiles.some((t) => Math.round(t.getBoundingClientRect().right) > Math.round(wr.right) + 2),
+        h: board.getBoundingClientRect().height,
+      };
+    });
+    if (port.n < 2) throw new Error('serpentina: tabuleiro vazio');
+    if (!port.abs) throw new Error('serpentina não ativou (pedras sem posição absoluta)');
+    if (port.overflow) throw new Error('serpentina: pedra vazou a largura do tabuleiro');
+    if (port.n >= 6 && port.rows < 2) throw new Error(`serpentina: a cobra não virou a quina (uma linha só com ${port.n} pedras num celular)`);
+    await page.setViewportSize({ width: 820, height: 380 });
+    await page.waitForTimeout(300);
+    const landH = await page.evaluate(() => document.getElementById('dom-board').getBoundingClientRect().height);
+    if (port.n >= 6 && landH >= port.h) throw new Error('serpentina: não re-fluiu ao girar (paisagem não ficou mais baixa que o retrato)');
+  };
 
   async function playGame(N) {
     const ctxs = [], pages = [];
@@ -86,6 +113,10 @@ async function main() {
       if (reasons.some((r) => r === '?') || new Set(reasons).size !== 1) throw new Error(`motivo divergente: ${JSON.stringify(res)}`);
       const winners = res.filter((s) => /Você/.test(s)).length;
       if (winners !== 1) throw new Error(`esperava exatamente 1 vencedor, vi ${winners}: ${JSON.stringify(res)}`);
+    });
+
+    await step(`${N}p: tabuleiro serpentina — pedras coladas, vira a quina no celular e re-flui ao girar`, async () => {
+      await checkSnake(host); // o tabuleiro cheio (todas as pedras jogadas) segue visível sob o resultado
     });
 
     for (const c of ctxs) await c.close();

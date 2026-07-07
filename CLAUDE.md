@@ -115,7 +115,15 @@ padrão Auto segue o navegador).
   só se a vez ainda é dele → converge); tranca sem a mão de quem caiu → `noshow` apura entre as
   abertas; auditoria/handshake têm teto (badge "incompleta" / dono re-embaralha). Trust: só o
   embaralho confia em quem dá as cartas (igual na vida real); durante a partida, trapaça não cola.
-  Pedras desenhadas com pips no `ui.js` (carroça atravessada; tabuleiro quebra linha, sem scroll).
+  Pedras desenhadas com pips no `ui.js`. O tabuleiro é uma **SERPENTINA de mesa real**
+  (`snakeLayout` em `domino.js`, PURA/testada, sem DOM): pedras **coladas** casando pip (deitadas;
+  indo pra esquerda vão `flip`), **buchas ATRAVESSADAS** (em pé, a linha passa reto — nunca ramifica,
+  é bloco/dobra-seis), e a cobra **vira a quina descendo com 2 pedras em pé** — **bucha nunca vira
+  quina** (entra reto antes). Cresce **↓ no retrato / → na paisagem**; escala só como último recurso
+  (mesa cheíssima) pra nunca ficar ilegível. O `ui.js` posiciona as pedras em absoluto a partir do
+  `snakeLayout` e re-flui no resize/rotação (`domFitBoard`); o unit `snakeLayout` trava a geometria
+  (24 pedras, sem sobrepor, buchas em pé, retrato mais alto que paisagem) e o e2e confere a virada de
+  quina num celular.
   Efêmero, não entra no log — e **fechar (✕) só minimiza**: o jogo segue, um pill na mesa traz de
   volta; encerrar pra todos é botão explícito com confirmação (o `cancel` leva `from` → toast diz
   quem encerrou). Consumo/conta de quem saiu não mudam: eventos são CRDT permanentes (a pessoa

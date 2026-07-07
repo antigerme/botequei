@@ -55,9 +55,17 @@ async function main() {
     if (cards !== 0) throw new Error('mesa nova deveria ter 0 cards, vi ' + cards);
   });
 
-  await step('sugestão de 1 toque monta o cardápio (chopp + lata)', async () => {
-    await pageA.click('#empty-suggest [data-id="chopp"]');
-    await pageA.click('#empty-suggest [data-id="lata"]');
+  await step('mesa limpa: cardápio nasce pelo formulário do ➕ (Chopp + Lata)', async () => {
+    // sem chips de sugestão em lugar NENHUM — nem na tela, nem dentro do ➕ (tudo limpo)
+    const chips = await pageA.$$eval('.sug-chip', (l) => l.length);
+    if (chips !== 0) throw new Error('não devia existir chip de sugestão, vi ' + chips);
+    for (const nome of ['Chopp', 'Lata']) {
+      const vazio = await pageA.evaluate(() => !document.getElementById('menu-empty').hidden);
+      await pageA.click(vazio ? '#btn-empty-custom' : '#btn-additem');
+      await pageA.fill('#add-name', nome);
+      await pageA.click('#btn-additem-confirm');
+      await pageA.waitForFunction(() => document.getElementById('overlay-additem').hidden, null, { timeout: T });
+    }
     await pageA.waitForFunction(() => document.querySelectorAll('.item-card').length === 2, null, { timeout: T });
   });
 
@@ -71,24 +79,24 @@ async function main() {
   });
 
   await step('+1 em A aparece em B em tempo real', async () => {
-    await pageA.click('.item-card[data-item="chopp"]');
-    await itemQty(pageB, 'chopp', 1);
+    await pageA.click('.item-card[data-item="x-chopp"]');
+    await itemQty(pageB, 'x-chopp', 1);
     await tableTotal(pageB, 1);
   });
 
   await step('+1 em B aparece em A (bidirecional)', async () => {
-    await pageB.click('.item-card[data-item="lata"]');
-    await itemQty(pageA, 'lata', 1);
+    await pageB.click('.item-card[data-item="x-lata"]');
+    await itemQty(pageA, 'x-lata', 1);
     await tableTotal(pageA, 2);
   });
 
   await step('toque longo em A faz -1 e propaga', async () => {
-    const box = await (await pageA.$('.item-card[data-item="chopp"]')).boundingBox();
+    const box = await (await pageA.$('.item-card[data-item="x-chopp"]')).boundingBox();
     await pageA.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await pageA.mouse.down();
     await pageA.waitForTimeout(650); // segura > 480ms
     await pageA.mouse.up();
-    await itemQty(pageB, 'chopp', 0);
+    await itemQty(pageB, 'x-chopp', 0);
     await tableTotal(pageB, 1);
   });
 
@@ -97,7 +105,7 @@ async function main() {
     await pageC.goto(BASE + '#/join?room=' + code);
     await pageC.waitForSelector('#screen-table.is-active', { timeout: T });
     await tableTotal(pageC, 1);      // recebeu o estado via sync
-    await itemQty(pageC, 'lata', 1); // sem ter presenciado o evento ao vivo
+    await itemQty(pageC, 'x-lata', 1); // sem ter presenciado o evento ao vivo
   });
 
   await browser.close();

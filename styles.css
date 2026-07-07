@@ -411,20 +411,10 @@ body.bigfont .btn, body.bigfont .chip { font-size: 19px; }
 .round-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .round-grid .btn { width: 100%; }
 
-/* Mesa vazia: o catálogo vira sugestão de 1 toque ("monte o cardápio da mesa") */
-.menu-empty { display: grid; gap: 10px; justify-items: center; text-align: center; padding: 10px 0 6px; }
+/* Mesa LIMPA: só o convite + botão que abre o catálogo (os chips vivem no overlay ➕) */
+.menu-empty { display: grid; gap: 10px; justify-items: center; text-align: center; padding: 18px 0 6px; }
 .menu-empty .empty-title { font-size: 22px; margin: 0; }
 .menu-empty .empty-sub { color: var(--dim); margin: 0 0 4px; }
-/* já tem cards em cima (fase de montagem): só os chips, sem repetir o convite */
-.menu-empty.compact { border-top: 1px dashed var(--chalk-line); margin-top: 8px; padding-top: 14px; }
-.menu-empty.compact .empty-title, .menu-empty.compact .empty-sub { display: none; }
-.sug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
-.sug-chip { display: flex; align-items: center; gap: 8px; padding: 12px 12px; font: inherit; font-size: 17px;
-  border: 2px dashed var(--chalk-line); border-radius: 12px; background: rgba(255,255,255,.03);
-  color: var(--cream); cursor: pointer; touch-action: manipulation; text-align: left; }
-.sug-chip:active { transform: scale(.97); }
-body.light .sug-chip { background: rgba(120,90,50,.05); }
-#add-suggest-wrap { margin-bottom: 8px; }
 
 /* Item COMPARTILHADO (garrafa 600, litrão, torre): selo "da mesa" + zona do meu copo */
 .item-card.share { border-style: solid; }

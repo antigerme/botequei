@@ -36,13 +36,15 @@ evento ADD — o que muda é a leitura: o dinheiro deles não pendura em quem to
 (`userMoney` pula, `sharePool` junta o bolo da mesa e `shareSplit` decide quem racheia na
 conta — motorista fora por padrão), e o corpo é medido pelo **copo** (`copo`, `cup:1`,
 R$0 e g>0): a zona "🥂 meu copo" dentro do card marca a dose PESSOAL que alimenta
-BAC/estatísticas. Recipiente = dinheiro da mesa; copo = corpo de quem bebeu.
+as estatísticas. Recipiente = dinheiro da mesa; copo = corpo de quem bebeu.
 
-**A mesa nasce vazia**: o catálogo (`DEFAULT_ITEMS`) é um baralho de SUGESTÕES — item só
-vira card quando alguém o adiciona (chip de 1 toque → evento `ITEM` → sincroniza). A
-regra de leitura em `allItems()` (app.js) é "está na mesa = tem def no estado OU contagem
-> 0" — o segundo lado preserva mesas antigas e cobre rodada de item que o receptor ainda
-não tinha. A área "monte o cardápio" fica no miolo até o primeiro gole da noite.
+**A mesa nasce limpa (e o ➕ também)**: sem chips de sugestão em lugar nenhum — a tela
+vazia mostra o convite + "➕ Montar o cardápio", e o overlay ➕ abre direto no formulário
+de novo item (evento `ITEM` → sincroniza; "da mesa" marca o compartilhado). O catálogo
+(`DEFAULT_ITEMS`) segue como DADO de compatibilidade (resolução/rótulo de item padrão de
+mesas antigas e modo bar), não como UI. A regra de leitura em `allItems()` (app.js) é
+"está na mesa = tem def no estado OU contagem > 0" — o segundo lado preserva mesas
+antigas e cobre rodada de item que o receptor ainda não tinha.
 
 ## O mapa das camadas
 

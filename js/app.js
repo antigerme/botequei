@@ -146,13 +146,6 @@ function allItems() {
   customs.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   return out.concat(customs);
 }
-// Sugestões de 1 toque (empty state + overlay ➕ item): o que o catálogo tem e a mesa ainda não.
-function suggestions() {
-  const inTable = new Set(allItems().map((i) => i.id));
-  return DEFAULT_ITEMS
-    .filter((d) => !isCup(d) && !inTable.has(d.id))
-    .map((d) => ({ id: d.id, emoji: d.emoji, name: t('item.' + d.id) }));
-}
 // Nome de exibição de um item: a MARCA/apelido da mesa (dado da mesa, LWW) vence tudo
 // ("Original", "Coca 2L"); sem marca, item PADRÃO é localizado no aparelho (o evento
 // carrega só o id — a dor "na Europa cerveja é chopp") e item PERSONALIZADO fica como
@@ -413,7 +406,6 @@ function render() {
     myMoney: userMoney(state, self, resolveItem),
     heroFill: tt === 0 ? 0 : ((tt - 1) % 10 + 1) / 10 * 100, // nível de chopp: enche a cada 10
     items,
-    suggest: suggestions(),
   });
   renderPeers();
   renderPresence();
@@ -801,11 +793,11 @@ function maybeStartTour() {
     clearInterval(tick);
     store.setFlag('tourSeen'); // marca ao MOSTRAR (pular também conta como visto)
     ui.startTour([
-      // mesa nova nasce vazia → a 1ª parada ensina a MONTAR o cardápio; se já tem cards
-      // (entrou numa mesa rodando), ensina o toque no card
+      // mesa nova nasce LIMPA → a 1ª parada aponta o botão que abre o catálogo; se já
+      // tem cards (entrou numa mesa rodando), ensina o toque no card
       hasCards
         ? { sel: '.item-card', title: t('tour.t1'), text: t('tour.x1') }
-        : { sel: '#empty-suggest .sug-chip', title: t('tour.t0'), text: t('tour.x0') },
+        : { sel: '#btn-empty-custom', title: t('tour.t0'), text: t('tour.x0') },
       { sel: '.total-hero', title: t('tour.t2'), text: t('tour.x2') },
       { sel: '#btn-games', title: t('tour.t3'), text: t('tour.x3') },
       { sel: '#btn-menu', title: t('tour.t4'), text: t('tour.x4') },
@@ -2454,12 +2446,6 @@ const handlers = {
     if (res === 'download') ui.toast(t('toast.imgSaved')); else if (res === 'error') ui.toast(t('toast.imgError'));
   },
   onPayFor: (user, on) => { emitLocal(makePayFor({ to: user, on })); renderBill(); },
-  onSuggest: (id) => {
-    const d = DEFAULT_ITEMS.find((x) => x.id === id);
-    if (!d || state.items.get(id)) return;
-    emitLocal(makeItem({ ...d })); // o item entra pro cardápio DA MESA (sincroniza pra todos)
-    render();
-  },
   onPrices: () => ui.openPrices(menuEditorItems()),
   onItemToggle: (id) => {
     const it = resolveItem(id);

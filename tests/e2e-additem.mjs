@@ -1,7 +1,7 @@
-// E2E da tela de ADICIONAR ITEM (reforma: preview ao vivo + nome primeiro).
-// Prova as regras de ouro na prática: preview que atualiza a cada tecla/toque, campo Nome
-// com foco automático, categoria que segue o emoji, e sem repetir as sugestões que a pessoa
-// acabou de ver no empty state.
+// E2E da tela de ADICIONAR ITEM (tudo limpo: mesa em branco E formulário sem catálogo).
+// Prova as regras de ouro na prática: a mesa nasce em branco (ZERO chips — só o convite +
+// "➕ Montar o cardápio"), o overlay abre LIMPO direto no formulário (Nome focado =
+// mínimo de toques), preview ao vivo a cada tecla/toque e categoria que segue o emoji.
 //
 //   node server/node.mjs &
 //   node tests/e2e-additem.mjs
@@ -36,17 +36,24 @@ async function main() {
   await A.waitForSelector('#screen-table.is-active', { timeout: T });
   await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
 
-  // mesa nasce vazia: o "monte o cardápio" está à mão
+  // mesa nasce LIMPA: só o convite está à mão
   await A.waitForFunction(() => !document.getElementById('menu-empty').hidden, null, { timeout: T });
 
-  // ---------- abrir o overlay pelo EMPTY STATE (➕ Criar outro item) ----------
-  await step('do empty state: as sugestões NÃO se repetem e o Nome já vem focado', async () => {
+  // ---------- mesa limpa: zero chips na tela ----------
+  await step('mesa limpa: nenhum chip na tela — só o convite + "➕ Montar o cardápio"', async () => {
+    const chips = await A.$$eval('#menu-empty .sug-chip', (l) => l.length);
+    if (chips !== 0) throw new Error('a tela da mesa limpa não devia ter chips, vi ' + chips);
+    const btnVis = await A.evaluate(() => { const b = document.getElementById('btn-empty-custom'); return !!b && b.offsetParent !== null; });
+    if (!btnVis) throw new Error('o botão "Montar o cardápio" devia estar visível');
+  });
+
+  // ---------- o ➕ abre LIMPO: direto no formulário ----------
+  await step('"Montar o cardápio" abre o ➕ LIMPO (sem catálogo) e o Nome já vem focado', async () => {
     await A.click('#btn-empty-custom');
     await A.waitForFunction(() => !document.getElementById('overlay-additem').hidden, null, { timeout: T });
-    // sem loop: a pessoa acabou de ver os chips do catálogo no empty → a seção some
-    const suggestHidden = await A.evaluate(() => document.getElementById('add-suggest-wrap').hidden);
-    if (!suggestHidden) throw new Error('as sugestões deviam sumir quando vem do empty state (loop)');
-    // foco automático no Nome (mínimo de toques: teclado já pronto)
+    const resto = await A.evaluate(() => document.querySelectorAll('.sug-chip, #add-suggest-wrap').length);
+    if (resto !== 0) throw new Error('a tela de novo item devia vir limpa (sem catálogo), vi ' + resto + ' resto(s)');
+    // foco automático no Nome (a tela é só o formulário → teclado já pronto)
     await A.waitForFunction(() => document.activeElement === document.getElementById('add-name'), null, { timeout: T });
   });
 
@@ -100,14 +107,13 @@ async function main() {
     if (!/bem gelada/.test(card.note)) throw new Error('observação não apareceu no card (legenda visível): ' + JSON.stringify(card));
   });
 
-  // ---------- abrir pelo "+ item personalizado" de mesa MONTADA: aí as sugestões APARECEM ----------
-  await step('no "+ item" da mesa montada, o catálogo aparece (atalho de 1 toque)', async () => {
-    await A.click('.item-card[data-item="x-pizza"]');                 // 1 gole → sai do modo montagem
+  // ---------- "+ item" da mesa montada: o MESMO formulário limpo ----------
+  await step('com cardápio montado o "+ item" já aparece (sem precisar do 1º gole) e abre o MESMO formulário limpo', async () => {
     await A.waitForFunction(() => !document.getElementById('btn-additem').hidden, null, { timeout: T });
     await A.click('#btn-additem');
     await A.waitForFunction(() => !document.getElementById('overlay-additem').hidden, null, { timeout: T });
-    const suggestHidden = await A.evaluate(() => document.getElementById('add-suggest-wrap').hidden);
-    if (suggestHidden) throw new Error('no "+ item" da mesa montada as sugestões deviam aparecer');
+    const resto = await A.evaluate(() => document.querySelectorAll('.sug-chip, #add-suggest-wrap').length);
+    if (resto !== 0) throw new Error('o "+ item" também devia abrir limpo, vi ' + resto + ' resto(s)');
   });
 
   await ctx.close();

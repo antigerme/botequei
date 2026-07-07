@@ -43,7 +43,7 @@ const IDS = [
   'home-history', 'history-list', 'home-hint', 'home-extras', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-bar', 'btn-passport',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
-  'menu-empty', 'empty-suggest', 'btn-empty-custom', 'add-suggest-wrap', 'add-suggest',
+  'menu-empty', 'btn-empty-custom',
   'btn-brinde', 'btn-react', 'btn-rodada', 'btn-games', 'overlay-games', 'games-grid',
   'overlay-round', 'round-grid',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
@@ -179,8 +179,8 @@ export function init(handlers) {
   $('money-block').addEventListener('click', () => H.onBill()); // tocar na conta abre "Fechar a conta"
   $('btn-menu').addEventListener('click', () => { el['overlay-menu'].hidden = false; });
   $('btn-games').addEventListener('click', () => openGames());
-  $('btn-additem').addEventListener('click', () => openAddItem());        // "+ item" da mesa montada: mostra o catálogo
-  $('btn-empty-custom').addEventListener('click', () => openAddItem(true)); // do empty: pula o catálogo e foca o nome
+  $('btn-additem').addEventListener('click', () => openAddItem());      // "+ item" da mesa montada
+  $('btn-empty-custom').addEventListener('click', () => openAddItem()); // mesa limpa: mesmo overlay, catálogo primeiro
   $('btn-brinde').addEventListener('click', () => H.onBrinde());
   $('btn-react').addEventListener('click', () => openReact());
   $('btn-rodada').addEventListener('click', () => H.onRodada());
@@ -439,29 +439,13 @@ export function renderTable(vm) {
     card.toggleAttribute('data-zero', (Number(it.qty) || 0) === 0);
     card.classList.toggle('hot', it.id === topId && topQ > 0);
   }
-  // fase de MONTAGEM (ninguém bebeu ainda): a área "monte o cardápio" fica à mão pra
-  // adicionar vários itens em sequência; some no primeiro gole (aí o ➕ item assume, com
-  // os mesmos chips). Mesa sem nenhum card mostra a área sempre (não existe outro miolo).
-  const suggest = vm.suggest || [];
-  const building = vm.items.length === 0 || (Number(vm.tableTotal) === 0 && suggest.length > 0);
+  // mesa LIMPA: sem nenhum item a tela mostra só o convite; o ➕ abre direto o formulário
+  // de novo item (sem catálogo — decisão de UX). Com o 1º item, o "+ item" assume.
+  const building = vm.items.length === 0;
   el['menu-empty'].hidden = !building;
-  el['menu-empty'].classList.toggle('compact', vm.items.length > 0); // já tem cards: só os chips, sem o título
-  el['items-grid'].hidden = vm.items.length === 0;
-  el['btn-additem'].hidden = building; // o empty já traz o botão de criar item
-  renderSuggest(suggest);
+  el['items-grid'].hidden = building;
+  el['btn-additem'].hidden = building; // o empty já traz o botão (➕ Montar o cardápio)
   if (el['table-hint']) el['table-hint'].hidden = building || Number(vm.tableTotal) > 0;
-}
-let lastSuggestSig = null;
-function renderSuggest(list) {
-  const sig = list.map((s) => s.id).join(',');
-  if (sig === lastSuggestSig) return;
-  lastSuggestSig = sig;
-  const html = list.map((s) => `<button class="sug-chip" type="button" data-id="${esc(s.id)}">${esc(s.emoji)} ${esc(s.name)}</button>`).join('');
-  for (const target of [el['empty-suggest'], el['add-suggest']]) {
-    target.innerHTML = html;
-    target.querySelectorAll('.sug-chip').forEach((b) => b.addEventListener('click', () => H.onSuggest(b.dataset.id)));
-  }
-  el['add-suggest-wrap'].hidden = addFromEmpty || list.length === 0; // some no empty (já viu) e quando o catálogo esgotou
 }
 function cardHTML(it) {
   const note = it.note ? ` title="${esc(it.note)}"` : '';
@@ -722,7 +706,6 @@ function cropUse() {
 
 // ---------- Novo item ----------
 let pickedEmoji = EMOJIS[0];
-let addFromEmpty = false; // aberto pelo empty state? então as sugestões (que a pessoa acabou de ver) somem
 // emoji → categoria provável: escolher o ícone já pré-seleciona a categoria (a pessoa ajusta se quiser)
 const EMOJI_CAT = {
   '🍺': 'cerveja', '🍻': 'cerveja',
@@ -745,7 +728,7 @@ function renderAddPreview() {
   const sub = el['add-prev-sub'];
   if (bits.length) { sub.textContent = bits.join(' · '); sub.hidden = false; } else sub.hidden = true;
 }
-function openAddItem(fromEmpty) {
+function openAddItem() {
   pickedEmoji = EMOJIS[0];
   el['emoji-row'].innerHTML = EMOJIS.map((e, i) => `<button class="emoji-pick ${i === 0 ? 'sel' : ''}" type="button" data-e="${e}" aria-label="${e}">${e}</button>`).join('');
   el['emoji-row'].querySelectorAll('.emoji-pick').forEach((b) => b.addEventListener('click', () => {
@@ -757,13 +740,10 @@ function openAddItem(fromEmpty) {
   el['add-cat'].innerHTML = CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   el['add-cat'].value = 'outros';
   el['add-name'].value = ''; el['add-price'].value = ''; el['add-note'].value = ''; el['add-share'].checked = false;
-  // sugestões do catálogo: úteis no "+ item" de mesa montada; do empty state você já as viu → some
-  addFromEmpty = !!fromEmpty;
-  el['add-suggest-wrap'].hidden = addFromEmpty || !el['add-suggest'].children.length;
   renderAddPreview();
   el['overlay-additem'].hidden = false;
   const sheet = el['overlay-additem'].querySelector('.sheet'); if (sheet) sheet.scrollTop = 0; // abre no topo (título + ✕ à vista)
-  if (addFromEmpty) setTimeout(() => el['add-name'].focus(), 60); // teclado já no nome (mínimo de toques)
+  setTimeout(() => el['add-name'].focus(), 60); // tela limpa = só o formulário → teclado já no nome (mínimo de toques)
 }
 function submitAddItem() {
   const name = el['add-name'].value.trim();

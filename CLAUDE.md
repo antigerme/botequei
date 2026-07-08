@@ -118,12 +118,20 @@ padrão Auto segue o navegador).
   Pedras desenhadas com pips no `ui.js`. O tabuleiro é uma **SERPENTINA de mesa real**
   (`snakeLayout` em `domino.js`, PURA/testada, sem DOM): pedras **coladas** casando pip (deitadas;
   indo pra esquerda vão `flip`), **buchas ATRAVESSADAS** (em pé, a linha passa reto — nunca ramifica,
-  é bloco/dobra-seis), e a cobra **vira a quina descendo com 2 pedras em pé** — **bucha nunca vira
-  quina** (entra reto antes). Cresce **↓ no retrato / → na paisagem**; escala só como último recurso
-  (mesa cheíssima) pra nunca ficar ilegível. O `ui.js` posiciona as pedras em absoluto a partir do
-  `snakeLayout` e re-flui no resize/rotação (`domFitBoard`); o unit `snakeLayout` trava a geometria
-  (24 pedras, sem sobrepor, buchas em pé, retrato mais alto que paisagem) e o e2e confere a virada de
-  quina num celular.
+  é bloco/dobra-seis), e a cobra **vira a quina descendo com 2 pedras NÃO-buchas em pé** — **bucha
+  nunca vira quina**: a dobra que cairia na quina é **empurrada pra corrida reta** (atravessada, anda
+  só S) até que as duas pedras da virada sejam não-buchas ("entra reto antes"; se um aglomerado de
+  dobras alarga a corrida, o **bounding-box** devolve a largura real e a escala do desenhista encaixa —
+  nunca vaza, senão o `overflow:hidden` do feltro cortaria a pedra). Cresce **↓ no retrato / → na
+  paisagem**; escala só como último recurso (mesa cheíssima) pra nunca ficar ilegível. O `ui.js`
+  posiciona as pedras em absoluto a partir do `snakeLayout` e re-flui no resize/rotação (`domFitBoard`,
+  que mede a caixa de **conteúdo** real do feltro — desconta o padding, não o `clientWidth` cru — e,
+  quando precisa encolher, põe a escala num **miolo** `transform-origin:top-left` e dá à **caixa** do
+  tabuleiro o tamanho JÁ escalado: só assim o flex centraliza certo e a pedra nunca vaza — escalar a
+  caixa cheia direto deixava o layout no tamanho antigo e o centralizado saía torto/cortado);
+  o unit `snakeLayout` trava a geometria (24 pedras, sem sobrepor, buchas em pé, retrato mais alto que
+  paisagem, **e nenhuma bucha na quina** — regressão do bug real de 4 jogadores) e o e2e confere a
+  virada de quina num celular.
   Efêmero, não entra no log — e **fechar (✕) só minimiza**: o jogo segue, um pill na mesa traz de
   volta; encerrar pra todos é botão explícito com confirmação (o `cancel` leva `from` → toast diz
   quem encerrou). Consumo/conta de quem saiu não mudam: eventos são CRDT permanentes (a pessoa

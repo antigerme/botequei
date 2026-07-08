@@ -209,4 +209,30 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   ok('serpente: retrato cresce vertical / deitado horizontal; flip na volta; vazio e 1 pedra ok');
 }
 
+// ---------- Serpente: BUCHA NUNCA VIRA QUINA (regressão do bug do André) ----------
+{
+  // uma pedra "vira a quina" quando está EM PÉ empilhada com outra em pé na MESMA coluna (par da quina).
+  // uma bucha (dobra) tem que entrar ATRAVESSADA numa corrida reta — nunca ser pedra de quina.
+  const stacked = (t, tiles) => tiles.some((u) => u !== t && u.vert && Math.abs(u.x - t.x) < 2 &&
+    (Math.abs(u.y - (t.y + t.h)) < 3 || Math.abs(t.y - (u.y + u.h)) < 3));
+  const noBuchaOnCorner = (chain, W) => {
+    const lay = snakeLayout(chain, { width: W, long: 66, short: 34, pad: 6 });
+    for (const t of lay.tiles) if (t.a === t.b) assert.ok(!stacked(t, lay.tiles), `bucha ${t.a}|${t.b} virou a quina (largura ${W}) — devia entrar reto antes`);
+    // e nada pode vazar os limites devolvidos (senão o overflow:hidden do feltro CORTA a pedra)
+    for (const t of lay.tiles) { assert.ok(t.x >= -1 && t.y >= -1, 'pedra pra fora (origem)'); assert.ok(t.x + t.w <= lay.width + 1 && t.y + t.h <= lay.height + 1, 'pedra vaza os limites'); }
+    return lay;
+  };
+  const chainFrom = (seq) => seq.slice(0, -1).map((v, k) => [v, seq[k + 1]]);
+  // chains reais (partidas 4p) que ANTES punham 6|6 e 3|3 virando a quina:
+  const casos = [
+    [4, 0, 6, 4, 1, 6, 2, 0, 5, 6, 6, 3, 2, 5, 3, 3, 4, 5],          // seed 13: 6|6 e 3|3 na quina
+    [3, 2, 2, 5, 5, 5, 6, 6, 1, 1, 3, 3, 3, 4, 4, 0, 0, 6, 3, 3, 0], // aglomerado de dobras
+    [1, 1, 1, 3, 3, 5, 5, 4, 5, 4, 1, 1, 5, 5, 5, 6, 6, 6, 6, 4],    // buchas repetidas na virada
+  ];
+  for (const seq of casos) for (const W of [320, 360, 480, 820]) noBuchaOnCorner(chainFrom(seq), W);
+  // largura APERTADA (celular estreito): mesmo assim nenhuma bucha vira a quina
+  noBuchaOnCorner(chainFrom([6, 6, 4, 4, 2, 2, 0, 0, 5, 5, 3, 3, 1, 1, 6]), 300);
+  ok('serpente: bucha NUNCA vira a quina (entra reto antes) — nem em aglomerado nem em tela estreita');
+}
+
 console.log(`\n${passed} testes de dominó passaram ✅`);

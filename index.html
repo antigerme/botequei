@@ -266,7 +266,7 @@
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="add.title">Novo item</h2>
     <!-- SEM catálogo aqui: a tela de novo item nasce LIMPA (só o formulário) — decisão
-         de UX; DEFAULT_ITEMS segue como dado de compat (rótulos, mesas antigas, modo bar). -->
+         de UX; DEFAULT_ITEMS segue como dado de compat (rótulos, mesas antigas). -->
     <!-- preview AO VIVO: o card que vai nascer, atualizando a cada toque/tecla (regra de
          ouro: preview ao vivo + feedback imediato) -->
     <div class="add-preview" id="add-preview" aria-hidden="true">
@@ -331,9 +331,6 @@
     <h2 data-i18n="prices.title">Cardápio da mesa</h2>
     <p class="sheet-sub" data-i18n="prices.sub">Dê nome às cervejas (marca), ajuste preços — sincroniza com a mesa toda.</p>
     <ul class="price-list" id="price-list"></ul>
-    <div class="sheet-actions">
-      <button class="btn btn-ghost" id="btn-save-menu" data-i18n="prices.save">💾 Salvar como cardápio do bar</button>
-    </div>
   </div>
 </div>
 
@@ -389,8 +386,6 @@
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="btn-clear-data" data-i18n="set.clear">🗑️ Apagar dados locais</button>
     </div>
-    <p class="menu-sec" data-i18n="set.secBar">🍺 Bar</p>
-    <button class="btn btn-ghost" id="btn-bar" data-i18n="bar">🍺 Modo bar</button>
     <p class="seal" data-i18n="set.privacy">🔒 Nada disso é enviado a servidor. Tudo vive no seu navegador.</p>
   </div>
 </div>
@@ -575,21 +570,6 @@
 </div>
 
 
-<!-- Modo bar (código fixo por mesa + cardápio salvo) -->
-<div class="overlay" id="overlay-bar" hidden>
-  <div class="sheet">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 data-i18n="bar">🍺 Modo bar</h2>
-    <p class="sheet-sub" data-i18n="bar.sub">Pro dono do bar: um código fixo por mesa (QR que você imprime) + seu cardápio salvo.</p>
-    <label class="field"><span data-i18n="bar.codeLabel">Código fixo da mesa (opcional)</span>
-      <input id="bar-code" type="text" maxlength="8" placeholder="ex: MESA5" autocapitalize="characters" /></label>
-    <label class="check" id="bar-usemenu-field" hidden><input type="checkbox" id="bar-usemenu" checked /><span>Carregar meu cardápio salvo (<span id="bar-menu-count">0</span> itens)</span></label>
-    <div class="sheet-actions">
-      <button class="btn btn-primary btn-lg" id="btn-bar-open" data-i18n="bar.open">Abrir mesa do bar 🍺</button>
-    </div>
-    <p class="seal" data-i18n="bar.hint">Salve o cardápio na mesa em 💲 Preços → “Salvar como cardápio do bar”.</p>
-  </div>
-</div>
 
 <!-- Jukebox da mesa (fila de músicas, sincronizada) -->
 <div class="overlay" id="overlay-jukebox" hidden>

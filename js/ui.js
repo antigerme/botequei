@@ -21,7 +21,7 @@
 //   (+ foto: captura e recorte) · Novo item · Preços · Conta · PIX · Configs ·
 //   Reações · Efeitos · Jogos (grid) · Bebedeira · Offline (QR) · Scanner ·
 //   Meu ritmo · Roleta · Cutucar · Cerimônia · Meus números · Presença ·
-//   Comanda · Tour · Tô de boa? · Retrospectiva · Liga · Modo bar · Torneio ·
+//   Comanda · Tour · Tô de boa? · Retrospectiva · Liga · Torneio ·
 //   Carta da mesa · Purrinha · Jogo minimizado · Dominó · Truco · Jukebox ·
 //   Modo festa · Passaporte de botecos · Foto da noite · Guia de boas-vindas ·
 //   Overlays/toast (tema e idioma vivem na seção Configurações: resolveTheme/
@@ -40,7 +40,7 @@ const el = {};
 
 const IDS = [
   'screen-home', 'screen-table', 'input-name', 'input-code', 'btn-create', 'btn-join-code',
-  'home-history', 'history-list', 'home-hint', 'home-extras', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-bar', 'btn-passport',
+  'home-history', 'history-list', 'home-hint', 'home-extras', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-passport',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'menu-empty', 'btn-empty-custom',
@@ -53,7 +53,7 @@ const IDS = [
   'overlay-menu', 'menu-profile', 'menu-board',
   'menu-jukebox', 'menu-festa', 'menu-payround', 'menu-bill', 'menu-prices',
   'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings',
-  'overlay-prices', 'price-list', 'btn-save-menu',
+  'overlay-prices', 'price-list',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
   'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-selfie', 'btn-avatar-upload', 'avatar-file',
   'overlay-crop', 'crop-canvas', 'crop-zoom', 'btn-crop-use',
@@ -92,7 +92,6 @@ const IDS = [
   'overlay-welcome', 'btn-welcome-go',
   'overlay-retro', 'retro-slides', 'btn-retro-share',
   'league-level', 'league-challenges', 'league-season',
-  'overlay-bar', 'bar-code', 'bar-usemenu-field', 'bar-usemenu', 'bar-menu-count', 'btn-bar-open',
   'btn-offline-join', 'btn-offline-host',
   'overlay-offline', 'off-host', 'off-guest',
   'off-offer-qr', 'off-offer-code', 'btn-off-copy-offer', 'btn-off-scan-answer', 'off-answer-in', 'btn-off-connect',
@@ -170,7 +169,6 @@ export function init(handlers) {
   el['btn-install'].addEventListener('click', () => H.onInstall());
   el['btn-stats'].addEventListener('click', () => H.onStats());
   el['btn-retro'].addEventListener('click', () => H.onRetro());
-  el['btn-bar'].addEventListener('click', () => H.onBarMode());
   el['btn-passport'].addEventListener('click', () => H.onPassport());
 
   // sair da mesa pede confirmação (um toque errado no ‹ não te derruba da mesa)
@@ -223,10 +221,8 @@ export function init(handlers) {
   el['btn-ceremony-share'].addEventListener('click', () => H.onCeremonyShare());
   el['btn-ceremony-broadcast'].addEventListener('click', () => H.onCeremonyBroadcast());
 
-  // retrô / liga / modo bar
-  el['btn-save-menu'].addEventListener('click', () => H.onSaveMenu());
+  // retrô / liga
   el['btn-retro-share'].addEventListener('click', () => H.onRetroShare());
-  el['btn-bar-open'].addEventListener('click', () => H.onBarOpenTable(el['bar-code'].value, el['bar-usemenu'].checked));
   el['btn-jukebox-add'].addEventListener('click', () => submitSong());
   el['btn-festa-close'].addEventListener('click', () => closeOverlays());
   el['btn-purr-seal'].addEventListener('click', () => {
@@ -1213,16 +1209,6 @@ export function renderLeague(vm) {
   const s = vm.season;
   el['league-season'].innerHTML = s ? `<div class="season-card"><span class="season-emoji">${esc(s.emoji)}</span>
     <div><div class="season-title">${esc(t('league.season.' + s.tier))}</div><div class="season-sub">${esc(t(s.month === 1 ? 'league.season1' : 'league.seasonN', { n: s.month, label: t('mon.' + s.monthIdx) }))}</div></div></div>` : '';
-}
-
-// ---------- Modo bar ----------
-export function openBar(vm) {
-  el['bar-code'].value = '';
-  const n = (vm && vm.menuCount) || 0;
-  el['bar-usemenu-field'].hidden = n <= 0;
-  el['bar-menu-count'].textContent = n;
-  el['bar-usemenu'].checked = n > 0;
-  el['overlay-bar'].hidden = false;
 }
 
 // ---------- Purrinha (commit-reveal; modos: rápida = 1 rodada / clássica = eliminação) ----------

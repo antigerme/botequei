@@ -216,7 +216,7 @@ padrão Auto segue o navegador).
   vazia mostra só o convite + botão "➕ Montar o cardápio", e o overlay ➕ item abre DIRETO
   no formulário (Nome já focado; todo item nasce dali, com "da mesa" pro compartilhado).
   `DEFAULT_ITEMS` segue como DADO de compat — `resolveItem`/rótulos `t('item.'+id)` pra
-  mesas antigas, modo bar e afins — não como UI. `allItems` só devolve item com def no
+  mesas antigas e afins — não como UI. `allItems` só devolve item com def no
   state OU contagem > 0 (a 2ª regra preserva mesas antigas e rodada de item que o peer não
   tinha). Com o 1º item no cardápio o convite some e o "+ item" assume; o passo 1 do tour
   aponta pro botão quando não há cards.
@@ -225,8 +225,6 @@ padrão Auto segue o navegador).
   no `catalog.js` (`g`, usado só pra marcar item alcoólico na rodada/exclusão do motorista).
 - **Liga & desafios (puro)**: `js/league.js` — `levelFor` (XP = rodadas×10 + noites×30 → nível),
   `weeklyChallenges` (semana atual + noite em curso) e `seasonAward` (troféu do mês).
-- **Modo bar**: `store.saveBarMenu`/`getBarMenu` guardam o cardápio (defs de `ITEM`) pra reusar;
-  ao abrir "mesa do bar" com código fixo, o app re-emite os `ITEM` salvos.
 - **Alcance & cara**: `js/i18n.js` (dicionário pt/en/es COMPLETO — shell, toasts e templates —
   com `t(chave, vars)` interpolando `{name}`/`{n}` e `applyI18n` sobre `[data-i18n]`/
   `[data-i18n-ph]`/`[data-i18n-aria]`/`[data-i18n-title]`/`[data-i18n-html]`; idioma padrão
@@ -240,8 +238,7 @@ padrão Auto segue o navegador).
   `tourSeen`; spotlight + balão, avança no toque, "pular" sempre à mão).
 - **Persistência:** só `localStorage` (`js/store.js`; histórico por mesa com meus itens, gasto,
   duração e **`mates`** — quem estava na mesa, p/ o "com quem você mais bebeu"; `exportAll`/
-  `importAll` = backup JSON; `saveBarMenu`/`getBarMenu` = cardápio do bar;
-  `getCheckins`/`addCheckin` = passaporte de botecos). Nada central.
+  `importAll` = backup JSON; `getCheckins`/`addCheckin` = passaporte de botecos). Nada central.
 - **Acessibilidade**: diálogos com `role="dialog"`/foco preso/ESC (`setupA11y` em `ui.js`),
   `:focus-visible`, `prefers-reduced-motion` (corta confete/animações), rótulos ARIA.
 - **TURN opcional** (rota `/turn`, nos dois adaptadores): credenciais efêmeras da Cloudflare,

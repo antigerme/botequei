@@ -595,7 +595,7 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
   * { scroll-behavior: auto !important; }
 }
 
-/* ===================== Leva 3 (segurança, retrô, liga, modo bar) ===================== */
+/* ===================== Leva 3 (segurança, retrô, liga) ===================== */
 
 .home-row { display: flex; gap: 10px; }
 .home-row .btn { flex: 1; }

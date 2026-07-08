@@ -59,12 +59,6 @@ const K_FLAGS = 'botequei.flags';
 export function getFlag(name) { const v = readJSON(K_FLAGS, {}); return !!(v && v[name]); }
 export function setFlag(name) { const v = readJSON(K_FLAGS, {}) || {}; v[name] = Date.now(); writeJSON(K_FLAGS, v); }
 
-// ---- Modo bar: cardápio salvo (itens + preços) pra reusar em novas mesas ----
-const K_BARMENU = 'botequei.barmenu';
-export function saveBarMenu(defs) { writeJSON(K_BARMENU, Array.isArray(defs) ? defs : []); }
-export function getBarMenu() { const v = readJSON(K_BARMENU, []); return Array.isArray(v) ? v : []; }
-export function hasBarMenu() { return getBarMenu().length > 0; }
-
 // ---- Passaporte de botecos (check-ins locais) ----
 const K_PASS = 'botequei.passport';
 export function getCheckins() { const v = readJSON(K_PASS, []); return Array.isArray(v) ? v : []; }

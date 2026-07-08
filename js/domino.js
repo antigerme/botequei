@@ -97,68 +97,86 @@ export function place(chain, ends, tile, side) {
   return { chain: c, ends: [L, outer] };
 }
 
-// ---------- Layout do TABULEIRO (serpentina) — PURO/testável, sem DOM ----------
-// Desenha a corrente como numa mesa de verdade (regras conferidas: dominó de bloco/dobra-seis).
-// Recebe a CORRENTE (chain: pedras [a,b] JÁ orientadas — chain[i][1] === chain[i+1][0]) e a largura
-// disponível; devolve as pedras POSICIONADAS:
+// ---------- Layout do TABULEIRO (serpentina de mesa real) — PURO/testável, sem DOM ----------
+// A corrente é ANCORADA na pedra de ABERTURA (a maior carroça): ela fica no MEIO e não sai mais do
+// lugar; os DOIS braços crescem pra fora dela — o de índice maior desce serpenteando, o de índice
+// menor sobe. Assim uma jogada numa ponta NÃO re-flui o tabuleiro (pedra colocada fica PARADA);
+// só girar o aparelho (muda a largura) re-arruma. Regras da mesa (dominó de bloco/dobra-seis):
 //   • pedra normal: DEITADA, encostada na anterior (o pip casa); indo pra ESQUERDA vai `flip` (b|a).
-//   • BUCHA (a===b): ATRAVESSADA (em pé) — a linha passa RETO por ela (não vira, não ramifica).
-//   • vira a QUINA descendo com 2 pedras NORMAIS em pé; BUCHA NUNCA vira quina (entra reto antes).
-// Devolve { tiles:[{a,b,x,y,w,h,vert,flip,idx,open,bucha}], width, height }. A ESCALA fica com quem desenha.
-// A largura devolvida pode passar da pedida: um AGLOMERADO de buchas na quina precisa entrar reto
-// (atravessado) numa corrida só (bucha nunca vira quina) — quem desenha escala pra caber.
+//   • BUCHA (a===b): ATRAVESSADA (em pé) quando cabe numa corrida reta — a linha passa RETO por ela.
+//   • vira a QUINA com 2 pedras EM PÉ; a corrida NUNCA termina numa BUCHA (a bucha deitada é alta e
+//     encaixaria TORTA na quina) — a bucha da fronteira vira a 1ª pedra EM PÉ da quina (aí ALINHA).
+//   • serpenteia pra caber na LARGURA em tamanho cheio (nunca encolhe a pedra) e cresce em ALTURA.
+// Devolve { tiles:[{a,b,x,y,w,h,vert,flip,idx,open,bucha}], width, height, anchor }.
+//
+// um braço (boustrophedon) a partir de um ponto/direção; empurra as pedras posicionadas em `out`.
+// items: [{entry,exit,dbl,idx}] JÁ orientadas (entry casa com a de trás, rumo à âncora).
+// vdir = +1 (a quina desce) ou -1 (sobe). loX/hiX = limites úteis (a corrida serpenteia dentro deles).
+function layArm(items, out, { startX, startYc, dir0, vdir, L, S, loX, hiX }) {
+  let i = 0, dir = dir0, x = startX, yc = startYc;
+  const N = items.length;
+  let last = null;                                         // última pedra DESTE braço (não espia o `out`)
+  const flat = (it) => {                                   // deitada, ou BUCHA atravessada (em pé no yc)
+    if (it.dbl) { last = { a: it.entry, b: it.exit, x: dir > 0 ? x : x - S, y: yc - L / 2, w: S, h: L, vert: true, flip: false, idx: it.idx, bucha: true }; x += dir * S; }
+    else { const a = dir > 0 ? it.entry : it.exit, b = dir > 0 ? it.exit : it.entry; last = { a, b, x: dir > 0 ? x : x - L, y: yc - S / 2, w: L, h: S, vert: false, flip: false, idx: it.idx, bucha: false }; x += dir * L; }
+    out.push(last);
+  };
+  const stand = (it, px, py) => {                          // em pé (quina): entra pela corrida, sai vertical
+    const a = vdir > 0 ? it.entry : it.exit, b = vdir > 0 ? it.exit : it.entry;
+    out.push(last = { a, b, x: px, y: py, w: S, h: L, vert: true, flip: false, idx: it.idx, bucha: it.dbl });
+  };
+  while (i < N) {
+    while (i < N) {                                        // enche a corrida (reserva S pra coluna da quina)
+      const it = items[i], w = it.dbl ? S : L;
+      const room = dir > 0 ? (hiX - S - x) : (x - (loX + S));
+      if (room < w) break;
+      if (it.dbl) {                                        // bucha só entra na corrida se sobrar p/ a PRÓXIMA
+        const after = dir > 0 ? (hiX - S - (x + w)) : (x - w - (loX + S)); // (reserva L exista-ou-não a próxima
+        if (after < L) break;                              // → decisão estável); senão vira a 1ª em pé da quina.
+      }
+      flat(it); i++;
+    }
+    if (i >= N) break;
+    const colX = dir > 0 ? x : x - S;                      // coluna da quina, encostada na última da corrida
+    const y0 = vdir > 0 ? yc - S / 2 : yc + S / 2 - L;
+    stand(items[i], colX, y0); i++; if (i >= N) break;     // 1ª em pé (alinha topo↓/base↑ com a corrida)
+    stand(items[i], colX, vdir > 0 ? y0 + L : y0 - L); i++; // 2ª em pé (desce/sobe)
+    yc = vdir > 0 ? yc + 2 * L - S : yc - 2 * L + S;        // nova corrida; x fica na coluna (não reseta) e vira
+    dir = -dir;
+  }
+}
+
 export function snakeLayout(chain, opts = {}) {
   const L = Math.max(20, Math.round(opts.long || 66));   // comprimento da pedra deitada
   const S = Math.max(12, Math.round(opts.short || 34));  // largura da deitada = comprimento da em pé
   const pad = opts.pad == null ? 8 : opts.pad;
   const N = (chain || []).length;
-  const reqW = Math.max(2 * pad + L + S, Math.floor(opts.width || 320));
-  if (!N) return { tiles: [], width: reqW, height: 2 * pad + S };
+  const W = Math.max(2 * pad + 2 * L, Math.floor(opts.width || 320));
+  if (!N) return { tiles: [], width: W, height: 2 * pad + S, anchor: -1 };
   const isD = (t) => t[0] === t[1];
-  const usable = reqW - 2 * pad;
-  const tiles = [];
-  let i = 0, dir = 1, x = pad, yc = pad + L / 2;
-  const open = (k) => k === 0 || k === N - 1;
-  const flat = (k) => {                                  // deitada, ou BUCHA atravessada (em pé, anda só S)
-    const [a, b] = chain[k], bucha = isD(chain[k]);
-    if (bucha) {
-      tiles.push({ a, b, x: dir === 1 ? x : x - S, y: yc - L / 2, w: S, h: L, vert: true, flip: false, idx: k, open: open(k), bucha: true });
-      x += dir * S;
-    } else {
-      tiles.push({ a, b, x: dir === 1 ? x : x - L, y: yc - S / 2, w: L, h: S, vert: false, flip: dir === -1, idx: k, open: open(k), bucha: false });
-      x += dir * L;
-    }
-  };
-  const stand = (k, px, py) => {                          // pedra em pé na quina (só NÃO-bucha vira quina)
-    tiles.push({ a: chain[k][0], b: chain[k][1], x: px, y: py, w: S, h: L, vert: true, flip: false, idx: k, open: open(k), bucha: isD(chain[k]) });
-  };
-  while (i < N) {
-    while (i < N) {                                       // enche a corrida, SEMPRE deixando S pra coluna da quina
-      const w = isD(chain[i]) ? S : L;
-      const roomReserve = dir === 1 ? (pad + usable - S - x) : (x - (pad + S));
-      if (roomReserve < w) break;                         // não cabe sem invadir a quina → vira aqui
-      flat(i); i++;
-    }
-    if (i >= N) break;
-    // BUCHA NUNCA VIRA QUINA: empurra as buchas da fronteira pra corrida (ATRAVESSADAS, andam só S)
-    // até que as DUAS pedras da quina (d1 e d2) sejam NÃO-buchas — "entra reto antes". Pode alargar
-    // a corrida (aglomerado de dobras), então a largura final sai do bounding-box lá embaixo.
-    while (i + 1 < N && (isD(chain[i]) || isD(chain[i + 1]))) { flat(i); i++; }
-    if (i >= N) break;
-    const colX = dir === 1 ? x : x - S, yTop = yc - S / 2;
-    const d1 = i; i++; stand(d1, colX, yTop);             // 1ª em pé (quina) — não-bucha
-    if (i >= N) break;
-    const d2 = i; i++; stand(d2, colX, yTop + L);         // 2ª em pé (desce a cobra) — não-bucha
-    yc = yTop + 2 * L - S / 2;                            // nova corrida na metade de baixo da d2
-    dir = -dir;                                           // vira; x fica na coluna da quina
-  }
-  // bounding-box real (o empurra-buchas pode extrapolar a largura pedida ou ir pra esquerda do pad):
-  // normaliza pra tudo começar em `pad` e devolve a largura/altura que de fato ocupou.
-  let minX = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const t of tiles) { if (t.x < minX) minX = t.x; if (t.x + t.w > maxX) maxX = t.x + t.w; if (t.y + t.h > maxY) maxY = t.y + t.h; }
-  const shift = pad - minX;
-  if (shift !== 0) for (const t of tiles) t.x += shift;
-  return { tiles, width: Math.max(reqW, Math.round(maxX - minX + 2 * pad)), height: Math.round(maxY + pad) };
+  // âncora = pedra de ABERTURA (a maior carroça); default = a maior bucha na corrente (é ela).
+  let anchor = opts.anchor;
+  if (anchor == null || anchor < 0 || anchor >= N) { let best = -1; anchor = 0; for (let k = 0; k < N; k++) if (isD(chain[k]) && chain[k][0] > best) { best = chain[k][0]; anchor = k; } }
+  const loX = pad, hiX = W - pad, cx = W / 2, cy = 0;
+  const out = [];
+  const aT = chain[anchor], aDbl = isD(aT);
+  if (aDbl) out.push({ a: aT[0], b: aT[1], x: cx - S / 2, y: cy - L / 2, w: S, h: L, vert: true, flip: false, idx: anchor, bucha: true });
+  else out.push({ a: aT[0], b: aT[1], x: cx - L / 2, y: cy - S / 2, w: L, h: S, vert: false, flip: false, idx: anchor, bucha: false });
+  const aRight = aDbl ? cx + S / 2 : cx + L / 2, aLeft = aDbl ? cx - S / 2 : cx - L / 2;
+  // braço "pra frente" (idx > âncora): entra por chain[k][0]; desce serpenteando
+  const fwd = []; for (let k = anchor + 1; k < N; k++) fwd.push({ entry: chain[k][0], exit: chain[k][1], dbl: isD(chain[k]), idx: k });
+  layArm(fwd, out, { startX: aRight, startYc: cy, dir0: 1, vdir: 1, L, S, loX, hiX });
+  // braço "pra trás" (idx < âncora): entra por chain[k][1]; sobe serpenteando
+  const bwd = []; for (let k = anchor - 1; k >= 0; k--) bwd.push({ entry: chain[k][1], exit: chain[k][0], dbl: isD(chain[k]), idx: k });
+  layArm(bwd, out, { startX: aLeft, startYc: cy, dir0: -1, vdir: -1, L, S, loX, hiX });
+  for (const t of out) t.open = (t.idx === 0 || t.idx === N - 1);
+  out.sort((p, q) => p.idx - q.idx);                       // ordem da corrente (render estável)
+  // bounding-box → normaliza tudo pra começar em `pad` (translação UNIFORME: não re-flui, só re-enquadra)
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const t of out) { if (t.x < minX) minX = t.x; if (t.y < minY) minY = t.y; if (t.x + t.w > maxX) maxX = t.x + t.w; if (t.y + t.h > maxY) maxY = t.y + t.h; }
+  const sx = pad - minX, sy = pad - minY;
+  for (const t of out) { t.x += sx; t.y += sy; }
+  return { tiles: out, width: Math.round(maxX - minX + 2 * pad), height: Math.round(maxY - minY + 2 * pad), anchor };
 }
 
 // ---- Partida completa (usada nos testes; no app as mãos ocultas viram contagem) ----

@@ -1356,6 +1356,7 @@ function beginDomino(d) {
     // mesa verificada (só preenchido no modo verificado)
     verified: !!d.verified, isHost: !!d.isHost, vinfo: d.vinfo || null,
     initialHand: (d.hand || []).map((t) => t.slice()), opens: {}, audit: null, auditStarted: false,
+    openTile: d.firstTile.slice(), // a ABERTURA (maior carroça) — âncora do tabuleiro (fica no meio)
   };
   domApplyPlay(d.starter, d.firstTile, 'L'); // abertura forçada (maior carroça)
   if (dvWatch) { clearTimeout(dvWatch); dvWatch = null; } // handshake concluiu
@@ -1458,6 +1459,8 @@ function renderDom() {
   }
   ui.renderDomino({
     board: dom.chain.map((t) => ({ a: t[0], b: t[1] })), ends: dom.ends, hand, opponents,
+    anchor: dom.openTile ? dom.chain.findIndex((t) => domKey(t) === domKey(dom.openTile)) : -1, // âncora = abertura
+
     turn: dom.over ? '' : (myTurn ? t('dom.yourTurn') : t('dom.turnOf', { name: domName(dom.order[dom.turnIdx]) })),
     myTurn, canPass: myTurn && moves.length === 0, over: dom.over, iWon: dom.winner === self, result, verified,
     lastPlayIdx, lastPlayAvatar, lastPlayPhoto, lastPlayName,

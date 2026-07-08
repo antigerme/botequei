@@ -105,31 +105,32 @@ export function place(chain, ends, tile, side) {
 //   • BUCHA (a===b): ATRAVESSADA (em pé) — a linha passa RETO por ela (não vira, não ramifica).
 //   • vira a QUINA descendo com 2 pedras NORMAIS em pé; BUCHA NUNCA vira quina (entra reto antes).
 // Devolve { tiles:[{a,b,x,y,w,h,vert,flip,idx,open,bucha}], width, height }. A ESCALA fica com quem desenha.
+// A largura devolvida pode passar da pedida: um AGLOMERADO de buchas na quina precisa entrar reto
+// (atravessado) numa corrida só (bucha nunca vira quina) — quem desenha escala pra caber.
 export function snakeLayout(chain, opts = {}) {
   const L = Math.max(20, Math.round(opts.long || 66));   // comprimento da pedra deitada
   const S = Math.max(12, Math.round(opts.short || 34));  // largura da deitada = comprimento da em pé
   const pad = opts.pad == null ? 8 : opts.pad;
   const N = (chain || []).length;
-  const width = Math.max(2 * pad + L + S, Math.floor(opts.width || 320));
-  if (!N) return { tiles: [], width, height: 2 * pad + S };
+  const reqW = Math.max(2 * pad + L + S, Math.floor(opts.width || 320));
+  if (!N) return { tiles: [], width: reqW, height: 2 * pad + S };
   const isD = (t) => t[0] === t[1];
-  const usable = width - 2 * pad;
+  const usable = reqW - 2 * pad;
   const tiles = [];
-  let i = 0, dir = 1, x = pad, yc = pad + L / 2, maxB = pad + L;
+  let i = 0, dir = 1, x = pad, yc = pad + L / 2;
   const open = (k) => k === 0 || k === N - 1;
   const flat = (k) => {                                  // deitada, ou BUCHA atravessada (em pé, anda só S)
     const [a, b] = chain[k], bucha = isD(chain[k]);
     if (bucha) {
       tiles.push({ a, b, x: dir === 1 ? x : x - S, y: yc - L / 2, w: S, h: L, vert: true, flip: false, idx: k, open: open(k), bucha: true });
-      x += dir * S; maxB = Math.max(maxB, yc + L / 2);
+      x += dir * S;
     } else {
       tiles.push({ a, b, x: dir === 1 ? x : x - L, y: yc - S / 2, w: L, h: S, vert: false, flip: dir === -1, idx: k, open: open(k), bucha: false });
-      x += dir * L; maxB = Math.max(maxB, yc + S / 2);
+      x += dir * L;
     }
   };
-  const stand = (k, px, py) => {                          // pedra em pé na quina
+  const stand = (k, px, py) => {                          // pedra em pé na quina (só NÃO-bucha vira quina)
     tiles.push({ a: chain[k][0], b: chain[k][1], x: px, y: py, w: S, h: L, vert: true, flip: false, idx: k, open: open(k), bucha: isD(chain[k]) });
-    maxB = Math.max(maxB, py + L);
   };
   while (i < N) {
     while (i < N) {                                       // enche a corrida, SEMPRE deixando S pra coluna da quina
@@ -139,17 +140,25 @@ export function snakeLayout(chain, opts = {}) {
       flat(i); i++;
     }
     if (i >= N) break;
-    // se a pedra da quina seria BUCHA, ela entra ATRAVESSADA na corrida (não vira) — desde que sobre a quina
-    while (i + 1 < N && isD(chain[i]) && (dir === 1 ? (pad + usable - x) : (x - pad)) >= 2 * S) { flat(i); i++; }
+    // BUCHA NUNCA VIRA QUINA: empurra as buchas da fronteira pra corrida (ATRAVESSADAS, andam só S)
+    // até que as DUAS pedras da quina (d1 e d2) sejam NÃO-buchas — "entra reto antes". Pode alargar
+    // a corrida (aglomerado de dobras), então a largura final sai do bounding-box lá embaixo.
+    while (i + 1 < N && (isD(chain[i]) || isD(chain[i + 1]))) { flat(i); i++; }
     if (i >= N) break;
     const colX = dir === 1 ? x : x - S, yTop = yc - S / 2;
-    const d1 = i; i++; stand(d1, colX, yTop);             // 1ª em pé (quina)
+    const d1 = i; i++; stand(d1, colX, yTop);             // 1ª em pé (quina) — não-bucha
     if (i >= N) break;
-    const d2 = i; i++; stand(d2, colX, yTop + L);         // 2ª em pé (desce a cobra)
+    const d2 = i; i++; stand(d2, colX, yTop + L);         // 2ª em pé (desce a cobra) — não-bucha
     yc = yTop + 2 * L - S / 2;                            // nova corrida na metade de baixo da d2
     dir = -dir;                                           // vira; x fica na coluna da quina
   }
-  return { tiles, width, height: maxB + pad };
+  // bounding-box real (o empurra-buchas pode extrapolar a largura pedida ou ir pra esquerda do pad):
+  // normaliza pra tudo começar em `pad` e devolve a largura/altura que de fato ocupou.
+  let minX = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const t of tiles) { if (t.x < minX) minX = t.x; if (t.x + t.w > maxX) maxX = t.x + t.w; if (t.y + t.h > maxY) maxY = t.y + t.h; }
+  const shift = pad - minX;
+  if (shift !== 0) for (const t of tiles) t.x += shift;
+  return { tiles, width: Math.max(reqW, Math.round(maxX - minX + 2 * pad)), height: Math.round(maxY + pad) };
 }
 
 // ---- Partida completa (usada nos testes; no app as mãos ocultas viram contagem) ----

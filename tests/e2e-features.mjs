@@ -148,16 +148,20 @@ async function main() {
     await closeAll(pageA);
   });
 
-  await step('cardápio da mesa: marca "Original" e item escondido valem pra TODOS', async () => {
+  await step('cardápio da mesa: marca "Original", DESCRIÇÃO editada e item escondido valem pra TODOS', async () => {
     await pageA.click('#btn-menu'); await pageA.click('#menu-prices');
     await visible(pageA, 'overlay-prices');
     await pageA.fill('.price-row[data-id="x-garrafa-600"] .pr-brand', 'Original');
     await pageA.$eval('.price-row[data-id="x-garrafa-600"] .pr-brand', (e) => e.dispatchEvent(new Event('change')));
+    // descrição (ex-observação) agora se edita AQUI também — caso Skoll/"Garrafa 600ml"
+    await pageA.fill('.price-row[data-id="x-garrafa-600"] .pr-note', 'Garrafa 600ml gelada');
+    await pageA.$eval('.price-row[data-id="x-garrafa-600"] .pr-note', (e) => e.dispatchEvent(new Event('change')));
     await pageA.click('.price-row[data-id="x-lata"] .pr-eye'); // ninguém pediu lata hoje
     await closeAll(pageA);
     await Promise.all([pageA, pageB].map((p) => p.waitForFunction(() => {
       const name = document.querySelector('.item-card[data-item="x-garrafa-600"] .item-name')?.textContent;
-      return name === 'Original' && !document.querySelector('.item-card[data-item="x-lata"]');
+      const note = document.querySelector('.item-card[data-item="x-garrafa-600"] .item-note')?.textContent || '';
+      return name === 'Original' && note.includes('Garrafa 600ml gelada') && !document.querySelector('.item-card[data-item="x-lata"]');
     }, null, { timeout: T })));
   });
 

@@ -2504,6 +2504,12 @@ const handlers = {
     emitLocal(makeItem({ ...it, brand: String(brand || '').trim().slice(0, 28) }));
     render();
   },
+  onNoteChange: (id, note) => {
+    const it = resolveItem(id);
+    // descrição é DADO da mesa (LWW): "Garrafa 600ml"… vazio = sem descrição no card
+    emitLocal(makeItem({ ...it, note: String(note || '').trim().slice(0, 40) }));
+    render();
+  },
   onPix: (user) => {
     if (!settings.pixKey) { ui.toast(t('toast.pixConfig')); return; }
     const r = (lastBill && lastBill.rows || []).find((x) => x.user === user);

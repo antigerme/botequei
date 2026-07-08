@@ -57,6 +57,15 @@ async function main() {
     await A.waitForFunction(() => document.activeElement === document.getElementById('add-name'), null, { timeout: T });
   });
 
+  await step('a categoria já ABRE seguindo o ícone padrão (🍺 → Cervejas, não "Outros")', async () => {
+    const st = await A.evaluate(() => ({
+      sel: (document.querySelector('#emoji-row .emoji-pick.sel') || {}).dataset?.e,
+      cat: document.getElementById('add-cat').value,
+    }));
+    if (st.sel !== '🍺') throw new Error('o ícone padrão devia ser 🍺, veio ' + st.sel);
+    if (st.cat !== 'cerveja') throw new Error('a categoria devia ABRIR em Cervejas (segue o ícone), veio ' + st.cat);
+  });
+
   await step('preview começa como placeholder ("seu item")', async () => {
     const st = await A.evaluate(() => ({
       name: document.getElementById('add-prev-name').textContent,

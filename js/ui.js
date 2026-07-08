@@ -730,7 +730,7 @@ function openAddItem() {
     renderAddPreview();
   }));
   el['add-cat'].innerHTML = CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  el['add-cat'].value = 'outros';
+  el['add-cat'].value = EMOJI_CAT[pickedEmoji] || 'outros'; // categoria já ABRE seguindo o ícone (🍺 → Cervejas)
   el['add-name'].value = ''; el['add-price'].value = ''; el['add-note'].value = ''; el['add-share'].checked = false;
   renderAddPreview();
   el['overlay-additem'].hidden = false;

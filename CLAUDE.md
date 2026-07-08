@@ -198,7 +198,9 @@ padrão Auto segue o navegador).
   `cup` pra log velho não contar dobrado). `userTotal`/`userMoney`/`summary` aceitam
   `resolveItem` e excluem share do pessoal.
   **Cardápio da mesa** (ex-"Preços", `menu-prices`): cada item aceita **marca/apelido**
-  (`brand` no def, LWW — `itemLabel` prioriza) e **esconder** (`off` no def — cards/rodada/
+  (`brand` no def, LWW — `itemLabel` prioriza), **descrição** (`note` no def, LWW — nasce
+  no ➕ como "Descrição (opcional)" e é editável aqui; o card mostra como legenda — caso
+  "Skoll" + "Garrafa 600ml") e **esconder** (`off` no def — cards/rodada/
   contador gigante filtram; a lista do editor mostra esmaecido pra reativar; contagens e
   conta não mudam). Duas marcas do mesmo formato ao mesmo tempo = criar item custom.
   **A mesa nasce LIMPA (e o ➕ também)**: SEM chips de sugestão em lugar nenhum — a tela

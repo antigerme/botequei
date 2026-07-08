@@ -449,7 +449,7 @@ function cardHTML(it) {
     <div class="item-qty">${it.qty}</div>
     <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
-    ${it.note ? `<div class="item-note">📝 ${esc(it.note)}</div>` : ''}
+    ${it.note ? `<div class="item-note">${esc(it.note)}</div>` : ''}
     <div class="item-plus">+1</div>
     <div class="share-flag" aria-hidden="true">${t('card.mesa')}</div></div>`;
   }
@@ -458,7 +458,7 @@ function cardHTML(it) {
     <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
     <div class="item-sub">${esc(it.sub)}</div>
-    ${it.note ? `<div class="item-note">📝 ${esc(it.note)}</div>` : ''}
+    ${it.note ? `<div class="item-note">${esc(it.note)}</div>` : ''}
     <div class="item-plus">+1</div></div>`;
 }
 // Cardápio agrupado por categoria (cabeçalhos só quando há mais de uma categoria).
@@ -751,11 +751,13 @@ export function openPrices(items) {
     <span class="pr-emoji">${esc(it.emoji)}</span>
     <input class="pr-brand" type="text" maxlength="28" value="${esc(it.brand || '')}" placeholder="${esc(it.name)}" aria-label="${t('prices.brandAria')}" />
     <input class="pr-price" type="number" inputmode="decimal" min="0" step="0.5" value="${it.price || ''}" placeholder="${t('add.pricePh')}" aria-label="${t('prices.priceAria')}" />
-    <button class="pr-eye" type="button" title="${t(it.off ? 'prices.show' : 'prices.hide')}" aria-label="${t(it.off ? 'prices.show' : 'prices.hide')}">${it.off ? '🚫' : '👁'}</button></li>`).join('');
+    <button class="pr-eye" type="button" title="${t(it.off ? 'prices.show' : 'prices.hide')}" aria-label="${t(it.off ? 'prices.show' : 'prices.hide')}">${it.off ? '🚫' : '👁'}</button>
+    <input class="pr-note" type="text" maxlength="40" value="${esc(it.note || '')}" placeholder="${t('add.notePh')}" aria-label="${t('prices.noteAria')}" /></li>`).join('');
   el['price-list'].querySelectorAll('li').forEach((li) => {
     const id = li.dataset.id;
     li.querySelector('.pr-price').addEventListener('change', (e) => H.onPriceChange(id, e.target.value));
     li.querySelector('.pr-brand').addEventListener('change', (e) => H.onBrandChange(id, e.target.value));
+    li.querySelector('.pr-note').addEventListener('change', (e) => H.onNoteChange(id, e.target.value));
     li.querySelector('.pr-eye').addEventListener('click', () => H.onItemToggle(id));
   });
   el['overlay-prices'].hidden = false;
@@ -1137,7 +1139,7 @@ export function openComanda(vm) {
   el['comanda-title'].textContent = `${vm.emoji || '🍺'} ${vm.name || t('common.anon')}`;
   el['comanda-list'].innerHTML = (vm.rows || []).map((r) => `<li class="comanda-row">
     <span class="c-emoji">${esc(r.emoji || '🍺')}</span>
-    <span class="c-name">${esc(r.name)}${r.note ? `<small class="c-note">📝 ${esc(r.note)}</small>` : ''}</span>
+    <span class="c-name">${esc(r.name)}${r.note ? `<small class="c-note">${esc(r.note)}</small>` : ''}</span>
     <span class="c-qty">×${r.n}</span>
     ${r.money ? `<span class="c-money">${fmtMoney(r.money)}</span>` : ''}</li>`).join('')
     || `<li class="comanda-row">${t('comanda.empty')}</li>`;

@@ -115,23 +115,24 @@ padrão Auto segue o navegador).
   só se a vez ainda é dele → converge); tranca sem a mão de quem caiu → `noshow` apura entre as
   abertas; auditoria/handshake têm teto (badge "incompleta" / dono re-embaralha). Trust: só o
   embaralho confia em quem dá as cartas (igual na vida real); durante a partida, trapaça não cola.
-  Pedras desenhadas com pips no `ui.js`. O tabuleiro é uma **SERPENTINA de mesa real**
-  (`snakeLayout` em `domino.js`, PURA/testada, sem DOM): pedras **coladas** casando pip (deitadas;
-  indo pra esquerda vão `flip`), **buchas ATRAVESSADAS** (em pé, a linha passa reto — nunca ramifica,
-  é bloco/dobra-seis), e a cobra **vira a quina descendo com 2 pedras NÃO-buchas em pé** — **bucha
-  nunca vira quina**: a dobra que cairia na quina é **empurrada pra corrida reta** (atravessada, anda
-  só S) até que as duas pedras da virada sejam não-buchas ("entra reto antes"; se um aglomerado de
-  dobras alarga a corrida, o **bounding-box** devolve a largura real e a escala do desenhista encaixa —
-  nunca vaza, senão o `overflow:hidden` do feltro cortaria a pedra). Cresce **↓ no retrato / → na
-  paisagem**; escala só como último recurso (mesa cheíssima) pra nunca ficar ilegível. O `ui.js`
-  posiciona as pedras em absoluto a partir do `snakeLayout` e re-flui no resize/rotação (`domFitBoard`,
-  que mede a caixa de **conteúdo** real do feltro — desconta o padding, não o `clientWidth` cru — e,
-  quando precisa encolher, põe a escala num **miolo** `transform-origin:top-left` e dá à **caixa** do
-  tabuleiro o tamanho JÁ escalado: só assim o flex centraliza certo e a pedra nunca vaza — escalar a
-  caixa cheia direto deixava o layout no tamanho antigo e o centralizado saía torto/cortado);
-  o unit `snakeLayout` trava a geometria (24 pedras, sem sobrepor, buchas em pé, retrato mais alto que
-  paisagem, **e nenhuma bucha na quina** — regressão do bug real de 4 jogadores) e o e2e confere a
-  virada de quina num celular.
+  Pedras desenhadas com pips no `ui.js`. O tabuleiro é uma **SERPENTINA de mesa real ANCORADA na
+  ABERTURA** (`snakeLayout` em `domino.js`, PURA/testada, sem DOM): a maior carroça (abertura) fica no
+  **MEIO** e **não sai mais do lugar**; os **dois braços** crescem pra fora dela — o de índice maior
+  desce serpenteando, o de índice menor sobe. Assim jogar numa ponta **NÃO re-flui** o tabuleiro
+  (pedra colocada fica **PARADA** — relativo à âncora); só **girar** o aparelho (muda a largura)
+  re-arruma (foi o pedido do André: "não ficar movendo as peças", "só refluir ao girar"). Regras da
+  mesa: pedras **coladas** casando pip (deitadas), **buchas ATRAVESSADAS** (em pé, a linha passa reto)
+  quando cabem na corrida; vira a **quina com 2 pedras EM PÉ**. A corrida **NUNCA termina numa bucha**
+  (a bucha deitada é alta e encaixaria **torta** na quina — era o "6/5 na bucha errado") — a bucha da
+  fronteira vira a **1ª pedra em pé da quina** (aí **ALINHA**); decisão de virar é **estável** (reserva
+  L pra próxima, exista-ou-não). **Serpenteia pra caber na LARGURA em tamanho CHEIO — NUNCA encolhe a
+  pedra** (só serpenteia mais); cresce em **altura** e o `ui.js` (`domFitBoard`) deixa o feltro
+  **ROLAR** por dentro (`overflow:auto`, a mão fica sempre embaixo, rola até a última jogada) — mede a
+  caixa de **conteúdo** real do feltro (desconta o padding, não o `clientWidth` cru) e passa a **âncora**
+  (índice da abertura) pro layout. O unit trava geometria (pip casa em toda junta, sem sobrepor, cabe
+  na largura cheia, buchas em pé, âncora no meio) **+ ESTABILIDADE** (crescer a corrente numa ponta não
+  move nenhuma pedra já posta — regressão do André) e o e2e confere serpentina + **não-encolhe** (scale
+  1) + re-fluxo ao girar.
   Efêmero, não entra no log — e **fechar (✕) só minimiza**: o jogo segue, um pill na mesa traz de
   volta; encerrar pra todos é botão explícito com confirmação (o `cancel` leva `from` → toast diz
   quem encerrou). Consumo/conta de quem saiu não mudam: eventos são CRDT permanentes (a pessoa

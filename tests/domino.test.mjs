@@ -179,60 +179,73 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   ok('verificada: deal honesto passa; adulterar baralho/seed/mão é PEGO');
 }
 
-// ---------- layout serpentina do tabuleiro ----------
+// ---------- layout serpentina: âncora no meio, cabe na largura em tamanho cheio, pip casa ----------
 {
   const chainFrom = (seq) => seq.slice(0, -1).map((v, k) => [v, seq[k + 1]]); // consecutivas casam
-  const seq = [6, 6, 2, 5, 5, 3, 1, 1, 4, 0, 0, 4, 2, 6, 3, 3, 5, 1, 0, 0, 6, 4, 4, 2, 3]; // 24 pedras, COM buchas
+  const touch = (A, B) => { const gx = Math.max(A.x, B.x) - Math.min(A.x + A.w, B.x + B.w); const gy = Math.max(A.y, B.y) - Math.min(A.y + A.h, B.y + B.h); return Math.min(gx, gy) <= 0 && Math.max(gx, gy) <= 2; };
+  const overlaps = (T) => { for (let a = 0; a < T.length; a++) for (let b = a + 1; b < T.length; b++) { const P = T[a], Q = T[b]; const ox = Math.min(P.x + P.w, Q.x + Q.w) - Math.max(P.x, Q.x); const oy = Math.min(P.y + P.h, Q.y + Q.h) - Math.max(P.y, Q.y); if (ox > 2 && oy > 2) return `${P.idx}×${Q.idx}`; } return null; };
+  const seq = [6, 6, 2, 5, 5, 3, 1, 1, 4, 0, 0, 4, 2, 6, 3, 3, 5, 1, 0, 0, 6, 4, 4, 2, 3]; // 24 pedras COM buchas
   const chain = chainFrom(seq);
   assert.strictEqual(chain.length, 24);
   for (let k = 0; k + 1 < chain.length; k++) assert.strictEqual(chain[k][1], chain[k + 1][0]); // casa pip
 
   const lay = snakeLayout(chain, { width: 360, long: 66, short: 34, pad: 8 });
   assert.strictEqual(lay.tiles.length, 24);                                   // toda pedra desenhada
-  const idxs = lay.tiles.map((t) => t.idx).sort((a, b) => a - b);
-  assert.deepStrictEqual(idxs, Array.from({ length: 24 }, (_, k) => k));      // cada uma exatamente 1×
-  for (const t of lay.tiles) if (t.a === t.b) assert.strictEqual(t.vert, true, 'bucha tem que ser atravessada');
-  for (const t of lay.tiles) { assert.ok(t.x >= 0); assert.ok(t.x + t.w <= lay.width + 1, 'cabe na largura'); }
-  for (let a = 0; a < lay.tiles.length; a++) for (let b = a + 1; b < lay.tiles.length; b++) {   // sem sobrepor
-    const p = lay.tiles[a], q = lay.tiles[b];
-    const sep = p.x + p.w <= q.x + 0.5 || q.x + q.w <= p.x + 0.5 || p.y + p.h <= q.y + 0.5 || q.y + q.h <= p.y + 0.5;
-    assert.ok(sep, `pedras ${p.idx} e ${q.idx} se sobrepõem`);
-  }
-  ok('serpente: 24 pedras 1×, buchas atravessadas, dentro da largura, sem sobrepor');
+  assert.deepStrictEqual(lay.tiles.map((t) => t.idx).sort((a, b) => a - b), Array.from({ length: 24 }, (_, k) => k));
+  for (const t of lay.tiles) if (t.a === t.b) assert.strictEqual(t.vert, true, 'bucha é sempre EM PÉ');
+  for (const t of lay.tiles) { assert.ok(t.x >= -1 && t.y >= -1); assert.ok(t.x + t.w <= lay.width + 1 && t.y + t.h <= lay.height + 1, 'pedra vaza os limites'); }
+  assert.ok(lay.width <= 360 + 1, 'serpenteia pra caber na largura em TAMANHO CHEIO (não estoura)');
+  assert.strictEqual(overlaps(lay.tiles), null, 'pedras não se sobrepõem');
+  const byIdx = new Map(lay.tiles.map((t) => [t.idx, t]));                    // continuidade: vizinhas se encostam
+  for (let k = 0; k + 1 < 24; k++) assert.ok(touch(byIdx.get(k), byIdx.get(k + 1)), `pedras ${k} e ${k + 1} não se encostam (junta torta)`);
+  ok('serpente: 24 pedras 1×, buchas em pé, cabe na largura cheia, sem sobrepor, pip casa em toda junta');
 
-  const portrait = snakeLayout(chain, { width: 360 });
-  const landscape = snakeLayout(chain, { width: 820 });
+  // âncora = a maior carroça no MEIO (corrente com o 6|6 no centro → os dois braços crescem pra fora)
+  const midSeq = [2, 0, 0, 3, 3, 5, 6, 6, 4, 1, 1, 2];
+  const midLay = snakeLayout(chainFrom(midSeq), { width: 340, long: 66, short: 34, pad: 6 });
+  const A = midLay.tiles.find((t) => t.idx === midLay.anchor);
+  assert.ok(A.a === 6 && A.b === 6, 'âncora é a maior carroça (abertura)');
+  assert.ok(Math.abs((A.x + A.w / 2) - midLay.width / 2) < midLay.width * 0.3, 'abertura fica no MEIO (não na borda)');
+
+  const portrait = snakeLayout(chain, { width: 360 }), landscape = snakeLayout(chain, { width: 820 });
   assert.ok(portrait.height > landscape.height, 'retrato cresce mais pra baixo que o deitado');
-  assert.ok(lay.tiles.some((t) => !t.vert && t.flip), 'tem deitada invertida (fileira de volta)');
   assert.strictEqual(snakeLayout([], {}).tiles.length, 0);                    // vazio não quebra
   assert.strictEqual(snakeLayout([[3, 5]], {}).tiles.length, 1);              // 1 pedra ok
-  ok('serpente: retrato cresce vertical / deitado horizontal; flip na volta; vazio e 1 pedra ok');
+  ok('serpente: âncora (abertura) no meio; retrato mais alto que deitado; vazio e 1 pedra ok');
 }
 
-// ---------- Serpente: BUCHA NUNCA VIRA QUINA (regressão do bug do André) ----------
+// ---------- ESTABILIDADE: jogar numa ponta NÃO move as pedras já postas (regressão do André) ----------
 {
-  // uma pedra "vira a quina" quando está EM PÉ empilhada com outra em pé na MESMA coluna (par da quina).
-  // uma bucha (dobra) tem que entrar ATRAVESSADA numa corrida reta — nunca ser pedra de quina.
-  const stacked = (t, tiles) => tiles.some((u) => u !== t && u.vert && Math.abs(u.x - t.x) < 2 &&
-    (Math.abs(u.y - (t.y + t.h)) < 3 || Math.abs(t.y - (u.y + u.h)) < 3));
-  const noBuchaOnCorner = (chain, W) => {
-    const lay = snakeLayout(chain, { width: W, long: 66, short: 34, pad: 6 });
-    for (const t of lay.tiles) if (t.a === t.b) assert.ok(!stacked(t, lay.tiles), `bucha ${t.a}|${t.b} virou a quina (largura ${W}) — devia entrar reto antes`);
-    // e nada pode vazar os limites devolvidos (senão o overflow:hidden do feltro CORTA a pedra)
-    for (const t of lay.tiles) { assert.ok(t.x >= -1 && t.y >= -1, 'pedra pra fora (origem)'); assert.ok(t.x + t.w <= lay.width + 1 && t.y + t.h <= lay.height + 1, 'pedra vaza os limites'); }
-    return lay;
-  };
+  // a queixa do André: o tabuleiro re-fluía a cada jogada. Ancorado na abertura, cada ponta cresce
+  // pra fora e pedra colocada NÃO sai do lugar (relativo à âncora). Só girar o aparelho re-arruma.
   const chainFrom = (seq) => seq.slice(0, -1).map((v, k) => [v, seq[k + 1]]);
-  // chains reais (partidas 4p) que ANTES punham 6|6 e 3|3 virando a quina:
-  const casos = [
-    [4, 0, 6, 4, 1, 6, 2, 0, 5, 6, 6, 3, 2, 5, 3, 3, 4, 5],          // seed 13: 6|6 e 3|3 na quina
-    [3, 2, 2, 5, 5, 5, 6, 6, 1, 1, 3, 3, 3, 4, 4, 0, 0, 6, 3, 3, 0], // aglomerado de dobras
-    [1, 1, 1, 3, 3, 5, 5, 4, 5, 4, 1, 1, 5, 5, 5, 6, 6, 6, 6, 4],    // buchas repetidas na virada
+  const key = (t) => Math.min(t.a, t.b) + '|' + Math.max(t.a, t.b);
+  const isD = (t) => t[0] === t[1];
+  // corAentes VÁLIDAS (cada pedra 1×), com a abertura (6|6) no MEIO → crescem pros dois lados:
+  const seqs = [
+    [2, 0, 0, 3, 3, 5, 6, 6, 4, 1, 1, 2],                            // braços curtos e balanceados
+    [4, 0, 6, 4, 1, 6, 2, 0, 5, 6, 6, 3, 2, 5, 3, 3, 4, 5],          // 4p real, 17 pedras
+    [3, 1, 1, 4, 4, 0, 0, 2, 2, 6, 6, 5, 5, 3],                      // buchas a cada 2 (0|0,1|1,2|2,4|4,5|5,6|6)
   ];
-  for (const seq of casos) for (const W of [320, 360, 480, 820]) noBuchaOnCorner(chainFrom(seq), W);
-  // largura APERTADA (celular estreito): mesmo assim nenhuma bucha vira a quina
-  noBuchaOnCorner(chainFrom([6, 6, 4, 4, 2, 2, 0, 0, 5, 5, 3, 3, 1, 1, 6]), 300);
-  ok('serpente: bucha NUNCA vira a quina (entra reto antes) — nem em aglomerado nem em tela estreita');
+  for (const seq of seqs) {
+    const full = chainFrom(seq);
+    let A = 0, best = -1; for (let k = 0; k < full.length; k++) if (isD(full[k]) && full[k][0] > best) { best = full[k][0]; A = k; }
+    const seen = new Map();
+    // cresce a partir da âncora, expandindo [lo..hi] UMA ponta por vez (as duas alternadas)
+    for (let lo = A, hi = A, step = 0; lo > 0 || hi < full.length - 1; step++) {
+      const canLo = lo > 0, canHi = hi < full.length - 1;
+      if (canLo && (step % 2 === 0 || !canHi)) lo--; else hi++;
+      const sub = full.slice(lo, hi + 1);
+      const lay = snakeLayout(sub, { width: 340, long: 66, short: 34, pad: 6, anchor: A - lo });
+      const anc = lay.tiles.find((t) => t.idx === A - lo);
+      for (const t of lay.tiles) {
+        const k = key(t), rel = `${Math.round(t.x - anc.x)},${Math.round(t.y - anc.y)}`;
+        if (seen.has(k)) assert.strictEqual(seen.get(k), rel, `pedra ${k} RE-FLUIU (mudou de lugar ao crescer a corrente)`);
+        else seen.set(k, rel);
+      }
+    }
+  }
+  ok('serpente: ESTÁVEL — jogar numa ponta não move nenhuma pedra já posta (só girar re-arruma)');
 }
 
 console.log(`\n${passed} testes de dominó passaram ✅`);

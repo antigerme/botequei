@@ -37,9 +37,9 @@ async function main() {
   };
   const results = [];
   const step = async (name, fn) => { await fn(); console.log('  ✓ ' + name); results.push(name); };
-  // confere a SERPENTINA real no navegador (js/domino.js/snakeLayout desenhando o tabuleiro): numa
-  // largura de celular a cobra VIRA A QUINA (>1 linha), as pedras ficam posicionadas em ABSOLUTO,
-  // coladas e SEM vazar a largura; ao girar pra paisagem o tabuleiro RE-FLUI (fica mais baixo).
+  // confere a SERPENTINA real no navegador (js/domino.js/snakeLayout, ancorada na abertura): numa
+  // largura de celular a cobra VIRA A QUINA (>1 linha), pedras em ABSOLUTO e SEM vazar a largura; NÃO
+  // ENCOLHE a pedra (serpenteia pra caber em tamanho cheio, sem scale); ao girar pra paisagem RE-FLUI.
   const checkSnake = async (page) => {
     await page.setViewportSize({ width: 380, height: 820 });
     await page.waitForTimeout(300); // o resize dispara domRefit → snakeLayout
@@ -47,17 +47,20 @@ async function main() {
       const board = document.getElementById('dom-board'), wrap = board.parentElement;
       const tiles = [...board.querySelectorAll('.dom-tile')];
       const wr = wrap.getBoundingClientRect();
+      const tr = getComputedStyle(board).transform; // fator de escala do tabuleiro (deve ser 1 = tamanho cheio)
+      const scale = (!tr || tr === 'none') ? 1 : (tr.match(/matrix\(([^)]+)\)/) ? parseFloat(tr.match(/matrix\(([^)]+)\)/)[1].split(',')[0]) : 1);
       return {
         n: tiles.length,
         abs: tiles.every((t) => t.style.position === 'absolute' && t.style.left !== '' && t.style.top !== ''),
         rows: new Set(tiles.map((t) => Math.round(parseFloat(t.style.top)))).size,
         overflow: tiles.some((t) => Math.round(t.getBoundingClientRect().right) > Math.round(wr.right) + 2),
-        h: board.getBoundingClientRect().height,
+        scale, h: board.getBoundingClientRect().height,
       };
     });
     if (port.n < 2) throw new Error('serpentina: tabuleiro vazio');
     if (!port.abs) throw new Error('serpentina não ativou (pedras sem posição absoluta)');
     if (port.overflow) throw new Error('serpentina: pedra vazou a largura do tabuleiro');
+    if (port.scale < 0.99) throw new Error(`serpentina ENCOLHEU a pedra (scale ${port.scale}) — devia serpentear/rolar em tamanho cheio`);
     if (port.n >= 6 && port.rows < 2) throw new Error(`serpentina: a cobra não virou a quina (uma linha só com ${port.n} pedras num celular)`);
     await page.setViewportSize({ width: 820, height: 380 });
     await page.waitForTimeout(300);

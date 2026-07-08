@@ -1413,30 +1413,29 @@ let domBoardState = null; // guarda o último tabuleiro pra re-layout no resize/
 function domFitBoard() {
   if (!domBoardState) return;
   const boardEl = el['dom-board'], wrap = boardEl.parentElement;
-  // largura ÚTIL = caixa de CONTEÚDO do wrap (desconta o padding) — não o clientWidth cru:
-  // com o padding embutido a serpentina "cabia no papel" mas encostava/vazava a borda interna.
+  // largura ÚTIL = caixa de CONTEÚDO do wrap (desconta o padding) — não o clientWidth cru.
   const cs = getComputedStyle(wrap);
   const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
   const availW = Math.max(160, wrap.clientWidth - padX - 4); // -4: respiro anti-arredondamento
-  const landscape = window.innerWidth > window.innerHeight;
-  const maxH = Math.max(120, Math.round(window.innerHeight * (landscape ? 0.62 : 0.5)));
   const st = domBoardState;
-  const lay = snakeLayout(st.board.map((t) => [t.a, t.b]), { width: availW, long: DOM_L, short: DOM_S, pad: 6 });
-  const tiles = lay.tiles.map((tile) => {
+  // SERPENTINA ancorada na ABERTURA (fica no meio): cabe na largura em TAMANHO CHEIO — não encolhe a
+  // pedra, serpenteia pra caber (pedido do André). Cresce em ALTURA; o feltro ROLA por dentro quando
+  // passa do teto (a mão fica sempre embaixo à mão) e acompanha a última jogada. Só GIRAR re-arruma.
+  const lay = snakeLayout(st.board.map((t) => [t.a, t.b]), { width: availW, long: DOM_L, short: DOM_S, pad: 6, anchor: st.anchor });
+  boardEl.style.transform = '';
+  boardEl.style.width = lay.width + 'px';
+  boardEl.style.height = lay.height + 'px';
+  boardEl.innerHTML = lay.tiles.map((tile) => {
     const isJust = tile.idx === st.lastPlayIdx;
     const chip = (isJust && st.lastPlayAvatar) ? `<span class="dom-played-av" title="${esc(st.lastPlayName || '')}">${avInner(st.lastPlayPhoto, st.lastPlayAvatar)}</span>` : '';
     return domTileHTML(tile.a, tile.b, { vert: tile.vert, flip: tile.flip, pos: tile, cls: (tile.open ? 'open' : '') + (isJust ? ' just' : ''), chip });
   }).join('');
-  // um AGLOMERADO de buchas pode deixar a serpentina mais LARGA que a tela (bucha nunca vira quina):
-  // aí escala pra caber. A escala vai num MIOLO (transform-origin top-left) e a CAIXA do tabuleiro
-  // recebe o tamanho JÁ ESCALADO — o flex então centraliza uma caixa do tamanho certo e nada vaza.
-  // (Escalar a caixa cheia direto deixava o layout no tamanho antigo → o centralizado saía torto.)
-  const s = Math.min(1, availW / lay.width, maxH / lay.height);
-  boardEl.style.transform = '';
-  boardEl.style.width = Math.ceil(lay.width * s) + 'px';
-  boardEl.style.height = Math.ceil(lay.height * s) + 'px';
-  boardEl.innerHTML = `<div class="dom-inner" style="width:${lay.width}px;height:${lay.height}px;transform:${s < 1 ? 'scale(' + s + ')' : 'none'}">${tiles}</div>`;
-  wrap.style.height = Math.ceil(lay.height * s) + 4 + 'px';
+  const landscape = window.innerWidth > window.innerHeight;
+  const maxH = Math.max(140, Math.round(window.innerHeight * (landscape ? 0.6 : 0.46)));
+  wrap.style.maxHeight = maxH + 'px';
+  wrap.style.height = Math.min(lay.height + 6, maxH) + 'px';
+  const just = lay.tiles.find((t) => t.idx === st.lastPlayIdx);   // rola pra deixar a última peça à vista
+  if (just && lay.height + 6 > maxH) wrap.scrollTop = Math.max(0, Math.min(just.y + just.h / 2 - wrap.clientHeight / 2, lay.height + 6 - wrap.clientHeight));
 }
 let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolha de ponta
 export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }
@@ -1486,7 +1485,7 @@ export function renderDomino(vm) {
     el['dom-board'].style.width = el['dom-board'].style.height = el['dom-board'].style.transform = '';
     el['dom-board'].parentElement.style.height = '';
   } else {
-    domBoardState = { board, lastPlayIdx: vm.lastPlayIdx, lastPlayAvatar: vm.lastPlayAvatar, lastPlayPhoto: vm.lastPlayPhoto, lastPlayName: vm.lastPlayName };
+    domBoardState = { board, anchor: vm.anchor, lastPlayIdx: vm.lastPlayIdx, lastPlayAvatar: vm.lastPlayAvatar, lastPlayPhoto: vm.lastPlayPhoto, lastPlayName: vm.lastPlayName };
     requestAnimationFrame(domFitBoard);
   }
   el['dom-hand'].innerHTML = (vm.hand || []).map((h) => {

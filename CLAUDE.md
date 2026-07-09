@@ -267,6 +267,14 @@ padrão Auto segue o navegador).
   (`ui.actionToast`) que abre o Cardápio da mesa (os preços são os da última visita — podem ter mudado).
 - **Acessibilidade**: diálogos com `role="dialog"`/foco preso/ESC (`setupA11y` em `ui.js`),
   `:focus-visible`, `prefers-reduced-motion` (corta confete/animações), rótulos ARIA.
+- **Convenções de plataforma (PWA em Android/iOS)**: o app tem **identidade própria** (lousa/boteco),
+  mas respeita o que importa — `viewport-fit=cover` + `env(safe-area-inset-*)` (notch/barra de gestos),
+  `100dvh` (mata o bug do 100vh no Safari), metas `apple-mobile-web-app-*`, `prefers-color-scheme`,
+  inputs ≥16px (sem zoom no iOS) e alvos de toque ≥44px (`.sheet-close`). **Voltar (Android) / swipe
+  de voltar (iOS) fecha o overlay** em vez de sair: `syncOverlayHistory` no `ui.js` empurra um estado
+  ao abrir o 1º overlay e o `popstate` fecha (espelha o ESC; fechar por ✕/ESC desfaz o estado). **iOS
+  não dispara `beforeinstallprompt`** → o `boot` mostra o "📲 Instalar" quando é iPhone e não está
+  standalone; tocar cai no `toast.installHint` ("Compartilhar → Adicionar à Tela").
 - **TURN opcional** (rota `/turn`, nos dois adaptadores): credenciais efêmeras da Cloudflare,
   lidas dos envs `CF_TURN_KEY_ID`/`CF_TURN_API_TOKEN`/`CF_TURN_TTL` (VM: `Environment=` do
   systemd; CF: Secrets do painel/`wrangler secret put`). Token **só no servidor**. Sem config →

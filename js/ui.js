@@ -337,6 +337,20 @@ function focusables(root) {
   return [...root.querySelectorAll('button,input,select,textarea,[tabindex]:not([tabindex="-1"])')]
     .filter((x) => !x.disabled && x.offsetParent !== null);
 }
+// Botão VOLTAR (Android) / swipe de voltar (iOS) fecha o overlay aberto, em vez de sair do app: ao
+// abrir o 1º overlay, empurra um estado no histórico; o "voltar" consome esse estado e o popstate
+// fecha os overlays. Fechar por ✕/ESC/toque-fora desfaz o estado (mantém o histórico limpo).
+let overlayHistoryPushed = false;
+function syncOverlayHistory() {
+  const open = openOverlayEls().length > 0;
+  if (open && !overlayHistoryPushed) {
+    overlayHistoryPushed = true;
+    try { history.pushState({ botequeiOverlay: 1 }, ''); } catch { /* ignore */ }
+  } else if (!open && overlayHistoryPushed) {
+    overlayHistoryPushed = false;
+    try { if (history.state && history.state.botequeiOverlay) history.back(); } catch { /* ignore */ }
+  }
+}
 function setupA11y() {
   // marca cada sheet como diálogo pro leitor de tela; foca o diálogo ao abrir, devolve ao fechar
   document.querySelectorAll('.overlay').forEach((ov) => {
@@ -348,7 +362,12 @@ function setupA11y() {
     if (h) { if (!h.id) h.id = 'h_' + Math.abs(hashStr(ov.id)); sheet.setAttribute('aria-labelledby', h.id); }
     new MutationObserver(() => {
       if (!ov.hidden) { lastFocus = document.activeElement; try { sheet.focus({ preventScroll: true }); } catch { /* ignore */ } }
+      syncOverlayHistory(); // mantém o histórico em sincronia pro "voltar" fechar o overlay
     }).observe(ov, { attributes: true, attributeFilter: ['hidden'] });
+  });
+  // voltar (Android/iOS) com overlay aberto → fecha o overlay em vez de sair
+  window.addEventListener('popstate', () => {
+    if (openOverlayEls().length) { overlayHistoryPushed = false; closeOverlays(); }
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {

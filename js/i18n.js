@@ -115,7 +115,7 @@ const DICT = {
     'toast.imported': '✅ {n} itens importados. Recarregando…',
     'toast.nfcNo': 'NFC não suportado neste aparelho', 'toast.nfcTap': '📡 Aproxime o outro celular',
     'toast.nfcError': 'Não consegui usar o NFC 😕',
-    'toast.installHint': 'Use “Adicionar à tela inicial” no menu do navegador',
+    'toast.installHint': 'Toque em Compartilhar e “Adicionar à Tela de Início” 📲',
     'toast.fileRead': 'Não consegui ler o arquivo 😕', 'toast.itemName': 'Dá um nome pro item 🙂',
     // ---- happy hour ----
     'hh.title': '⏰ Happy hour',
@@ -447,7 +447,7 @@ const DICT = {
     'toast.imported': '✅ {n} items imported. Reloading…',
     'toast.nfcNo': 'NFC not supported on this device', 'toast.nfcTap': '📡 Bring the other phone close',
     'toast.nfcError': 'Couldn’t use NFC 😕',
-    'toast.installHint': 'Use “Add to Home Screen” in your browser menu',
+    'toast.installHint': 'Tap Share, then “Add to Home Screen” 📲',
     'toast.fileRead': 'Couldn’t read the file 😕', 'toast.itemName': 'Give the item a name 🙂',
     // ---- happy hour ----
     'hh.title': '⏰ Happy hour',
@@ -779,7 +779,7 @@ const DICT = {
     'toast.imported': '✅ {n} ítems importados. Recargando…',
     'toast.nfcNo': 'NFC no soportado en este equipo', 'toast.nfcTap': '📡 Acerca el otro móvil',
     'toast.nfcError': 'No pude usar el NFC 😕',
-    'toast.installHint': 'Usa “Añadir a pantalla de inicio” en el menú del navegador',
+    'toast.installHint': 'Toca Compartir y “Añadir a pantalla de inicio” 📲',
     'toast.fileRead': 'No pude leer el archivo 😕', 'toast.itemName': 'Ponle nombre al ítem 🙂',
     // ---- happy hour ----
     'hh.title': '⏰ Happy hour',

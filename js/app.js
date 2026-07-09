@@ -2830,6 +2830,14 @@ function boot() {
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; ui.showInstall(true); });
   // instalou (pelo nosso botão OU pelo menu do navegador) → some com o "📲 Instalar" e larga o prompt guardado
   window.addEventListener('appinstalled', () => { deferredPrompt = null; ui.showInstall(false); });
+  // iOS não dispara beforeinstallprompt — se ainda não está instalado (standalone), mostra o
+  // "📲 Instalar" mesmo assim; tocar explica "Compartilhar → Adicionar à Tela" (sem deferredPrompt
+  // cai no toast.installHint). Uma vez instalado, o app roda standalone e o botão some sozinho.
+  try {
+    const iOS = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+    const standalone = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+    if (iOS && !standalone) ui.showInstall(true);
+  } catch { /* ignore */ }
 
   setInterval(() => { if (room) tickHappyHour(); }, 1000);
 

@@ -32,8 +32,9 @@ padrão Auto segue o navegador).
   `:8787`, sem conta; o `--persist-to` FORA do repo é obrigatório — assets na raiz + estado
   do miniflare dentro dela = loop infinito de reload do watcher).
 - **Unit, sem dependências:** `node tests/reducer.test.mjs`, `node tests/features.test.mjs`,
-  `node tests/stats.test.mjs` (estatísticas de vida + liga + catálogo) e `node tests/core.test.mjs`
-  (núcleo da sala de sinalização).
+  `node tests/stats.test.mjs` (estatísticas de vida + liga + catálogo), `node tests/core.test.mjs`
+  (núcleo da sala de sinalização) e `node tests/contrast.test.mjs` (**trava WCAG AA**: lê o
+  `styles.css` de verdade e mede o contraste dos 4 temas — mudou cor, ele re-mede sozinho).
 - **Auditoria estática (sem deps):** `node tests/audit.mjs` — confere grafo de import/export
   (arquivo existe **e** exporta o nome, evitando o "does not provide an export named …"), o shell
   do `sw.js` + `CACHE`, o array `IDS` do `ui.js` e as chaves de i18n. Descobre os arquivos
@@ -353,6 +354,16 @@ padrão Auto segue o navegador).
   regras — mudou um, mude o outro) e o `sw.js` faz `cache.add(new Request(u,{cache:'reload'}))`
   no install (fura o cache ao instalar).
 - Ao mexer no `ui.js`, todo id novo precisa entrar no array `IDS` (senão `ui.init` quebra ao amarrar o listener).
+- **Design tokens & a11y (M3+HIG, sem trocar a pele)**: fonte de UI é sempre **rem** (Dynamic
+  Type — o app segue a fonte do sistema; px de fonte SÓ em arte de jogo: cartas de truco/pips).
+  Texto novo usa os papéis `--fs-*`; raio usa `--r-*`; movimento usa `--t-*`/`--ease-*` (tudo no
+  `:root`). Texto sobre âmbar usa `--on-gold` (o "on-primary" — nunca hardcodar #241400). Cor de
+  tema PASSA WCAG AA — `tests/contrast.test.mjs` mede o `styles.css` de verdade e trava no CI
+  (mudou paleta, rode). Alvos de toque **≥48px** (só a arte de carta fica menor). Mudou a cor
+  sólida do body de um tema? Atualize `THEME_CHROME` no `ui.js` (meta `theme-color` +
+  `color-scheme` acompanham o tema). Toast é `role=status` (leitor de tela anuncia); alvos têm
+  `touch-action: manipulation`; números-herói usam `min(Xrem, Yvw)` pra escalar sem estourar.
+  "Fonte grande" escala a RAIZ (`html.bigfont`) — não estilize tamanho por elemento pra ela.
 - **i18n total e sempre em paridade**: TODA string de UI (shell, toasts, templates, aria) nasce
   no dicionário de `js/i18n.js` nas **três** línguas via `t(chave, vars)` — a auditoria
   (`tests/audit.mjs`, roda no CI) falha se alguma língua ficar de fora ou sobrar chave. Conteúdo

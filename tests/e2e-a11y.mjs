@@ -71,12 +71,12 @@ async function main() {
     await p.evaluate(() => document.querySelector('style:last-of-type')?.remove()); // volta a 100%
   });
 
-  await step('alvos de toque: topbar e ✕ do sheet ≥ 44px (moldura ≥ 48 na leva C)', async () => {
+  await step('alvos de toque ≥ 48px (fecha HIG 44pt E M3 48dp): topbar + ✕ do sheet', async () => {
     const menu = await p.evaluate(() => { const r = document.getElementById('btn-menu').getBoundingClientRect(); return Math.min(r.width, r.height); });
-    if (menu < 44) throw new Error('btn-menu < 44px: ' + menu);
+    if (menu < 48) throw new Error('btn-menu < 48px: ' + menu);
     await p.click('#btn-menu'); await visible('overlay-menu');
     const close = await p.evaluate(() => { const b = document.querySelector('#overlay-menu .sheet-close'); const r = b.getBoundingClientRect(); return Math.min(r.width, r.height); });
-    if (close < 44) throw new Error('sheet-close < 44px: ' + close);
+    if (close < 48) throw new Error('sheet-close < 48px: ' + close);
     await p.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
   });
 

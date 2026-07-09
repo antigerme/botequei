@@ -10,9 +10,10 @@
   --card:      #1d2515;
   --card-hi:   #26301a;
   --line:      #3c4a2b;                    /* linha sólida (bordas discretas) */
-  --chalk-line: rgba(242,234,214,.26);     /* traço de giz (tracejado) */
+  --chalk-line: rgba(242,234,214,.38);     /* traço de giz (tracejado) — ≥3:1 sobre o fundo (WCAG não-textual) */
   --gold:      #f4b13c;   /* âmbar de chopp */
   --gold-deep: #d5871c;
+  --on-gold:   #241400;   /* texto SOBRE âmbar (o "on-primary"): escuro no âmbar claro; branco no âmbar queimado do tema claro */
   --cream:     #f2ead6;   /* giz */
   --muted:     #aeb096;   /* giz apagado */
   --danger:    #e8735f;
@@ -27,7 +28,12 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* controles nativos (scrollbar, autofill, teclado) seguem o tema — o JS pinta 'light'/'dark'
+   por cima quando o tema resolve (applyTheme); antes do JS a página pinta escura (vars do :root) */
+:root { color-scheme: dark; }
 html, body { margin: 0; height: 100%; }
+/* toque rápido não vira double-tap-zoom (iOS) — e a PINÇA de zoom segue livre (a11y) */
+button, .item-card, .hist-item, .pass-main, .peer-main, .total-money { touch-action: manipulation; }
 body {
   /* Cor SÓLIDA de segurança (overscroll etc.); o "céu" do tema vive no ::before abaixo.
      Motivo: background-attachment:fixed NÃO existe no iOS Safari — com a página mais alta
@@ -67,13 +73,13 @@ body::after {
 /* ---------- Botões ---------- */
 .btn {
   border: 0; border-radius: 14px; font-size: 18px; font-weight: 400;
-  padding: 14px 18px; color: #241400; background: var(--gold);
+  padding: 14px 18px; color: var(--on-gold); background: var(--gold);
   cursor: pointer; transition: transform .08s ease, filter .15s ease;
   font-family: var(--hand); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
 }
 .btn:active { transform: scale(.96); }
 .btn:disabled { opacity: .45; filter: grayscale(.35); cursor: default; }
-.btn-primary { background: linear-gradient(180deg, var(--gold) 0%, var(--gold-deep) 100%); color: #241400;
+.btn-primary { background: linear-gradient(180deg, var(--gold) 0%, var(--gold-deep) 100%); color: var(--on-gold);
   box-shadow: 0 4px 16px rgba(244,177,60,.28); }
 .btn-ghost { background: rgba(255,255,255,.04); color: var(--cream); border: 2px dashed var(--chalk-line); }
 .btn-lg { width: 100%; font-size: 21px; padding: 18px; min-height: var(--tap); }
@@ -122,7 +128,7 @@ body::after {
 #btn-leave { font-family: var(--num); font-size: 30px; line-height: 1; }
 .table-id { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
   background: rgba(255,255,255,.03); border: 2px dashed var(--gold); border-radius: 12px; height: 46px; padding: 0 12px; overflow: hidden; cursor: pointer; color: var(--cream); }
-.mesa-label { max-width: 100%; font-size: 10px; letter-spacing: 2px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.mesa-label { max-width: 100%; font-size: 12px; letter-spacing: 2px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 .mesa-code { font-family: var(--num); font-size: 20px; letter-spacing: 4px; color: var(--gold); line-height: 1; }
 .topbar-actions { display: flex; gap: 8px; }
 
@@ -196,7 +202,7 @@ body::after {
    volta pro jogo; o ✕ vermelho ao lado encerra pra mesa toda (com confirmação). Some o botão gigante. */
 .game-pill { position: sticky; z-index: 3; bottom: calc(74px + var(--safe-b)); display: flex;
   flex-wrap: wrap; gap: 8px; justify-content: center; margin: 10px auto 0; max-width: 100%; }
-.game-chip { display: inline-flex; align-items: stretch; background: var(--gold); color: #241400;
+.game-chip { display: inline-flex; align-items: stretch; background: var(--gold); color: var(--on-gold);
   border-radius: 999px; overflow: hidden; box-shadow: 0 6px 18px rgba(0, 0, 0, .4);
   animation: pill-glow 2.2s ease-in-out infinite; }
 .game-chip.urgent { background: var(--danger); color: #fff; } /* SUA VEZ */
@@ -219,7 +225,7 @@ body::after {
   border-radius: 12px; padding: 14px 16px; font-size: 17px; font-family: var(--hand); cursor: pointer; }
 .game-pick:active { transform: scale(.98); }
 .game-pick-e { font-size: 24px; line-height: 1; }
-#btn-rodada { background: linear-gradient(180deg, var(--gold), var(--gold-deep)); color: #241400;
+#btn-rodada { background: linear-gradient(180deg, var(--gold), var(--gold-deep)); color: var(--on-gold);
   border: 0; font-size: 18px; box-shadow: 0 4px 16px rgba(244,177,60,.3); }
 
 /* ---------- Overlays / sheets (cartão de giz) ---------- */
@@ -276,7 +282,7 @@ body::after {
 .bebedeira-item { font-size: 90px; line-height: 1; animation: bob 3s ease-in-out infinite; }
 .bebedeira-count { font-family: var(--num); font-size: 150px; line-height: .85; color: var(--gold); font-variant-numeric: tabular-nums; text-shadow: 0 0 40px rgba(244,177,60,.3); }
 .bebedeira-plus { width: min(78vw, 340px); height: min(38vh, 300px); border-radius: 40px; border: 0;
-  background: linear-gradient(180deg, var(--gold), var(--gold-deep)); color: #241400; font-family: var(--num); font-size: 72px; cursor: pointer;
+  background: linear-gradient(180deg, var(--gold), var(--gold-deep)); color: var(--on-gold); font-family: var(--num); font-size: 72px; cursor: pointer;
   box-shadow: 0 10px 30px rgba(244,177,60,.35); }
 .bebedeira-plus:active { transform: scale(.97); }
 .bebedeira-plus.pop { animation: pop .3s ease; }
@@ -292,17 +298,20 @@ body::after {
 
 /* ===================== Extras (perfil, social, conta, configs) ===================== */
 
-/* Tema claro: papel kraft / lousa clara */
+/* Tema claro: papel kraft / lousa clara.
+   Cores calibradas por MEDIÇÃO WCAG (tests/contrast.test.mjs trava no CI): âmbar queimado
+   ≥4.5:1 no fundo E sob texto branco; danger/ok/muted retokenizados (antes herdavam os do
+   escuro e caíam a 2.4/1.6:1 no papel kraft); giz = tinta apagada ≥3:1 (não-textual). */
 body.light {
   --bg: #efe4cf; --bg-soft: #fdf6e6; --card: #fbf2df; --card-hi: #f6ead1;
-  --line: #d8c39c; --chalk-line: rgba(90,70,40,.4); --cream: #2e2314; --muted: #7a6a4c;
-  --gold: #c9791a; --gold-deep: #a95f10;
+  --line: #d8c39c; --chalk-line: rgba(46,35,20,.52); --cream: #2e2314; --muted: #726244;
+  --gold: #96530d; --gold-deep: #7a4408; --on-gold: #ffffff;
+  --danger: #a83a26; --danger2: #a83a26; --ok: #2c7440;
 }
 body.light { background: #ece0c7; }
 body.light::before { background:
   radial-gradient(rgba(120,90,50,.06) .5px, transparent .6px) 0 0 / 7px 7px,
   radial-gradient(135% 100% at 50% -10%, #fdf6e6 0%, #ece0c7 60%); }
-body.light .btn-primary { color: #fff; }
 body.light .item-name, body.light .peer-name { color: var(--cream); }
 /* superfícies escuras -> claras no tema kraft */
 body.light .sheet { background: linear-gradient(180deg, #fdf6e6, #f2e7cd); }
@@ -312,8 +321,8 @@ body.light .sheet-close { background: var(--card); }
 /* Tema neon: balada — roxo profundo + rosa/âmbar elétrico */
 body.neon {
   --bg: #0c0a1e; --bg-soft: #16112e; --card: #1a1338; --card-hi: #241a4d;
-  --line: #4a2f7a; --chalk-line: rgba(200,160,255,.28); --cream: #f3ebff; --muted: #a79bd0;
-  --gold: #ff5cc8; --gold-deep: #b23c9c;
+  --line: #4a2f7a; --chalk-line: rgba(200,160,255,.5); --cream: #f3ebff; --muted: #a79bd0;
+  --gold: #ff5cc8; --gold-deep: #cd58b7; /* fundo do gradiente do botão: ≥4.5:1 sob o texto escuro */
 }
 body.neon { background: #060418; }
 body.neon::before { background:
@@ -325,7 +334,7 @@ body.neon .total-num, body.neon .item-qty { text-shadow: 0 0 14px rgba(255,92,20
 /* Tema retrô: boteco anos 70 — laranja queimado + madeira */
 body.retro {
   --bg: #2a1a0e; --bg-soft: #35210f; --card: #3d2712; --card-hi: #4a3016;
-  --line: #6e4a24; --chalk-line: rgba(255,210,150,.3); --cream: #ffe9c9; --muted: #c8a878;
+  --line: #6e4a24; --chalk-line: rgba(255,210,150,.4); --cream: #ffe9c9; --muted: #c8a878;
   --gold: #ff8c1a; --gold-deep: #d46a00;
 }
 body.retro { background: #1a0f06; }
@@ -383,7 +392,7 @@ body.bigfont .btn, body.bigfont .chip { font-size: 19px; }
   border-radius: 12px; padding: 12px 14px; }
 .bill-row .b-name { flex: 1; font-size: 18px; }
 .bill-row .b-amt { font-family: var(--num); font-size: 22px; color: var(--gold); }
-.bill-row .b-pix { background: var(--gold); color: #241400; border: 0; border-radius: 10px; padding: 8px 12px; font-family: var(--hand); font-size: 16px; cursor: pointer; }
+.bill-row .b-pix { background: var(--gold); color: var(--on-gold); border: 0; border-radius: 10px; padding: 8px 12px; font-family: var(--hand); font-size: 16px; cursor: pointer; }
 .bill-total { text-align: right; font-family: var(--num); font-size: 26px; margin-top: 8px; }
 .pix-code { width: 100%; background: var(--card); border: 1.5px solid var(--line); color: var(--cream);
   border-radius: 12px; padding: 12px; font-family: monospace; font-size: 12px; resize: none; -webkit-user-select: all; user-select: all; }
@@ -391,7 +400,7 @@ body.bigfont .btn, body.bigfont .chip { font-size: 19px; }
 /* Offline (pareamento por QR/código, sem servidor) */
 .btn-offline { font-size: 15px; padding: 12px; opacity: .95; }
 .code-box { width: 100%; background: var(--card); border: 1.5px solid var(--line); color: var(--cream);
-  border-radius: 12px; padding: 10px 12px; font-family: monospace; font-size: 11px; line-height: 1.35;
+  border-radius: 12px; padding: 10px 12px; font-family: monospace; font-size: 12px; line-height: 1.35;
   resize: none; word-break: break-all; -webkit-user-select: all; user-select: all; margin-bottom: 8px; }
 .scan-wrap { border-radius: 16px; overflow: hidden; background: #000; margin: 6px 0 4px; aspect-ratio: 1 / 1; }
 .scan-wrap video { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -411,16 +420,16 @@ body.bigfont .btn, body.bigfont .chip { font-size: 19px; }
 .round-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .round-grid .btn { width: 100%; }
 /* etiqueta discreta "da mesa" (item compartilhado = uma unidade só, não um pra cada) */
-.opt-tag { font-size: 11px; font-weight: 700; opacity: .65; text-transform: uppercase; letter-spacing: .3px; }
+.opt-tag { font-size: 12px; font-weight: 700; opacity: .65; text-transform: uppercase; letter-spacing: .3px; }
 
 /* Mesa LIMPA: só o convite + botão que abre o formulário de novo item */
 .menu-empty { display: grid; gap: 10px; justify-items: center; text-align: center; padding: 18px 0 6px; }
 .menu-empty .empty-title { font-size: 22px; margin: 0; }
-.menu-empty .empty-sub { color: var(--dim); margin: 0 0 4px; }
+.menu-empty .empty-sub { color: var(--muted); margin: 0 0 4px; }
 
 /* Item COMPARTILHADO ("da mesa"): selo dourado; contador é DA MESA (sem zona de copo) */
 .item-card.share { border-style: solid; }
-.share-flag { position: absolute; top: 8px; left: 10px; font-size: 11px; letter-spacing: .4px;
+.share-flag { position: absolute; top: 8px; left: 10px; font-size: 12px; letter-spacing: .4px;
   text-transform: uppercase; color: var(--gold); opacity: .9; pointer-events: none; }
 .item-card.share .item-qty { color: var(--gold); }
 
@@ -613,7 +622,7 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 /* Liga & desafios */
 .league-level { background: rgba(255, 255, 255, .03); border: 2px dashed var(--chalk-line); border-radius: 14px; padding: 14px; margin-bottom: 6px; }
 .ll-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.ll-badge { font-family: var(--num); background: var(--gold); color: #241400; border-radius: 999px; padding: 4px 12px; font-size: 18px; }
+.ll-badge { font-family: var(--num); background: var(--gold); color: var(--on-gold); border-radius: 999px; padding: 4px 12px; font-size: 18px; }
 .ll-title { font-family: var(--hand); font-size: 20px; }
 .ll-xp { color: var(--muted); font-size: 13px; margin-top: 6px; text-align: right; }
 .pace-meter.sm { height: 8px; margin-top: 4px; }
@@ -717,7 +726,7 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
   min-height: 82px; padding: 10px 4px; border-radius: 14px; border: 1px solid var(--line); background: var(--card);
   color: var(--cream); cursor: pointer; transition: transform .08s; }
 .purr-hand:active { transform: translateY(2px); }
-.purr-hand.on { background: var(--gold); color: #241a08; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(244,177,60,.3); }
+.purr-hand.on { background: var(--gold); color: var(--on-gold); border-color: var(--gold); box-shadow: 0 0 0 3px rgba(244,177,60,.3); }
 .purr-hvis { display: flex; align-items: flex-end; min-height: 26px; }
 .purr-hn { font-family: var(--num); font-size: 22px; }
 /* palpite: fichas numeradas */
@@ -725,7 +734,7 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
 .purr-opts-wrap { flex-wrap: wrap; }
 .purr-opt { min-width: 48px; min-height: 48px; flex: 0 0 auto; border-radius: 12px; border: 1px solid var(--line);
   background: var(--card); color: var(--cream); font-family: var(--num); font-size: 22px; cursor: pointer; }
-.purr-opt.on { background: var(--gold); color: #241a08; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(244,177,60,.28); }
+.purr-opt.on { background: var(--gold); color: var(--on-gold); border-color: var(--gold); box-shadow: 0 0 0 3px rgba(244,177,60,.28); }
 #btn-purr-seal { margin-top: 18px; }
 .purr-waitbig { font-family: var(--num); font-size: 44px; text-align: center; color: var(--gold); margin-top: 10px; }
 .purr-waitsub { text-align: center; color: var(--muted); margin-bottom: 12px; }
@@ -903,7 +912,7 @@ body.light .tour-balloon { background: linear-gradient(180deg, #fdf6e6, #f2e7cd)
   display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; flex-wrap: wrap;
   box-shadow: inset 0 0 30px rgba(0,0,0,.35); margin: 6px 0 10px; }
 .tru-played { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.tru-played small { color: #d9e8d9; font-size: 11px; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tru-played small { color: #d9e8d9; font-size: 12px; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tru-played.me small { color: var(--gold); }
 .tru-card { display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
   width: 46px; height: 64px; border-radius: 7px; background: #fdf9ee; color: #1c2314;

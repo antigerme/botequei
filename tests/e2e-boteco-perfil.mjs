@@ -96,6 +96,46 @@ async function main() {
     if (!(names.includes('Chopp') && names.includes('Porção'))) throw new Error('itens não sincronizaram pra Bia: ' + JSON.stringify(names));
   });
 
+  // ---- Gerenciar cardápios salvos: renomear o LUGAR inteiro + apagar o cardápio (contexto isolado) ----
+  const C = await mkCtx('Carla', true); const pageC = await C.newPage();
+  await pageC.goto(BASE);
+  await pageC.waitForSelector('#screen-home.is-active', { timeout: T });
+
+  await step('gerenciar: renomear o LUGAR → novo nome na ficha E no passaporte', async () => {
+    await pageC.click('#btn-passport');
+    await visible(pageC, 'overlay-passport');
+    await pageC.click('#passport-list .pass-main');
+    await visible(pageC, 'overlay-boteco');
+    await pageC.click('#btn-boteco-rename');       // revela o campo (progressive disclosure)
+    await visible(pageC, 'boteco-rename-box');
+    await pageC.fill('#boteco-rename', 'Bar do João');
+    await pageC.click('#btn-boteco-rename-go');
+    await pageC.waitForFunction(() => /Bar do Jo/.test(document.getElementById('boteco-title').textContent), null, { timeout: T });
+    // o passaporte POR BAIXO também renomeou (lugar inteiro)
+    await pageC.evaluate(() => (document.getElementById('overlay-boteco').hidden = true));
+    await pageC.waitForFunction(() => {
+      const row = document.querySelector('#passport-list .pass-row');
+      return row && /Bar do Jo/.test(row.textContent) && !/Bar do Z/.test(row.textContent);
+    }, null, { timeout: T });
+  });
+
+  await step('gerenciar: apagar o cardápio (selo 📓 some; o lugar CONTINUA no passaporte)', async () => {
+    await pageC.click('#passport-list .pass-main'); // reabre a ficha do lugar renomeado
+    await visible(pageC, 'overlay-boteco');
+    await pageC.click('#btn-boteco-del');           // apagar pede confirmação (toast com ação)
+    await pageC.waitForFunction(() => { const el = document.getElementById('toast'); return el && !el.hidden && el.querySelector('.toast-action'); }, null, { timeout: T });
+    await pageC.click('#toast .toast-action');
+    // ficha sem cardápio (botões carregar/apagar somem)
+    await pageC.waitForFunction(() => document.getElementById('btn-boteco-load').hidden && document.getElementById('btn-boteco-del').hidden, null, { timeout: T });
+    await pageC.evaluate(() => (document.getElementById('overlay-boteco').hidden = true));
+    // passaporte: o lugar fica, mas sem o selo 📓
+    await pageC.waitForFunction(() => {
+      const row = document.querySelector('#passport-list .pass-row');
+      return row && /Bar do Jo/.test(row.textContent) && !row.querySelector('.pass-menu');
+    }, null, { timeout: T });
+  });
+  await C.close();
+
   await browser.close();
   console.log(`\n${results.length} verificacoes E2E (perfil do boteco) passaram ✅`);
 }

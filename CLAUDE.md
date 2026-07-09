@@ -81,7 +81,9 @@ padrão Auto segue o navegador).
   Anti-entropy no join (troca o log completo, em **lotes de 64 eventos** — mensagem única
   estouraria o teto do DataChannel com o log grande) + gossip (repassa eventos novos). LWW (ts→eventId)
   p/ ITEM/PROFILE/TABLE/HAPPYHOUR/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
-  O `PROFILE` também leva o **nível** (liga) e a **foto** (miniatura 128px, dataURL ≤20k chars,
+  O ADD/REMOVE aceita `payer` (unidade "com dono"): soma no `paid` do pagador e, quando o
+  consumidor é OUTRO, no `covered` dele (o `userMoney` desconta → bebeu, mas não paga — a "rodada
+  paga" de item pessoal). O `PROFILE` também leva o **nível** (liga) e a **foto** (miniatura 128px, dataURL ≤20k chars,
   validada por `cleanPhoto` na entrada E na saída do fio — emoji é o fallback eterno). `SONG` (jukebox) **acumula**
   (não é LWW) — a fila de músicas da mesa.
 - **Efeitos efêmeros (não entram no log)** via `mesh.sendFx` → `onFx`. Os de **jogo** (dominó/
@@ -199,8 +201,15 @@ padrão Auto segue o navegador).
   perdeu o jogo ou bancou a rodada → a unidade SAI do bolo (`sharePool` exclui) e cai
   inteira na conta do pagador (`userMoney` soma; `paidCount` pro detalhe). O contador da
   mesa NÃO muda. Entradas: menu "💸 Pagar uma rodada" e toast no aparelho do PERDEDOR
-  (purrinha ×3, dominó 2p, truco — é oferta, não automação; sem item da mesa no cardápio,
-  não oferece). **SEM contagem de copo** — contar copo é mesquinharia
+  (purrinha ×3, dominó 2p, truco — é oferta, não automação). **Rodada por ITEM (mesma regra nos
+  dois botões — 🍻 Rodada e 💸 Pagar; muda só o dono)**: item PESSOAL (chopp/dose/refri) = UM pra
+  cada pessoa online (motorista fora se alcoólico); item DA MESA (share) = UMA unidade só (o card
+  dela já é coletivo). Escolha em `roundChoices`/`payChoices` (ambos = `drinkItems`, com selo "da
+  mesa" nos share) e alvos em `roundTargets`. **Pagar item pessoal** = "cada um bebeu; você paga":
+  cada online ganha +1 no CONSUMO, mas o dinheiro é TODO do pagador — o reducer guarda um mapa
+  **`covered`** (`user\x00item` → unidades que OUTRO pagou) e o `userMoney` DESCONTA o covered do
+  consumidor (bebeu, não paga; `coveredCount` mostra "na conta de quem pagou" na comanda). `payer`
+  entra no ADD de cada um (motorista pulado). Item da mesa segue como a garrafa com dono. **SEM contagem de copo** — contar copo é mesquinharia
   (decisão de produto): o card compartilhado é só o contador DA MESA; consumo pessoal vem só
   de item individual. O item `copo` (`cup:1`) segue no catálogo APENAS por compat de mesas
   antigas (nada o emite; `isCup` filtra de cards/rodada/editor; `tableTotal` segue excluindo
@@ -259,6 +268,14 @@ padrão Auto segue o navegador).
   toque re-emite os itens como eventos `ITEM` (aparecem na mesa E espalham pra turma via CRDT) e
   nomeia a mesa. A mesa segue nascendo LIMPA — carregar é sempre explícito. Entra no backup de
   graça (chave `botequei.*`). Entrou no `js/store.test.mjs`.
+  **Efeito de rede**: você entrou na mesa de ALGUÉM (join/convite → flag `sessionJoined`) e aprendeu
+  um cardápio novo pela sincronização → o toast do `leaveTable` vira **"📓 Você agora conhece o
+  cardápio do {nome}!"** (só quando joined E ainda não conhecia; quem CRIA a mesa vê o "guardado"
+  de sempre). **Gerenciar cardápios salvos** (na ficha do boteco, `ui.openBoteco`): **✏️ Renomear
+  lugar** (`store.renameBoteco` — renomeia o LUGAR INTEIRO: cardápio salvo + check-ins do passaporte
+  + títulos do histórico, pra a ficha seguir agregando sob o novo nome) e **🗑️ Apagar cardápio**
+  (`store.deleteBotecoMenu` — só o cardápio; check-ins/histórico ficam, com confirmação). Renomear/
+  apagar re-renderizam a ficha + o passaporte por baixo (`openPassportView`/`openBotecoFicha`).
   **Sugestão por GPS (opt-in)**: sem check-in fresco, o `sessionBoteco` ainda cai no `gpsBoteco` —
   ao **criar** a mesa, `maybeSuggestByGps` (só se a permissão de localização JÁ foi concedida, nunca
   pergunta na hora) pega a posição e o `nearestBoteco` (puro, haversine, raio 250m em `lifestats.js`)

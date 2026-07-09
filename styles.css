@@ -410,6 +410,8 @@ body.bigfont .btn, body.bigfont .chip { font-size: 19px; }
 /* Rodada: grid de escolha do item */
 .round-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .round-grid .btn { width: 100%; }
+/* etiqueta discreta "da mesa" (item compartilhado = uma unidade só, não um pra cada) */
+.opt-tag { font-size: 11px; font-weight: 700; opacity: .65; text-transform: uppercase; letter-spacing: .3px; }
 
 /* Mesa LIMPA: só o convite + botão que abre o formulário de novo item */
 .menu-empty { display: grid; gap: 10px; justify-items: center; text-align: center; padding: 18px 0 6px; }
@@ -682,6 +684,13 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
 .pass-menu { font-size: 13px; opacity: .85; }
 .pass-when { font-size: 13px; color: var(--muted); }
 .pass-map { text-decoration: none; font-size: 20px; flex: none; padding: 4px; }
+
+/* Gerenciar cardápio salvo (na ficha do boteco): renomear o lugar / apagar o cardápio */
+.boteco-manage { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.boteco-manage .btn { flex: 1; min-width: 140px; font-size: 14px; }
+.boteco-rename-box { display: flex; gap: 8px; margin-top: 10px; }
+.boteco-rename-box input { flex: 1; min-width: 0; }
+.boteco-rename-box .btn { flex: none; }
 
 /* Foto da noite (álbum local) */
 .photo-wrap { border-radius: 14px; overflow: hidden; background: var(--card); min-height: 160px; display: grid; place-items: center; }

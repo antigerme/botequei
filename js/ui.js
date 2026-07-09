@@ -89,6 +89,7 @@ const IDS = [
   'tru-hand', 'tru-actions', 'tru-result', 'tru-audit',
   'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
   'overlay-boteco', 'boteco-title', 'boteco-stats', 'boteco-menu', 'btn-boteco-load',
+  'btn-boteco-rename', 'btn-boteco-del', 'boteco-rename-box', 'boteco-rename', 'btn-boteco-rename-go',
   'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
   'overlay-welcome', 'btn-welcome-go',
   'overlay-retro', 'retro-slides', 'btn-retro-share',
@@ -256,6 +257,16 @@ export function init(handlers) {
   el['btn-dom-R'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'R'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-passport-checkin'].addEventListener('click', () => H.onCheckin(el['passport-name'].value));
   el['btn-boteco-load'].addEventListener('click', () => H.onBotecoLoadNew(el['btn-boteco-load'].dataset.place || ''));
+  // gerenciar cardápio salvo (na ficha do boteco): renomear o lugar / apagar o cardápio
+  el['btn-boteco-rename'].addEventListener('click', () => {
+    const box = el['boteco-rename-box'];
+    box.hidden = !box.hidden;
+    if (!box.hidden) setTimeout(() => { try { el['boteco-rename'].focus(); el['boteco-rename'].select(); } catch { /* ignore */ } }, 60);
+  });
+  const doRename = () => H.onBotecoRename(el['overlay-boteco'].dataset.place || '', el['boteco-rename'].value);
+  el['btn-boteco-rename-go'].addEventListener('click', doRename);
+  el['boteco-rename'].addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doRename(); } });
+  el['btn-boteco-del'].addEventListener('click', () => H.onBotecoDelMenu(el['overlay-boteco'].dataset.place || ''));
   el['photo-input'].addEventListener('change', () => showPhoto());
   el['btn-photo-retake'].addEventListener('click', () => el['photo-input'].click());
   el['btn-photo-share'].addEventListener('click', () => H.onPhotoShare());
@@ -963,7 +974,7 @@ export function brinde() {
 // ---------- Rodada: escolher o item (2 toques no total; sem disparo acidental) ----------
 export function openRound(items, lastId) {
   el['round-grid'].innerHTML = items.map((it) => `
-    <button class="btn ${it.id === lastId ? 'btn-primary' : 'btn-ghost'}" data-id="${esc(it.id)}">${esc(it.emoji)} ${esc(it.name)}</button>`).join('');
+    <button class="btn ${it.id === lastId ? 'btn-primary' : 'btn-ghost'}" data-id="${esc(it.id)}">${esc(it.emoji)} ${esc(it.name)}${it.share ? ` <small class="opt-tag">${t('round.tableTag')}</small>` : ''}</button>`).join('');
   el['round-grid'].querySelectorAll('button[data-id]').forEach((b) =>
     b.addEventListener('click', () => { closeOverlays(); H.onRoundPick(b.dataset.id); }));
   el['overlay-round'].hidden = false;
@@ -1065,7 +1076,7 @@ function roundRectPath(g, x, y, w, h, r) {
 // ---------- 💸 Pagar uma rodada (item da mesa com dono) ----------
 export function openPayRound(vm) {
   el['payround-list'].innerHTML = (vm.items || []).map((it) =>
-    `<button class="btn btn-primary pay-btn" data-id="${esc(it.id)}">${esc(it.emoji)} ${esc(it.name)}${it.price ? ' · ' + fmtMoney(it.price) : ''}</button>`).join('');
+    `<button class="btn btn-primary pay-btn" data-id="${esc(it.id)}">${esc(it.emoji)} ${esc(it.name)}${it.price ? ' · ' + fmtMoney(it.price) : ''}${it.share ? ` <small class="opt-tag">${t('round.tableTag')}</small>` : ''}</button>`).join('');
   el['payround-list'].querySelectorAll('.pay-btn').forEach((b) => b.addEventListener('click', () => { closeOverlays(); H.onPayPick(b.dataset.id); }));
   el['overlay-payround'].hidden = false;
 }
@@ -1702,13 +1713,15 @@ export function openPassport(vm) {
   });
   el['passport-name'].value = (vm && vm.suggestName) || '';
   el['overlay-passport'].hidden = false;
-  setTimeout(() => { try { el['passport-name'].focus(); } catch { /* ignore */ } }, 60);
+  // só rouba o foco se o passaporte for o topo — refresh POR BAIXO da ficha (renomear/apagar) não mexe
+  if (el['overlay-boteco'].hidden) setTimeout(() => { try { el['passport-name'].focus(); } catch { /* ignore */ } }, 60);
 }
 
 // Ficha de um boteco: visitas · gasto · bebida favorita + o cardápio salvo, com "carregar numa
 // mesa nova". Reusa as classes .comanda-* (lista) e .sheet-sub (stats) — sem CSS novo.
 export function openBoteco(vm) {
   el['boteco-title'].textContent = `📓 ${vm.name || t('common.anon')}`;
+  el['overlay-boteco'].dataset.place = vm.name || ''; // fonte de verdade do lugar aberto (renomear/apagar)
   const lang = document.documentElement.lang || 'pt-BR';
   el['boteco-stats'].innerHTML = [
     `📍 ${vm.visits || 0} ${vm.visits === 1 ? t('pass.checkin1') : t('pass.checkinN')}`,
@@ -1716,12 +1729,16 @@ export function openBoteco(vm) {
     vm.fav ? `⭐ ${esc(t('boteco.fav'))}: ${esc(vm.fav.emoji)} ${esc(vm.fav.name)}` : '',
     vm.lastAt ? `🕒 ${esc(t('boteco.last'))} ${esc(new Date(vm.lastAt).toLocaleDateString(lang))}` : '',
   ].filter(Boolean).join(' · ');
-  el['boteco-menu'].innerHTML = (vm.menu && vm.menu.length)
+  const hasMenu = !!(vm.menu && vm.menu.length);
+  el['boteco-menu'].innerHTML = hasMenu
     ? vm.menu.map((it) => `<li class="comanda-row"><span class="c-emoji">${esc(it.emoji || '🍺')}</span><span class="c-name">${esc(it.name)}</span>${it.price > 0 ? `<span class="c-money">${esc(fmtMoney(it.price))}</span>` : ''}</li>`).join('')
     : `<li class="comanda-row">${esc(t('boteco.noMenu'))}</li>`;
   el['btn-boteco-load'].textContent = t('boteco.loadNew');
-  el['btn-boteco-load'].hidden = !(vm.menu && vm.menu.length);
+  el['btn-boteco-load'].hidden = !hasMenu;
   el['btn-boteco-load'].dataset.place = vm.name || '';
+  el['btn-boteco-del'].hidden = !hasMenu; // só há o que apagar se existe cardápio salvo
+  el['boteco-rename-box'].hidden = true;   // renomear abre fechado (progressive disclosure)
+  el['boteco-rename'].value = vm.name || '';
   el['overlay-boteco'].hidden = false;
 }
 

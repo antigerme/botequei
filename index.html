@@ -701,6 +701,14 @@
     <h3 data-i18n="boteco.menu">📓 Cardápio salvo</h3>
     <ul class="comanda-list" id="boteco-menu"></ul>
     <button class="btn btn-primary btn-lg" id="btn-boteco-load" hidden>📓</button>
+    <div class="boteco-manage">
+      <button class="btn btn-ghost" id="btn-boteco-rename" data-i18n="boteco.rename">✏️ Renomear lugar</button>
+      <button class="btn btn-ghost" id="btn-boteco-del" data-i18n="boteco.del" hidden>🗑️ Apagar cardápio</button>
+    </div>
+    <div class="boteco-rename-box" id="boteco-rename-box" hidden>
+      <input type="text" id="boteco-rename" maxlength="40" data-i18n-ph="boteco.renamePh" placeholder="Novo nome do lugar">
+      <button class="btn btn-primary" id="btn-boteco-rename-go" data-i18n="boteco.renameGo">✓ Salvar</button>
+    </div>
   </div>
 </div>
 

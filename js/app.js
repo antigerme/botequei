@@ -34,7 +34,7 @@ import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar, catOf, isShare, i
 import {
   emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor, makeSong,
   getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver, happyHour,
-  paysFor, payerOf, songs, sharePool, shareSplit, paidCount,
+  paysFor, payerOf, songs, sharePool, shareSplit, paidCount, coveredCount,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
 import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro, botecoProfiles, nearestBoteco } from './lifestats.js';
@@ -92,6 +92,7 @@ let lastTableMilestone = 0;   // comemora a cada 10 rodadas da mesa (marco); sin
 let hhEndedFor = 0;           // 'until' do happy hour cujo fechamento já foi comemorado
 let renderScheduled = false;
 let sessionStart = 0;        // quando entrei nesta mesa (p/ duração no histórico)
+let sessionJoined = false;   // entrei na mesa de OUTRO (join/convite)? → "aprendi" o cardápio de alguém
 let prevOnline = new Set();  // presença: quem estava online (p/ avisar entrou/saiu)
 let presenceSeeded = false;  // 1ª passada de presença só semeia (sem toast)
 let everSeen = new Set();    // quem já apareceu online na sessão ("entrou!" só na 1ª vez)
@@ -239,25 +240,29 @@ function addCustomItem({ emoji, name, price, cat, note, share }) {
   if (emitLocal(makeItem(def))) { render(); ui.toast(t('toast.itemAdded', { emoji: emoji, name: name })); }
 }
 
-// ---- Rodada coletiva (do item que você escolher; garrafa da mesa não precisa: o card dela
-// JÁ é coletivo). Motorista só fica de fora se o item for alcoólico — rodada de refri/água
-// inclui todo mundo. ----
+// ---- Rodada (do item que você escolher). MESMA regra nos dois botões — muda só o dono:
+//   • item PESSOAL (chopp/dose/refri) → UM pra cada pessoa online (motorista fora se alcoólico);
+//   • item DA MESA (share: garrafa/litrão/torre) → UMA unidade só (o card dela já é coletivo).
+// "🍻 Rodada" não tem dono (cada um paga o seu); "💸 Pagar" carimba você como pagador. ----
+function drinkItems() {
+  return allItems().filter((it) => !isCup(it) && !it.off && (isShare(it) || ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it))));
+}
+// Alvos da rodada: item da mesa é UMA unidade (só eu marco); item pessoal é um pra cada online
+// (motorista fica de fora quando o item é alcoólico — refri/água inclui todo mundo).
+function roundTargets(def) {
+  const targets = [{ user: self, name: getName() }];
+  if (!isShare(def) && mesh) for (const p of mesh.peers()) if (p.online) targets.push({ user: p.user, name: profOf(p.user).name });
+  const alcoholic = !isShare(def) && (ALCOHOL.has(def.id) || (def.g || 0) > 0);
+  return alcoholic ? targets.filter((tg) => !isDriver(state, tg.user)) : targets;
+}
 function roundChoices() {
-  return allItems()
-    .filter((it) => !isShare(it) && !isCup(it) && !it.off && ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it)))
-    .map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it) }));
+  return drinkItems().map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it), share: isShare(it) ? 1 : 0 }));
 }
 function rodada(item) {
   const def = resolveItem(item);
-  if (!def || isShare(def) || isCup(def)) return; // rodada é de ITEM de verdade — não da dose pessoal (copo)
-  const alcoholic = ALCOHOL.has(item) || (def.g || 0) > 0;
-  const targets = [{ user: self, name: getName() }];
-  if (mesh) for (const p of mesh.peers()) if (p.online) targets.push({ user: p.user, name: profOf(p.user).name });
+  if (!def || isCup(def)) return; // rodada é de ITEM de verdade — não da dose pessoal (copo)
   let n = 0;
-  for (const t of targets) {
-    if (alcoholic && isDriver(state, t.user)) continue;
-    if (emitLocal(makeAdd(item, t.user, t.name))) n++;
-  }
+  for (const tg of roundTargets(def)) if (emitLocal(makeAdd(item, tg.user, tg.name))) n++;
   settings = setSettings({ roundItem: item }); // lembra a escolha pra próxima
   if (mesh) mesh.sendFx({ kind: 'react', emoji: def.emoji || '🍻' });
   ui.floatReaction(def.emoji || '🍻'); ui.floatReaction('🍻'); sound.cheers();
@@ -267,35 +272,39 @@ function rodada(item) {
   ui.toast(n ? t('toast.roundN', { n: n }) : t('toast.round0'));
 }
 
-// ---- 💸 Pagar uma rodada (perdeu o jogo ou resolveu bancar): item DA MESA com dono ----
-// A garrafa segue contando pra mesa (card/herói); só o DINHEIRO muda de bolso — a unidade
-// sai do racha (sharePool) e cai inteira na conta de quem pagou (`payer` no evento ADD).
-let lastPaid = null; // último pagamento (p/ desfazer)
+// ---- 💸 Pagar uma rodada (perdeu o jogo ou resolveu bancar): você é o DONO. ----
+// Item pessoal → um pra cada online: cada um BEBE (conta no consumo dele), mas o DINHEIRO é
+// TODO seu (payer=você → o motor "cobre" o consumo dele e cobra só de você). Item da mesa →
+// UMA garrafa com dono: sai do racha (sharePool) e cai inteira na sua conta. `covered`/`paid`
+// no reducer garantem que ninguém é cobrado duas vezes.
+let lastPaid = null; // últimos ADDs do pagamento (p/ desfazer — pode ser vários numa rodada)
 function payChoices() {
-  return allItems().filter((it) => isShare(it) && !it.off)
-    .map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it), price: it.price || 0 }));
+  return drinkItems().map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it), price: it.price || 0, share: isShare(it) ? 1 : 0 }));
 }
 function openPayRound() {
   const items = payChoices();
-  if (!items.length) { ui.toast(t('pay.noShare')); return; }
+  if (!items.length) { ui.toast(t('pay.noItem')); return; }
   ui.openPayRound({ items });
 }
 function payRoundGo(itemId) {
   const def = resolveItem(itemId);
-  if (!def || !isShare(def)) return;
-  const ev = makeAdd(itemId, self, getName(), self);
-  if (!emitLocal(ev)) return;
-  lastPaid = ev;
+  if (!def || isCup(def)) return;
+  const evs = [];
+  for (const tg of roundTargets(def)) { const ev = makeAdd(itemId, tg.user, tg.name, self); if (emitLocal(ev)) evs.push(ev); }
+  if (!evs.length) return;
+  lastPaid = evs;
   if (mesh) mesh.sendFx({ kind: 'react', emoji: '💸' });
   ui.floatReaction('💸'); sound.cheers(); ui.celebrate([def.emoji || '🍻', '💸', '🎉']);
   afterChange(itemId, 'add');
   ui.actionToast(t('pay.done', { item: itemLabel(def) }), t('common.undo'), () => {
     if (!lastPaid) return;
-    if (emitLocal(makeRemove(lastPaid.item, lastPaid.user, lastPaid.name, self))) { lastPaid = null; scheduleRender(); }
+    let undone = false;
+    for (const e of lastPaid) if (emitLocal(makeRemove(e.item, e.user, e.name, self))) undone = true;
+    if (undone) { lastPaid = null; scheduleRender(); }
   }, 7000);
 }
-// Perdeu o jogo NO MEU aparelho: oferece pagar a rodada (abre o escolhedor do item da mesa).
-// É OFERTA, não automação — quem perdeu decide; sem item da mesa no cardápio, a zoeira basta.
+// Perdeu o jogo NO MEU aparelho: oferece pagar a rodada (abre o escolhedor do item).
+// É OFERTA, não automação — quem perdeu decide; sem NENHUM item no cardápio, a zoeira basta.
 function offerLoserPay() {
   if (!payChoices().length) return;
   ui.actionToast(t('pay.lostQ'), t('pay.lostGo'), () => openPayRound(), 12000);
@@ -537,8 +546,9 @@ function menuEditorItems() {
 }
 
 // ---- Mesa ----
-async function enterTable(code, { create = false, pin = '' } = {}) {
+async function enterTable(code, { create = false, pin = '', joined = false } = {}) {
   room = code; roomPin = pin; sessionStart = Date.now(); sessionMates = new Set();
+  sessionJoined = joined; // entrei na mesa de alguém → o cardápio que sincronizar é "aprendido"
   store.setCurrent(room);
   rebuildFrom(store.getEvents(room));
   ui.showScreen('table');
@@ -558,6 +568,7 @@ async function enterTable(code, { create = false, pin = '' } = {}) {
 // plano (falha de boa) — se a internet voltar, a malha se completa sozinha.
 function enterTableOffline(code) {
   room = code; roomPin = ''; sessionStart = Date.now(); sessionMates = new Set();
+  sessionJoined = true; // pareamento offline = você entrou na mesa de alguém (scaneou o QR)
   store.setCurrent(room);
   rebuildFrom(store.getEvents(room));
   ui.showScreen('table');
@@ -667,13 +678,18 @@ function leaveTable() {
       const defs = [...state.items.values()].map((r) => r.def).filter((d) => d && d.id && !isCup(d));
       const fresh = freshCheckin();
       const seed = info.title || (fresh && !store.hasBotecoMenu(fresh) ? fresh : '');
-      if (defs.length && seed) { store.saveBotecoMenu(seed, defs); ui.toast(t('toast.botecoSaved', { name: seed })); }
+      if (defs.length && seed) {
+        const knew = store.hasBotecoMenu(seed); // já conhecia esse cardápio antes de salvar agora?
+        store.saveBotecoMenu(seed, defs);
+        // Efeito de rede: entrei na mesa de ALGUÉM e aprendi um cardápio novo pela sincronização.
+        ui.toast(sessionJoined && !knew ? t('toast.botecoLearned', { name: seed }) : t('toast.botecoSaved', { name: seed }));
+      }
     }
   }
   if (mesh) { mesh.close(); mesh = null; }
   store.clearCurrent();
   room = null; roomPin = ''; myDriver = false; offlineWaiting = false; gpsBoteco = '';
-  lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastAwards = [];
+  lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; sessionJoined = false; lastAwards = [];
   prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set();
   for (const t of pendingBye.values()) clearTimeout(t);
   pendingBye = new Map(); everSeen = new Set(); wentAway = new Set();
@@ -2439,7 +2455,14 @@ function openStats() {
 function openComanda(user) {
   const p = profOf(user);
   const rows = [];
-  for (const it of allItems()) { const n = getCount(state, user, it.id); if (n > 0) rows.push({ emoji: it.emoji, name: it.name, n, money: (it.price || 0) * n, note: it.note || '' }); }
+  for (const it of allItems()) {
+    const n = getCount(state, user, it.id);
+    if (n <= 0) continue;
+    // unidades que OUTRO pagou (rodada paga): conta no ×N, mas o dinheiro é de quem pagou.
+    const cov = coveredCount(state, user, it.id);
+    const charged = Math.max(0, n - cov);
+    rows.push({ emoji: it.emoji, name: it.name, n, money: (it.price || 0) * charged, note: cov > 0 ? t('comanda.covered', { n: cov }) : (it.note || '') });
+  }
   // unidades que a pessoa PAGOU (perdeu o jogo / bancou): a garrafa "dela" aparece na comanda
   for (const it of allItems()) { const n = paidCount(state, user, it.id); if (n > 0) rows.push({ emoji: '💸', name: t('comanda.paid', { item: itemLabel(it) }), n, money: (it.price || 0) * n, note: '' }); }
   ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user), money: userMoney(state, user, resolveItem) });
@@ -2472,6 +2495,32 @@ function renderLeagueInfo() {
   ui.renderLeague({ level: levelFor(lifeStats(hist, { now })), challenges: weeklyChallenges(hist, current, { now }), season: seasonAward(hist, { now }) });
 }
 
+// ---- Passaporte + ficha do boteco (reusados pelos handlers e pelo refresh pós renomear/apagar) ----
+function openPassportView() {
+  ui.openPassport({
+    checkins: store.getCheckins(),
+    suggestName: room ? tableInfo(state).title : '',
+    keyOf: store.botecoKey,
+    menuKeys: store.listBotecoMenus().map((m) => store.botecoKey(m.name)), // lugares com cardápio salvo
+  });
+}
+// Ficha do boteco (toca num lugar no passaporte): cruza check-in + histórico + cardápio salvo
+// (agregação pura no lifestats). Tudo local.
+function openBotecoFicha(name) {
+  const profs = botecoProfiles(store.getHistory(), store.getCheckins(), store.listBotecoMenus(), store.botecoKey);
+  const p = profs.find((x) => x.key === store.botecoKey(name)) || { name, visits: 0, spent: 0, favDrink: '', favN: 0, lastAt: 0 };
+  const menu = store.getBotecoMenu(name);
+  // nome da favorita: o histórico só guarda o ID; o cardápio salvo do boteco tem o nome do
+  // item custom — resolve por ele primeiro, senão cai no catálogo (item padrão).
+  const favDef = p.favDrink ? (menu.find((d) => d.id === p.favDrink) || resolveItem(p.favDrink)) : null;
+  ui.openBoteco({
+    name: p.name || name,
+    visits: p.visits, spent: p.spent, lastAt: p.lastAt,
+    fav: favDef ? { emoji: favDef.emoji, name: itemLabel(favDef), n: p.favN } : null,
+    menu: menu.map((d) => ({ emoji: d.emoji, name: itemLabel(d), price: d.price || 0 })),
+  });
+}
+
 // ---- Handlers ----
 const handlers = {
   onName: (v) => setName(v),
@@ -2480,13 +2529,13 @@ const handlers = {
     code = (code || '').trim().toUpperCase();
     if (!code) { ui.toast(t('toast.needCode')); return; }
     pendingJoin = code; pendingPin = false;
-    if (getName()) enterTable(code); else ui.openJoin(code, false);
+    if (getName()) enterTable(code, { joined: true }); else ui.openJoin(code, false);
   },
   onJoinConfirm: (name, pin) => {
     const n = setName(name);
     if (!n) { ui.toast(t('toast.needNick')); return; }
     ui.closeOverlays();
-    if (pendingJoin) enterTable(pendingJoin, { pin: pendingPin ? (pin || '').trim() : '' });
+    if (pendingJoin) enterTable(pendingJoin, { pin: pendingPin ? (pin || '').trim() : '', joined: true });
   },
   onLeave: leaveTable,
   onAdd: (item) => act('ADD', item),
@@ -2498,7 +2547,7 @@ const handlers = {
   // rodada é generosa demais pra sair num toque acidental: explica e confirma antes
   onRodada: () => {
     const choices = roundChoices();
-    if (!choices.length) { ui.toast(t('round.empty')); return; } // mesa sem bebida individual ainda
+    if (!choices.length) { ui.toast(t('round.empty')); return; } // mesa sem nenhuma bebida no cardápio ainda
     ui.openRound(choices, settings.roundItem || 'chopp');
   },
   onRoundPick: (id) => rodada(id),
@@ -2632,27 +2681,24 @@ const handlers = {
     try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
   },
   // Passaporte de botecos (check-ins locais, opcionalmente com GPS)
-  onPassport: () => ui.openPassport({
-    checkins: store.getCheckins(),
-    suggestName: room ? tableInfo(state).title : '',
-    keyOf: store.botecoKey,
-    menuKeys: store.listBotecoMenus().map((m) => store.botecoKey(m.name)), // lugares com cardápio salvo
-  }),
-  // Ficha do boteco (toca num lugar no passaporte): cruza check-in + histórico + cardápio salvo
-  // (agregação pura no lifestats). Tudo local.
-  onBoteco: (name) => {
-    const profs = botecoProfiles(store.getHistory(), store.getCheckins(), store.listBotecoMenus(), store.botecoKey);
-    const p = profs.find((x) => x.key === store.botecoKey(name)) || { name, visits: 0, spent: 0, favDrink: '', favN: 0, lastAt: 0 };
-    const menu = store.getBotecoMenu(name);
-    // nome da favorita: o histórico só guarda o ID; o cardápio salvo do boteco tem o nome do
-    // item custom — resolve por ele primeiro, senão cai no catálogo (item padrão).
-    const favDef = p.favDrink ? (menu.find((d) => d.id === p.favDrink) || resolveItem(p.favDrink)) : null;
-    ui.openBoteco({
-      name: p.name || name,
-      visits: p.visits, spent: p.spent, lastAt: p.lastAt,
-      fav: favDef ? { emoji: favDef.emoji, name: itemLabel(favDef), n: p.favN } : null,
-      menu: menu.map((d) => ({ emoji: d.emoji, name: itemLabel(d), price: d.price || 0 })),
-    });
+  onPassport: () => openPassportView(),
+  onBoteco: (name) => openBotecoFicha(name),
+  // Renomeia o LUGAR INTEIRO (cardápio salvo + check-ins + histórico) e re-renderiza a ficha + o
+  // passaporte por baixo, pra o novo nome aparecer nos dois sem reabrir nada.
+  onBotecoRename: (oldName, newName) => {
+    const nn = (newName || '').trim();
+    if (!nn) { ui.toast(t('boteco.renameEmpty')); return; }
+    if (nn !== oldName) { store.renameBoteco(oldName, nn); ui.toast(t('boteco.renameDone', { name: nn })); }
+    openPassportView(); openBotecoFicha(nn);
+  },
+  // Apaga só o CARDÁPIO salvo do lugar (check-ins/histórico continuam). Confirma antes (destrutivo).
+  onBotecoDelMenu: (name) => {
+    if (!store.hasBotecoMenu(name)) return;
+    ui.actionToast(t('boteco.delConfirm', { name }), t('boteco.delGo'), () => {
+      store.deleteBotecoMenu(name);
+      ui.toast(t('boteco.delDone'));
+      openPassportView(); openBotecoFicha(name); // ficha sem cardápio + passaporte sem o selo 📓
+    }, 8000);
   },
   // "Carregar numa mesa nova": abre uma mesa, nomeia com o boteco e re-emite o cardápio salvo
   // (mesmo caminho do onLoadBoteco). A ficha abre da HOME, então criar a mesa aqui é o fluxo.
@@ -2812,7 +2858,7 @@ function boot() {
   const inv = parseInvite();
   if (inv) {
     pendingJoin = inv.room; pendingPin = inv.needPin;
-    if (getName() && !inv.needPin) enterTable(inv.room);
+    if (getName() && !inv.needPin) enterTable(inv.room, { joined: true });
     else ui.openJoin(inv.room, inv.needPin);
   } else if (!getName() && !store.getHistory().length && !store.getFlag('welcomeSeen')) {
     store.setFlag('welcomeSeen'); // marca AO MOSTRAR: reload (ex.: troca de SW) não repete o guia

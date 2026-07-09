@@ -29,6 +29,15 @@ async function main() {
     localStorage.setItem('botequei.name', 'André');
     localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 }));
     localStorage.setItem('botequei.settings', JSON.stringify({ lang: 'pt', theme: 'dark' }));
+    // stub do Screen Wake Lock: grava pedidos/solturas. defineProperty é OBRIGATÓRIO —
+    // navigator.wakeLock é getter do protótipo (read-only); atribuição direta falha em silêncio.
+    window.__wakes = [];
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: {
+      request: async () => { window.__wakes.push('request'); return {
+        addEventListener() { /* release handler */ },
+        release() { window.__wakes.push('release'); return Promise.resolve(); },
+      }; },
+    } });
   });
   const p = await C.newPage();
   const noHScroll = () => p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
@@ -83,6 +92,18 @@ async function main() {
   await step('touch-action: manipulation nos alvos (sem double-tap-zoom no spam de +1)', async () => {
     const ta = await p.evaluate(() => getComputedStyle(document.getElementById('btn-rodada')).touchAction);
     if (ta !== 'manipulation') throw new Error('btn-rodada touch-action=' + ta);
+  });
+
+  await step('tela acesa na mesa (wake lock): pede ao entrar, solta no switch, re-pede ao religar', async () => {
+    const req1 = await p.evaluate(() => (window.__wakes || []).filter((x) => x === 'request').length);
+    if (req1 < 1) throw new Error('não pediu wake lock ao entrar na mesa');
+    await p.click('#btn-menu'); await visible('overlay-menu');
+    await p.click('#menu-settings'); await visible('overlay-settings');
+    await p.uncheck('#set-keepawake');
+    await p.waitForFunction(() => (window.__wakes || []).includes('release'), null, { timeout: 5000 });
+    await p.check('#set-keepawake');
+    await p.waitForFunction((n) => (window.__wakes || []).filter((x) => x === 'request').length > n, req1, { timeout: 5000 });
+    await p.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
   });
 
   await step('sheet: arrastar a alcinha pra baixo FECHA; puxãozinho volta (snap)', async () => {

@@ -62,7 +62,7 @@ const IDS = [
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
-  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound',
+  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-keepawake',
   'set-lang',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
@@ -294,6 +294,7 @@ export function init(handlers) {
   el['set-bigfont'].addEventListener('change', () => H.onSetting({ bigFont: el['set-bigfont'].checked }));
   el['set-sound'].addEventListener('change', () => H.onSetting({ sound: el['set-sound'].checked }));
   el['set-shake'].addEventListener('change', () => H.onShakeToggle(el['set-shake'].checked));
+  el['set-keepawake'].addEventListener('change', () => H.onSetting({ keepAwake: el['set-keepawake'].checked }));
   el['set-pixkey'].addEventListener('change', () => H.onSetting({ pixKey: el['set-pixkey'].value.trim() }));
   el['set-pixcity'].addEventListener('change', () => H.onSetting({ pixCity: el['set-pixcity'].value.trim() }));
   $('btn-clear-data').addEventListener('click', () => H.onClearData());
@@ -372,7 +373,9 @@ function setupA11y() {
     const h = sheet.querySelector('h2');
     if (h) { if (!h.id) h.id = 'h_' + Math.abs(hashStr(ov.id)); sheet.setAttribute('aria-labelledby', h.id); }
     new MutationObserver(() => {
-      if (!ov.hidden) { lastFocus = document.activeElement; try { sheet.focus({ preventScroll: true }); } catch { /* ignore */ } }
+      // sheet reabre sempre do TOPO: o scroll fica gravado no elemento escondido, e reabrir um
+      // menu já rolado desorienta (a alcinha de arrasto nem aparece)
+      if (!ov.hidden) { lastFocus = document.activeElement; sheet.scrollTop = 0; try { sheet.focus({ preventScroll: true }); } catch { /* ignore */ } }
       syncOverlayHistory(); // mantém o histórico em sincronia pro "voltar" fechar o overlay
     }).observe(ov, { attributes: true, attributeFilter: ['hidden'] });
   });
@@ -923,6 +926,7 @@ export function fillSettings(s) {
   el['set-bigfont'].checked = !!s.bigFont;
   el['set-sound'].checked = !!s.sound;
   el['set-shake'].checked = !!s.shake;
+  el['set-keepawake'].checked = s.keepAwake !== false; // default ligado
   el['set-pixkey'].value = s.pixKey || '';
   el['set-pixcity'].value = s.pixCity || '';
 }

@@ -93,12 +93,10 @@ let hhEndedFor = 0;           // 'until' do happy hour cujo fechamento já foi c
 let renderScheduled = false;
 let sessionStart = 0;        // quando entrei nesta mesa (p/ duração no histórico)
 let sessionJoined = false;   // entrei na mesa de OUTRO (join/convite)? → "aprendi" o cardápio de alguém
-let prevOnline = new Set();  // presença: quem estava online (p/ avisar entrou/saiu)
+let prevOnline = new Set();  // presença: quem estava online na última passada
 let presenceSeeded = false;  // 1ª passada de presença só semeia (sem toast)
 let everSeen = new Set();    // quem já apareceu online na sessão ("entrou!" só na 1ª vez)
-let wentAway = new Set();    // quem saiu de verdade (passou da graça) — p/ saudar o "voltou"
-let pendingBye = new Map();  // user -> timeout da graça: sumiu agora, ainda não é "saiu"
-const BYE_GRACE_MS = 45000;  // tela apagada / elevador / xixi não viram toast de "saiu"
+let saidBye = new Set();     // quem deu tchau EXPLÍCITO (fx 'bye' do leaveTable) — sai da barra
 let sessionMates = new Set(); // nomes que apareceram na mesa (p/ "com quem você mais bebeu")
 let lastRetro = null;        // dados da última retrospectiva (p/ compartilhar)
 let shakeHandler = null, shakeLast = 0; // mãos livres (chacoalhar pra +1)
@@ -346,6 +344,7 @@ function onFx(fx, fromId) {
   else if (fx.kind === 'challenge') { if (fx.to === self) receiveChallenge(fx); }
   else if (fx.kind === 'ceremony') { if (Array.isArray(fx.awards)) ui.openCeremony({ awards: fx.awards }); }
   else if (fx.kind === 'waiter') receiveWaiter(fx);
+  else if (fx.kind === 'bye') receiveBye(fx);
   else if (fx.kind === 'purrinha') routePurrFx(fx);
   else if (fx.kind === 'truco') routeTrucoFx(fx);
   else if (fx.kind === 'domino') {
@@ -513,9 +512,8 @@ function renderPresence() {
   const me = profOf(self);
   const list = [{ user: self, emoji: me.emoji, photo: me.photo, color: me.color, name: getName() || t('common.you'), level: me.level, online: true, self: true }];
   const listed = new Set([self]);
-  if (mesh) for (const p of mesh.peers()) { listed.add(p.user); const pr = profOf(p.user); list.push({ user: p.user, emoji: pr.emoji, photo: pr.photo, color: pr.color, name: pr.name || t('common.someoneLow'), level: pr.level, online: p.online }); }
-  // quem sumiu há pouco (dentro da graça) segue na barra como 💤, mesmo se a malha já o removeu
-  for (const u of pendingBye.keys()) if (!listed.has(u)) { const pr = profOf(u); list.push({ user: u, emoji: pr.emoji, photo: pr.photo, color: pr.color, name: pr.name || t('common.someoneLow'), level: pr.level, online: false }); }
+  // quem caiu segue na barra como 💤 (presença serena) — só sai quem deu tchau explícito (bye)
+  if (mesh) for (const p of mesh.peers()) { if (saidBye.has(p.user)) continue; listed.add(p.user); const pr = profOf(p.user); list.push({ user: p.user, emoji: pr.emoji, photo: pr.photo, color: pr.color, name: pr.name || t('common.someoneLow'), level: pr.level, online: p.online }); }
   ui.renderPresence(list);
 }
 
@@ -556,6 +554,25 @@ function menuEditorItems() {
 }
 
 // ---- Mesa ----
+// ---- Tela acesa na mesa (Screen Wake Lock) ----
+// Tela apagada = o navegador CONGELA o JS e derruba o WebRTC (regra de plataforma, Android e
+// iOS) — era a "presença piscando". Enquanto você está NA MESA (e quer — settings.keepAwake,
+// ligado de fábrica), seguramos a tela acesa: padrão dos apps de usar-na-mesa (mapas
+// navegando, receitas, placar). Sem suporte (Safari <16.4) → falha em silêncio, fica como era.
+// O sistema SOLTA o lock quando o app sai da frente — o visibilitychange re-adquire na volta.
+let wakeLock = null;
+async function acquireWakeLock() {
+  if (!room || !settings.keepAwake || document.hidden || wakeLock) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch { wakeLock = null; /* sem suporte / economia de energia do sistema: segue a vida */ }
+}
+function releaseWakeLock() {
+  try { if (wakeLock) wakeLock.release(); } catch { /* ignore */ }
+  wakeLock = null;
+}
+
 async function enterTable(code, { create = false, pin = '', joined = false } = {}) {
   room = code; roomPin = pin; sessionStart = Date.now(); sessionMates = new Set();
   sessionJoined = joined; // entrei na mesa de alguém → o cardápio que sincronizar é "aprendido"
@@ -563,6 +580,7 @@ async function enterTable(code, { create = false, pin = '', joined = false } = {
   rebuildFrom(store.getEvents(room));
   ui.showScreen('table');
   render();
+  acquireWakeLock(); // tela acesa na mesa (se o usuário quer)
   if (create) { openInvite(); maybeSuggestByGps(); } // GPS: perto de um boteco conhecido? oferece o cardápio
   maybeStartTour(); // 1ª mesa da vida: mostra o caminho das pedras (espera fechar o convite)
 
@@ -583,6 +601,7 @@ function enterTableOffline(code) {
   rebuildFrom(store.getEvents(room));
   ui.showScreen('table');
   render();
+  acquireWakeLock();
   maybeStartTour();
   startMesh([]);
   location.hash = '#/mesa?room=' + room;
@@ -604,39 +623,36 @@ function onMeshChange() {
     ui.toast(t('off.joined'));
   }
 }
-// Avisa quem entrou/saiu ao vivo, com HISTERESE: tela apagada derruba o WebRTC em ~12s, então
-// quem some entra numa graça de 45s (fica 💤 na barra) e só vira toast de "saiu" se não voltar.
-// Piscada (apagou e voltou) = silêncio total; "entrou!" só na primeira vez da sessão.
+// Presença SERENA: queda de conexão NUNCA vira toast — tela apagada/elevador/bolso só
+// esmaece o avatar (💤) na barra, pelo tempo que for; a volta reacende em silêncio.
+// "👋 saiu" existe SÓ quando a pessoa sai DE VERDADE (fx 'bye' explícito do leaveTable).
+// Padrão de mercado (Docs/Figma/WhatsApp): presença se MOSTRA na barra, não se anuncia.
+// "entrou!" segue só na primeira vez da sessão.
 function diffPresence() {
   if (!mesh) return;
   const cur = new Set(mesh.peers().filter((p) => p.online).map((p) => p.user));
-  for (const u of cur) { const n = profOf(u).name; if (n) sessionMates.add(n); } // "com quem você bebeu"
+  for (const u of cur) { const n = profOf(u).name; if (n) sessionMates.add(n); saidBye.delete(u); } // voltou depois do tchau? reentra na barra
   if (!presenceSeeded) { prevOnline = cur; presenceSeeded = true; for (const u of cur) everSeen.add(u); return; }
   for (const u of cur) {
-    const tm = pendingBye.get(u);
-    if (tm) { clearTimeout(tm); pendingBye.delete(u); } // voltou dentro da graça: nenhum toast
-    else if (!prevOnline.has(u)) {
-      if (!everSeen.has(u)) { ui.toast(t('pres.joined', { name: profOf(u).name || t('common.someone') })); sound.pop(); }
-      else if (wentAway.has(u)) ui.toast(t('pres.back', { name: profOf(u).name || t('common.someone') }));
-    }
-    everSeen.add(u); wentAway.delete(u);
-  }
-  for (const u of prevOnline) {
-    if (cur.has(u) || pendingBye.has(u)) continue;
-    pendingBye.set(u, setTimeout(() => {
-      pendingBye.delete(u);
-      const on = mesh && mesh.peers().some((p) => p.user === u && p.online);
-      if (!on) { wentAway.add(u); ui.toast(t('pres.bye', { name: profOf(u).name || t('common.someone') })); }
-      scheduleRender(); // tira (ou reacende) o 💤 da barra
-    }, BYE_GRACE_MS));
+    if (!prevOnline.has(u) && !everSeen.has(u)) { ui.toast(t('pres.joined', { name: profOf(u).name || t('common.someone') })); sound.pop(); }
+    everSeen.add(u);
   }
   prevOnline = cur;
 }
 
+// Tchau explícito (quem toca "sair da mesa" avisa a mesa): o ÚNICO "saiu" que toasta.
+// A pessoa sai da barra na hora; se voltar, ganha o "entrou!" de novo (everSeen zera).
+function receiveBye(fx) {
+  if (!fx.from || fx.from === self) return;
+  saidBye.add(fx.from); everSeen.delete(fx.from); prevOnline.delete(fx.from);
+  const name = (typeof fx.fromName === 'string' && fx.fromName.slice(0, 24)) || profOf(fx.from).name || t('common.someone');
+  ui.toast(t('pres.bye', { name }));
+  scheduleRender();
+}
+
 function startMesh(iceServers) {
   presenceSeeded = false; prevOnline = new Set();
-  for (const t of pendingBye.values()) clearTimeout(t);
-  pendingBye = new Map(); everSeen = new Set(); wentAway = new Set();
+  everSeen = new Set(); saidBye = new Set();
   mesh = new Mesh({
     room: sigRoom(room, roomPin), code: room, selfId: self, name: getName(), iceServers,
     onEvent: onRemoteEvent, onFx, onPeersChange: onMeshChange, onStatus: onMeshChange,
@@ -696,13 +712,15 @@ function leaveTable() {
       }
     }
   }
+  // tchau EXPLÍCITO: avisa a mesa que eu SAÍ de verdade (o único "saiu" que vira toast lá)
+  if (mesh) { try { mesh.sendFx({ kind: 'bye', from: self, fromName: getName() }); } catch { /* ignore */ } }
+  releaseWakeLock();
   if (mesh) { mesh.close(); mesh = null; }
   store.clearCurrent();
   room = null; roomPin = ''; myDriver = false; offlineWaiting = false; gpsBoteco = '';
   lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; sessionJoined = false; lastAwards = [];
   prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set();
-  for (const t of pendingBye.values()) clearTimeout(t);
-  pendingBye = new Map(); everSeen = new Set(); wentAway = new Set();
+  everSeen = new Set(); saidBye = new Set();
   purr = null; dom = null; dv = null; seenFx.clear(); purrPreFx = [];
   cancelTruco(false); trucoPreFx = [];
   domClearTimers(); gameMinned.clear(); ui.setGameMin('dom', false); ui.setGameMin('purr', false); ui.setGamePill(null);
@@ -2822,6 +2840,7 @@ const handlers = {
     ui.applyTheme(settings);
     if ('lang' in patch) ui.applyLang(settings.lang);
     sound.setEnabled(settings.sound);
+    if ('keepAwake' in patch) { if (settings.keepAwake) acquireWakeLock(); else releaseWakeLock(); }
     if (room) render();
   },
   onThemePick: (theme) => {
@@ -2876,7 +2895,7 @@ function boot() {
   }
 
   window.addEventListener('pagehide', () => { if (room) { store.saveEvents(room, log); if (mesh) mesh.sig.leave(); } });
-  const wake = () => { if (!document.hidden && mesh) mesh.wake(); };
+  const wake = () => { if (document.hidden) return; if (mesh) mesh.wake(); acquireWakeLock(); };
   document.addEventListener('visibilitychange', wake);
   window.addEventListener('focus', wake);
   window.addEventListener('online', wake);

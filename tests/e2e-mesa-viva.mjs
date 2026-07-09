@@ -1,8 +1,8 @@
 // E2E da "mesa viva" (navegadores reais, WebRTC):
 //   A) fechar um jogo NÃO cancela mais: ✕ minimiza (pill "voltar" na mesa), o jogo segue nos
 //      outros; "Encerrar" é explícito, com confirmação e ATRIBUIÇÃO (toast diz quem encerrou);
-//   B) presença com histerese: quem cai fica 💤 na barra por 45s SEM toast de "saiu";
-//      só depois da graça o "👋 saiu" aparece (tela apagada não vira drama);
+//   B) presença SERENA: quem cai vira 💤 na barra SEM toast e fica lá pelo tempo que for;
+//      "👋 saiu" só existe no tchau EXPLÍCITO do botão sair (tela apagada não vira drama);
 //   C) ausente não trava o dominó: com o dono da vez offline, a vez é PULADA sozinha (~20s)
 //      e a mesa segue jogando.
 //
@@ -105,25 +105,29 @@ async function main() {
     for (const c of ctxs) await c.close();
   }
 
-  // ---------- B) histerese de presença: 💤 na graça, "saiu" só depois de 45s ----------
+  // ---------- B) presença SERENA: queda vira 💤 sem toast (pra sempre); "saiu" só no tchau explícito ----------
   {
-    const { ctxs, host } = await mkTable(['Andre', 'Bia', 'Caio']);
+    const { ctxs, pages, host } = await mkTable(['Andre', 'Bia', 'Caio']);
     await tapToasts(host);
-    const t0 = Date.now();
-    await ctxs[2].close(); // Caio "apagou a tela" (fecha o navegador)
+    await ctxs[2].close(); // Caio "apagou a tela" (fecha o navegador) — NÃO é sair
 
-    await step('quem caiu vira 💤 esmaecido na barra (sem sumir) e SEM toast de "saiu"', async () => {
+    await step('quem caiu vira 💤 esmaecido na barra e NUNCA vira toast de "saiu"', async () => {
       await host.waitForFunction(() => !!document.querySelector('.pres-av.zz'), null, { timeout: 30000 });
+      await host.waitForTimeout(50000); // MUITO além da antiga "graça" de 45s — o modelo novo não tem prazo
       const said = await toasts(host);
-      if (said.some((t) => /saiu/.test(t))) throw new Error('toast de saiu ANTES da graça: ' + JSON.stringify(said));
+      if (said.some((t) => /saiu/.test(t))) throw new Error('queda de conexão virou toast de "saiu": ' + JSON.stringify(said));
+      const zz = await host.evaluate(() => !!document.querySelector('.pres-av.zz'));
+      if (!zz) throw new Error('o 💤 sumiu da barra — quem caiu deveria seguir visível, esmaecido');
     });
 
-    await step('passada a graça (45s), aí sim "👋 Caio saiu"', async () => {
-      await host.waitForFunction(() => (window.__toasts || []).some((t) => /saiu/.test(t)), null, { timeout: 80000 });
-      const elapsed = Date.now() - t0;
-      if (elapsed < 40000) throw new Error(`"saiu" veio cedo demais (${Math.round(elapsed / 1000)}s < graça)`);
-      const said = await toasts(host);
-      if (!said.some((t) => /Caio.*saiu|saiu/.test(t))) throw new Error('sem toast de saiu: ' + JSON.stringify(said));
+    await step('sair DE VERDADE (botão sair) → "👋 Bia saiu" toca no host NA HORA', async () => {
+      const bia = pages[1];
+      await bia.click('#btn-leave');
+      await bia.waitForFunction(() => !document.getElementById('toast').hidden, null, { timeout: 5000 });
+      await bia.click('#toast'); // confirma o actionToast de sair
+      await host.waitForFunction(() => (window.__toasts || []).some((t) => /Bia saiu/.test(t)), null, { timeout: 10000 });
+      // Bia (tchau explícito) sai da barra; Caio (queda) segue lá de 💤
+      await host.waitForFunction(() => [...document.querySelectorAll('.pres-av')].length === 2, null, { timeout: 8000 });
     });
 
     for (const c of ctxs) await c.close();

@@ -48,7 +48,9 @@ padrão Auto segue o navegador).
 - **CI (GitHub Actions, `.github/workflows/ci.yml`):** em todo PR/push pro `main` roda **lint**
   (`node --check` + ESLint só de correção via `npx eslint .`, config em `eslint.config.mjs`),
   **auditoria** (`tests/audit.mjs`), **unit** e **e2e em DOIS alvos**: servidor Node (suíte
-  completa + fallback `NO_WS`) e `wrangler dev` (amostra e2e + e2e-ws + e2e-features). Unit e
+  completa + fallback `NO_WS`) e `wrangler dev` (amostra e2e + e2e-ws + e2e-features +
+  e2e-reconnect — o reconnect exercita presença TTL/caixa-postal do DO, o mais
+  adapter-específico; jogos/UI/a11y são idênticos em qualquer servidor). Unit e
   e2e são **auto-descobertos**: qualquer `tests/*.test.mjs` (unit) e `tests/e2e*.mjs` (e2e)
   entram sozinhos — só seguir a convenção de nome ao criar um teste novo.
 

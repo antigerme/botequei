@@ -123,6 +123,12 @@ jobs:
           curl -sf 'http://127.0.0.1:8787/signaling?action=peers&room=ci' || { cat /tmp/wrangler.log; exit 1; }
           export BASE=http://127.0.0.1:8787
           export CHROME="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
+          # AMOSTRA deliberada (não a suíte toda): o servidor só faz sinalização/TURN/estáticos,
+          # então o que muda por adaptador é o CONTRATO da sala — coberto por e2e (forma mesa),
+          # e2e-ws (transporte+interop), e2e-features (fluxo cheio) e e2e-reconnect (presença
+          # TTL + caixa-postal do Durable Object, o comportamento mais adapter-específico).
+          # Jogos/UI/a11y são idênticos em qualquer servidor: rodam completos no job do Node.
           node tests/e2e.mjs
           node tests/e2e-ws.mjs
           node tests/e2e-features.mjs
+          node tests/e2e-reconnect.mjs

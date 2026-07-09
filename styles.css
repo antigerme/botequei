@@ -676,8 +676,10 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
 .passport-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px; }
 .pass-row { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 .pass-pin { font-size: 20px; flex: none; }
-.pass-main { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.pass-main { display: grid; gap: 2px; flex: 1; min-width: 0; cursor: pointer; }
+.pass-main:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 8px; }
 .pass-name { font-weight: 400; color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pass-menu { font-size: 13px; opacity: .85; }
 .pass-when { font-size: 13px; color: var(--muted); }
 .pass-map { text-decoration: none; font-size: 20px; flex: none; padding: 4px; }
 

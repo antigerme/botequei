@@ -88,6 +88,7 @@ const IDS = [
   'overlay-truco', 'btn-tru-close', 'tru-setup', 'tru-game', 'tru-status', 'tru-score', 'tru-vira', 'tru-table',
   'tru-hand', 'tru-actions', 'tru-result', 'tru-audit',
   'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
+  'overlay-boteco', 'boteco-title', 'boteco-stats', 'boteco-menu', 'btn-boteco-load',
   'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
   'overlay-welcome', 'btn-welcome-go',
   'overlay-retro', 'retro-slides', 'btn-retro-share',
@@ -254,6 +255,7 @@ export function init(handlers) {
   el['btn-dom-L'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'L'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-dom-R'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'R'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-passport-checkin'].addEventListener('click', () => H.onCheckin(el['passport-name'].value));
+  el['btn-boteco-load'].addEventListener('click', () => H.onBotecoLoadNew(el['btn-boteco-load'].dataset.place || ''));
   el['photo-input'].addEventListener('change', () => showPhoto());
   el['btn-photo-retake'].addEventListener('click', () => el['photo-input'].click());
   el['btn-photo-share'].addEventListener('click', () => H.onPhotoShare());
@@ -1657,6 +1659,8 @@ function stopFesta() {
 // ---------- Passaporte de botecos (check-ins locais) ----------
 export function openPassport(vm) {
   const list = (vm && vm.checkins) || [];
+  const keyOf = (vm && vm.keyOf) || ((s) => String(s || '').toLowerCase());
+  const menuSet = new Set((vm && vm.menuKeys) || []); // chaves normalizadas com cardápio salvo
   const places = new Set(list.map((c) => c.name || t('pass.fallback'))).size;
   el['passport-count'].textContent = list.length
     ? `${list.length} check-in${list.length === 1 ? '' : 's'} · ${places} lugar${places === 1 ? '' : 'es'}`
@@ -1665,13 +1669,41 @@ export function openPassport(vm) {
     const d = new Date(c.at);
     const when = d.toLocaleDateString(document.documentElement.lang || 'pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
     const map = (c.lat != null && c.lng != null) ? `https://maps.google.com/?q=${c.lat},${c.lng}` : '';
-    return `<li class="pass-row"><span class="pass-pin">📍</span>
-      <div class="pass-main"><span class="pass-name">${esc(c.name || t('pass.fallback'))}</span><span class="pass-when">${when}</span></div>
+    const hasMenu = menuSet.has(keyOf(c.name || ''));
+    const badge = hasMenu ? ` <span class="pass-menu" title="${esc(t('boteco.menu'))}">📓</span>` : '';
+    return `<li class="pass-row" data-place="${esc(c.name || '')}"><span class="pass-pin">📍</span>
+      <div class="pass-main" role="button" tabindex="0" aria-label="${esc(c.name || t('pass.fallback'))}"><span class="pass-name">${esc(c.name || t('pass.fallback'))}${badge}</span><span class="pass-when">${when}</span></div>
       ${map ? `<a class="pass-map" href="${map}" target="_blank" rel="noopener" aria-label="ver no mapa">🗺️</a>` : ''}</li>`;
-  }).join('') || '<li class="pass-row">Nenhum check-in ainda 🥲</li>';
+  }).join('') || `<li class="pass-row">${t('pass.none')}</li>`;
+  // tocar num lugar abre a FICHA do boteco (mesmo padrão do placar → comanda)
+  el['passport-list'].querySelectorAll('.pass-main').forEach((b) => {
+    const open = () => { const li = b.closest('.pass-row'); if (li && li.dataset.place) H.onBoteco(li.dataset.place); };
+    b.addEventListener('click', open);
+    b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+  });
   el['passport-name'].value = (vm && vm.suggestName) || '';
   el['overlay-passport'].hidden = false;
   setTimeout(() => { try { el['passport-name'].focus(); } catch { /* ignore */ } }, 60);
+}
+
+// Ficha de um boteco: visitas · gasto · bebida favorita + o cardápio salvo, com "carregar numa
+// mesa nova". Reusa as classes .comanda-* (lista) e .sheet-sub (stats) — sem CSS novo.
+export function openBoteco(vm) {
+  el['boteco-title'].textContent = `📓 ${vm.name || t('common.anon')}`;
+  const lang = document.documentElement.lang || 'pt-BR';
+  el['boteco-stats'].innerHTML = [
+    `📍 ${vm.visits || 0} ${vm.visits === 1 ? t('pass.checkin1') : t('pass.checkinN')}`,
+    vm.spent > 0 ? `💸 ${esc(fmtMoney(vm.spent))}` : '',
+    vm.fav ? `⭐ ${esc(t('boteco.fav'))}: ${esc(vm.fav.emoji)} ${esc(vm.fav.name)}` : '',
+    vm.lastAt ? `🕒 ${esc(t('boteco.last'))} ${esc(new Date(vm.lastAt).toLocaleDateString(lang))}` : '',
+  ].filter(Boolean).join(' · ');
+  el['boteco-menu'].innerHTML = (vm.menu && vm.menu.length)
+    ? vm.menu.map((it) => `<li class="comanda-row"><span class="c-emoji">${esc(it.emoji || '🍺')}</span><span class="c-name">${esc(it.name)}</span>${it.price > 0 ? `<span class="c-money">${esc(fmtMoney(it.price))}</span>` : ''}</li>`).join('')
+    : `<li class="comanda-row">${esc(t('boteco.noMenu'))}</li>`;
+  el['btn-boteco-load'].textContent = t('boteco.loadNew');
+  el['btn-boteco-load'].hidden = !(vm.menu && vm.menu.length);
+  el['btn-boteco-load'].dataset.place = vm.name || '';
+  el['overlay-boteco'].hidden = false;
 }
 
 // ---------- Foto da noite (álbum local) ----------

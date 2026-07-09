@@ -221,8 +221,16 @@ padrão Auto segue o navegador).
   tinha). Com o 1º item no cardápio o convite some e o "+ item" assume; o passo 1 do tour
   aponta pro botão quando não há cards.
 - **Estatísticas de vida (puro)**: `js/lifestats.js` (média/recorde/mês/favorita/streak +
-  `monthlyTrend`/`weekdayInsight`/`retro`/`topMate`) — a tela "📊 Meus números". Gramas de álcool
+  `monthlyTrend`/`weekdayInsight`/`retro`/`topMate` + `botecoProfiles`) — a tela "📊 Meus números". Gramas de álcool
   no `catalog.js` (`g`, usado só pra marcar item alcoólico na rodada/exclusão do motorista).
+- **Perfil do boteco (puro)**: `botecoProfiles(history, checkins, menus, keyOf)` no `lifestats.js`
+  cruza histórico + check-ins + cardápios salvos por lugar (chave = `store.botecoKey`, injetada pra
+  o módulo seguir puro): visitas (check-ins), gasto (Σ myMoney), bebida favorita, última visita,
+  GPS, tem-cardápio. No **passaporte**, cada lugar vira botão → **ficha do boteco** (`ui.openBoteco`,
+  overlay `#overlay-boteco`, reusa `.comanda-*`/`.sheet-sub`) com stats + cardápio salvo + **"📓
+  Carregar numa mesa nova"** (`onBotecoLoadNew` cria mesa, nomeia e re-emite os defs como o
+  `onLoadBoteco`). Linha do passaporte com cardápio salvo ganha selo **📓**. Nome da favorita vem do
+  cardápio salvo (o histórico só guarda o id). Tudo local. Entrou no `tests/stats.test.mjs` + `tests/e2e-boteco-perfil.mjs`.
 - **Liga & desafios (puro)**: `js/league.js` — `levelFor` (XP = rodadas×10 + noites×30 → nível),
   `weeklyChallenges` (semana atual + noite em curso) e `seasonAward` (troféu do mês).
 - **Alcance & cara**: `js/i18n.js` (dicionário pt/en/es COMPLETO — shell, toasts e templates —

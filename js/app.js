@@ -37,7 +37,7 @@ import {
   paysFor, payerOf, songs, sharePool, shareSplit, paidCount,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
-import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro } from './lifestats.js';
+import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro, botecoProfiles } from './lifestats.js';
 import { levelFor, weeklyChallenges, seasonAward } from './league.js';
 import {
   clampHand, maxGuess as purrMax, randomNonce, makeCommit, verifyReveal, resolve as purrResolve, sha256Hex,
@@ -2606,7 +2606,41 @@ const handlers = {
     try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
   },
   // Passaporte de botecos (check-ins locais, opcionalmente com GPS)
-  onPassport: () => ui.openPassport({ checkins: store.getCheckins(), suggestName: room ? tableInfo(state).title : '' }),
+  onPassport: () => ui.openPassport({
+    checkins: store.getCheckins(),
+    suggestName: room ? tableInfo(state).title : '',
+    keyOf: store.botecoKey,
+    menuKeys: store.listBotecoMenus().map((m) => store.botecoKey(m.name)), // lugares com cardápio salvo
+  }),
+  // Ficha do boteco (toca num lugar no passaporte): cruza check-in + histórico + cardápio salvo
+  // (agregação pura no lifestats). Tudo local.
+  onBoteco: (name) => {
+    const profs = botecoProfiles(store.getHistory(), store.getCheckins(), store.listBotecoMenus(), store.botecoKey);
+    const p = profs.find((x) => x.key === store.botecoKey(name)) || { name, visits: 0, spent: 0, favDrink: '', favN: 0, lastAt: 0 };
+    const menu = store.getBotecoMenu(name);
+    // nome da favorita: o histórico só guarda o ID; o cardápio salvo do boteco tem o nome do
+    // item custom — resolve por ele primeiro, senão cai no catálogo (item padrão).
+    const favDef = p.favDrink ? (menu.find((d) => d.id === p.favDrink) || resolveItem(p.favDrink)) : null;
+    ui.openBoteco({
+      name: p.name || name,
+      visits: p.visits, spent: p.spent, lastAt: p.lastAt,
+      fav: favDef ? { emoji: favDef.emoji, name: itemLabel(favDef), n: p.favN } : null,
+      menu: menu.map((d) => ({ emoji: d.emoji, name: itemLabel(d), price: d.price || 0 })),
+    });
+  },
+  // "Carregar numa mesa nova": abre uma mesa, nomeia com o boteco e re-emite o cardápio salvo
+  // (mesmo caminho do onLoadBoteco). A ficha abre da HOME, então criar a mesa aqui é o fluxo.
+  onBotecoLoadNew: async (name) => {
+    if (!getName()) { ui.toast(t('toast.needName')); return; }
+    const defs = store.getBotecoMenu(name);
+    if (!defs.length) return;
+    ui.closeOverlays();
+    await enterTable(newRoomCode(), { create: true });
+    setTable({ title: name });
+    let n = 0;
+    for (const d of defs) if (d && d.id && emitLocal(makeItem(d))) n++;
+    if (n) { render(); ui.toast(t('toast.botecoLoaded', { n })); }
+  },
   onCheckin: (name) => {
     const nm = ((name || '').trim() || (room ? tableInfo(state).title : '') || t('pass.fallback')).slice(0, 40);
     const save = (lat, lng) => {

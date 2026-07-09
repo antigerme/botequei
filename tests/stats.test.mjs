@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { DEFAULT_ITEMS, catOf, CATEGORIES } from '../js/catalog.js';
-import { weekStreak, lifeStats, lifeBadges, monthlyTrend, weekdayInsight, topMate, retro } from '../js/lifestats.js';
+import { weekStreak, lifeStats, lifeBadges, monthlyTrend, weekdayInsight, topMate, retro, botecoProfiles } from '../js/lifestats.js';
 import { levelFor, weeklyChallenges, seasonAward } from '../js/league.js';
 
 let passed = 0;
@@ -128,6 +128,43 @@ const close = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   assert.strictEqual(r.nights, 1);
   assert.strictEqual(r.topMate.name, 'Bia');
   ok('retro: agrega noites + parceiro de rolê');
+}
+
+// ---------- Perfil por boteco (cruza check-in + histórico + cardápio) ----------
+{
+  // mesmo normalizador do store.botecoKey (minúsculo, sem acento, espaços colapsados)
+  const keyOf = (s) => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim().replace(/\s+/g, ' ');
+  const history = [
+    { title: 'Bar do Zé', at: 100, myMoney: 30, items: { 'x-chopp': 5, 'x-porcao': 1 } },
+    { title: 'bar do zé', at: 200, myMoney: 20, items: { 'x-chopp': 2 } }, // MESMA chave
+    { title: 'Outro Bar', at: 150, myMoney: 10, items: { 'x-lata': 3 } },
+  ];
+  const checkins = [
+    { name: 'Bar do Zé', at: 300, lat: -23.5, lng: -46.6 },
+    { name: 'Bar do Zé', at: 90 },
+    { name: 'Boteco Sem Mesa', at: 50 }, // só check-in (sem histórico/cardápio)
+  ];
+  const menus = [{ name: 'BAR DO ZE', defs: [{ id: 'x-chopp' }, { id: 'x-porcao' }] }];
+  const profs = botecoProfiles(history, checkins, menus, keyOf);
+
+  const ze = profs.find((p) => p.key === keyOf('Bar do Zé'));
+  assert.strictEqual(ze.visits, 2);        // 2 check-ins
+  assert.strictEqual(ze.sessions, 2);      // 2 mesas nomeadas no histórico
+  assert.strictEqual(ze.spent, 50);        // 30 + 20
+  assert.strictEqual(ze.favDrink, 'x-chopp'); // 5+2 = 7 chopps vence
+  assert.strictEqual(ze.favN, 7);
+  assert.strictEqual(ze.hasMenu, true);
+  assert.strictEqual(ze.menuCount, 2);
+  assert.strictEqual(ze.lastAt, 300);      // check-in mais recente
+  assert.strictEqual(ze.lat, -23.5);       // GPS do último check-in com coords
+  ok('botecoProfiles: junta check-in+histórico+cardápio pela chave normalizada');
+
+  const sem = profs.find((p) => p.key === keyOf('Boteco Sem Mesa'));
+  assert.strictEqual(sem.visits, 1);
+  assert.strictEqual(sem.spent, 0);
+  assert.strictEqual(sem.hasMenu, false);
+  assert.strictEqual(profs[0].key, keyOf('Bar do Zé')); // ordenado por visitas desc
+  ok('botecoProfiles: lugar só de check-in aparece; lista ordena por visitas');
 }
 
 console.log(`\n${passed} testes de lifestats/liga passaram ✅`);

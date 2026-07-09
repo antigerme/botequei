@@ -113,3 +113,52 @@ export function lifeBadges(stats) {
   if (stats.totalDrinks >= 100) b.push({ id: 'd100', emoji: '💯' });
   return b;
 }
+
+// Perfil por BOTECO (Fase 2 do cardápio): cruza o histórico (visitas de mesa nomeada → gasto e
+// bebida favorita ali), os check-ins do passaporte (contagem "estive lá" + último GPS) e os
+// cardápios salvos (tem menu / quantos itens). Agrupa pelo nome NORMALIZADO — `keyOf` é injetado
+// (store.botecoKey) pra o módulo seguir puro. Devolve a lista ordenada (mais visitado primeiro).
+export function botecoProfiles(history, checkins, menus, keyOf) {
+  const key = typeof keyOf === 'function' ? keyOf : (s) => String(s || '').trim().toLowerCase();
+  const byKey = new Map();
+  const get = (name) => {
+    const k = key(name);
+    if (!k) return null;
+    if (!byKey.has(k)) byKey.set(k, { key: k, name: name || '', visits: 0, sessions: 0, spent: 0, favDrink: '', favN: 0, lastAt: 0, lat: null, lng: null, hasMenu: false, menuCount: 0, items: {} });
+    return byKey.get(k);
+  };
+  // check-ins do passaporte: cada carimbo conta como visita; guarda o último lat/lng
+  for (const c of checkins || []) {
+    const p = get(c && c.name);
+    if (!p) continue;
+    p.visits += 1;
+    if (typeof c.at === 'number' && c.at > p.lastAt) { p.lastAt = c.at; p.name = c.name; }
+    if (c.lat != null && c.lng != null) { p.lat = c.lat; p.lng = c.lng; }
+  }
+  // histórico de mesas NOMEADAS: gasto + bebida favorita naquele lugar (o título já bate com o
+  // boteco desde o cardápio-por-boteco — a mesa herda o nome do check-in/boteco).
+  for (const h of history || []) {
+    if (!h || !h.title) continue;
+    const p = get(h.title);
+    if (!p) continue;
+    p.sessions += 1;
+    p.spent += Math.max(0, Number(h.myMoney) || 0);
+    if (typeof h.at === 'number' && h.at > p.lastAt) { p.lastAt = h.at; p.name = h.title; }
+    if (h.items) for (const id of Object.keys(h.items)) p.items[id] = (p.items[id] || 0) + (Number(h.items[id]) || 0);
+  }
+  // cardápios salvos
+  for (const m of menus || []) {
+    const p = get(m && m.name);
+    if (!p) continue;
+    p.hasMenu = true;
+    p.menuCount = Array.isArray(m.defs) ? m.defs.length : 0;
+  }
+  const out = [];
+  for (const p of byKey.values()) {
+    for (const id of Object.keys(p.items)) if (p.items[id] > p.favN) { p.favN = p.items[id]; p.favDrink = id; }
+    delete p.items;
+    out.push(p);
+  }
+  out.sort((a, b) => (b.visits - a.visits) || (b.lastAt - a.lastAt));
+  return out;
+}

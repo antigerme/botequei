@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { DEFAULT_ITEMS, catOf, CATEGORIES } from '../js/catalog.js';
-import { weekStreak, lifeStats, lifeBadges, monthlyTrend, weekdayInsight, topMate, retro, botecoProfiles } from '../js/lifestats.js';
+import { weekStreak, lifeStats, lifeBadges, monthlyTrend, weekdayInsight, topMate, retro, botecoProfiles, nearestBoteco } from '../js/lifestats.js';
 import { levelFor, weeklyChallenges, seasonAward } from '../js/league.js';
 
 let passed = 0;
@@ -165,6 +165,21 @@ const close = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   assert.strictEqual(sem.hasMenu, false);
   assert.strictEqual(profs[0].key, keyOf('Bar do Zé')); // ordenado por visitas desc
   ok('botecoProfiles: lugar só de check-in aparece; lista ordena por visitas');
+}
+
+// ---------- Boteco mais próximo por GPS (haversine, puro) ----------
+{
+  const cks = [
+    { name: 'Bar do Zé', at: 1, lat: -23.5000, lng: -46.6000 },
+    { name: 'Boteco Longe', at: 2, lat: -23.6000, lng: -46.7000 }, // ~14 km
+    { name: 'Sem GPS', at: 3 }, // sem coordenadas → ignorado
+  ];
+  assert.strictEqual(nearestBoteco(cks, -23.5004, -46.6000, 250), 'Bar do Zé'); // ~44 m, dentro
+  assert.strictEqual(nearestBoteco(cks, -23.5004, -46.6000, 10), '');           // ~44 m, raio 10 m → fora
+  assert.strictEqual(nearestBoteco(cks, 0, 0, 250), '');                        // longe de tudo
+  assert.strictEqual(nearestBoteco([], -23.5, -46.6, 250), '');                 // sem check-ins
+  assert.strictEqual(nearestBoteco(cks, null, null, 250), '');                  // sem GPS
+  ok('nearestBoteco: acha o check-in mais perto dentro do raio (haversine)');
 }
 
 console.log(`\n${passed} testes de lifestats/liga passaram ✅`);

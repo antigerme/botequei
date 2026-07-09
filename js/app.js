@@ -37,7 +37,7 @@ import {
   paysFor, payerOf, songs, sharePool, shareSplit, paidCount,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
-import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro, botecoProfiles } from './lifestats.js';
+import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro, botecoProfiles, nearestBoteco } from './lifestats.js';
 import { levelFor, weeklyChallenges, seasonAward } from './league.js';
 import {
   clampHand, maxGuess as purrMax, randomNonce, makeCommit, verifyReveal, resolve as purrResolve, sha256Hex,
@@ -418,12 +418,38 @@ function afterChange(item, kind) {
 // "Boteco da sessão": onde você está agora, pro cardápio salvo. O NOME da mesa manda; mesa
 // sem nome usa o último check-in AINDA FRESCO (você acabou de chegar no bar) — assim o
 // check-in do passaporte (que é da home) puxa o cardápio na mesa que você abrir em seguida.
+// Sem check-in fresco, o GPS entra: se você está PERTO de um boteco onde já fez check-in.
 const CHECKIN_FRESH_MS = 6 * 3600e3; // ~6h: um rolê. Check-in velho não cola numa mesa nova.
+const GPS_RADIUS_M = 250;            // "estou nesse boteco" — folga pra imprecisão do GPS.
+let gpsBoteco = '';                  // boteco detectado por perto nesta sessão (some ao sair)
 function freshCheckin() {
   const c = store.getCheckins()[0];
   return (c && c.name && (Date.now() - (c.at || 0)) < CHECKIN_FRESH_MS) ? c.name : '';
 }
-function sessionBoteco() { return tableInfo(state).title || freshCheckin(); }
+function sessionBoteco() { return tableInfo(state).title || freshCheckin() || gpsBoteco; }
+
+// Sugere o boteco POR GPS (opt-in): só se você JÁ concedeu a localização (não pergunta agora) —
+// aí, ao criar a mesa, se estiver perto de um lugar onde já fez check-in com cardápio salvo,
+// o CTA "📓 Carregar cardápio do {nome}" aparece sozinho. Tudo local; nada sai do aparelho.
+function maybeSuggestByGps() {
+  if (!navigator.geolocation || !navigator.permissions || !navigator.permissions.query) return;
+  navigator.permissions.query({ name: 'geolocation' }).then((st) => {
+    if (!st || st.state !== 'granted') return; // opt-in = permissão já dada (senão não incomoda)
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const name = nearestBoteco(store.getCheckins(), pos.coords.latitude, pos.coords.longitude, GPS_RADIUS_M);
+      if (name && store.hasBotecoMenu(name) && room && !state.items.size) { gpsBoteco = name; render(); }
+    }, () => {}, { timeout: 8000, maximumAge: 300000 });
+  }).catch(() => { /* sem permissions API: sem sugestão por GPS */ });
+}
+
+// Toast pós-carregar o cardápio: se tem preço, vira ação "revisar preços" (podem ter mudado
+// desde a última vez) que abre o Cardápio da mesa; sem preço, é só o aviso de carregado.
+function botecoLoadedToast(defs, n) {
+  sound.pop();
+  if ((defs || []).some((d) => (d.price || 0) > 0)) {
+    ui.actionToast(t('toast.botecoLoaded', { n }), t('toast.reviewPrices'), () => ui.openPrices(menuEditorItems()), 6000);
+  } else ui.toast(t('toast.botecoLoaded', { n }));
+}
 
 function render() {
   if (!room) return;
@@ -517,7 +543,7 @@ async function enterTable(code, { create = false, pin = '' } = {}) {
   rebuildFrom(store.getEvents(room));
   ui.showScreen('table');
   render();
-  if (create) openInvite();
+  if (create) { openInvite(); maybeSuggestByGps(); } // GPS: perto de um boteco conhecido? oferece o cardápio
   maybeStartTour(); // 1ª mesa da vida: mostra o caminho das pedras (espera fechar o convite)
 
   const iceServers = await loadIce();
@@ -646,7 +672,7 @@ function leaveTable() {
   }
   if (mesh) { mesh.close(); mesh = null; }
   store.clearCurrent();
-  room = null; roomPin = ''; myDriver = false; offlineWaiting = false;
+  room = null; roomPin = ''; myDriver = false; offlineWaiting = false; gpsBoteco = '';
   lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; lastAwards = [];
   prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set();
   for (const t of pendingBye.values()) clearTimeout(t);
@@ -2639,7 +2665,7 @@ const handlers = {
     setTable({ title: name });
     let n = 0;
     for (const d of defs) if (d && d.id && emitLocal(makeItem(d))) n++;
-    if (n) { render(); ui.toast(t('toast.botecoLoaded', { n })); }
+    if (n) { render(); botecoLoadedToast(defs, n); }
   },
   onCheckin: (name) => {
     const nm = ((name || '').trim() || (room ? tableInfo(state).title : '') || t('pass.fallback')).slice(0, 40);
@@ -2664,7 +2690,7 @@ const handlers = {
     if (!tableInfo(state).title && bn) setTable({ title: bn });
     let n = 0;
     for (const d of defs) if (d && d.id && emitLocal(makeItem(d))) n++;
-    if (n) { render(); ui.toast(t('toast.botecoLoaded', { n })); sound.pop(); }
+    if (n) { render(); botecoLoadedToast(defs, n); }
   },
   // Foto da noite: compartilha o arquivo (Web Share) ou baixa (fallback). Fica só local.
   onPhotoShare: async () => {

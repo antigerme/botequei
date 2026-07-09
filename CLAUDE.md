@@ -259,6 +259,12 @@ padrão Auto segue o navegador).
   toque re-emite os itens como eventos `ITEM` (aparecem na mesa E espalham pra turma via CRDT) e
   nomeia a mesa. A mesa segue nascendo LIMPA — carregar é sempre explícito. Entra no backup de
   graça (chave `botequei.*`). Entrou no `js/store.test.mjs`.
+  **Sugestão por GPS (opt-in)**: sem check-in fresco, o `sessionBoteco` ainda cai no `gpsBoteco` —
+  ao **criar** a mesa, `maybeSuggestByGps` (só se a permissão de localização JÁ foi concedida, nunca
+  pergunta na hora) pega a posição e o `nearestBoteco` (puro, haversine, raio 250m em `lifestats.js`)
+  acha o boteco mais perto onde você já fez check-in; tem cardápio salvo → o CTA aparece sozinho.
+  **Re-conferir preço**: ao carregar um cardápio COM preço, o toast vira ação **"revisar preços"**
+  (`ui.actionToast`) que abre o Cardápio da mesa (os preços são os da última visita — podem ter mudado).
 - **Acessibilidade**: diálogos com `role="dialog"`/foco preso/ESC (`setupA11y` em `ui.js`),
   `:focus-visible`, `prefers-reduced-motion` (corta confete/animações), rótulos ARIA.
 - **TURN opcional** (rota `/turn`, nos dois adaptadores): credenciais efêmeras da Cloudflare,

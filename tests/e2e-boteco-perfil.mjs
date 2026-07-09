@@ -81,6 +81,8 @@ async function main() {
     await pageA.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true))); // fecha o convite
     await pageA.waitForFunction(() => document.getElementById('table-title')?.textContent.trim() === 'Bar do Zé', null, { timeout: T });
     await pageA.waitForFunction(() => document.querySelectorAll('.item-card').length === 2, null, { timeout: T });
+    // re-conferir preço: o cardápio tem preço → o toast oferece "revisar preços"
+    await pageA.waitForFunction(() => { const el = document.getElementById('toast'); return el && !el.hidden && /revisar/i.test(el.textContent); }, null, { timeout: T });
     code = (await pageA.textContent('#mesa-code')).trim();
   });
 

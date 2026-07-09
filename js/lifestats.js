@@ -162,3 +162,23 @@ export function botecoProfiles(history, checkins, menus, keyOf) {
   out.sort((a, b) => (b.visits - a.visits) || (b.lastAt - a.lastAt));
   return out;
 }
+
+// Boteco mais PRÓXIMO por GPS: entre os check-ins com coordenadas, o mais perto dentro do raio
+// (metros). Puro/testável — pra sugerir o cardápio do lugar quando você chega (opt-in). '' se
+// nada dentro do raio (ou sem GPS).
+export function nearestBoteco(checkins, lat, lng, radiusM) {
+  if (lat == null || lng == null) return '';
+  let best = '', bestD = Infinity;
+  for (const c of checkins || []) {
+    if (!c || !c.name || c.lat == null || c.lng == null) continue;
+    const d = haversineM(lat, lng, c.lat, c.lng);
+    if (d < bestD) { bestD = d; best = c.name; }
+  }
+  return bestD <= radiusM ? best : '';
+}
+function haversineM(la1, lo1, la2, lo2) {
+  const R = 6371000, toR = Math.PI / 180;
+  const dLa = (la2 - la1) * toR, dLo = (lo2 - lo1) * toR;
+  const a = Math.sin(dLa / 2) ** 2 + Math.cos(la1 * toR) * Math.cos(la2 * toR) * Math.sin(dLo / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}

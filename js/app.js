@@ -2730,6 +2730,8 @@ function boot() {
   try { window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (settings.theme !== 'light' && settings.theme !== 'dark') ui.applyTheme(settings); }); } catch { /* ignore */ }
 
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; ui.showInstall(true); });
+  // instalou (pelo nosso botão OU pelo menu do navegador) → some com o "📲 Instalar" e larga o prompt guardado
+  window.addEventListener('appinstalled', () => { deferredPrompt = null; ui.showInstall(false); });
 
   setInterval(() => { if (room) tickHappyHour(); }, 1000);
 

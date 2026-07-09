@@ -46,7 +46,7 @@ compartilhado é só o contador DA MESA; consumo pessoal vem de item individual.
 vazia mostra o convite + "➕ Montar o cardápio", e o overlay ➕ abre direto no formulário
 de novo item (evento `ITEM` → sincroniza; "da mesa" marca o compartilhado). O catálogo
 (`DEFAULT_ITEMS`) segue como DADO de compatibilidade (resolução/rótulo de item padrão de
-mesas antigas e modo bar), não como UI. A regra de leitura em `allItems()` (app.js) é
+mesas antigas), não como UI. A regra de leitura em `allItems()` (app.js) é
 "está na mesa = tem def no estado OU contagem > 0" — o segundo lado preserva mesas
 antigas e cobre rodada de item que o receptor ainda não tinha.
 

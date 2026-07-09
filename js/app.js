@@ -25,7 +25,7 @@
 //   Jogo minimizado · Atualização automática (SW) · Tour guiado · Purrinha
 //   (rápida/clássica/3-2-1) · Dominó (+ ausente + mesa verificada) · Truco ·
 //   Cutucar · Cerimônia · Meus números · Retrospectiva · Liga ·
-//   Modo bar · Handlers (objeto H — a API que a ui.js chama) · Boot
+//   Handlers (objeto H — a API que a ui.js chama) · Boot
 // ============================================================================
 
 import { clientId, getName, setName, newRoomCode } from './identity.js';
@@ -99,7 +99,6 @@ let wentAway = new Set();    // quem saiu de verdade (passou da graça) — p/ s
 let pendingBye = new Map();  // user -> timeout da graça: sumiu agora, ainda não é "saiu"
 const BYE_GRACE_MS = 45000;  // tela apagada / elevador / xixi não viram toast de "saiu"
 let sessionMates = new Set(); // nomes que apareceram na mesa (p/ "com quem você mais bebeu")
-let pendingBarMenu = false;  // ao abrir "mesa do bar", carrega o cardápio salvo
 let lastRetro = null;        // dados da última retrospectiva (p/ compartilhar)
 let shakeHandler = null, shakeLast = 0; // mãos livres (chacoalhar pra +1)
 
@@ -504,7 +503,6 @@ async function enterTable(code, { create = false, pin = '' } = {}) {
   ui.showScreen('table');
   render();
   if (create) openInvite();
-  if (pendingBarMenu) { pendingBarMenu = false; loadBarMenu(); }
   maybeStartTour(); // 1ª mesa da vida: mostra o caminho das pedras (espera fechar o convite)
 
   const iceServers = await loadIce();
@@ -2423,13 +2421,6 @@ function renderLeagueInfo() {
   ui.renderLeague({ level: levelFor(lifeStats(hist, { now })), challenges: weeklyChallenges(hist, current, { now }), season: seasonAward(hist, { now }) });
 }
 
-// ---- Modo bar ----
-function loadBarMenu() {
-  let n = 0;
-  for (const d of store.getBarMenu()) if (d && d.id) { emitLocal(makeItem(d)); n++; }
-  if (n) { render(); ui.toast(t('bar.menuLoaded', { n: n })); }
-}
-
 // ---- Handlers ----
 const handlers = {
   onName: (v) => setName(v),
@@ -2579,20 +2570,6 @@ const handlers = {
   onStats: openStats,
   onComanda: openComanda,
   onRetro: openRetro,
-  onBarMode: () => ui.openBar({ menuCount: store.getBarMenu().length }),
-  onBarOpenTable: (code, useMenu) => {
-    if (!getName()) { ui.toast(t('toast.needName')); return; }
-    const c = (code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || newRoomCode();
-    pendingBarMenu = !!useMenu && store.hasBarMenu();
-    ui.closeOverlays();
-    enterTable(c, { create: true });
-  },
-  onSaveMenu: () => {
-    const defs = [];
-    for (const rec of state.items.values()) defs.push(rec.def);
-    store.saveBarMenu(defs);
-    ui.toast(defs.length ? t('bar.menuSaved', { n: defs.length }) : t('bar.menuEmpty'));
-  },
   onJukebox: () => { if (!room) { ui.toast(t('toast.needTable')); return; } ui.openJukebox({ songs: songs(state) }); },
   onSongAdd: (title) => {
     if (!room) return;
@@ -2753,6 +2730,8 @@ function boot() {
   try { window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (settings.theme !== 'light' && settings.theme !== 'dark') ui.applyTheme(settings); }); } catch { /* ignore */ }
 
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; ui.showInstall(true); });
+  // instalou (pelo nosso botão OU pelo menu do navegador) → some com o "📲 Instalar" e larga o prompt guardado
+  window.addEventListener('appinstalled', () => { deferredPrompt = null; ui.showInstall(false); });
 
   setInterval(() => { if (room) tickHappyHour(); }, 1000);
 

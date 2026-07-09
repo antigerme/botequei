@@ -39,7 +39,8 @@ export const isShare = (def) => !!(def && def.share);
 // filtro o mantém fora de cards/rodada/editor. A UI não emite mais copo.
 export const isCup = (def) => !!(def && def.cup);
 
-// Categorias do cardápio, na ordem de exibição (a última, "outros", é o padrão de item novo).
+// Categorias do cardápio, na ordem de exibição ("outros" é o fallback; o item novo ABRE na
+// categoria do ícone escolhido — EMOJI_CAT no ui.js liga 🍺→cerveja, 🍕→comida etc.).
 export const CATEGORIES = [
   { id: 'cerveja',    name: 'Cervejas' },
   { id: 'destilado',  name: 'Destilados' },

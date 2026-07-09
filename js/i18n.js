@@ -38,7 +38,7 @@ const DICT = {
     tagline: 'Ninguém mais perde a conta da rodada.',
     'name.label': 'Seu apelido na mesa', 'name.ph': 'ex: André',
     create: 'Criar mesa', 'code.ph': 'código', join: 'Entrar',
-    offline: '📴 Entrar sem internet', stats: '📊 Meus números', retro: '🎞️ Retrô', bar: '🍺 Modo bar',
+    offline: '📴 Entrar sem internet', stats: '📊 Meus números', retro: '🎞️ Retrô',
     install: '📲 Instalar o app', seal: '🔒 Seus dados nunca saem dos celulares · P2P',
     recent: 'Mesas recentes',
     'set.title': 'Configurações', 'set.theme': 'Tema', 'set.bigfont': '🔎 Fonte grande',
@@ -218,7 +218,6 @@ const DICT = {
     'prices.sub': 'Dê nome às cervejas (marca), descrição e preços — sincroniza com a mesa toda.',
     'prices.brandAria': 'marca ou apelido do item', 'prices.priceAria': 'preço do item',
     'prices.hide': 'esconder da mesa', 'prices.show': 'mostrar de novo',
-    'prices.save': '💾 Salvar como cardápio do bar',
     // ---- comanda / placar ----
     'comanda.empty': 'Nada pedido ainda 🙂', 'comanda.total': 'Total: {n} 🍺', 'comanda.paid': 'pagou: {item}',
     'peers.title': '🏆 Placar & conquistas', 'peers.now': 'Mesa agora', 'peers.week': 'Desafios da semana',
@@ -285,7 +284,7 @@ const DICT = {
     'prices.noteAria': 'Descrição do item',
     // ---- configurações (shell extra) ----
     'set.secLook': '🎨 Aparência', 'set.secSound': '🔊 Som & vibração',
-    'set.secPix': '💸 PIX pra dividir', 'set.secBackup': '💾 Backup & dados', 'set.secBar': '🍺 Bar',
+    'set.secPix': '💸 PIX pra dividir', 'set.secBackup': '💾 Backup & dados',
     'set.themeAuto': 'Auto', 'set.themeDark': 'Escuro (lousa)', 'set.themeLight': 'Claro (kraft)',
     'set.themeNeon': 'Neon', 'set.themeRetro': 'Retrô',
     'themePick.title': 'Qual tema você prefere?',
@@ -311,7 +310,7 @@ const DICT = {
     'retro.title': '🎞️ Seu rolê',
     'retro.drinks': 'rodadas na vida', 'retro.nights': 'noites de boteco', 'retro.weeks': 'semanas seguidas',
     'retro.record': 'recorde numa noite', 'retro.fav': 'sua favorita', 'retro.mate': 'parceiro de rolê', 'retro.spent': 'já torrado',
-    // ---- jukebox / passaporte / foto / bar ----
+    // ---- jukebox / passaporte / foto ----
     'jbx.title': '🎵 Jukebox da mesa',
     'jbx.sub': 'Peça a próxima — a fila aparece pra todo mundo. Toca abrindo no seu app de música.',
     'jbx.ph': 'música / artista', 'jbx.add': 'Pedir', 'jbx.queued': '🎵 Na fila!',
@@ -324,11 +323,6 @@ const DICT = {
     'pass.fallback': 'Boteco',
     'photo.title': '📷 Foto da noite', 'photo.retake': '🔄 Outra', 'photo.alt': 'foto da noite',
     'photo.shareText': 'Foto da noite 🍺',
-    'bar.sub': 'Pro dono do bar: um código fixo por mesa (QR que você imprime) + seu cardápio salvo.',
-    'bar.codeLabel': 'Código fixo da mesa (opcional)', 'bar.open': 'Abrir mesa do bar 🍺',
-    'bar.hint': 'Salve o cardápio na mesa em 💲 Preços → “Salvar como cardápio do bar”.',
-    'bar.menuLoaded': '📂 Cardápio carregado ({n} itens)', 'bar.menuSaved': '💾 Cardápio salvo ({n} itens)',
-    'bar.menuEmpty': 'Adicione itens/preços antes 🙂',
     // ---- boas-vindas / tour / brinde / bebedeira / sw ----
     'welcome.l1': '🍺 <b>1 toque</b> = +1 · <b>segure</b> = −1',
     'welcome.l2': '📴 Tudo é <b>P2P</b>: os dados vivem só nos celulares, sem servidor',
@@ -337,7 +331,7 @@ const DICT = {
     'tour.t0': 'Monte o cardápio 🍺', 'tour.x0': 'Toque aqui pra abrir o catálogo — um toque e o item entra pro cardápio da mesa toda. Depois é só tocar no card pra marcar +1.',
     'tour.t1': 'Marca aí 🍺', 'tour.x1': 'Toque no card = +1. Segure = −1 (desfaz).',
     'tour.t2': 'A mesa mandou', 'tour.x2': 'O total da mesa e o seu, ao vivo em todo mundo.',
-    'tour.t3': 'Quem paga? 🎮', 'tour.x3': 'Roleta, purrinha e dominó — a mesa decide jogando.',
+    'tour.t3': 'Quem paga? 🎮', 'tour.x3': 'Purrinha, dominó e truco — a mesa decide jogando.',
     'tour.t4': 'O resto mora no menu', 'tour.x4': 'Fechar a conta, placar, garçom, configurações.',
     'tour.skip': 'Pular', 'tour.next': 'Próximo →', 'tour.aria': 'tour de boas-vindas',
     'brinde.prep': 'Preparar…', 'brinde.go': 'Brinde!',
@@ -374,7 +368,7 @@ const DICT = {
     tagline: 'Nobody loses count of the round anymore.',
     'name.label': 'Your nickname', 'name.ph': 'e.g. Andre',
     create: 'Start a table', 'code.ph': 'code', join: 'Join',
-    offline: '📴 Join without internet', stats: '📊 My numbers', retro: '🎞️ Recap', bar: '🍺 Bar mode',
+    offline: '📴 Join without internet', stats: '📊 My numbers', retro: '🎞️ Recap',
     install: '📲 Install the app', seal: '🔒 Your data never leaves the phones · P2P',
     recent: 'Recent tables',
     'set.title': 'Settings', 'set.theme': 'Theme', 'set.bigfont': '🔎 Large font',
@@ -554,7 +548,6 @@ const DICT = {
     'prices.sub': 'Name your beers (brand), description and prices — synced with the whole table.',
     'prices.brandAria': 'item brand or nickname', 'prices.priceAria': 'item price',
     'prices.hide': 'hide from the table', 'prices.show': 'show again',
-    'prices.save': '💾 Save as the bar’s menu',
     // ---- tab / leaderboard ----
     'comanda.empty': 'Nothing ordered yet 🙂', 'comanda.total': 'Total: {n} 🍺', 'comanda.paid': 'paid: {item}',
     'peers.title': '🏆 Leaderboard & badges', 'peers.now': 'Table now', 'peers.week': 'This week’s challenges',
@@ -621,7 +614,7 @@ const DICT = {
     'prices.noteAria': 'Item description',
     // ---- settings (extra shell) ----
     'set.secLook': '🎨 Looks', 'set.secSound': '🔊 Sound & vibration',
-    'set.secPix': '💸 PIX for splitting', 'set.secBackup': '💾 Backup & data', 'set.secBar': '🍺 Bar',
+    'set.secPix': '💸 PIX for splitting', 'set.secBackup': '💾 Backup & data',
     'set.themeAuto': 'Auto', 'set.themeDark': 'Dark (chalkboard)', 'set.themeLight': 'Light (kraft)',
     'set.themeNeon': 'Neon', 'set.themeRetro': 'Retro',
     'themePick.title': 'Which theme do you prefer?',
@@ -647,7 +640,7 @@ const DICT = {
     'retro.title': '🎞️ Your recap',
     'retro.drinks': 'lifetime rounds', 'retro.nights': 'bar nights', 'retro.weeks': 'weeks in a row',
     'retro.record': 'record in one night', 'retro.fav': 'your favorite', 'retro.mate': 'drinking buddy', 'retro.spent': 'burned so far',
-    // ---- jukebox / passport / photo / bar ----
+    // ---- jukebox / passport / photo ----
     'jbx.title': '🎵 Table jukebox',
     'jbx.sub': 'Request the next one — the queue shows up for everyone. Plays by opening your music app.',
     'jbx.ph': 'song / artist', 'jbx.add': 'Request', 'jbx.queued': '🎵 In the queue!',
@@ -660,11 +653,6 @@ const DICT = {
     'pass.fallback': 'Bar',
     'photo.title': '📷 Photo of the night', 'photo.retake': '🔄 Another', 'photo.alt': 'photo of the night',
     'photo.shareText': 'Photo of the night 🍺',
-    'bar.sub': 'For the bar owner: one fixed code per table (a QR you print) + your saved menu.',
-    'bar.codeLabel': 'Fixed table code (optional)', 'bar.open': 'Open the bar’s table 🍺',
-    'bar.hint': 'Save the menu at the table in 💲 Prices → “Save as the bar’s menu”.',
-    'bar.menuLoaded': '📂 Menu loaded ({n} items)', 'bar.menuSaved': '💾 Menu saved ({n} items)',
-    'bar.menuEmpty': 'Add items/prices first 🙂',
     // ---- welcome / tour / toast countdown / giant counter / sw ----
     'welcome.l1': '🍺 <b>1 tap</b> = +1 · <b>hold</b> = −1',
     'welcome.l2': '📴 Everything is <b>P2P</b>: data lives on the phones only, no server',
@@ -673,7 +661,7 @@ const DICT = {
     'tour.t0': 'Build the menu 🍺', 'tour.x0': 'Tap here to open the catalog — one tap and the item joins the whole table’s menu. Then just tap a card to count +1.',
     'tour.t1': 'Tally it up 🍺', 'tour.x1': 'Tap the card = +1. Hold = −1 (undo).',
     'tour.t2': 'The table ordered', 'tour.x2': 'The table’s total and yours, live on every phone.',
-    'tour.t3': 'Who pays? 🎮', 'tour.x3': 'Roulette, purrinha and dominoes — the table decides by playing.',
+    'tour.t3': 'Who pays? 🎮', 'tour.x3': 'Purrinha, dominoes and truco — the table decides by playing.',
     'tour.t4': 'The rest lives in the menu', 'tour.x4': 'Settle the tab, leaderboard, waiter, settings.',
     'tour.skip': 'Skip', 'tour.next': 'Next →', 'tour.aria': 'welcome tour',
     'brinde.prep': 'Ready…', 'brinde.go': 'Cheers!',
@@ -710,7 +698,7 @@ const DICT = {
     tagline: 'Nadie pierde la cuenta de la ronda.',
     'name.label': 'Tu apodo', 'name.ph': 'ej: André',
     create: 'Crear mesa', 'code.ph': 'código', join: 'Entrar',
-    offline: '📴 Entrar sin internet', stats: '📊 Mis números', retro: '🎞️ Resumen', bar: '🍺 Modo bar',
+    offline: '📴 Entrar sin internet', stats: '📊 Mis números', retro: '🎞️ Resumen',
     install: '📲 Instalar la app', seal: '🔒 Tus datos nunca salen de los móviles · P2P',
     recent: 'Mesas recientes',
     'set.title': 'Configuración', 'set.theme': 'Tema', 'set.bigfont': '🔎 Fuente grande',
@@ -890,7 +878,6 @@ const DICT = {
     'prices.sub': 'Ponle nombre a las cervezas (marca), descripción y precios — se sincroniza con toda la mesa.',
     'prices.brandAria': 'marca o apodo del ítem', 'prices.priceAria': 'precio del ítem',
     'prices.hide': 'ocultar de la mesa', 'prices.show': 'mostrar de nuevo',
-    'prices.save': '💾 Guardar como menú del bar',
     // ---- comanda / marcador ----
     'comanda.empty': 'Nada pedido todavía 🙂', 'comanda.total': 'Total: {n} 🍺', 'comanda.paid': 'pagó: {item}',
     'peers.title': '🏆 Marcador y logros', 'peers.now': 'Mesa ahora', 'peers.week': 'Retos de la semana',
@@ -957,7 +944,7 @@ const DICT = {
     'prices.noteAria': 'Descripción del ítem',
     // ---- configuración (shell extra) ----
     'set.secLook': '🎨 Apariencia', 'set.secSound': '🔊 Sonido y vibración',
-    'set.secPix': '💸 PIX para dividir', 'set.secBackup': '💾 Backup y datos', 'set.secBar': '🍺 Bar',
+    'set.secPix': '💸 PIX para dividir', 'set.secBackup': '💾 Backup y datos',
     'set.themeAuto': 'Auto', 'set.themeDark': 'Oscuro (pizarra)', 'set.themeLight': 'Claro (kraft)',
     'set.themeNeon': 'Neón', 'set.themeRetro': 'Retro',
     'themePick.title': '¿Qué tema prefieres?',
@@ -983,7 +970,7 @@ const DICT = {
     'retro.title': '🎞️ Tu resumen',
     'retro.drinks': 'rondas en la vida', 'retro.nights': 'noches de bar', 'retro.weeks': 'semanas seguidas',
     'retro.record': 'récord en una noche', 'retro.fav': 'tu favorita', 'retro.mate': 'compañero de salida', 'retro.spent': 'ya gastado',
-    // ---- jukebox / pasaporte / foto / bar ----
+    // ---- jukebox / pasaporte / foto ----
     'jbx.title': '🎵 Jukebox de la mesa',
     'jbx.sub': 'Pide la próxima — la fila aparece para todos. Suena abriendo tu app de música.',
     'jbx.ph': 'canción / artista', 'jbx.add': 'Pedir', 'jbx.queued': '🎵 ¡En la fila!',
@@ -996,11 +983,6 @@ const DICT = {
     'pass.fallback': 'Bar',
     'photo.title': '📷 Foto de la noche', 'photo.retake': '🔄 Otra', 'photo.alt': 'foto de la noche',
     'photo.shareText': 'Foto de la noche 🍺',
-    'bar.sub': 'Para el dueño del bar: un código fijo por mesa (QR que imprimes) + tu menú guardado.',
-    'bar.codeLabel': 'Código fijo de la mesa (opcional)', 'bar.open': 'Abrir mesa del bar 🍺',
-    'bar.hint': 'Guarda el menú en la mesa en 💲 Precios → “Guardar como menú del bar”.',
-    'bar.menuLoaded': '📂 Menú cargado ({n} ítems)', 'bar.menuSaved': '💾 Menú guardado ({n} ítems)',
-    'bar.menuEmpty': 'Añade ítems/precios antes 🙂',
     // ---- bienvenida / tour / brindis / contador / sw ----
     'welcome.l1': '🍺 <b>1 toque</b> = +1 · <b>mantén</b> = −1',
     'welcome.l2': '📴 Todo es <b>P2P</b>: los datos viven solo en los móviles, sin servidor',
@@ -1009,7 +991,7 @@ const DICT = {
     'tour.t0': 'Arma el menú 🍺', 'tour.x0': 'Toca aquí para abrir el catálogo — un toque y el ítem entra al menú de toda la mesa. Después solo toca la tarjeta para sumar +1.',
     'tour.t1': 'Márcale 🍺', 'tour.x1': 'Toca la tarjeta = +1. Mantén = −1 (deshace).',
     'tour.t2': 'La mesa pidió', 'tour.x2': 'El total de la mesa y el tuyo, en vivo en todos.',
-    'tour.t3': '¿Quién paga? 🎮', 'tour.x3': 'Ruleta, purrinha y dominó — la mesa decide jugando.',
+    'tour.t3': '¿Quién paga? 🎮', 'tour.x3': 'Purrinha, dominó y truco — la mesa decide jugando.',
     'tour.t4': 'El resto vive en el menú', 'tour.x4': 'Cerrar la cuenta, marcador, mesero, configuración.',
     'tour.skip': 'Saltar', 'tour.next': 'Siguiente →', 'tour.aria': 'tour de bienvenida',
     'brinde.prep': 'Preparados…', 'brinde.go': '¡Salud!',

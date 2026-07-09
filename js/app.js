@@ -415,6 +415,16 @@ function afterChange(item, kind) {
 }
 
 // ---- Render ----
+// "Boteco da sessão": onde você está agora, pro cardápio salvo. O NOME da mesa manda; mesa
+// sem nome usa o último check-in AINDA FRESCO (você acabou de chegar no bar) — assim o
+// check-in do passaporte (que é da home) puxa o cardápio na mesa que você abrir em seguida.
+const CHECKIN_FRESH_MS = 6 * 3600e3; // ~6h: um rolê. Check-in velho não cola numa mesa nova.
+function freshCheckin() {
+  const c = store.getCheckins()[0];
+  return (c && c.name && (Date.now() - (c.at || 0)) < CHECKIN_FRESH_MS) ? c.name : '';
+}
+function sessionBoteco() { return tableInfo(state).title || freshCheckin(); }
+
 function render() {
   if (!room) return;
   const list = allItems();
@@ -428,6 +438,10 @@ function render() {
   }));
   const info = tableInfo(state);
   const tt = tableTotal(state, resolveItem);
+  // Mesa VAZIA cujo boteco (nome da mesa OU check-in fresco) tem cardápio salvo → oferece
+  // recarregar (1 toque). A mesa segue nascendo limpa; carregar é sempre explícito.
+  const bname = items.length === 0 ? sessionBoteco() : '';
+  const savedDefs = bname ? store.getBotecoMenu(bname) : [];
   ui.renderTable({
     code: room,
     title: info.title || '',
@@ -437,6 +451,7 @@ function render() {
     showMoney: list.some((i) => i.price > 0),
     myMoney: userMoney(state, self, resolveItem),
     heroFill: tt === 0 ? 0 : ((tt - 1) % 10 + 1) / 10 * 100, // nível de chopp: enche a cada 10
+    boteco: savedDefs.length ? { name: bname, count: savedDefs.length } : null,
     items,
   });
   renderPeers();
@@ -618,6 +633,16 @@ function leaveTable() {
       mates: [...sessionMates],
       durationMs: sessionStart ? Date.now() - sessionStart : 0,
     });
+    // Lembra o cardápio DESTE boteco (pra recarregar quando você voltar). Mesa NOMEADA guarda
+    // sob o nome (captura o cardápio mais completo). Mesa SEM nome semeia sob o check-in fresco
+    // só se ainda NÃO tem cardápio lá — nunca sobrescreve um boteco conhecido a partir de uma
+    // mesa anônima. Tudo local.
+    if (state.items.size) {
+      const defs = [...state.items.values()].map((r) => r.def).filter((d) => d && d.id && !isCup(d));
+      const fresh = freshCheckin();
+      const seed = info.title || (fresh && !store.hasBotecoMenu(fresh) ? fresh : '');
+      if (defs.length && seed) { store.saveBotecoMenu(seed, defs); ui.toast(t('toast.botecoSaved', { name: seed })); }
+    }
   }
   if (mesh) { mesh.close(); mesh = null; }
   store.clearCurrent();
@@ -2593,6 +2618,19 @@ const handlers = {
       ui.toast(t('toast.gettingPlace'));
       navigator.geolocation.getCurrentPosition((pos) => save(pos.coords.latitude, pos.coords.longitude), () => save(null, null), { timeout: 8000 });
     } else save(null, null);
+  },
+  // Carrega o cardápio salvo do boteco (nome da mesa OU último check-in fresco): re-emite cada
+  // item como evento ITEM — aparece na mesa E espalha pra turma pela malha (CRDT). Dá nome à
+  // mesa sem título ("cola" o boteco na sessão) pra o de-sair guardar as adições certas.
+  onLoadBoteco: () => {
+    if (!room) return;
+    const bn = sessionBoteco();
+    const defs = store.getBotecoMenu(bn);
+    if (!defs.length) return;
+    if (!tableInfo(state).title && bn) setTable({ title: bn });
+    let n = 0;
+    for (const d of defs) if (d && d.id && emitLocal(makeItem(d))) n++;
+    if (n) { render(); ui.toast(t('toast.botecoLoaded', { n })); sound.pop(); }
   },
   // Foto da noite: compartilha o arquivo (Web Share) ou baixa (fallback). Fica só local.
   onPhotoShare: async () => {

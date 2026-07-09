@@ -239,6 +239,18 @@ padrão Auto segue o navegador).
 - **Persistência:** só `localStorage` (`js/store.js`; histórico por mesa com meus itens, gasto,
   duração e **`mates`** — quem estava na mesa, p/ o "com quem você mais bebeu"; `exportAll`/
   `importAll` = backup JSON; `getCheckins`/`addCheckin` = passaporte de botecos). Nada central.
+- **Cardápio por boteco (local, sem servidor):** o app LEMBRA o cardápio de cada lugar pra
+  recarregar quando você volta (`saveBotecoMenu`/`getBotecoMenu`/`hasBotecoMenu`/`botecoKey` em
+  `store.js`, chave `botequei.botecomenu`; normaliza pelo nome — minúsculo, sem acento). **Boteco
+  da sessão** (`sessionBoteco` no `app.js`) = o **nome da mesa** OU, sem nome, o **último check-in
+  ainda fresco** (≤6h) — assim o check-in do passaporte (que é da home) puxa o cardápio na mesa
+  que você abrir em seguida. Ao **sair** (`leaveTable`), guarda os defs sob esse nome (mesa
+  nomeada sobrescreve; mesa anônima só SEMEIA sob o check-in se ainda não há cardápio lá — nunca
+  clobbera um boteco conhecido). Mesa vazia cujo boteco tem cardápio salvo mostra o CTA
+  **"📓 Carregar cardápio do {nome} ({n})"** no empty-state (ao lado do "Montar o cardápio"): 1
+  toque re-emite os itens como eventos `ITEM` (aparecem na mesa E espalham pra turma via CRDT) e
+  nomeia a mesa. A mesa segue nascendo LIMPA — carregar é sempre explícito. Entra no backup de
+  graça (chave `botequei.*`). Entrou no `js/store.test.mjs`.
 - **Acessibilidade**: diálogos com `role="dialog"`/foco preso/ESC (`setupA11y` em `ui.js`),
   `:focus-visible`, `prefers-reduced-motion` (corta confete/animações), rótulos ARIA.
 - **TURN opcional** (rota `/turn`, nos dois adaptadores): credenciais efêmeras da Cloudflare,

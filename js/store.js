@@ -64,6 +64,32 @@ const K_PASS = 'botequei.passport';
 export function getCheckins() { const v = readJSON(K_PASS, []); return Array.isArray(v) ? v : []; }
 export function addCheckin(c) { const list = getCheckins(); list.unshift(c); writeJSON(K_PASS, list.slice(0, 100)); return list; }
 
+// ---- Cardápio por boteco (lembra os itens de cada lugar pra recarregar quando você volta) ----
+// Chaveado pelo NOME do boteco = o título da mesa (normalizado: minúsculo, sem acento, espaços
+// colapsados) — o mesmo "lugar" do passaporte. Tudo local (localStorage); nada central.
+const K_BOTECO = 'botequei.botecomenu';
+export function botecoKey(name) {
+  // NFD separa a letra do acento; \p{M} (marca combinante) tira só o acento — "Bar do Zé" ⇒ "bar do ze"
+  return String(name || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim().replace(/\s+/g, ' ');
+}
+export function saveBotecoMenu(name, defs) {
+  const key = botecoKey(name);
+  if (!key || !Array.isArray(defs) || !defs.length) return; // só guarda boteco com nome e itens
+  const all = readJSON(K_BOTECO, {}) || {};
+  all[key] = { name: String(name).slice(0, 40), defs, at: Date.now() }; // "latest wins": converge pro mais completo
+  writeJSON(K_BOTECO, all);
+}
+export function getBotecoMenu(name) {
+  const all = readJSON(K_BOTECO, {}) || {};
+  const rec = all[botecoKey(name)];
+  return rec && Array.isArray(rec.defs) ? rec.defs : [];
+}
+export function hasBotecoMenu(name) { return getBotecoMenu(name).length > 0; }
+export function listBotecoMenus() {
+  const all = readJSON(K_BOTECO, {}) || {};
+  return Object.values(all).sort((a, b) => (b.at || 0) - (a.at || 0)); // mais recentes primeiro (p/ Fase 2)
+}
+
 // ---- Backup (exportar/importar tudo que é local do Botequei) ----
 export function exportAll() {
   const data = {};

@@ -43,7 +43,7 @@ const IDS = [
   'home-history', 'history-list', 'home-hint', 'home-extras', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-passport',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
-  'menu-empty', 'btn-empty-custom',
+  'menu-empty', 'btn-empty-custom', 'btn-empty-boteco',
   'btn-brinde', 'btn-react', 'btn-rodada', 'btn-games', 'overlay-games', 'games-grid',
   'overlay-round', 'round-grid',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
@@ -180,6 +180,7 @@ export function init(handlers) {
   $('btn-games').addEventListener('click', () => openGames());
   $('btn-additem').addEventListener('click', () => openAddItem());      // "+ item" da mesa montada
   $('btn-empty-custom').addEventListener('click', () => openAddItem()); // mesa limpa: mesmo overlay, catálogo primeiro
+  $('btn-empty-boteco').addEventListener('click', () => H.onLoadBoteco()); // recarrega o cardápio salvo do boteco
   $('btn-brinde').addEventListener('click', () => H.onBrinde());
   $('btn-react').addEventListener('click', () => openReact());
   $('btn-rodada').addEventListener('click', () => H.onRodada());
@@ -434,6 +435,14 @@ export function renderTable(vm) {
   el['menu-empty'].hidden = !building;
   el['items-grid'].hidden = building;
   el['btn-additem'].hidden = building; // o empty já traz o botão (➕ Montar o cardápio)
+  // CTA "carregar cardápio do boteco": só quando a mesa vazia casa com um lugar salvo (via
+  // check-in ou nome da mesa). Mantém a mesa nascendo LIMPA — carregar é 1 toque explícito.
+  if (building && vm.boteco) {
+    el['btn-empty-boteco'].hidden = false;
+    el['btn-empty-boteco'].textContent = t('empty.loadBoteco', { name: vm.boteco.name, n: vm.boteco.count });
+  } else {
+    el['btn-empty-boteco'].hidden = true;
+  }
   if (el['table-hint']) el['table-hint'].hidden = building || Number(vm.tableTotal) > 0;
 }
 function cardHTML(it) {

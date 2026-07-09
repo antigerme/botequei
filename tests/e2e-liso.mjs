@@ -35,9 +35,23 @@ async function main() {
       const light = await page.evaluate(() => document.body.classList.contains('light'));
       if (!light) throw new Error('primeiro uso deveria abrir no tema claro');
     });
+    await step('demo do gesto DENTRO do guia: toque no card de treino = +1, segurar = −1', async () => {
+      await page.click('#welcome-demo');
+      await page.waitForFunction(() => document.getElementById('welcome-demo-n').textContent === '1', null, { timeout: 5000 });
+      const box = await page.evaluate(() => { const r = document.getElementById('welcome-demo').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+      await page.mouse.move(box.x, box.y); await page.mouse.down();
+      await page.waitForTimeout(650); // > limiar do segurar (480ms)
+      await page.mouse.up();
+      await page.waitForFunction(() => document.getElementById('welcome-demo-n').textContent === '0', null, { timeout: 5000 });
+    });
+    await step('CTA leva DIRETO pra ação: apelido + "criar minha primeira mesa" abre a mesa', async () => {
+      await page.fill('#welcome-name', 'Novato');
+      await page.click('#btn-welcome-create');
+      await page.waitForSelector('#screen-table.is-active', { timeout: T });
+    });
     await step('reload NÃO repete o guia (flag persistente)', async () => {
       await page.reload();
-      await page.waitForSelector('#screen-home.is-active', { timeout: T });
+      await page.waitForSelector('#screen-table.is-active', { timeout: T }); // o hash devolve pra mesa criada
       await page.waitForTimeout(700);
       const open = await page.evaluate(() => !document.getElementById('overlay-welcome').hidden);
       if (open) throw new Error('welcome apareceu de novo no reload');
@@ -101,6 +115,20 @@ async function main() {
       if (!stillDark) throw new Error('escolha de tema não persistiu no reload');
       const pickOpen = await page.evaluate(() => !document.getElementById('overlay-themepick').hidden);
       if (pickOpen) throw new Error('pergunta de tema apareceu de novo no reload');
+    });
+
+    await step('"🎓 Rever o tour" no menu roda o MESMO tour (bolinhas 4/4; sem re-perguntar tema)', async () => {
+      await page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+      await page.click('#btn-menu');
+      await page.waitForFunction(() => !document.getElementById('overlay-menu').hidden, null, { timeout: T });
+      await page.click('#menu-tour');
+      await vis(page, 'tour');
+      const dots = await page.evaluate(() => document.querySelectorAll('#tour-count .tour-dot').length);
+      if (dots !== 4) throw new Error('esperava 4 bolinhas de progresso, vi ' + dots);
+      await page.click('#btn-tour-skip');
+      await page.waitForFunction(() => document.getElementById('tour').hidden, null, { timeout: 5000 });
+      const pick = await page.evaluate(() => !document.getElementById('overlay-themepick').hidden);
+      if (pick) throw new Error('rever o tour não devia re-perguntar o tema');
     });
     await ctx.close();
   }

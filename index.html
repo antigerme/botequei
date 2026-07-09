@@ -216,6 +216,7 @@
       <button class="menu-item" id="menu-photo" data-i18n="photo.title">📷 Foto da noite</button>
       <button class="menu-item" id="menu-share" data-i18n="menu.shareNight">📸 Compartilhar a noite</button>
       <button class="menu-item" id="menu-settings" data-i18n="menu.settings">⚙️ Configurações</button>
+      <button class="menu-item" id="menu-tour" data-i18n="tour.replay">🎓 Rever o tour</button>
     </div>
   </div>
 </div>
@@ -557,6 +558,7 @@
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
     <h2 id="comanda-title">Comanda</h2>
+    <p class="comanda-away" id="comanda-away" hidden></p>
     <ul class="comanda-list" id="comanda-list"></ul>
     <div class="bill-total" id="comanda-total"></div>
   </div>
@@ -733,18 +735,29 @@
 </div>
 <input id="photo-input" type="file" accept="image/*" capture="environment" hidden />
 
-<!-- Guia de boas-vindas (primeiro uso) -->
+<!-- Guia de boas-vindas (primeiro uso): treina o GESTO num card de demonstração e já leva pra ação -->
 <div class="overlay" id="overlay-welcome" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="welcome.title">Bem-vindo ao Botequei! 🍺</h2>
+    <p class="welcome-sub" data-i18n="welcome.sub">A lousa da mesa: cada um marca o que bebeu e todo mundo vê junto, na hora.</p>
+    <div class="welcome-demo">
+      <p class="welcome-try" data-i18n-html="welcome.try">Experimenta aqui: <b>toque</b> = +1 · <b>segure</b> = −1</p>
+      <button class="welcome-card" id="welcome-demo" aria-label="Card de demonstração — toque pra somar, segure pra corrigir" data-i18n-aria="welcome.demoAria">
+        <span class="wd-emoji" aria-hidden="true">🍺</span>
+        <span class="wd-name" data-i18n="welcome.demoName">Chopp</span>
+        <span class="wd-count" id="welcome-demo-n">0</span>
+      </button>
+    </div>
     <ul class="welcome-list">
-      <li>🍺 <b>1 toque</b> = +1 · <b>segure</b> = −1</li>
-      <li>📴 Tudo é <b>P2P</b>: os dados vivem só nos celulares, sem servidor</li>
-      <li>👥 Crie a mesa e mostre o <b>QR</b> — a galera entra escaneando</li>
+      <li data-i18n-html="welcome.l2">📴 Tudo é <b>P2P</b>: os dados vivem só nos celulares, sem servidor</li>
+      <li data-i18n-html="welcome.l3">👥 Crie a mesa e mostre o <b>QR</b> — a galera entra escaneando</li>
     </ul>
+    <label class="field welcome-name"><span data-i18n="welcome.name">Como te chamam na mesa?</span>
+      <input id="welcome-name" type="text" maxlength="24" placeholder="ex: Dé" data-i18n-ph="welcome.namePh" autocomplete="nickname" /></label>
     <div class="sheet-actions">
-      <button class="btn btn-primary btn-lg" id="btn-welcome-go" data-i18n="common.go">Bora! 🍻</button>
+      <button class="btn btn-primary btn-lg" id="btn-welcome-create" data-i18n="welcome.create">🍺 Criar minha primeira mesa</button>
+      <button class="btn btn-ghost" id="btn-welcome-go" data-i18n="welcome.later">Dar uma olhada antes</button>
     </div>
   </div>
 </div>

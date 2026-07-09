@@ -52,7 +52,7 @@ const IDS = [
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
   'overlay-menu', 'menu-profile', 'menu-board',
   'menu-jukebox', 'menu-festa', 'menu-payround', 'menu-bill', 'menu-prices',
-  'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings',
+  'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings', 'menu-tour',
   'overlay-prices', 'price-list',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
   'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-selfie', 'btn-avatar-upload', 'avatar-file',
@@ -70,7 +70,7 @@ const IDS = [
   'overlay-payround', 'payround-list',
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
   'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
-  'overlay-comanda', 'comanda-title', 'comanda-list', 'comanda-total',
+  'overlay-comanda', 'comanda-title', 'comanda-away', 'comanda-list', 'comanda-total',
   'overlay-jukebox', 'jukebox-input', 'btn-jukebox-add', 'jukebox-list',
   'overlay-festa', 'festa-canvas', 'btn-festa-close',
   'set-shake',
@@ -91,7 +91,7 @@ const IDS = [
   'overlay-boteco', 'boteco-title', 'boteco-stats', 'boteco-menu', 'btn-boteco-load',
   'btn-boteco-rename', 'btn-boteco-del', 'boteco-rename-box', 'boteco-rename', 'btn-boteco-rename-go',
   'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
-  'overlay-welcome', 'btn-welcome-go',
+  'overlay-welcome', 'btn-welcome-go', 'btn-welcome-create', 'welcome-demo', 'welcome-demo-n', 'welcome-name',
   'overlay-retro', 'retro-slides', 'btn-retro-share',
   'league-level', 'league-challenges', 'league-season',
   'btn-offline-join', 'btn-offline-host',
@@ -217,6 +217,7 @@ export function init(handlers) {
   $('menu-share').addEventListener('click', () => { closeOverlays(); H.onShareNight(); });
   $('menu-stats').addEventListener('click', () => { closeOverlays(); H.onStats(); });
   $('menu-settings').addEventListener('click', () => { closeOverlays(); openSettings(); });
+  $('menu-tour').addEventListener('click', () => { closeOverlays(); H.onTourReplay(); });
   el['overlay-hh'].querySelectorAll('button[data-min]').forEach((b) => b.addEventListener('click', () => { H.onHappyHour(Number(b.dataset.min)); closeOverlays(); }));
 
   // cerimônia
@@ -248,6 +249,8 @@ export function init(handlers) {
   el['tour'].addEventListener('click', () => tourNext());
   el['btn-tour-next'].addEventListener('click', (e) => { e.stopPropagation(); tourNext(); });
   el['btn-tour-skip'].addEventListener('click', (e) => { e.stopPropagation(); endTour(); });
+  el['tour'].addEventListener('click', () => { if (tourSteps) tourNext(); }); // toque em qualquer lugar avança (padrão stories)
+  window.addEventListener('resize', () => { if (tourSteps) renderTourStep(); }); // girou o aparelho no meio? recorte segue o alvo
 
   // escolha de tema (fim do tour): um toque aplica e fecha
   el['themepick-row'].querySelectorAll('button[data-th]').forEach((b) =>
@@ -270,6 +273,16 @@ export function init(handlers) {
   el['btn-photo-retake'].addEventListener('click', () => el['photo-input'].click());
   el['btn-photo-share'].addEventListener('click', () => H.onPhotoShare());
   el['btn-welcome-go'].addEventListener('click', () => closeOverlays());
+  el['btn-welcome-create'].addEventListener('click', () => H.onWelcomeCreate(el['welcome-name'].value));
+  { // demo do bem-vindo: o GESTO do app pra treinar antes da 1ª mesa (toque = +1, segurar = −1)
+    let n = 0, tm = null, held = false;
+    const card = el['welcome-demo'];
+    const bump = () => { el['welcome-demo-n'].textContent = String(n); card.classList.remove('pop'); void card.offsetWidth; card.classList.add('pop'); try { if (navigator.vibrate) navigator.vibrate(held ? 18 : 8); } catch { /* ignore */ } };
+    card.addEventListener('pointerdown', () => { held = false; tm = setTimeout(() => { held = true; if (n > 0) { n--; bump(); } }, 480); });
+    const up = (e) => { if (tm) { clearTimeout(tm); tm = null; } if (e.type === 'pointerup' && !held) { n++; bump(); } held = false; };
+    card.addEventListener('pointerup', up); card.addEventListener('pointercancel', up); card.addEventListener('pointerleave', up);
+    card.addEventListener('contextmenu', (e) => e.preventDefault()); // segurar no touch não abre menu
+  }
 
   $('btn-profile-save').addEventListener('click', () => submitProfile());
   // foto de perfil: selfie/galeria compartilham o MESMO input (só troca o capture)
@@ -601,11 +614,11 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
 }
 // Ícone de qualidade de conexão por pessoa (host = LAN/Wi-Fi, srflx = internet, relay = via servidor).
 function netHTML(r) {
-  if (r.online === false) return '<span class="peer-net off" title="desconectado">💤</span>';
+  if (r.online === false) return `<span class="peer-net off" title="${t('net.off')}">💤${r.away ? `<i class="net-away">${esc(r.away)}</i>` : ''}</span>`;
   const map = { host: ['📶', t('net.host')], srflx: ['🌐', t('net.inet')], prflx: ['🌐', t('net.inet')], relay: ['🛰️', t('net.relay')] };
   const m = map[r.conn];
   if (m) return `<span class="peer-net" title="${m[1]}">${m[0]}</span>`;
-  if (r.online) return '<span class="peer-net" title="conectado">🟢</span>';
+  if (r.online) return `<span class="peer-net" title="${t('net.on')}">🟢</span>`;
   return '';
 }
 export function openPeers() { el['overlay-peers'].hidden = false; }
@@ -1227,13 +1240,16 @@ export function renderPresence(list) {
   const others = (list || []).filter((p) => !p.self);
   if (!others.length) { bar.hidden = true; bar.innerHTML = ''; return; }
   bar.hidden = false;
-  // quem apagou a tela / caiu há pouco fica esmaecido com 💤 (em vez de sumir da barra)
-  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' zz'} ${frameClass(p.level)}" title="${esc(p.name || '')}${p.online ? '' : t('pres.away')}" style="background:${safeColor(p.color)}">${avInner(p.photo, p.emoji)}${p.online ? '' : '<i class="zz-b">💤</i>'}</span>`).join('');
+  // quem apagou a tela / caiu fica esmaecido com 💤 e, passado 1min, ganha o RELÓGIO de há
+  // quanto tempo ("12min"/"1h") — a mesa CONCLUI quem já foi embora, sem o app anunciar nada
+  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' zz'} ${frameClass(p.level)}" title="${esc(p.name || '')}${p.online ? '' : t('pres.away')}" style="background:${safeColor(p.color)}">${avInner(p.photo, p.emoji)}${p.online ? '' : '<i class="zz-b">💤</i>'}${!p.online && p.awayLabel ? `<i class="zz-t">${esc(p.awayLabel)}</i>` : ''}</span>`).join('');
 }
 
 // ---------- Comanda individual ----------
 export function openComanda(vm) {
   el['comanda-title'].textContent = `${vm.emoji || '🍺'} ${vm.name || t('common.anon')}`;
+  el['comanda-away'].hidden = !vm.away;
+  el['comanda-away'].textContent = vm.away || '';
   el['comanda-list'].innerHTML = (vm.rows || []).map((r) => `<li class="comanda-row">
     <span class="c-emoji">${esc(r.emoji || '🍺')}</span>
     <span class="c-name">${esc(r.name)}${r.note ? `<small class="c-note">${esc(r.note)}</small>` : ''}</span>
@@ -1274,7 +1290,10 @@ function renderTourStep() {
     spot.style.top = (r.top - 8) + 'px';
     spot.style.width = (r.width + 16) + 'px';
     spot.style.height = (r.height + 16) + 'px';
-    el['tour-count'].textContent = `${tourIdx + 1}/${tourSteps.length}`;
+    // bolinhas de progresso (feitas ○ · atual ● · por vir ○ menor) + "1/4" pro leitor de tela —
+    // o textContent do contêiner segue sendo só o número (os <i> são vazios)
+    el['tour-count'].innerHTML = tourSteps.map((_, i) => `<i class="tour-dot${i === tourIdx ? ' on' : ''}${i < tourIdx ? ' done' : ''}"></i>`).join('')
+      + `<span class="tour-num">${tourIdx + 1}/${tourSteps.length}</span>`;
     el['tour-title'].textContent = st.title || '';
     el['tour-text'].textContent = st.text || '';
     el['btn-tour-next'].textContent = tourIdx + 1 >= tourSteps.length ? t('common.go') : t('tour.next');
@@ -1283,6 +1302,7 @@ function renderTourStep() {
     if (r.top > window.innerHeight / 2) bal.style.bottom = (window.innerHeight - r.top + 16) + 'px'; // balão acima do alvo
     else bal.style.top = Math.min(r.bottom + 16, window.innerHeight - 190) + 'px'; // abaixo, mas SEMPRE dentro da tela (alvo alto não expulsa o botão)
     el['tour'].hidden = false;
+    try { el['btn-tour-next'].focus({ preventScroll: true }); } catch { /* ignore */ } // teclado/leitor avança sem caçar o botão
   });
 }
 

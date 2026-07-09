@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, itemTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs, paidCount } from '../js/events.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, itemTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs, paidCount, coveredCount, roundTargetIds } from '../js/events.js';
 import { badgesFor, mvp, ceremonyAwards } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
@@ -111,6 +111,86 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.deepStrictEqual([...shareSplit(s, ['a', 'b', 'm'], { shareAll: true })].sort(), ['a', 'b', 'm'], 'toggle inclui todo mundo');
   assert.deepStrictEqual([...shareSplit(s, ['m'])], ['m'], 'só motorista na conta → racha entre quem tem');
   ok('compartilhado: shareSplit (motorista fora / toggle todos / fallback)');
+}
+
+// ---------- Rodada paga com item PESSOAL: "cada um bebeu; você paga" (covered) ----------
+{
+  const defs = { chopp: { id: 'chopp', price: 10 }, garrafa: { id: 'garrafa', price: 12, share: 1 } };
+  const resolve = (id) => defs[id];
+  const s = emptyState();
+  // 'a' perdeu e paga uma rodada de CHOPP (item pessoal) pra mesa toda online (a, b, c):
+  // um chopp pra cada, todos com payer='a'. Cada um BEBEU; só o dinheiro é do 'a'.
+  applyEvent(s, { type: 'ADD', user: 'a', item: 'chopp', payer: 'a', ts: 1, eventId: 'r1' });
+  applyEvent(s, { type: 'ADD', user: 'b', item: 'chopp', payer: 'a', ts: 2, eventId: 'r2' });
+  applyEvent(s, { type: 'ADD', user: 'c', item: 'chopp', payer: 'a', ts: 3, eventId: 'r3' });
+
+  assert.strictEqual(userTotal(s, 'a', resolve), 1, 'a bebeu o chopp dele');
+  assert.strictEqual(userTotal(s, 'b', resolve), 1, 'b bebeu (mesmo sem pagar)');
+  assert.strictEqual(userTotal(s, 'c', resolve), 1, 'c bebeu (mesmo sem pagar)');
+  assert.strictEqual(tableTotal(s, resolve), 3, 'a mesa pediu 3 chopps');
+  ok('rodada paga (pessoal): cada um online ganha +1 no consumo');
+
+  assert.strictEqual(userMoney(s, 'a', resolve), 30, 'a paga os 3 chopps da rodada');
+  assert.strictEqual(userMoney(s, 'b', resolve), 0, 'b bebeu de graça (a pagou)');
+  assert.strictEqual(userMoney(s, 'c', resolve), 0, 'c bebeu de graça (a pagou)');
+  assert.strictEqual(paidCount(s, 'a', 'chopp'), 3);
+  assert.strictEqual(coveredCount(s, 'b', 'chopp'), 1, 'o chopp do b foi coberto');
+  ok('rodada paga (pessoal): só o dinheiro cai na conta de quem pagou (sem cobrar de novo)');
+
+  // b pede MAIS um chopp por conta própria: paga só esse (o coberto continua de graça)
+  applyEvent(s, { type: 'ADD', user: 'b', item: 'chopp', ts: 4, eventId: 'r4' });
+  assert.strictEqual(userTotal(s, 'b', resolve), 2, 'b agora com 2 chopps no consumo');
+  assert.strictEqual(userMoney(s, 'b', resolve), 10, 'b paga só o que pediu sozinho (1×10)');
+  assert.strictEqual(coveredCount(s, 'b', 'chopp'), 1, 'só 1 dos 2 foi coberto');
+  ok('rodada paga: o consumidor ainda paga o que pede por conta própria');
+
+  // summary herda o modelo (consumo conta pra todos; dinheiro só no pagador)
+  const rows = summary(s, resolve);
+  const money = Object.fromEntries(rows.map((r) => [r.user, r.money]));
+  const tot = Object.fromEntries(rows.map((r) => [r.user, r.total]));
+  assert.strictEqual(money.a, 30); assert.strictEqual(money.b, 10); assert.strictEqual(money.c, 0);
+  assert.strictEqual(tot.a, 1); assert.strictEqual(tot.b, 2); assert.strictEqual(tot.c, 1);
+  ok('rodada paga: summary reflete consumo de todos + dinheiro só do pagador');
+
+  // desfazer (REMOVE com payer) devolve consumo, dinheiro e cobertura do c
+  applyEvent(s, { type: 'REMOVE', user: 'c', item: 'chopp', payer: 'a', ts: 5, eventId: 'r5' });
+  assert.strictEqual(userTotal(s, 'c', resolve), 0, 'desfazer tira o consumo do c');
+  assert.strictEqual(userMoney(s, 'a', resolve), 20, 'a agora paga só 2 chopps');
+  assert.strictEqual(coveredCount(s, 'c', 'chopp'), 0, 'cobertura do c zerada');
+  ok('rodada paga: desfazer (REMOVE com payer) devolve consumo + dinheiro + cobertura');
+
+  // item da MESA (share) pago segue como antes: covered é irrelevante (nunca esteve na conta pessoal)
+  const s2 = emptyState();
+  applyEvent(s2, { type: 'ADD', user: 'a', item: 'garrafa', payer: 'a', ts: 1, eventId: 'g1' });
+  assert.strictEqual(userMoney(s2, 'a', resolve), 12, 'garrafa com dono cai inteira na conta');
+  assert.strictEqual(userTotal(s2, 'a', resolve), 0, 'share não vira consumo pessoal');
+  assert.strictEqual(sharePool(s2, resolve).total, 0, 'com dono sai do bolo');
+  ok('rodada paga (mesa): item compartilhado pago não muda (covered não interfere)');
+}
+
+// ---------- Rodada: quem recebe (escopo do jogo × mesa; bot fora; motorista se alcoólico) ----------
+{
+  const isBot = (id) => id.startsWith('bot-');
+  const drivers = new Set(['mari']);
+  const isDriver = (id) => drivers.has(id);
+
+  // sem scope → a mesa (tableIds); com scope (jogadores) → ignora a mesa toda
+  assert.deepStrictEqual(roundTargetIds(null, ['a', 'b'], { isBot }).sort(), ['a', 'b']);
+  assert.deepStrictEqual(roundTargetIds(['a', 'b'], ['a', 'b', 'c', 'd'], { isBot }).sort(), ['a', 'b']);
+  ok('rodada: scope do jogo paga só pros jogadores (sem scope = mesa online)');
+
+  // bot nunca bebe → sai do alvo mesmo dentro do jogo
+  assert.deepStrictEqual(roundTargetIds(['a', 'bot-ze'], null, { isBot }), ['a']);
+  ok('rodada: bot fica fora (não bebe, não entra em conta)');
+
+  // motorista: fora só se o item for alcoólico; refri/água inclui todo mundo
+  assert.deepStrictEqual(roundTargetIds(['a', 'mari'], null, { isBot, isDriver, alcoholic: true }), ['a']);
+  assert.deepStrictEqual(roundTargetIds(['a', 'mari'], null, { isBot, isDriver, alcoholic: false }).sort(), ['a', 'mari']);
+  ok('rodada: motorista fora se alcoólico, dentro se for sem álcool');
+
+  // dedup (id repetido não vira duas cervejas)
+  assert.deepStrictEqual(roundTargetIds(['a', 'a', 'b'], null, { isBot }).sort(), ['a', 'b']);
+  ok('rodada: alvos deduplicados');
 }
 
 // ---------- Foto de perfil (miniatura no PROFILE, validada) ----------

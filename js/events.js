@@ -70,6 +70,7 @@ export function emptyState() {
     table: null,         // { def:{title,emoji}, ts, eventId }  (LWW)
     happy: null,         // { def:{until,startTotal,by}, ts, eventId }  (LWW) — happy hour
     pays: new Map(),     // "from\x00to" -> { on, from, to, ts, eventId }  (LWW) — "eu pago pra fulano"
+    covered: new Map(),  // "user\x00item" -> unidades DELE que OUTRO pagou (rodada paga): conta no consumo dele, mas some do dinheiro dele (está na conta do pagador)
     songs: [],           // [ { title, url, by, name, ts } ] — fila do jukebox (acumula)
   };
 }
@@ -101,6 +102,10 @@ export function applyEvent(state, ev) {
         const pk = ckey(ev.payer, ev.item);
         state.paid.set(pk, (state.paid.get(pk) || 0) + delta);
         state.users.add(ev.payer);
+        // ...e marca que ESTA unidade do consumidor foi paga por outro: fica no CONSUMO dele
+        // (bebeu de verdade), mas some do DINHEIRO dele — o valor já está na conta do pagador.
+        // Item da mesa (share) ignora isto: o dinheiro dele nunca esteve na conta pessoal.
+        state.covered.set(k, (state.covered.get(k) || 0) + delta);
       }
       applyName(state, ev.user, ev.name, ev);
       return true;
@@ -193,7 +198,9 @@ export function userMoney(state, user, resolveItem) {
     if (u !== user) continue;
     const def = resolveItem(item);
     if (!def || def.share) continue;
-    if (def.price) total += Math.max(0, v) * def.price;
+    // desconta as unidades que OUTRO pagou por ele (rodada paga): bebeu, mas não paga.
+    const charged = Math.max(0, Math.max(0, v) - (state.covered.get(k) || 0));
+    if (def.price) total += charged * def.price;
   }
   for (const [k, v] of state.paid) {
     const [payer, item] = k.split('\x00');
@@ -207,6 +214,12 @@ export function userMoney(state, user, resolveItem) {
 // Unidades que `user` PAGOU (garrafa "minha" — punição de jogo ou rodada bancada).
 export function paidCount(state, user, item) {
   return Math.max(0, state.paid.get(ckey(user, item)) || 0);
+}
+
+// Unidades DESTE consumidor que OUTRO pagou (rodada paga): contam no consumo dele,
+// mas não no dinheiro dele. Usado na comanda pra mostrar "×N (pago)" sem cobrar.
+export function coveredCount(state, user, item) {
+  return Math.max(0, state.covered.get(ckey(user, item)) || 0);
 }
 
 // O "bolo" da mesa: tudo que foi pedido em itens COMPARTILHADOS (garrafa 600, litrão,
@@ -236,6 +249,18 @@ export function sharePool(state, resolveItem) {
     total += c * unit;
   }
   return { total, lines };
+}
+
+// Quem RECEBE uma rodada de item PESSOAL. `scope` (não-vazio) = os jogadores do jogo
+// (perdeu no jogo → paga só pra quem estava jogando); vazio/ausente → a mesa (`tableIds`).
+// Bot nunca bebe (isBot); motorista fica de fora se o item for alcoólico. Irmão do shareSplit
+// (quem entra no rateio) — puro/injeta as verificações pra ser testável sem DOM/mesh.
+export function roundTargetIds(scope, tableIds, { alcoholic = false, isBot, isDriver } = {}) {
+  const base = (Array.isArray(scope) && scope.length) ? scope : (Array.isArray(tableIds) ? tableIds : []);
+  let ids = [...new Set(base)];
+  if (typeof isBot === 'function') ids = ids.filter((id) => !isBot(id));
+  if (alcoholic && typeof isDriver === 'function') ids = ids.filter((id) => !isDriver(id));
+  return ids;
 }
 
 // Quem entra no rateio do bolo da mesa. Padrão de boteco: motorista não paga a

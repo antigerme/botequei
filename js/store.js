@@ -89,6 +89,45 @@ export function listBotecoMenus() {
   const all = readJSON(K_BOTECO, {}) || {};
   return Object.values(all).sort((a, b) => (b.at || 0) - (a.at || 0)); // mais recentes primeiro (p/ Fase 2)
 }
+// Apaga só o CARDÁPIO salvo de um lugar (os check-ins/histórico dele continuam no passaporte).
+export function deleteBotecoMenu(name) {
+  const all = readJSON(K_BOTECO, {}) || {};
+  const key = botecoKey(name);
+  if (all[key]) { delete all[key]; writeJSON(K_BOTECO, all); return true; }
+  return false;
+}
+// Renomeia o LUGAR INTEIRO: cardápio salvo + check-ins do passaporte + títulos do histórico.
+// Assim a ficha do boteco (que cruza os três) passa a agregar tudo sob o novo nome.
+export function renameBoteco(oldName, newName) {
+  const from = botecoKey(oldName);
+  const to = botecoKey(newName);
+  const nm = String(newName || '').slice(0, 40).trim();
+  if (!from || !nm) return false;
+  // 1) cardápio salvo: move o registro pra nova chave (se o destino já existe, mantém o mais recente)
+  const all = readJSON(K_BOTECO, {}) || {};
+  if (all[from]) {
+    const rec = all[from];
+    if (to !== from) delete all[from];
+    const dst = to !== from ? all[to] : null;
+    const keep = (!dst || (rec.at || 0) >= (dst.at || 0)) ? rec : dst;
+    all[to] = { name: nm, defs: keep.defs, at: keep.at || Date.now() };
+    writeJSON(K_BOTECO, all);
+  } else if (all[to]) {
+    all[to] = { ...all[to], name: nm }; // sem origem, mas o destino existe → só atualiza o nome exibido
+    writeJSON(K_BOTECO, all);
+  }
+  // 2) check-ins do passaporte: renomeia os do mesmo lugar
+  const pass = getCheckins();
+  let pc = false;
+  for (const c of pass) if (botecoKey(c.name) === from) { c.name = nm; pc = true; }
+  if (pc) writeJSON(K_PASS, pass);
+  // 3) histórico: renomeia o título das noites do mesmo lugar
+  const hist = getHistory();
+  let hc = false;
+  for (const e of hist) if (botecoKey(e.title) === from) { e.title = nm; hc = true; }
+  if (hc) writeJSON(K_HISTORY, hist);
+  return true;
+}
 
 // ---- Backup (exportar/importar tudo que é local do Botequei) ----
 export function exportAll() {

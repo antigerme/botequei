@@ -119,7 +119,6 @@
 
     <div class="action-bar">
       <button class="chip" id="btn-games" data-i18n="games.title">🎮 Jogos</button>
-      <button class="chip" id="btn-brinde" data-i18n="chip.brinde">🥂 Brinde</button>
       <button class="chip" id="btn-rodada" title="+1 cerveja pra todo mundo online (menos motoristas)" data-i18n-title="chip.rodadaTitle" data-i18n="chip.rodada">🍻 Rodada</button>
       <button class="chip" id="btn-react" data-i18n="chip.react">😀 Reagir</button>
     </div>
@@ -689,6 +688,26 @@
       </div>
     </label>
     <ul class="passport-list" id="passport-list"></ul>
+  </div>
+</div>
+
+<!-- Ficha do boteco (toca num lugar no passaporte): visitas · gasto · favorita + cardápio salvo -->
+<div class="overlay" id="overlay-boteco" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2 id="boteco-title">📓 Boteco</h2>
+    <p class="sheet-sub" id="boteco-stats"></p>
+    <h3 data-i18n="boteco.menu">📓 Cardápio salvo</h3>
+    <ul class="comanda-list" id="boteco-menu"></ul>
+    <button class="btn btn-primary btn-lg" id="btn-boteco-load" hidden>📓</button>
+    <div class="boteco-manage">
+      <button class="btn btn-ghost" id="btn-boteco-rename" data-i18n="boteco.rename">✏️ Renomear lugar</button>
+      <button class="btn btn-ghost" id="btn-boteco-del" data-i18n="boteco.del" hidden>🗑️ Apagar cardápio</button>
+    </div>
+    <div class="boteco-rename-box" id="boteco-rename-box" hidden>
+      <input type="text" id="boteco-rename" maxlength="40" data-i18n-ph="boteco.renamePh" placeholder="Novo nome do lugar">
+      <button class="btn btn-primary" id="btn-boteco-rename-go" data-i18n="boteco.renameGo">✓ Salvar</button>
+    </div>
   </div>
 </div>
 

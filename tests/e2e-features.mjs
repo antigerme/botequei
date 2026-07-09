@@ -38,11 +38,12 @@ async function main() {
   await closeAll(pageA);
   // mesa nasce limpa: monta o cardápio da noite pelo formulário do ➕
   // (Garrafa 600 é "da mesa" = share; ids viram x-garrafa-600 / x-chopp / x-lata)
-  const novoItem = async (name, share) => {
+  const novoItem = async (name, share, cat = 'cerveja') => {
     const vazio = await pageA.evaluate(() => !document.getElementById('menu-empty').hidden);
     await pageA.click(vazio ? '#btn-empty-custom' : '#btn-additem');
     await pageA.fill('#add-name', name);
     if (share) await pageA.check('#add-share');
+    await pageA.selectOption('#add-cat', cat); // sem emoji escolhido a categoria cairia em "outros"; a rodada só lista bebidas
     await pageA.click('#btn-additem-confirm');
     await pageA.waitForFunction(() => document.getElementById('overlay-additem').hidden, null, { timeout: T });
   };
@@ -197,7 +198,7 @@ async function main() {
     await pageA.click('#btn-menu');
     await pageA.click('#menu-payround');
     await visible(pageA, 'overlay-payround');
-    await pageA.click('#payround-list .pay-btn'); // única opção: a garrafa da mesa
+    await pageA.click('#payround-list .pay-btn[data-id="x-garrafa-600"]'); // item DA MESA: paga uma garrafa só (com dono)
     // a garrafa com dono AINDA é da mesa: o card sobe pra 2 nos DOIS peers
     await Promise.all([pageA, pageB].map((p) => p.waitForFunction(
       () => document.querySelector('.item-card[data-item="x-garrafa-600"] .item-qty')?.textContent.trim() === '2',
@@ -222,6 +223,54 @@ async function main() {
       const list = document.getElementById('comanda-list');
       const tot = document.getElementById('comanda-total');
       return list && list.textContent.includes('💸') && tot && tot.textContent.includes('12');
+    }, null, { timeout: T });
+    await closeAll(pageB);
+  });
+
+  await step('💸 pagar rodada de item PESSOAL: um pra cada online; cada um bebe, o pagador banca', async () => {
+    // dá preço ao chopp pra a conta ter número (10)
+    await closeAll(pageA);
+    await pageA.click('#btn-menu'); await pageA.click('#menu-prices');
+    await visible(pageA, 'overlay-prices');
+    await pageA.fill('.price-row[data-id="x-chopp"] .pr-price', '10');
+    await pageA.$eval('.price-row[data-id="x-chopp"] .pr-price', (e) => e.dispatchEvent(new Event('change')));
+    await closeAll(pageA);
+    // Bia já tinha 1 chopp (clicou antes). A PAGA uma rodada de CHOPP (pessoal) → +1 pra A e +1 pra B.
+    await pageA.click('#btn-menu'); await pageA.click('#menu-payround');
+    await visible(pageA, 'overlay-payround');
+    await pageA.click('#payround-list .pay-btn[data-id="x-chopp"]');
+    // cada um bebeu: o card do chopp vai a 3 (A=1, B=2) nos dois peers
+    await Promise.all([pageA, pageB].map((p) => p.waitForFunction(
+      () => document.querySelector('.item-card[data-item="x-chopp"] .item-qty')?.textContent.trim() === '3',
+      null, { timeout: T })));
+    // 🔔 pagar rodada CHAMA o garçom dizendo item + quantos: a Bia vê "André pediu: 2× Chopp"
+    await pageB.waitForFunction(() => { const el = document.getElementById('toast'); return el && !el.hidden && /pediu/i.test(el.textContent) && /Chopp/.test(el.textContent); }, null, { timeout: T });
+    // comanda da Bia: bebeu 2 chopps (×2), mas 1 foi coberto → paga SÓ 1×10 (nunca 20), com a nota
+    await closeAll(pageB);
+    await pageB.click('#btn-peers'); await visible(pageB, 'overlay-peers');
+    await pageB.evaluate(() => {
+      const row = [...document.querySelectorAll('#peers-list .peer-row')].find((r) => /Bia/i.test(r.textContent));
+      row.querySelector('.peer-main').click();
+    });
+    await visible(pageB, 'overlay-comanda');
+    await pageB.waitForFunction(() => {
+      const list = document.getElementById('comanda-list');
+      const tot = document.getElementById('comanda-total');
+      if (!list || !tot) return false;
+      return /×2/.test(list.textContent) && /na conta de quem pagou/i.test(list.textContent)
+        && tot.textContent.includes('R$10,00') && !tot.textContent.includes('R$20,00');
+    }, null, { timeout: T });
+    await closeAll(pageB);
+    // comanda do André: banca a rodada — a linha 💸 do chopp aparece e a conta dele passa dos R$12
+    await pageB.click('#btn-peers'); await visible(pageB, 'overlay-peers');
+    await pageB.evaluate(() => {
+      const row = [...document.querySelectorAll('#peers-list .peer-row')].find((r) => /Andre/i.test(r.textContent));
+      row.querySelector('.peer-main').click();
+    });
+    await visible(pageB, 'overlay-comanda');
+    await pageB.waitForFunction(() => {
+      const tot = document.getElementById('comanda-total');
+      return tot && tot.textContent.includes('R$32,00'); // 12 (garrafa) + 20 (2 chopps da rodada)
     }, null, { timeout: T });
     await closeAll(pageB);
   });

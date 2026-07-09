@@ -72,6 +72,11 @@ async function main() {
       return all['bar do ze'] ? all['bar do ze'].defs.length : 0;
     });
     if (n !== 2) throw new Error('esperava 2 itens salvos pro boteco "bar do ze", veio ' + n);
+    // A CRIOU a mesa (não aprendeu de ninguém) → toast genérico "guardado", nunca o "conhece"
+    await pageA.waitForFunction(() => { const el = document.getElementById('toast'); return el && !el.hidden && /guardado/i.test(el.textContent); }, null, { timeout: T });
+    if (await pageA.evaluate(() => /conhece o cardápio/i.test(document.getElementById('toast').textContent))) {
+      throw new Error('quem CRIOU a mesa não deveria "aprender" o cardápio');
+    }
   });
 
   // 2º rolê: nova mesa, mesmo boteco (check-in ainda fresco). Bia entra antes de A carregar.
@@ -104,6 +109,21 @@ async function main() {
     // a mesa "colou" o boteco: o título vira "Bar do Zé" nos dois (evento TABLE)
     await Promise.all([pageA, pageB].map((p) => p.waitForFunction(
       () => document.getElementById('table-title')?.textContent.trim() === 'Bar do Zé', null, { timeout: T })));
+  });
+
+  await step('#3 efeito de rede: a Bia ENTROU na mesa → ao sair, "você conhece o cardápio do Bar do Zé"', async () => {
+    await pageB.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+    await pageB.click('#btn-leave');
+    await pageB.click('#toast .toast-action'); // sair pede confirmação
+    await pageB.waitForSelector('#screen-home.is-active', { timeout: T });
+    // Bia não hospedou nada — aprendeu o cardápio pela sincronização → toast de rede
+    await pageB.waitForFunction(() => {
+      const el = document.getElementById('toast');
+      return el && !el.hidden && /conhece o cardápio/i.test(el.textContent) && /Bar do Z/.test(el.textContent);
+    }, null, { timeout: T });
+    // e o cardápio aprendido ficou salvo no aparelho DELA (2 itens) pra recarregar quando voltar
+    const n = await pageB.evaluate(() => { const all = JSON.parse(localStorage.getItem('botequei.botecomenu') || '{}'); return all['bar do ze'] ? all['bar do ze'].defs.length : 0; });
+    if (n !== 2) throw new Error('a Bia devia ter aprendido 2 itens do Bar do Zé, veio ' + n);
   });
 
   await browser.close();

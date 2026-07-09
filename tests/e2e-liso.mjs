@@ -166,6 +166,14 @@ async function main() {
       await Promise.all([A, B].map((p) => p.waitForFunction(() => document.getElementById('table-total')?.textContent.trim() === '2', null, { timeout: T })));
     });
 
+    await step('Brinde virou reação: o chip saiu da barra e 🍻 no "Reagir" dispara o brinde de verdade', async () => {
+      if (await A.evaluate(() => !!document.getElementById('btn-brinde'))) throw new Error('o chip "Brinde" deveria ter saído da barra');
+      await A.click('#btn-react');
+      await A.waitForFunction(() => !document.getElementById('overlay-react').hidden, null, { timeout: T });
+      await A.click('#react-row button[data-e="🍻"]');
+      await A.waitForFunction(() => { const b = document.getElementById('brinde'); return b && !b.hidden; }, null, { timeout: T });
+    });
+
     await cA.close(); await cB.close();
   }
 

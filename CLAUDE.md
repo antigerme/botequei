@@ -366,6 +366,12 @@ padrão Auto segue o navegador).
   `color-scheme` acompanham o tema). Toast é `role=status` (leitor de tela anuncia); alvos têm
   `touch-action: manipulation`; números-herói usam `min(Xrem, Yvw)` pra escalar sem estourar.
   "Fonte grande" escala a RAIZ (`html.bigfont`) — não estilize tamanho por elemento pra ela.
+  **Sheets têm alcinha + arrastar-pra-fechar** (`setupSheetSwipe` no `ui.js` cria a `.sheet-grab`
+  em todo sheet — JOGOS ficam fora via `NO_SWIPE`: o ✕ deles minimiza; desktop ≥900px esconde).
+  **Liga/desliga de efeito imediato é SWITCH** (`role="switch"` no checkbox + pele `.check
+  input[role="switch"]`); escolha de formulário/seleção segue checkbox (ex.: "da mesa" no ➕).
+  **Todo input visível tem rótulo** (label associado ou aria) — o e2e-a11y varre e TRAVA no CI;
+  placeholder é só exemplo ("ex: …"), nunca o rótulo.
 - **i18n total e sempre em paridade**: TODA string de UI (shell, toasts, templates, aria) nasce
   no dicionário de `js/i18n.js` nas **três** línguas via `t(chave, vars)` — a auditoria
   (`tests/audit.mjs`, roda no CI) falha se alguma língua ficar de fora ou sobrar chave. Conteúdo

@@ -261,6 +261,14 @@ body::after {
   border: 1px solid var(--line); color: var(--cream); width: 48px; height: 48px; border-radius: 50%; font-size: var(--fs-body); cursor: pointer; }
 .sheet-actions { display: flex; gap: 10px; margin-top: 18px; }
 .sheet-actions .btn { flex: 1; }
+/* Alcinha (grabber) + faixa de arrasto no topo do sheet: arrastar pra baixo FECHA (mesmo
+   caminho do ✕/ESC/voltar/scrim). Criada via JS (ui.setupSheetSwipe) — jogos ficam de fora
+   (o ✕ deles MINIMIZA, com bookkeeping próprio). A faixa fica ABAIXO do ✕ (z 4 < 5). */
+.sheet-grab { position: absolute; top: 0; left: 0; right: 0; height: 36px; z-index: 4;
+  touch-action: none; cursor: grab; }
+.sheet-grab::after { content: ""; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  width: 44px; height: 5px; border-radius: var(--r-full); background: var(--chalk-line); }
+@media (min-width: 900px) { .sheet-grab { display: none; } } /* desktop: diálogo central, sem alcinha */
 
 .qr-wrap { display: flex; justify-content: center; padding: 10px; background: #fff; border-radius: var(--r-xl); margin: 4px auto 14px; width: fit-content; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
 .qr-wrap svg, .qr-wrap canvas { display: block; width: 220px; height: 220px; }
@@ -388,6 +396,17 @@ html.bigfont { font-size: 120%; }
 .swatch.sel { border-color: var(--cream); }
 .check { display: flex; align-items: center; gap: 10px; margin: 12px 0; font-size: var(--fs-base); color: var(--cream); cursor: pointer; }
 .check input { width: 22px; height: 22px; accent-color: var(--gold); }
+/* Switch (convenção M3/HIG pra liga/desliga de efeito imediato): o MESMO checkbox, com
+   role="switch" no markup e pele de trilho+bolinha. Checkbox "de verdade" continua sendo
+   checkbox (escolha de formulário/seleção de lista — ex.: "da mesa" no ➕, quem entra na conta). */
+.check input[role="switch"] { appearance: none; -webkit-appearance: none; width: 46px; height: 28px;
+  border-radius: var(--r-full); background: var(--card); border: 1.5px solid var(--line); margin: 0;
+  position: relative; flex: none; cursor: pointer; transition: background var(--t-fade) ease, border-color var(--t-fade) ease; }
+.check input[role="switch"]::after { content: ""; position: absolute; top: 3px; left: 3px; width: 19px; height: 19px;
+  border-radius: 50%; background: var(--muted); transition: transform var(--t-fade) ease, background var(--t-fade) ease; }
+.check input[role="switch"]:checked { background: var(--gold); border-color: var(--gold); }
+.check input[role="switch"]:checked::after { transform: translateX(18px); background: var(--on-gold); }
+@media (prefers-reduced-motion: reduce) { .check input[role="switch"], .check input[role="switch"]::after { transition: none; } }
 
 /* Placar */
 .mvp { background: linear-gradient(180deg, rgba(244,177,60,.16), rgba(255,255,255,.02)); border: 2px dashed var(--gold);
@@ -714,7 +733,8 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
 /* Gerenciar cardápio salvo (na ficha do boteco): renomear o lugar / apagar o cardápio */
 .boteco-manage { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .boteco-manage .btn { flex: 1; min-width: 140px; font-size: var(--fs-m); }
-.boteco-rename-box { display: flex; gap: 8px; margin-top: 10px; }
+.boteco-rename-box { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.boteco-rename-box .field-lbl { flex: 1 1 100%; margin: 0; }
 .boteco-rename-box input { flex: 1; min-width: 0; }
 .boteco-rename-box .btn { flex: none; }
 

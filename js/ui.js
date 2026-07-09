@@ -890,11 +890,19 @@ function resolveTheme(s) {
   return ['dark', 'light', 'neon', 'retro'].includes(th) ? th : 'light';
 }
 export function themeIsLight(s) { return resolveTheme(s) === 'light'; }
+// Cor da moldura do navegador/status bar POR TEMA (a meta estática do index é só o pré-JS).
+// Espelha a cor sólida de segurança do body de cada tema — mudou lá, mude aqui.
+const THEME_CHROME = { dark: '#0b0e07', light: '#ece0c7', neon: '#060418', retro: '#1a0f06' };
 export function applyTheme(s) {
   const th = resolveTheme(s);
   document.body.classList.remove('light', 'neon', 'retro');
   if (th !== 'dark') document.body.classList.add(th);
-  document.body.classList.toggle('bigfont', !!s.bigFont);
+  // fonte grande escala a RAIZ (rem): tudo cresce junto, somando com a fonte do sistema
+  document.documentElement.classList.toggle('bigfont', !!s.bigFont);
+  // plataforma acompanha o tema: status bar/chrome (theme-color) e controles nativos (color-scheme)
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', THEME_CHROME[th] || THEME_CHROME.dark);
+  document.documentElement.style.colorScheme = th === 'light' ? 'light' : 'dark';
 }
 // Idioma: aplica o dicionário no shell (elementos com data-i18n).
 export function applyLang(pref) { setLang(pref); applyI18n(); }

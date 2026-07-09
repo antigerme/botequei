@@ -93,7 +93,8 @@ padrão Auto segue o navegador).
   purrinha) levam `mid` e são **repassados com dedup** (gossip via `gameFx`/`seenFx`) pra toda
   jogada chegar em todos mesmo se a malha não estiver completa (4 pessoas = 6 links); os demais
   (reações etc.) são disparo único. Tipos: brinde, reação, **cerimônia** (mostrar troféus
-  pra mesa) e **chamar o garçom** (`waiter`, opcionalmente com `item`+`n` da rodada paga). Nada
+  pra mesa), **chamar o garçom** (`waiter`, opcionalmente com `item`+`n` da rodada paga) e
+  **tchau** (`bye` — o botão sair anuncia a saída; é a ÚNICA fonte do toast "👋 saiu"). Nada
   disso persiste. O **Brinde não tem chip próprio na barra**: o 🍻 dentro de "Reagir" (`openReact`)
   dispara o brinde de verdade (3‑2‑1 na tela de todos) — ação óbvia > botão extra.
 - **Purrinha (jogo P2P honesto)** (`js/purrinha.js`, puro): sem "banca" central, cada um esconde a
@@ -190,12 +191,16 @@ padrão Auto segue o navegador).
 - **Mãos livres (puro)**: `devicemotion` soma +1 ao chacoalhar o celular (settings `shake`).
 - **Clima**: `js/music.js` (trilha lo-fi **procedural** via WebAudio, sem arquivo — igual
   ao `sound.js` — + `spectrum()` pro visualizador do "modo festa").
-- **Presença ao vivo**: `render()` desenha a barra de avatares (self + peers, `mesh.peers()`);
-  `onMeshChange` faz o diff de quem entrou/saiu com **histerese** (`diffPresence`): quem some entra
-  em 45s de graça (fica 💤 esmaecido na barra, sem toast) — tela apagada/elevador não vira "saiu";
-  só depois da graça toasta "👋 saiu" (e "🙌 voltou" na volta); "entrou!" só na 1ª vez da sessão.
-  O placar mostra a qualidade da conexão por pessoa (host/srflx/relay). Tocar num nome no placar
-  abre a **comanda** daquela pessoa.
+- **Presença ao vivo (serena)**: `render()` desenha a barra de avatares (self + peers,
+  `mesh.peers()`); queda de conexão **NUNCA vira toast** — quem cai fica 💤 esmaecido na barra pelo
+  tempo que for (tela apagada/elevador não é "saiu") e a volta é silenciosa; **"👋 saiu" só existe
+  no tchau EXPLÍCITO**: o botão sair manda o fx `bye` antes do `mesh.close()` e o `receiveBye`
+  toasta e tira a pessoa da barra (presença é MOSTRADA, não anunciada — padrão Docs/Figma);
+  "entrou!" só na 1ª vez da sessão. **Tela acesa na mesa**: Screen Wake Lock segura a tela
+  enquanto a mesa está aberta (`settings.keepAwake`, ligado de fábrica; switch nas configs) —
+  `acquireWakeLock` no entrar/`visibilitychange` (o sistema solta sozinho ao esconder a aba),
+  release no sair/switch; sem suporte, falha em silêncio. O placar mostra a qualidade da conexão
+  por pessoa (host/srflx/relay). Tocar num nome no placar abre a **comanda** daquela pessoa.
 - **Cardápio por categoria**: `catalog.js` (`cat` + `CATEGORIES`/`catOf`); itens custom levam
   `cat`/`note` no def do evento `ITEM` (⚠️ ao editar preço, faça `makeItem({...it, price})` pra
   não perder `g`/`cat`/`note`/`share`). **Itens compartilhados** (`share:1` — garrafa 600

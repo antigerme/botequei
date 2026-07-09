@@ -5,6 +5,7 @@ const DEFAULTS = {
   theme: 'light',    // padrão de fábrica: claro (kraft). 'auto' segue o sistema; o resto é escolha manual — o fim do tour pergunta a preferência
   bigFont: false,    // acessibilidade
   sound: true,       // efeitos sonoros
+  keepAwake: true,   // na mesa, segura a tela acesa (Wake Lock) — celular apagando = presença "piscando"
   pixKey: '',        // chave PIX do recebedor (pra dividir a conta)
   pixCity: '',       // cidade do recebedor (BR Code)
   tipPct: 10,        // gorjeta padrão na hora de fechar a conta

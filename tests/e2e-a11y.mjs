@@ -85,6 +85,55 @@ async function main() {
     if (ta !== 'manipulation') throw new Error('btn-rodada touch-action=' + ta);
   });
 
+  await step('sheet: arrastar a alcinha pra baixo FECHA; puxãozinho volta (snap)', async () => {
+    await p.click('#btn-menu'); await visible('overlay-menu');
+    const g = await p.evaluate(() => { const r = document.querySelector('#overlay-menu .sheet-grab').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 12 }; });
+    // puxão curto (40px): NÃO fecha, volta pro lugar
+    await p.mouse.move(g.x, g.y); await p.mouse.down(); await p.mouse.move(g.x, g.y + 40, { steps: 4 }); await p.mouse.up();
+    await p.waitForTimeout(400);
+    const stillOpen = await p.evaluate(() => !document.getElementById('overlay-menu').hidden);
+    if (!stillOpen) throw new Error('puxãozinho de 40px não deveria fechar o sheet');
+    // puxão de verdade (200px): fecha (mesmo caminho do ✕/ESC/scrim)
+    await p.mouse.move(g.x, g.y); await p.mouse.down(); await p.mouse.move(g.x, g.y + 200, { steps: 8 }); await p.mouse.up();
+    await p.waitForFunction(() => document.getElementById('overlay-menu').hidden, null, { timeout: T });
+  });
+
+  await step('jogos NÃO têm alcinha de arrasto (✕ deles minimiza, não fecha)', async () => {
+    const hasGrab = await p.evaluate(() =>
+      ['overlay-domino', 'overlay-purrinha', 'overlay-truco'].some((id) => document.querySelector(`#${id} .sheet-grab`)));
+    if (hasGrab) throw new Error('jogo com faixa de arrasto — puxão sem querer fecharia a partida');
+  });
+
+  await step('toggles de estado são SWITCHES (role=switch + trilho); checkbox de formulário segue checkbox', async () => {
+    const sw = await p.evaluate(() => {
+      const el = document.getElementById('set-sound');
+      const cs = getComputedStyle(el);
+      return { role: el.getAttribute('role'), w: parseFloat(cs.width), appearance: cs.appearance };
+    });
+    if (sw.role !== 'switch' || sw.w < 40 || sw.appearance !== 'none') throw new Error('set-sound não virou switch: ' + JSON.stringify(sw));
+    const cb = await p.evaluate(() => document.getElementById('add-share').getAttribute('role'));
+    if (cb === 'switch') throw new Error('add-share é escolha de formulário — devia seguir checkbox');
+  });
+
+  await step('todo input de texto visível tem RÓTULO (label associado ou aria) — trava pro futuro', async () => {
+    const missing = await p.evaluate(() => {
+      const out = [];
+      document.querySelectorAll('input, textarea, select').forEach((el) => {
+        const type = (el.getAttribute('type') || 'text').toLowerCase();
+        if (['hidden', 'file', 'checkbox', 'radio'].includes(type)) return; // checkbox/radio vivem em label.check
+        if (el.readOnly) return; // caixas de código copia-e-cola são SAÍDA, não campo
+        const wrap = el.closest('label');
+        const okWrap = wrap && wrap.textContent.trim().length > 0;
+        const forLbl = el.id && document.querySelector(`label[for="${el.id}"]`);
+        const okFor = forLbl && forLbl.textContent.trim().length > 0;
+        const okAria = (el.getAttribute('aria-label') || '').trim().length > 0;
+        if (!okWrap && !okFor && !okAria) out.push(el.id || el.name || el.className);
+      });
+      return out;
+    });
+    if (missing.length) throw new Error('inputs sem rótulo: ' + missing.join(', '));
+  });
+
   await step('tema claro pinta a plataforma: meta theme-color + color-scheme acompanham', async () => {
     await p.click('#btn-menu'); await visible('overlay-menu');
     await p.click('#menu-settings'); await visible('overlay-settings');

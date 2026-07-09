@@ -38,10 +38,13 @@
         <span class="btn-emoji">➕</span> <span data-i18n="create">Criar mesa</span>
       </button>
 
-      <div class="join-row">
-        <input id="input-code" type="text" inputmode="text" maxlength="8"
-               placeholder="código" class="code-input" autocapitalize="characters" data-i18n-ph="code.ph" />
-        <button class="btn btn-ghost" id="btn-join-code" data-i18n="join">Entrar</button>
+      <div class="field">
+        <label for="input-code" data-i18n="join.label">Ou entre com o código da mesa</label>
+        <div class="join-row">
+          <input id="input-code" type="text" inputmode="text" maxlength="8"
+                 placeholder="ex: 7XQF" class="code-input" autocapitalize="characters" data-i18n-ph="code.ph" />
+          <button class="btn btn-ghost" id="btn-join-code" data-i18n="join">Entrar</button>
+        </div>
       </div>
 
       <button class="btn btn-ghost btn-offline" id="btn-offline-join" data-i18n="offline">📴 Entrar sem internet</button>
@@ -238,7 +241,7 @@
     </div>
     <p class="hint" data-i18n="prof.photoHint">A foto vira uma miniatura, fica no seu aparelho e só quem está na mesa vê. Tocar num emoji volta pro emoji.</p>
     <input id="avatar-file" type="file" accept="image/*" hidden />
-    <label class="check"><input type="checkbox" id="profile-driver" />
+    <label class="check"><input type="checkbox" role="switch" id="profile-driver" />
       <span data-i18n="prof.driver">🚗 Sou o motorista da rodada (não bebo)</span></label>
     <div class="sheet-actions">
       <button class="btn btn-primary btn-lg" id="btn-profile-save" data-i18n="prof.save">Salvar</button>
@@ -253,7 +256,7 @@
     <h2 data-i18n="crop.title">Enquadre sua foto</h2>
     <p class="hint" data-i18n="crop.hint">Arraste pra posicionar · pinça ou slider pro zoom</p>
     <div class="crop-wrap"><canvas id="crop-canvas" width="280" height="280"></canvas></div>
-    <input id="crop-zoom" type="range" min="100" max="300" value="100" aria-label="zoom" />
+    <input id="crop-zoom" type="range" min="100" max="300" value="100" aria-label="zoom da foto" data-i18n-aria="crop.zoomAria" />
     <div class="sheet-actions">
       <button class="btn btn-ghost" data-close data-i18n="crop.cancel">Cancelar</button>
       <button class="btn btn-primary" id="btn-crop-use" data-i18n="crop.use">Usar essa</button>
@@ -311,11 +314,11 @@
       </div>
       <label class="field field-inline"><span data-i18n="bill.couvert">Couvert p/ pessoa</span>
         <input id="bill-couvert" type="number" inputmode="decimal" min="0" step="1" placeholder="0" /></label>
-      <label class="check"><input type="checkbox" id="bill-equal" /><span data-i18n="bill.equal">Rachar igual (marque quem entra)</span></label>
+      <label class="check"><input type="checkbox" role="switch" id="bill-equal" /><span data-i18n="bill.equal">Rachar igual (marque quem entra)</span></label>
     </div>
     <div class="bill-pool" id="bill-pool" hidden>
       <span id="bill-pool-line"></span>
-      <label class="check" id="bill-shareall-wrap" hidden><input type="checkbox" id="bill-shareall" /><span data-i18n="bill.shareAll">Motorista entra no rateio da mesa</span></label>
+      <label class="check" id="bill-shareall-wrap" hidden><input type="checkbox" role="switch" id="bill-shareall" /><span data-i18n="bill.shareAll">Motorista entra no rateio da mesa</span></label>
     </div>
     <ul class="bill-list" id="bill-list"></ul>
     <div class="bill-total" id="bill-total"></div>
@@ -369,10 +372,10 @@
         <option value="es">Español</option>
         <option value="auto" data-i18n="set.themeAuto">Auto</option>
       </select></label>
-    <label class="check"><input type="checkbox" id="set-bigfont" /><span data-i18n="set.bigfont">🔎 Fonte grande</span></label>
+    <label class="check"><input type="checkbox" role="switch" id="set-bigfont" /><span data-i18n="set.bigfont">🔎 Fonte grande</span></label>
     <p class="menu-sec">🔊 Som &amp; vibração</p>
-    <label class="check"><input type="checkbox" id="set-sound" /><span data-i18n="set.sound">🔊 Sons</span></label>
-    <label class="check"><input type="checkbox" id="set-shake" /><span data-i18n="set.shake">📳 Chacoalhar o celular pra +1 (mãos livres)</span></label>
+    <label class="check"><input type="checkbox" role="switch" id="set-sound" /><span data-i18n="set.sound">🔊 Sons</span></label>
+    <label class="check"><input type="checkbox" role="switch" id="set-shake" /><span data-i18n="set.shake">📳 Chacoalhar o celular pra +1 (mãos livres)</span></label>
     <p class="menu-sec" data-i18n="set.secPix">💸 PIX pra dividir</p>
     <label class="field"><span data-i18n="set.pixKey">Sua chave PIX</span>
       <input id="set-pixkey" type="text" maxlength="77" placeholder="email, telefone, CPF ou aleatória" data-i18n-ph="set.pixKeyPh" /></label>
@@ -466,7 +469,7 @@
       <div class="sheet-actions">
         <button class="btn btn-primary" id="btn-off-scan-answer" data-i18n="off.scanAnswerBtn">📷 Escanear resposta</button>
       </div>
-      <textarea class="code-box" id="off-answer-in" rows="2" placeholder="ou cole a resposta aqui" data-i18n-ph="off.pasteAnswerPh"></textarea>
+      <textarea class="code-box" id="off-answer-in" rows="2" placeholder="ou cole a resposta aqui" data-i18n-ph="off.pasteAnswerPh" aria-label="ou cole a resposta aqui" data-i18n-aria="off.pasteAnswerPh"></textarea>
       <button class="btn btn-primary btn-lg" id="btn-off-connect" data-i18n="off.connect">Conectar 🍻</button>
     </div>
 
@@ -476,7 +479,7 @@
       <div class="sheet-actions">
         <button class="btn btn-primary" id="btn-off-scan-offer" data-i18n="off.scanOfferBtn">📷 Escanear convite</button>
       </div>
-      <textarea class="code-box" id="off-offer-in" rows="2" placeholder="ou cole o convite aqui" data-i18n-ph="off.pasteOfferPh"></textarea>
+      <textarea class="code-box" id="off-offer-in" rows="2" placeholder="ou cole o convite aqui" data-i18n-ph="off.pasteOfferPh" aria-label="ou cole o convite aqui" data-i18n-aria="off.pasteOfferPh"></textarea>
       <button class="btn btn-primary btn-lg" id="btn-off-genanswer" data-i18n="off.genAnswer">Gerar resposta</button>
       <div id="off-answer-out" hidden>
         <p class="lbl" data-i18n="off.guest2">2 · Mostre esta resposta de volta (QR ou código):</p>
@@ -578,9 +581,12 @@
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="jbx.title">🎵 Jukebox da mesa</h2>
     <p class="sheet-sub" data-i18n="jbx.sub">Peça a próxima — a fila aparece pra todo mundo. Toca abrindo no seu app de música.</p>
-    <div class="join-row">
-      <input id="jukebox-input" type="text" maxlength="60" placeholder="música / artista" data-i18n-ph="jbx.ph" class="code-input" />
-      <button class="btn btn-primary" id="btn-jukebox-add" data-i18n="jbx.add">Pedir</button>
+    <div class="field">
+      <label for="jukebox-input" data-i18n="jbx.label">Música ou artista</label>
+      <div class="join-row">
+        <input id="jukebox-input" type="text" maxlength="60" placeholder="ex: Evidências" data-i18n-ph="jbx.ph" class="code-input" />
+        <button class="btn btn-primary" id="btn-jukebox-add" data-i18n="jbx.add">Pedir</button>
+      </div>
     </div>
     <ul class="jukebox-list" id="jukebox-list"></ul>
   </div>
@@ -705,7 +711,8 @@
       <button class="btn btn-ghost" id="btn-boteco-del" data-i18n="boteco.del" hidden>🗑️ Apagar cardápio</button>
     </div>
     <div class="boteco-rename-box" id="boteco-rename-box" hidden>
-      <input type="text" id="boteco-rename" maxlength="40" data-i18n-ph="boteco.renamePh" placeholder="Novo nome do lugar">
+      <label class="field-lbl" for="boteco-rename" data-i18n="boteco.renameLbl">Novo nome do lugar</label>
+      <input type="text" id="boteco-rename" maxlength="40" data-i18n-ph="boteco.renamePh" placeholder="ex: Bar do João">
       <button class="btn btn-primary" id="btn-boteco-rename-go" data-i18n="boteco.renameGo">✓ Salvar</button>
     </div>
   </div>

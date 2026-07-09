@@ -338,6 +338,7 @@ export function init(handlers) {
   window.addEventListener('orientationchange', domRefit);
 
   setupA11y();
+  setupSheetSwipe();
 }
 
 // ---------- Acessibilidade: diálogos, ESC, armadilha de foco ----------
@@ -398,6 +399,49 @@ function setupA11y() {
   });
 }
 function hashStr(s) { let h = 0; for (let i = 0; i < String(s).length; i++) h = (h * 31 + String(s).charCodeAt(i)) | 0; return h; }
+
+// Alcinha + arrastar-pra-fechar dos sheets (padrão de bottom sheet do Android/iOS).
+// A faixa de arrasto é criada AQUI (um elemento por sheet — sem varrer 30 overlays no HTML).
+// Fora: os JOGOS (✕ deles minimiza com bookkeeping próprio — um puxão sem querer não pode
+// fechar a partida) e o desktop ≥900px (sheet vira diálogo central; o CSS esconde a alcinha).
+const NO_SWIPE = new Set(['overlay-domino', 'overlay-purrinha', 'overlay-truco']);
+function setupSheetSwipe() {
+  document.querySelectorAll('.overlay').forEach((ov) => {
+    if (NO_SWIPE.has(ov.id)) return;
+    const sheet = ov.querySelector('.sheet');
+    if (!sheet) return;
+    const grab = document.createElement('div');
+    grab.className = 'sheet-grab';
+    grab.setAttribute('aria-hidden', 'true'); // decorativa: o ✕ segue sendo o fechar acessível
+    sheet.prepend(grab);
+    let startY = 0, dragging = false;
+    grab.addEventListener('pointerdown', (e) => {
+      if (window.matchMedia('(min-width: 900px)').matches) return;
+      dragging = true; startY = e.clientY; sheet.style.transition = 'none';
+      try { grab.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    });
+    grab.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dy = Math.max(0, e.clientY - startY);
+      sheet.style.transform = dy ? `translateY(${dy}px)` : '';
+    });
+    const end = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      const dy = Math.max(0, (e.clientY || 0) - startY);
+      sheet.style.transition = '';
+      if (dy > 96) { sheet.style.transform = ''; closeOverlays(); }         // puxou de verdade → fecha
+      else if (dy) {                                                        // puxãozinho → volta
+        if (reducedMotion()) { sheet.style.transform = ''; return; }
+        sheet.style.transition = 'transform var(--t-rise) var(--ease-spring)';
+        sheet.style.transform = '';
+        setTimeout(() => { sheet.style.transition = ''; }, 320);
+      }
+    };
+    grab.addEventListener('pointerup', end);
+    grab.addEventListener('pointercancel', end);
+  });
+}
 export function reducedMotion() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } }
 
 export function showScreen(name) {

@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, itemTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs, paidCount, coveredCount } from '../js/events.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, itemTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs, paidCount, coveredCount, roundTargetIds } from '../js/events.js';
 import { badgesFor, mvp, ceremonyAwards } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
@@ -166,6 +166,31 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.strictEqual(userTotal(s2, 'a', resolve), 0, 'share não vira consumo pessoal');
   assert.strictEqual(sharePool(s2, resolve).total, 0, 'com dono sai do bolo');
   ok('rodada paga (mesa): item compartilhado pago não muda (covered não interfere)');
+}
+
+// ---------- Rodada: quem recebe (escopo do jogo × mesa; bot fora; motorista se alcoólico) ----------
+{
+  const isBot = (id) => id.startsWith('bot-');
+  const drivers = new Set(['mari']);
+  const isDriver = (id) => drivers.has(id);
+
+  // sem scope → a mesa (tableIds); com scope (jogadores) → ignora a mesa toda
+  assert.deepStrictEqual(roundTargetIds(null, ['a', 'b'], { isBot }).sort(), ['a', 'b']);
+  assert.deepStrictEqual(roundTargetIds(['a', 'b'], ['a', 'b', 'c', 'd'], { isBot }).sort(), ['a', 'b']);
+  ok('rodada: scope do jogo paga só pros jogadores (sem scope = mesa online)');
+
+  // bot nunca bebe → sai do alvo mesmo dentro do jogo
+  assert.deepStrictEqual(roundTargetIds(['a', 'bot-ze'], null, { isBot }), ['a']);
+  ok('rodada: bot fica fora (não bebe, não entra em conta)');
+
+  // motorista: fora só se o item for alcoólico; refri/água inclui todo mundo
+  assert.deepStrictEqual(roundTargetIds(['a', 'mari'], null, { isBot, isDriver, alcoholic: true }), ['a']);
+  assert.deepStrictEqual(roundTargetIds(['a', 'mari'], null, { isBot, isDriver, alcoholic: false }).sort(), ['a', 'mari']);
+  ok('rodada: motorista fora se alcoólico, dentro se for sem álcool');
+
+  // dedup (id repetido não vira duas cervejas)
+  assert.deepStrictEqual(roundTargetIds(['a', 'a', 'b'], null, { isBot }).sort(), ['a', 'b']);
+  ok('rodada: alvos deduplicados');
 }
 
 // ---------- Foto de perfil (miniatura no PROFILE, validada) ----------

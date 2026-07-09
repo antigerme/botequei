@@ -243,6 +243,8 @@ async function main() {
     await Promise.all([pageA, pageB].map((p) => p.waitForFunction(
       () => document.querySelector('.item-card[data-item="x-chopp"] .item-qty')?.textContent.trim() === '3',
       null, { timeout: T })));
+    // 🔔 pagar rodada CHAMA o garçom dizendo item + quantos: a Bia vê "André pediu: 2× Chopp"
+    await pageB.waitForFunction(() => { const el = document.getElementById('toast'); return el && !el.hidden && /pediu/i.test(el.textContent) && /Chopp/.test(el.textContent); }, null, { timeout: T });
     // comanda da Bia: bebeu 2 chopps (×2), mas 1 foi coberto → paga SÓ 1×10 (nunca 20), com a nota
     await closeAll(pageB);
     await pageB.click('#btn-peers'); await visible(pageB, 'overlay-peers');

@@ -251,6 +251,18 @@ export function sharePool(state, resolveItem) {
   return { total, lines };
 }
 
+// Quem RECEBE uma rodada de item PESSOAL. `scope` (não-vazio) = os jogadores do jogo
+// (perdeu no jogo → paga só pra quem estava jogando); vazio/ausente → a mesa (`tableIds`).
+// Bot nunca bebe (isBot); motorista fica de fora se o item for alcoólico. Irmão do shareSplit
+// (quem entra no rateio) — puro/injeta as verificações pra ser testável sem DOM/mesh.
+export function roundTargetIds(scope, tableIds, { alcoholic = false, isBot, isDriver } = {}) {
+  const base = (Array.isArray(scope) && scope.length) ? scope : (Array.isArray(tableIds) ? tableIds : []);
+  let ids = [...new Set(base)];
+  if (typeof isBot === 'function') ids = ids.filter((id) => !isBot(id));
+  if (alcoholic && typeof isDriver === 'function') ids = ids.filter((id) => !isDriver(id));
+  return ids;
+}
+
 // Quem entra no rateio do bolo da mesa. Padrão de boteco: motorista não paga a
 // cerveja que não bebeu (fica fora); `shareAll` liga "todo mundo entra". Se só
 // sobrou motorista na conta, o fallback racha entre todos (ninguém bebe de graça).

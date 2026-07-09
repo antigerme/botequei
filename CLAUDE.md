@@ -90,7 +90,9 @@ padrão Auto segue o navegador).
   purrinha) levam `mid` e são **repassados com dedup** (gossip via `gameFx`/`seenFx`) pra toda
   jogada chegar em todos mesmo se a malha não estiver completa (4 pessoas = 6 links); os demais
   (reações etc.) são disparo único. Tipos: brinde, reação, **cerimônia** (mostrar troféus
-  pra mesa) e **chamar o garçom** (`waiter`). Nada disso persiste.
+  pra mesa) e **chamar o garçom** (`waiter`, opcionalmente com `item`+`n` da rodada paga). Nada
+  disso persiste. O **Brinde não tem chip próprio na barra**: o 🍻 dentro de "Reagir" (`openReact`)
+  dispara o brinde de verdade (3‑2‑1 na tela de todos) — ação óbvia > botão extra.
 - **Purrinha (jogo P2P honesto)** (`js/purrinha.js`, puro): sem "banca" central, cada um esconde a
   mão. **Três modos**, escolhidos por quem inicia (tela "como quer jogar?"): **por palitos (3-2-1)**
   — cada um começa com 3 palitos (estoque **público**; mão ≤ estoque, teto do palpite = soma dos
@@ -209,7 +211,13 @@ padrão Auto segue o navegador).
   cada online ganha +1 no CONSUMO, mas o dinheiro é TODO do pagador — o reducer guarda um mapa
   **`covered`** (`user\x00item` → unidades que OUTRO pagou) e o `userMoney` DESCONTA o covered do
   consumidor (bebeu, não paga; `coveredCount` mostra "na conta de quem pagou" na comanda). `payer`
-  entra no ADD de cada um (motorista pulado). Item da mesa segue como a garrafa com dono. **SEM contagem de copo** — contar copo é mesquinharia
+  entra no ADD de cada um (motorista pulado). Item da mesa segue como a garrafa com dono. **Escopo
+  do jogo**: pagar rodada vindo de um JOGO paga só pros JOGADORES, não a mesa toda — `offerLoserPay`
+  leva os ids do jogo (`purr.entrants`/`dom.order`/`truco.order`) e `roundTargets(def, scope)` os usa
+  (bot fora, que não bebe; motorista fora se alcoólico). O núcleo é `roundTargetIds` (puro no
+  `events.js`, irmão do `shareSplit`, testado). Do MENU (sem jogo) segue a mesa online. **Chamar o
+  garçom** sai sozinho ao 💸 PAGAR a rodada (fx `waiter` com `item`+`n` → "🔔 fulano pediu: 2× Chopp"
+  na mesa toda; efêmero, higiene P2P no `receiveWaiter`). **SEM contagem de copo** — contar copo é mesquinharia
   (decisão de produto): o card compartilhado é só o contador DA MESA; consumo pessoal vem só
   de item individual. O item `copo` (`cup:1`) segue no catálogo APENAS por compat de mesas
   antigas (nada o emite; `isCup` filtra de cards/rodada/editor; `tableTotal` segue excluindo

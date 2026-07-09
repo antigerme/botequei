@@ -44,7 +44,7 @@ const IDS = [
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'menu-empty', 'btn-empty-custom', 'btn-empty-boteco',
-  'btn-brinde', 'btn-react', 'btn-rodada', 'btn-games', 'overlay-games', 'games-grid',
+  'btn-react', 'btn-rodada', 'btn-games', 'overlay-games', 'games-grid',
   'overlay-round', 'round-grid',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
@@ -183,7 +183,6 @@ export function init(handlers) {
   $('btn-additem').addEventListener('click', () => openAddItem());      // "+ item" da mesa montada
   $('btn-empty-custom').addEventListener('click', () => openAddItem()); // mesa limpa: mesmo overlay, catálogo primeiro
   $('btn-empty-boteco').addEventListener('click', () => H.onLoadBoteco()); // recarrega o cardápio salvo do boteco
-  $('btn-brinde').addEventListener('click', () => H.onBrinde());
   $('btn-react').addEventListener('click', () => openReact());
   $('btn-rodada').addEventListener('click', () => H.onRodada());
 
@@ -905,8 +904,13 @@ function frameClass(level) { level = Number(level) || 0; return level >= 5 ? 'fr
 // ---------- Reações ----------
 const REACTIONS = ['🍻', '🔥', '👏', '😂', '❤️', '🤢', '🎉', '🥴'];
 function openReact() {
-  el['react-row'].innerHTML = REACTIONS.map((e) => `<button data-e="${e}">${e}</button>`).join('');
-  el['react-row'].querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { H.onReact(b.dataset.e); closeOverlays(); }));
+  // o 🍻 aqui é o BRINDE de verdade (3‑2‑1 na tela de todos), não um emoji solto — o chip "Brinde"
+  // saiu da barra e virou esta reação (ação óbvia > botão extra).
+  el['react-row'].innerHTML = REACTIONS.map((e) => `<button data-e="${e}"${e === '🍻' ? ` title="${esc(t('chip.brinde'))}"` : ''}>${e}</button>`).join('');
+  el['react-row'].querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.e === '🍻') H.onBrinde(); else H.onReact(b.dataset.e);
+    closeOverlays();
+  }));
   el['overlay-react'].hidden = false;
 }
 

@@ -34,7 +34,7 @@ import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar, catOf, isShare, i
 import {
   emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor, makeSong,
   getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver, happyHour,
-  paysFor, payerOf, songs, sharePool, shareSplit, paidCount, coveredCount,
+  paysFor, payerOf, songs, sharePool, shareSplit, paidCount, coveredCount, roundTargetIds,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
 import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro, botecoProfiles, nearestBoteco } from './lifestats.js';
@@ -247,13 +247,15 @@ function addCustomItem({ emoji, name, price, cat, note, share }) {
 function drinkItems() {
   return allItems().filter((it) => !isCup(it) && !it.off && (isShare(it) || ['cerveja', 'destilado', 'sem-alcool'].includes(catOf(it))));
 }
-// Alvos da rodada: item da mesa é UMA unidade (só eu marco); item pessoal é um pra cada online
-// (motorista fica de fora quando o item é alcoólico — refri/água inclui todo mundo).
-function roundTargets(def) {
-  const targets = [{ user: self, name: getName() }];
-  if (!isShare(def) && mesh) for (const p of mesh.peers()) if (p.online) targets.push({ user: p.user, name: profOf(p.user).name });
-  const alcoholic = !isShare(def) && (ALCOHOL.has(def.id) || (def.g || 0) > 0);
-  return alcoholic ? targets.filter((tg) => !isDriver(state, tg.user)) : targets;
+// Alvos da rodada. Item da mesa (share) = UMA unidade (só eu marco). Item pessoal: um pra cada —
+// SEM `scope` = a mesa online; COM `scope` (jogadores de um jogo) = só quem jogou (bot fora,
+// que não bebe; motorista fora se alcoólico). `roundTargetIds` é puro (events.js), testável.
+function roundTargets(def, scope) {
+  if (isShare(def)) return [{ user: self, name: getName() }];
+  const alcoholic = ALCOHOL.has(def.id) || (def.g || 0) > 0;
+  const online = [self, ...(mesh ? mesh.peers().filter((p) => p.online).map((p) => p.user) : [])];
+  const ids = roundTargetIds(scope, online, { alcoholic, isBot, isDriver: (id) => isDriver(state, id) });
+  return ids.map((id) => ({ user: id, name: id === self ? getName() : profOf(id).name }));
 }
 function roundChoices() {
   return drinkItems().map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it), share: isShare(it) ? 1 : 0 }));
@@ -278,10 +280,12 @@ function rodada(item) {
 // UMA garrafa com dono: sai do racha (sharePool) e cai inteira na sua conta. `covered`/`paid`
 // no reducer garantem que ninguém é cobrado duas vezes.
 let lastPaid = null; // últimos ADDs do pagamento (p/ desfazer — pode ser vários numa rodada)
+let payScope = null; // escopo do pagamento corrente: jogadores do jogo (do menu = null = mesa toda)
 function payChoices() {
   return drinkItems().map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it), price: it.price || 0, share: isShare(it) ? 1 : 0 }));
 }
-function openPayRound() {
+function openPayRound(scope) {
+  payScope = Array.isArray(scope) && scope.length ? scope : null; // do jogo: só os jogadores; do menu: mesa
   const items = payChoices();
   if (!items.length) { ui.toast(t('pay.noItem')); return; }
   ui.openPayRound({ items });
@@ -289,25 +293,28 @@ function openPayRound() {
 function payRoundGo(itemId) {
   const def = resolveItem(itemId);
   if (!def || isCup(def)) return;
+  const scope = payScope; payScope = null; // consome o escopo (jogo) uma vez
   const evs = [];
-  for (const tg of roundTargets(def)) { const ev = makeAdd(itemId, tg.user, tg.name, self); if (emitLocal(ev)) evs.push(ev); }
+  for (const tg of roundTargets(def, scope)) { const ev = makeAdd(itemId, tg.user, tg.name, self); if (emitLocal(ev)) evs.push(ev); }
   if (!evs.length) return;
   lastPaid = evs;
-  if (mesh) mesh.sendFx({ kind: 'react', emoji: '💸' });
-  ui.floatReaction('💸'); sound.cheers(); ui.celebrate([def.emoji || '🍻', '💸', '🎉']);
+  // 🔔 pagou a rodada = chama o garçom pra mesa, dizendo o item e QUANTOS são (efêmero, não persiste).
+  if (mesh && mesh.connectedCount() > 0) mesh.sendFx({ kind: 'waiter', from: self, fromName: getName() || t('common.someoneLow'), item: itemLabel(def), n: evs.length });
+  ui.floatReaction('💸'); ui.floatReaction('🔔'); sound.cheers(); ui.celebrate([def.emoji || '🍻', '💸', '🎉']);
   afterChange(itemId, 'add');
-  ui.actionToast(t('pay.done', { item: itemLabel(def) }), t('common.undo'), () => {
+  const label = evs.length > 1 ? `${evs.length}× ${itemLabel(def)}` : itemLabel(def);
+  ui.actionToast(t('pay.done', { item: label }), t('common.undo'), () => {
     if (!lastPaid) return;
     let undone = false;
     for (const e of lastPaid) if (emitLocal(makeRemove(e.item, e.user, e.name, self))) undone = true;
     if (undone) { lastPaid = null; scheduleRender(); }
   }, 7000);
 }
-// Perdeu o jogo NO MEU aparelho: oferece pagar a rodada (abre o escolhedor do item).
-// É OFERTA, não automação — quem perdeu decide; sem NENHUM item no cardápio, a zoeira basta.
-function offerLoserPay() {
+// Perdeu o jogo NO MEU aparelho: oferece pagar a rodada SÓ pros jogadores (`scope`) — não a mesa
+// toda. É OFERTA, não automação — quem perdeu decide; sem NENHUM item no cardápio, a zoeira basta.
+function offerLoserPay(scope) {
   if (!payChoices().length) return;
-  ui.actionToast(t('pay.lostQ'), t('pay.lostGo'), () => openPayRound(), 12000);
+  ui.actionToast(t('pay.lostQ'), t('pay.lostGo'), () => openPayRound(scope), 12000);
 }
 
 // ---- Efeitos sociais ----
@@ -385,7 +392,10 @@ function enableShake() {
 }
 function disableShake() { if (shakeHandler) { window.removeEventListener('devicemotion', shakeHandler); shakeHandler = null; } }
 function receiveWaiter(fx) {
-  ui.toast(t('toast.waiterFrom', { name: fx.fromName || t('common.someone') }));
+  const name = fx.fromName || t('common.someone');
+  const item = typeof fx.item === 'string' ? fx.item.slice(0, 40) : ''; // higiene P2P
+  const n = Math.max(1, Math.min(99, Number(fx.n) || 1));
+  ui.toast(item ? t('toast.waiterOrderFrom', { name, n, item }) : t('toast.waiterFrom', { name }));
   sound.alarm(); ui.vibrate([80, 40, 80]); ui.floatReaction('🔔');
 }
 function receivePoke(fx) {
@@ -1117,7 +1127,7 @@ function maybePurrResolve() {
   else verdict = { text: t('purr.allSeers'), kind: 'win' };
   ui.purrinhaResult({ total: r.total, rows, verdict, final: true });
   if (verdict.kind === 'win') { sound.cheers(); ui.celebrate(['🔮', '🫲', '🎉', '🍻']); } else { sound.alarm(); ui.vibrate([80, 40, 80]); }
-  if (r.loserId === self) offerLoserPay();
+  if (r.loserId === self) offerLoserPay(purr ? purr.entrants.map((e) => e.id) : null);
 }
 
 // ---------- modo clássico (rodadas de eliminação; palpite falado em turno) ----------
@@ -1251,7 +1261,7 @@ function finishClassicRound() {
     else if (winnerId === self) verdict = { text: t('purr.youNailedPays', { n: total, name: purrName(loser) }), kind: 'win' };
     else verdict = { text: t('purr.pays', { name: purrName(loser) }), kind: 'other' };
     ui.purrinhaResult({ status: t('purr.statusEnd', { n: rdNow }), total, rows, verdict, final: true });
-    if (loser === self) { sound.alarm(); ui.vibrate([80, 40, 80]); offerLoserPay(); } else { sound.cheers(); ui.celebrate(['🫲', '🍀', '🍻']); }
+    if (loser === self) { sound.alarm(); ui.vibrate([80, 40, 80]); offerLoserPay(purr ? purr.entrants.map((e) => e.id) : null); } else { sound.cheers(); ui.celebrate(['🫲', '🍀', '🍻']); }
     return;
   }
   if (winnerId) purr.freed.push(winnerId);
@@ -1292,7 +1302,7 @@ function finishSticksRound() {
     else if (winnerId === self) verdict = { text: t('purr.youZeroPays', { name: purrName(loser) }), kind: 'win' };
     else verdict = { text: t('purr.pays', { name: purrName(loser) }), kind: 'other' };
     ui.purrinhaResult({ status: t('purr.statusEnd', { n: rdNow }), total, rows, verdict, final: true });
-    if (loser === self) { sound.alarm(); ui.vibrate([80, 40, 80]); offerLoserPay(); } else { sound.cheers(); ui.celebrate(['🥢', '🍀', '🍻']); }
+    if (loser === self) { sound.alarm(); ui.vibrate([80, 40, 80]); offerLoserPay(purr ? purr.entrants.map((e) => e.id) : null); } else { sound.cheers(); ui.celebrate(['🥢', '🍀', '🍻']); }
     return;
   }
   if (step.freedId) purr.freed.push(step.freedId);
@@ -1496,7 +1506,7 @@ function domCelebrate() {
   if (dom.cheered) return;
   dom.cheered = true;
   if (dom.winner === self) { sound.cheers(); ui.celebrate(['🁫', '🎉', '🍻', '🏆']); }
-  else { sound.alarm(); ui.vibrate([80, 40, 80]); if (dom.winner && dom.order.length === 2) offerLoserPay(); } // 2p: perdedor único
+  else { sound.alarm(); ui.vibrate([80, 40, 80]); if (dom.winner && dom.order.length === 2) offerLoserPay(dom.order); } // 2p: perdedor único
 }
 function renderDom() {
   if (!dom) return;
@@ -2206,7 +2216,7 @@ async function truFinishGame() {
   truco.audits = truco.audits || {};
   tryTruAudit();
   if (truco.winnerTeam === truTeamOfId(self)) { sound.cheers(); ui.celebrate(['🃏', '🏆', '🍻']); }
-  else { sound.alarm(); ui.vibrate([80, 40, 80]); offerLoserPay(); } // oferta em cada perdedor (1v1 e dupla)
+  else { sound.alarm(); ui.vibrate([80, 40, 80]); offerLoserPay(truco ? truco.order : null); } // oferta em cada perdedor (1v1 e dupla)
   renderTruco();
 }
 async function onTopen(fx) {

@@ -897,7 +897,8 @@ export function applyTheme(s) {
   const th = resolveTheme(s);
   document.body.classList.remove('light', 'neon', 'retro');
   if (th !== 'dark') document.body.classList.add(th);
-  document.body.classList.toggle('bigfont', !!s.bigFont);
+  // fonte grande escala a RAIZ (rem): tudo cresce junto, somando com a fonte do sistema
+  document.documentElement.classList.toggle('bigfont', !!s.bigFont);
   // plataforma acompanha o tema: status bar/chrome (theme-color) e controles nativos (color-scheme)
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', THEME_CHROME[th] || THEME_CHROME.dark);

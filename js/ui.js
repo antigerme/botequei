@@ -84,6 +84,7 @@ const IDS = [
   'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
   'btn-dom-pass', 'btn-dom-again', 'game-pill',
   'tour', 'tour-spot', 'tour-balloon', 'tour-count', 'tour-title', 'tour-text', 'btn-tour-skip', 'btn-tour-next',
+  'overlay-tour', 'tour-trails',
   'overlay-themepick', 'themepick-row',
   'overlay-truco', 'btn-tru-close', 'tru-setup', 'tru-game', 'tru-status', 'tru-score', 'tru-vira', 'tru-table',
   'tru-hand', 'tru-actions', 'tru-result', 'tru-audit',
@@ -91,7 +92,7 @@ const IDS = [
   'overlay-boteco', 'boteco-title', 'boteco-stats', 'boteco-menu', 'btn-boteco-load',
   'btn-boteco-rename', 'btn-boteco-del', 'boteco-rename-box', 'boteco-rename', 'btn-boteco-rename-go',
   'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
-  'overlay-welcome', 'btn-welcome-go', 'btn-welcome-create', 'welcome-demo', 'welcome-demo-n', 'welcome-name',
+  'overlay-welcome', 'btn-welcome-go', 'welcome-demo', 'welcome-demo-n',
   'overlay-retro', 'retro-slides', 'btn-retro-share',
   'league-level', 'league-challenges', 'league-season',
   'btn-offline-join', 'btn-offline-host',
@@ -217,7 +218,7 @@ export function init(handlers) {
   $('menu-share').addEventListener('click', () => { closeOverlays(); H.onShareNight(); });
   $('menu-stats').addEventListener('click', () => { closeOverlays(); H.onStats(); });
   $('menu-settings').addEventListener('click', () => { closeOverlays(); openSettings(); });
-  $('menu-tour').addEventListener('click', () => { closeOverlays(); H.onTourReplay(); });
+  $('menu-tour').addEventListener('click', () => { closeOverlays(); H.onTourMenu(); });
   el['overlay-hh'].querySelectorAll('button[data-min]').forEach((b) => b.addEventListener('click', () => { H.onHappyHour(Number(b.dataset.min)); closeOverlays(); }));
 
   // cerimônia
@@ -272,8 +273,7 @@ export function init(handlers) {
   el['photo-input'].addEventListener('change', () => showPhoto());
   el['btn-photo-retake'].addEventListener('click', () => el['photo-input'].click());
   el['btn-photo-share'].addEventListener('click', () => H.onPhotoShare());
-  el['btn-welcome-go'].addEventListener('click', () => closeOverlays());
-  el['btn-welcome-create'].addEventListener('click', () => H.onWelcomeCreate(el['welcome-name'].value));
+  el['btn-welcome-go'].addEventListener('click', () => closeOverlays()); // solta na HOME (apelido/criar moram lá)
   { // demo do bem-vindo: o GESTO do app pra treinar antes da 1ª mesa (toque = +1, segurar = −1)
     let n = 0, tm = null, held = false;
     const card = el['welcome-demo'];
@@ -1260,7 +1260,10 @@ export function openComanda(vm) {
   el['overlay-comanda'].hidden = false;
 }
 
-// ---------- Tour guiado da primeira mesa (spotlight + balão; leve, sem lib) ----------
+// ---------- Tour guiado (spotlight + balão; leve, sem lib) ----------
+// Paradas podem ABRIR a tela de verdade: passo com `pre` (um clique real — ex.: abrir o menu)
+// roda a partir da mesa LIMPA (closeOverlays antes de cada passo) e o recorte espera a âncora
+// ficar VISÍVEL. Pular/terminar também limpa — o tour nunca deixa porta aberta.
 let tourSteps = null, tourIdx = 0, tourDone = null;
 export function startTour(steps, onDone) {
   tourSteps = Array.isArray(steps) && steps.length ? steps : null;
@@ -1272,6 +1275,7 @@ export function startTour(steps, onDone) {
 // completed=true só quando os passos acabaram (viu tudo); "pular" fecha sem perguntar nada.
 function endTour(completed) {
   tourSteps = null; el['tour'].hidden = true;
+  closeOverlays(); // se a parada tinha aberto menu/jogos, não fica porta aberta
   const cb = tourDone; tourDone = null;
   if (cb) cb(!!completed);
 }
@@ -1279,31 +1283,58 @@ function tourNext() { tourIdx++; renderTourStep(); }
 function renderTourStep() {
   const st = tourSteps && tourSteps[tourIdx];
   if (!st) { endTour(true); return; }
-  const target = document.querySelector(st.sel);
-  if (!target) { tourIdx++; renderTourStep(); return; } // âncora não existe: segue o baile
-  target.scrollIntoView({ block: 'center' });
-  requestAnimationFrame(() => {
-    if (!tourSteps) return;
-    const r = target.getBoundingClientRect();
-    const spot = el['tour-spot'];
-    spot.style.left = (r.left - 8) + 'px';
-    spot.style.top = (r.top - 8) + 'px';
-    spot.style.width = (r.width + 16) + 'px';
-    spot.style.height = (r.height + 16) + 'px';
-    // bolinhas de progresso (feitas ○ · atual ● · por vir ○ menor) + "1/4" pro leitor de tela —
-    // o textContent do contêiner segue sendo só o número (os <i> são vazios)
-    el['tour-count'].innerHTML = tourSteps.map((_, i) => `<i class="tour-dot${i === tourIdx ? ' on' : ''}${i < tourIdx ? ' done' : ''}"></i>`).join('')
-      + `<span class="tour-num">${tourIdx + 1}/${tourSteps.length}</span>`;
-    el['tour-title'].textContent = st.title || '';
-    el['tour-text'].textContent = st.text || '';
-    el['btn-tour-next'].textContent = tourIdx + 1 >= tourSteps.length ? t('common.go') : t('tour.next');
-    const bal = el['tour-balloon'];
-    bal.style.top = ''; bal.style.bottom = '';
-    if (r.top > window.innerHeight / 2) bal.style.bottom = (window.innerHeight - r.top + 16) + 'px'; // balão acima do alvo
-    else bal.style.top = Math.min(r.bottom + 16, window.innerHeight - 190) + 'px'; // abaixo, mas SEMPRE dentro da tela (alvo alto não expulsa o botão)
-    el['tour'].hidden = false;
-    try { el['btn-tour-next'].focus({ preventScroll: true }); } catch { /* ignore */ } // teclado/leitor avança sem caçar o botão
-  });
+  closeOverlays();          // cada parada parte da mesa limpa…
+  if (st.pre) { try { st.pre(); } catch { /* âncora cuida */ } } // …e abre a tela DELA (clique real)
+  const t0 = Date.now();
+  const tryShow = () => {
+    if (!tourSteps || tourSteps[tourIdx] !== st) return; // avançou/pulou no meio da espera
+    const target = document.querySelector(st.sel);
+    const box = target && target.getBoundingClientRect();
+    if (!target || !box || box.width < 2) {
+      // âncora ainda abrindo (overlay animando) → re-tenta; não apareceu → segue o baile
+      if (Date.now() - t0 < 1500) { requestAnimationFrame(tryShow); return; }
+      tourIdx++; renderTourStep(); return;
+    }
+    // rola SÓ no rAF: o reset de scroll do sheet recém-aberto (MutationObserver do setupA11y)
+    // roda como microtask ANTES do rAF — rolar no mesmo task do clique seria desfeito por ele
+    requestAnimationFrame(() => {
+      if (!tourSteps || tourSteps[tourIdx] !== st) return;
+      // rola o scroller REAL (sheet do overlay, se houver) pra âncora ficar no meio — o
+      // scrollIntoView nem sempre acerta o container em diálogo centrado de desktop
+      const scroller = target.closest('.sheet');
+      if (scroller && scroller.scrollHeight > scroller.clientHeight + 4) {
+        const sr = scroller.getBoundingClientRect(), tr = target.getBoundingClientRect();
+        scroller.scrollTop += (tr.top - sr.top) - (scroller.clientHeight - tr.height) / 2;
+      } else target.scrollIntoView({ block: 'center' });
+      requestAnimationFrame(() => positionTourStep(st, target));
+    });
+  };
+  tryShow();
+}
+function positionTourStep(st, target) {
+  if (!tourSteps || tourSteps[tourIdx] !== st) return;
+  const r = target.getBoundingClientRect();
+  const spot = el['tour-spot'];
+  spot.style.left = (r.left - 8) + 'px';
+  spot.style.top = (r.top - 8) + 'px';
+  spot.style.width = (r.width + 16) + 'px';
+  spot.style.height = (r.height + 16) + 'px';
+  // bolinhas de progresso (feitas ○ · atual ● · por vir ○ menor) + "1/4" pro leitor de tela —
+  // o textContent do contêiner segue sendo só o número (os <i> são vazios)
+  el['tour-count'].innerHTML = tourSteps.map((_, i) => `<i class="tour-dot${i === tourIdx ? ' on' : ''}${i < tourIdx ? ' done' : ''}"></i>`).join('')
+    + `<span class="tour-num">${tourIdx + 1}/${tourSteps.length}</span>`;
+  el['tour-title'].textContent = st.title || '';
+  el['tour-text'].textContent = st.text || '';
+  el['btn-tour-next'].textContent = tourIdx + 1 >= tourSteps.length ? t('common.go') : t('tour.next');
+  el['tour'].hidden = false;
+  // balão acima/abaixo do alvo, mas SEMPRE dentro da tela (clamp — alvo fora não expulsa o botão)
+  const bal = el['tour-balloon'];
+  bal.style.top = ''; bal.style.bottom = '';
+  const balH = bal.offsetHeight || 190;
+  let top = r.top > window.innerHeight / 2 ? r.top - balH - 16 : r.bottom + 16;
+  top = Math.max(12, Math.min(top, window.innerHeight - balH - 12));
+  bal.style.top = top + 'px';
+  try { el['btn-tour-next'].focus({ preventScroll: true }); } catch { /* ignore */ } // teclado/leitor avança sem caçar o botão
 }
 
 // ---------- Retrospectiva "Seu rolê" ----------
@@ -1841,6 +1872,14 @@ export function currentPhoto() { return lastPhoto; }
 
 // ---------- Guia de boas-vindas (primeira vez) ----------
 export function openWelcome() { el['overlay-welcome'].hidden = false; }
+
+// Índice do "🎓 Tour do Botequei": uma linha por trilha, ✓ nas já concluídas (roda quantas quiser)
+export function openTour(vm) {
+  el['tour-trails'].innerHTML = (vm.trails || []).map((tr) =>
+    `<button class="menu-item" data-trail="${esc(tr.id)}">${esc(tr.emoji)} ${esc(tr.label)}${tr.done ? ' <span class="trail-done">✓</span>' : ''}</button>`).join('');
+  el['tour-trails'].querySelectorAll('[data-trail]').forEach((b) => b.addEventListener('click', () => H.onTourTrail(b.dataset.trail)));
+  el['overlay-tour'].hidden = false;
+}
 
 // ---------- Overlays / toast ----------
 export function closeOverlays() {

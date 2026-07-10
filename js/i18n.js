@@ -269,7 +269,7 @@ const DICT = {
     'off.noCamera': 'Sem câmera aqui — use o copia-e-cola 🙂', 'off.noCamera2': 'Sem câmera — use o copia-e-cola 🙂',
     'off.cameraPerm': 'Precisa permitir a câmera 📷',
     // ---- menu (⋯) ----
-    'menu.secYou': 'Você', 'menu.secGames': 'Jogos', 'menu.secBill': 'Conta', 'menu.secExtra': 'Extra',
+    'menu.secYou': 'Você', 'menu.secGames': 'Jogos', 'menu.secBill': 'Conta', 'menu.secExtra': 'A noite', 'menu.secApp': 'App',
     'menu.profile': '🎨 Meu perfil', 'menu.waiter': '🔔 Chamar o garçom',
     'menu.jukebox': '🎵 Jukebox', 'menu.festa': '🎉 Modo festa', 'menu.bebedeira': '🔢 Contador gigante',
     'menu.shareNight': '📸 Compartilhar a noite', 'menu.settings': '⚙️ Configurações',
@@ -620,7 +620,7 @@ const DICT = {
     'off.noCamera': 'No camera here — use copy-and-paste 🙂', 'off.noCamera2': 'No camera — use copy-and-paste 🙂',
     'off.cameraPerm': 'Camera permission needed 📷',
     // ---- menu (⋯) ----
-    'menu.secYou': 'You', 'menu.secGames': 'Games', 'menu.secBill': 'Tab', 'menu.secExtra': 'Extra',
+    'menu.secYou': 'You', 'menu.secGames': 'Games', 'menu.secBill': 'Tab', 'menu.secExtra': 'The night', 'menu.secApp': 'App',
     'menu.profile': '🎨 My profile', 'menu.waiter': '🔔 Call the waiter',
     'menu.jukebox': '🎵 Jukebox', 'menu.festa': '🎉 Party mode', 'menu.bebedeira': '🔢 Giant counter',
     'menu.shareNight': '📸 Share the night', 'menu.settings': '⚙️ Settings',
@@ -971,7 +971,7 @@ const DICT = {
     'off.noCamera': 'Sin cámara aquí — usa copiar y pegar 🙂', 'off.noCamera2': 'Sin cámara — usa copiar y pegar 🙂',
     'off.cameraPerm': 'Hay que permitir la cámara 📷',
     // ---- menú (⋯) ----
-    'menu.secYou': 'Tú', 'menu.secGames': 'Juegos', 'menu.secBill': 'Cuenta', 'menu.secExtra': 'Extra',
+    'menu.secYou': 'Tú', 'menu.secGames': 'Juegos', 'menu.secBill': 'Cuenta', 'menu.secExtra': 'La noche', 'menu.secApp': 'App',
     'menu.profile': '🎨 Mi perfil', 'menu.waiter': '🔔 Llamar al mesero',
     'menu.jukebox': '🎵 Jukebox', 'menu.festa': '🎉 Modo fiesta', 'menu.bebedeira': '🔢 Contador gigante',
     'menu.shareNight': '📸 Compartir la noche', 'menu.settings': '⚙️ Configuración',

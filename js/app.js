@@ -99,7 +99,8 @@ let presenceSeeded = false;  // 1ª passada de presença só semeia (sem toast)
 let everSeen = new Set();    // quem já apareceu online na sessão ("entrou!" só na 1ª vez)
 let saidBye = new Set();     // quem deu tchau EXPLÍCITO (fx 'bye' do leaveTable) — sai da barra
 let leftQuiet = new Set();   // fechou o app (fx 'gone' confirmado pela graça) — sai da barra SEM toast
-let goneAt = new Map();      // user -> timer da graça do 'gone' (reload/atualização de SW voltam em segundos)
+let goneAt = new Map();      // user -> { tm, wentOff }: timer da graça do 'gone' — só cancela quem VOLTOU
+                             // (off→on DEPOIS do gone; o fx chega com a página ainda viva um instante)
 let awaySince = new Map();   // user -> desde quando está 💤 (relógio na barra/placar/comanda + arrumação)
 let presTick = null;         // re-render periódico com a mesa aberta (o relógio do 💤 anda sozinho)
 const GONE_GRACE_MS = 45000;  // fechou o app: só sai da barra se não voltar nisso
@@ -530,6 +531,16 @@ function renderPresence() {
     listed.add(p.user); const pr = profOf(p.user);
     list.push({ user: p.user, emoji: pr.emoji, photo: pr.photo, color: pr.color, name: pr.name || t('common.someoneLow'), level: pr.level, online: p.online, awayLabel: awayLabel(awayMs) });
   }
+  // A BARRA é do APP, não do transporte: a malha DELETA o registro de quem sumiu do signaling
+  // com conexão ruim (GC, mesh.js) — sem isto o 💤 evaporava da barra minutos depois da queda,
+  // sem tchau nenhum. Quem está no awaySince segue 💤 (com relógio) até bye/gone/arrumação de 1h.
+  for (const [u, since] of awaySince) {
+    if (listed.has(u) || saidBye.has(u) || leftQuiet.has(u)) continue;
+    const awayMs = Date.now() - since;
+    if (awayMs > AWAY_HIDE_MS) continue;
+    const pr = profOf(u);
+    list.push({ user: u, emoji: pr.emoji, photo: pr.photo, color: pr.color, name: pr.name || t('common.someoneLow'), level: pr.level, online: false, awayLabel: awayLabel(awayMs) });
+  }
   ui.renderPresence(list);
 }
 
@@ -654,10 +665,15 @@ function diffPresence() {
     const n = profOf(u).name; if (n) sessionMates.add(n);
     // voltou (do tchau, do fechar-o-app ou de um 💤 longo)? reentra na barra em silêncio
     saidBye.delete(u); leftQuiet.delete(u); awaySince.delete(u);
-    const tm = goneAt.get(u); if (tm) { clearTimeout(tm); goneAt.delete(u); }
+    // o gone só é cancelado por VOLTA de verdade (caiu e reapareceu) — no instante do fx a
+    // página ainda está viva, e cancelar aí deixava o fechou-o-app pendurado 💤 pra sempre
+    const g = goneAt.get(u); if (g && g.wentOff) { clearTimeout(g.tm); goneAt.delete(u); }
   }
   // relógio do 💤: anota QUANDO cada um caiu (alimenta o "12min" da barra e a arrumação de 1h)
-  for (const p of mesh.peers()) if (!p.online && !awaySince.has(p.user)) awaySince.set(p.user, Date.now());
+  for (const p of mesh.peers()) if (!p.online) {
+    if (!awaySince.has(p.user)) awaySince.set(p.user, Date.now());
+    const g = goneAt.get(p.user); if (g) g.wentOff = true; // o gone viu a queda: volta agora = volta real
+  }
   if (!presenceSeeded) { prevOnline = cur; presenceSeeded = true; for (const u of cur) everSeen.add(u); return; }
   for (const u of cur) {
     if (!prevOnline.has(u) && !everSeen.has(u)) { ui.toast(t('pres.joined', { name: profOf(u).name || t('common.someone') })); sound.pop(); }
@@ -683,11 +699,11 @@ function receiveBye(fx) {
 function receiveGone(fx) {
   if (!fx.from || fx.from === self || goneAt.has(fx.from)) return;
   const u = fx.from;
-  goneAt.set(u, setTimeout(() => {
+  goneAt.set(u, { wentOff: false, tm: setTimeout(() => {
     goneAt.delete(u);
     const on = mesh && mesh.peers().some((p) => p.user === u && p.online);
     if (!on) { leftQuiet.add(u); everSeen.delete(u); scheduleRender(); }
-  }, GONE_GRACE_MS));
+  }, GONE_GRACE_MS) });
 }
 
 // "há quanto tempo" curtinho pro 💤 (vazio nos primeiros 60s: piscada não ganha relógio)
@@ -700,7 +716,7 @@ function awayLabel(ms) {
 function startMesh(iceServers) {
   presenceSeeded = false; prevOnline = new Set();
   everSeen = new Set(); saidBye = new Set(); leftQuiet = new Set(); awaySince = new Map();
-  for (const tm of goneAt.values()) clearTimeout(tm); goneAt = new Map();
+  for (const g of goneAt.values()) clearTimeout(g.tm); goneAt = new Map();
   mesh = new Mesh({
     room: sigRoom(room, roomPin), code: room, selfId: self, name: getName(), iceServers,
     onEvent: onRemoteEvent, onFx, onPeersChange: onMeshChange, onStatus: onMeshChange,
@@ -769,7 +785,7 @@ function leaveTable() {
   lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; sessionJoined = false; lastAwards = [];
   prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set();
   everSeen = new Set(); saidBye = new Set(); leftQuiet = new Set(); awaySince = new Map();
-  for (const tm of goneAt.values()) clearTimeout(tm); goneAt = new Map();
+  for (const g of goneAt.values()) clearTimeout(g.tm); goneAt = new Map();
   if (presTick) { clearInterval(presTick); presTick = null; }
   purr = null; dom = null; dv = null; seenFx.clear(); purrPreFx = [];
   cancelTruco(false); trucoPreFx = [];

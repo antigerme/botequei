@@ -361,6 +361,14 @@ html.bigfont { font-size: 120%; }
 
 /* Menu */
 .menu-list { display: grid; gap: 8px; }
+/* Menu "…" em GRADE (2 colunas de tiles): metade da altura da lista antiga e escaneável por
+   ícone — padrão share-sheet (M3 bottom sheet / HIG activity view), na pele de lousa de sempre.
+   Cabeçalho de seção atravessa as 2 colunas; tile mantém alvo ≥48px e texto quebra em 2 linhas. */
+.menu-grid { grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.menu-grid .menu-sec { grid-column: 1 / -1; margin: 10px 2px 0; }
+.menu-grid .menu-sec:first-child { margin-top: 2px; }
+.menu-grid .menu-item { min-height: 52px; padding: 8px 12px; font-size: var(--fs-m);
+  line-height: 1.25; text-align: left; display: flex; align-items: center; }
 .menu-item { text-align: left; background: rgba(255,255,255,.03); border: 2px dashed var(--chalk-line); color: var(--cream);
   border-radius: var(--r-m); padding: 15px 16px; font-size: var(--fs-l); font-family: var(--hand); cursor: pointer; }
 .menu-item:active { transform: scale(.98); }

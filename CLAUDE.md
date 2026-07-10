@@ -6,10 +6,13 @@ tempo real entre os navegadores. UI **100% traduzível** (pt/en/es via `js/i18n.
 padrão Auto segue o navegador).
 
 ## Regras de ouro (valem pra TODA mudança, sem exceção)
-- **GUI/UX primeiro**: sempre buscar a melhor experiência — mobile-first, mínimo de toques,
-  preview ao vivo, feedback imediato. Ação óbvia > botão extra (ex.: tocar num emoji volta
-  pro emoji — não precisa de botão "voltar"). Overlays seguem o padrão `.sheet`; antes de
-  commitar, pergunte "como isso fica MELHOR pro usuário?".
+- **GUI/UX primeiro, com M3+HIG de régua SEMPRE**: toda mudança de UI segue Material 3 +
+  Human Interface Guidelines por padrão (tokens, alvos ≥48px, Dynamic Type, switches, sheets —
+  detalhes na convenção "Design tokens & a11y"), sem trocar a pele de lousa. Mobile-first,
+  mínimo de toques, preview ao vivo, feedback imediato. Ação óbvia > botão extra (ex.: tocar
+  num emoji volta pro emoji — não precisa de botão "voltar"). Overlays seguem o padrão
+  `.sheet`; o menu "…" é GRADE de tiles 2 colunas (padrão share-sheet — lista empilhada de
+  19 itens era um monstro); antes de commitar, pergunte "como isso fica MELHOR pro usuário?".
 - **i18n sempre**: TODA string de UI (shell, toasts, templates, aria, placeholder) nasce em
   `js/i18n.js` nas TRÊS línguas via `t(chave)`. Removeu UI? Remova as chaves órfãs. A
   auditoria trava paridade no CI — detalhes na seção de convenções.
@@ -214,7 +217,10 @@ padrão Auto segue o navegador).
   graça de 45s (reload/atualização de SW voltam antes), sai da barra EM SILÊNCIO; e 💤 por 1h+
   sai da barra sozinho (`AWAY_HIDE_MS` — bateria/app morto à força não avisam). Em todos os
   casos a pessoa segue no placar/conta e reentra na barra na hora se reconectar (aí o "entrou!"
-  volta a valer). **Tela acesa na mesa**: Screen Wake Lock segura a tela
+  volta a valer). ⚠️ A barra é do APP, não do transporte: a malha DELETA o registro de quem
+  sumiu do signaling com conexão ruim (GC no `mesh.js`) — o `renderPresence` completa a barra
+  pelo `awaySince` pra o 💤 não evaporar antes da hora. **Tela acesa na mesa**: Screen Wake
+  Lock segura a tela
   enquanto a mesa está aberta (`settings.keepAwake`, ligado de fábrica; switch nas configs) —
   `acquireWakeLock` no entrar/`visibilitychange` (o sistema solta sozinho ao esconder a aba),
   release no sair/switch; sem suporte, falha em silêncio. O placar mostra a qualidade da conexão

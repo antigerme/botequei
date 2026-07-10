@@ -192,14 +192,13 @@
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="menu.title">Mesa</h2>
-    <div class="menu-list">
-      <p class="menu-sec" data-i18n="common.youCap">Você</p>
-      <button class="menu-item" id="menu-profile" data-i18n="menu.profile">🎨 Meu perfil</button>
-      <button class="menu-item" id="menu-stats" data-i18n="stats">📊 Meus números</button>
-      <p class="menu-sec" data-i18n="menu.secGames">Jogos</p>
-      <button class="menu-item" id="menu-purrinha" data-i18n="purr.title">🫲 Purrinha</button>
-      <button class="menu-item" id="menu-domino" data-i18n="dom.title">🁫 Dominó</button>
-      <button class="menu-item" id="menu-truco" data-i18n="tru.title">🂠 Truco</button>
+    <!-- GRADE de tiles (2 colunas, padrão share-sheet M3/HIG): metade da altura da lista antiga,
+         escaneável por ícone. Ordem por frequência de uso NA MESA: conta → mesa → jogos → você. -->
+    <div class="menu-list menu-grid">
+      <p class="menu-sec" data-i18n="menu.secBill">Conta</p>
+      <button class="menu-item" id="menu-payround" data-i18n="menu.payround">💸 Pagar uma rodada</button>
+      <button class="menu-item" id="menu-bill" data-i18n="menu.bill">💸 Fechar a conta</button>
+      <button class="menu-item" id="menu-prices" data-i18n="menu.prices">💲 Preços do cardápio</button>
       <p class="menu-sec" data-i18n="menu.title">Mesa</p>
       <button class="menu-item" id="menu-board">🏆 Placar &amp; conquistas</button>
       <button class="menu-item" id="menu-waiter" data-i18n="menu.waiter">🔔 Chamar o garçom</button>
@@ -208,15 +207,19 @@
       <button class="menu-item" id="menu-festa" data-i18n="menu.festa">🎉 Modo festa</button>
       <button class="menu-item" id="menu-bebedeira" data-i18n="menu.bebedeira">🔢 Contador gigante</button>
       <button class="menu-item" id="menu-ceremony" data-i18n="cer.title">🏅 Cerimônia da noite</button>
-      <p class="menu-sec" data-i18n="menu.secBill">Conta</p>
-      <button class="menu-item" id="menu-payround" data-i18n="menu.payround">💸 Pagar uma rodada</button>
-      <button class="menu-item" id="menu-bill" data-i18n="menu.bill">💸 Fechar a conta</button>
-      <button class="menu-item" id="menu-prices" data-i18n="menu.prices">💲 Preços do cardápio</button>
-      <p class="menu-sec" data-i18n="menu.secExtra">Extra</p>
+      <p class="menu-sec" data-i18n="menu.secGames">Jogos</p>
+      <button class="menu-item" id="menu-purrinha" data-i18n="purr.title">🫲 Purrinha</button>
+      <button class="menu-item" id="menu-domino" data-i18n="dom.title">🁫 Dominó</button>
+      <button class="menu-item" id="menu-truco" data-i18n="tru.title">🂠 Truco</button>
+      <p class="menu-sec" data-i18n="common.youCap">Você</p>
+      <button class="menu-item" id="menu-profile" data-i18n="menu.profile">🎨 Meu perfil</button>
+      <button class="menu-item" id="menu-stats" data-i18n="stats">📊 Meus números</button>
+      <p class="menu-sec" data-i18n="menu.secExtra">A noite</p>
       <button class="menu-item" id="menu-photo" data-i18n="photo.title">📷 Foto da noite</button>
       <button class="menu-item" id="menu-share" data-i18n="menu.shareNight">📸 Compartilhar a noite</button>
-      <button class="menu-item" id="menu-settings" data-i18n="menu.settings">⚙️ Configurações</button>
+      <p class="menu-sec" data-i18n="menu.secApp">App</p>
       <button class="menu-item" id="menu-tour" data-i18n="tour.replay">🎓 Tour do Botequei</button>
+      <button class="menu-item" id="menu-settings" data-i18n="menu.settings">⚙️ Configurações</button>
     </div>
   </div>
 </div>

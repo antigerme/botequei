@@ -68,17 +68,21 @@ async function main() {
   });
 
   await step('placar mostra indicador de conexão da Bia', async () => {
-    // o indicador vem do getStats() amostrado periodicamente — em runner lento a 1ª amostra
-    // pode ainda não ter chegado quando o placar abre; reabrir re-renderiza com o estado novo
-    let hasNet = false;
-    for (let i = 0; i < 10 && !hasNet; i++) {
+    // DOIS atrasos legítimos num runner frio: a linha da Bia depende do PROFILE dela ter
+    // sincronizado (summary usa state.users — só a malha de pé não basta) e o tipo de conexão
+    // vem do getStats() amostrado. Reabrir re-renderiza com o estado novo; 25s cobre o pior
+    // runner visto no CI (a 1ª falha real estourou os 10s antigos). O erro diz QUAL metade atrasou.
+    let got = { row: false, net: false };
+    for (let i = 0; i < 25 && !got.net; i++) {
       await pageA.click('#btn-peers'); await visible(pageA, 'overlay-peers');
-      hasNet = await pageA.evaluate(() => [...document.querySelectorAll('#peers-list .peer-row')]
-        .some((r) => !r.querySelector('.peer-you') && (r.querySelector('.peer-net')?.textContent || '').trim().length > 0));
+      got = await pageA.evaluate(() => {
+        const rows = [...document.querySelectorAll('#peers-list .peer-row')].filter((r) => !r.querySelector('.peer-you'));
+        return { row: rows.length > 0, net: rows.some((r) => (r.querySelector('.peer-net')?.textContent || '').trim().length > 0) };
+      });
       await closeAll(pageA);
-      if (!hasNet) await pageA.waitForTimeout(1000);
+      if (!got.net) await pageA.waitForTimeout(1000);
     }
-    if (!hasNet) throw new Error('sem indicador de conexão no placar');
+    if (!got.net) throw new Error(got.row ? 'linha da Bia SEM indicador de conexão' : 'linha da Bia nem apareceu no placar (PROFILE não sincronizou)');
   });
 
   await step('foto de perfil: A recorta uma imagem e a fotinho aparece pra MESA toda', async () => {

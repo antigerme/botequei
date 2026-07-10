@@ -52,7 +52,11 @@ padrão Auto segue o navegador).
   e2e-reconnect — o reconnect exercita presença TTL/caixa-postal do DO, o mais
   adapter-específico; jogos/UI/a11y são idênticos em qualquer servidor). Unit e
   e2e são **auto-descobertos**: qualquer `tests/*.test.mjs` (unit) e `tests/e2e*.mjs` (e2e)
-  entram sozinhos — só seguir a convenção de nome ao criar um teste novo.
+  entram sozinhos — só seguir a convenção de nome ao criar um teste novo. **Anti-runner-frio**:
+  suíte e2e que falha no CI re-roda 1× (`::warning` marca o flake no run; 2 falhas seguidas =
+  vermelho real; nenhum assert afrouxa) — flake RECORRENTE ganha endurecimento no teste
+  (esperar ESTADO com teto generoso, nunca sono fixo). `workflow_dispatch` re-roda a main
+  sob demanda (botão "Run workflow"/API).
 
 ## Arquitetura (essencial)
 - **Sem framework, sem build.** HTML + CSS + JS puro (ES modules). Não introduzir bundler/toolchain.

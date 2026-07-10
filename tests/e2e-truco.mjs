@@ -123,7 +123,10 @@ async function main() {
     });
 
     await step('mais uma mão flui sozinha (dealer gira; placares seguem iguais)', async () => {
-      await Promise.all(pages.map((p) => p.waitForFunction(() => document.querySelectorAll('#tru-hand .tru-hcard').length === 3, null, { timeout: T })));
+      // teto próprio (75s): entre as mãos roda o handshake commit-reveal INTEIRO (thseal/thseed/
+      // thgo/thseedrev + tdeal + thand) entre duas páginas — num runner frio isso passou dos 30s
+      // (1ª mordida real no CI). É espera de ESTADO: a mão nova continua obrigatória.
+      await Promise.all(pages.map((p) => p.waitForFunction(() => document.querySelectorAll('#tru-hand .tru-hcard').length === 3, null, { timeout: 75000 })));
       const before = await scoreOf(host);
       for (let i = 0; i < 60; i++) {
         for (const p of pages) await tryPlay(p);

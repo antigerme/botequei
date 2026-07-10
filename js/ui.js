@@ -952,15 +952,16 @@ function prefersLight() { try { return window.matchMedia('(prefers-color-scheme:
 function resolveTheme(s) {
   const th = s.theme || 'light';
   if (th === 'auto') return prefersLight() ? 'light' : 'dark';
-  return ['dark', 'light', 'neon', 'retro'].includes(th) ? th : 'light';
+  // temas aposentados (neon/retro) gravados em aparelho antigo caem no claro, sem drama
+  return ['dark', 'light'].includes(th) ? th : 'light';
 }
 export function themeIsLight(s) { return resolveTheme(s) === 'light'; }
 // Cor da moldura do navegador/status bar POR TEMA (a meta estática do index é só o pré-JS).
 // Espelha a cor sólida de segurança do body de cada tema — mudou lá, mude aqui.
-const THEME_CHROME = { dark: '#0b0e07', light: '#ece0c7', neon: '#060418', retro: '#1a0f06' };
+const THEME_CHROME = { dark: '#0b0e07', light: '#ece0c7' };
 export function applyTheme(s) {
   const th = resolveTheme(s);
-  document.body.classList.remove('light', 'neon', 'retro');
+  document.body.classList.remove('light');
   if (th !== 'dark') document.body.classList.add(th);
   // fonte grande escala a RAIZ (rem): tudo cresce junto, somando com a fonte do sistema
   document.documentElement.classList.toggle('bigfont', !!s.bigFont);

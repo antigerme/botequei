@@ -138,6 +138,16 @@ async function main() {
       if (!clean) throw new Error('fim da trilha deveria FECHAR o menu e não re-perguntar o tema');
     });
 
+    await step('configurações mostram a VERSÃO (serial de zona legível) no rodapé', async () => {
+      await page.click('#btn-menu');
+      await page.waitForFunction(() => !document.getElementById('overlay-menu').hidden, null, { timeout: T });
+      await page.click('#menu-settings');
+      await page.waitForFunction(() => !document.getElementById('overlay-settings').hidden, null, { timeout: T });
+      const label = (await page.textContent('#btn-version')).trim();
+      if (!/^🍺 Botequei 20\d{2}\.\d{2}\.\d{2}-\d{2}$/.test(label)) throw new Error('rodapé sem a versão no formato AAAA.MM.DD-nn: ' + label);
+      await page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+    });
+
     await step('trilha concluída ganha ✓ no índice (lembra no aparelho)', async () => {
       await page.click('#btn-menu');
       await page.waitForFunction(() => !document.getElementById('overlay-menu').hidden, null, { timeout: T });

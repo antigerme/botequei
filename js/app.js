@@ -30,6 +30,7 @@
 
 import { clientId, getName, setName, newRoomCode } from './identity.js';
 import { t } from './i18n.js';
+import { VERSION, verLabel } from './version.js';
 import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar, catOf, isShare, isCup, isDefault } from './catalog.js';
 import {
   emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor, makeSong,
@@ -2933,6 +2934,23 @@ const handlers = {
     sound.setEnabled(settings.sound);
     if ('keepAwake' in patch) { if (settings.keepAwake) acquireWakeLock(); else releaseWakeLock(); }
     if (room) render();
+  },
+  // rodapé das configs: confere AGORA se há versão nova (reg.update() re-baixa o sw.js do
+  // servidor — a mesma pergunta que o secundário faz ao primário no DNS). Achou → o fluxo de
+  // auto-update assume (toast "atualizando…" e aplica); não achou → "está na última";
+  // sem rede → diz a versão sem prometer nada.
+  onCheckUpdate: async () => {
+    ui.toast(t('ver.checking'));
+    try {
+      const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+      if (reg) {
+        await reg.update();
+        if (reg.waiting || reg.installing) return; // versão nova baixando: o auto-update toasta e aplica
+      }
+      ui.toast(t('ver.latest', { v: verLabel(VERSION) }));
+    } catch {
+      ui.toast(t('ver.offline', { v: verLabel(VERSION) }));
+    }
   },
   onThemePick: (theme) => {
     settings = setSettings({ theme });

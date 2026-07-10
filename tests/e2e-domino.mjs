@@ -42,7 +42,11 @@ async function main() {
   // ENCOLHE a pedra (serpenteia pra caber em tamanho cheio, sem scale); ao girar pra paisagem RE-FLUI.
   const checkSnake = async (page) => {
     await page.setViewportSize({ width: 380, height: 820 });
-    await page.waitForTimeout(300); // o resize dispara domRefit → snakeLayout
+    // o resize dispara domRefit → snakeLayout; runner FRIO pode passar de qualquer folga fixa
+    // (a 1ª falha real no CI pegou o tabuleiro no meio do re-render) — espera as PEDRAS de pé
+    await page.waitForFunction(() => document.querySelectorAll('#dom-board .dom-tile').length >= 2, null, { timeout: 8000 })
+      .catch(() => { throw new Error('serpentina: tabuleiro vazio (refit não repôs as pedras em 8s)'); });
+    await page.waitForTimeout(200); // deixa as posições absolutas assentarem
     const port = await page.evaluate(() => {
       const board = document.getElementById('dom-board'), wrap = board.parentElement;
       const tiles = [...board.querySelectorAll('.dom-tile')];
@@ -63,9 +67,14 @@ async function main() {
     if (port.scale < 0.99) throw new Error(`serpentina ENCOLHEU a pedra (scale ${port.scale}) — devia serpentear/rolar em tamanho cheio`);
     if (port.n >= 6 && port.rows < 2) throw new Error(`serpentina: a cobra não virou a quina (uma linha só com ${port.n} pedras num celular)`);
     await page.setViewportSize({ width: 820, height: 380 });
-    await page.waitForTimeout(300);
-    const landH = await page.evaluate(() => document.getElementById('dom-board').getBoundingClientRect().height);
-    if (port.n >= 6 && landH >= port.h) throw new Error('serpentina: não re-fluiu ao girar (paisagem não ficou mais baixa que o retrato)');
+    // idem: espera o re-fluxo ACONTECER (altura menor que a do retrato) em vez de medir no timer
+    if (port.n >= 6) {
+      const reflowed = await page.waitForFunction((h) => {
+        const b = document.getElementById('dom-board');
+        return b && b.getBoundingClientRect().height < h;
+      }, port.h, { timeout: 8000 }).then(() => true).catch(() => false);
+      if (!reflowed) throw new Error('serpentina: não re-fluiu ao girar (paisagem não ficou mais baixa que o retrato)');
+    } else await page.waitForTimeout(300);
   };
 
   async function playGame(N) {

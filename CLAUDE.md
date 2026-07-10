@@ -45,7 +45,9 @@ padrão Auto segue o navegador).
   fallback; inclui interop socket↔polling), `tests/e2e-reconnect.mjs` (reconexão),
   `tests/e2e-offline.mjs` (pareamento por QR/código com o signaling desligado) e
   `tests/e2e-features.mjs` (cardápio da mesa, PAYFOR e estatísticas).
-- **CI (GitHub Actions, `.github/workflows/ci.yml`):** em todo PR/push pro `main` roda **lint**
+- **CI (GitHub Actions, `.github/workflows/ci.yml`):** roda 1× por leva, **no PR** (a main não
+  re-roda: a proteção de branch — require up to date + status checks — garante que todo squash
+  que entra é a MESMA árvore que o PR testou; `workflow_dispatch` roda sob demanda). Roda **lint**
   (`node --check` + ESLint só de correção via `npx eslint .`, config em `eslint.config.mjs`),
   **auditoria** (`tests/audit.mjs`), **unit** e **e2e em DOIS alvos**: servidor Node (suíte
   completa + fallback `NO_WS`) e `wrangler dev` (amostra e2e + e2e-ws + e2e-features +

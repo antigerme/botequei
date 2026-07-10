@@ -1,15 +1,16 @@
 name: CI
 
-# Rede de segurança antes de qualquer coisa cair em produção. Roda nos PRs pro main e nos
-# pushes pro main. Sem segredos: o app é buildless, P2P e o /turn responde 204 sem config.
+# Rede de segurança antes de qualquer coisa cair em produção. Roda 1× por leva, NO PR —
+# a main não re-roda o CI: a proteção de branch ("require up to date" + status checks)
+# garante POR CONSTRUÇÃO que todo squash que entra é a mesma árvore que o PR testou
+# (dois PRs simultâneos → o segundo trava até atualizar a branch, que re-roda o CI).
+# Sem segredos: o app é buildless, P2P e o /turn responde 204 sem config.
 # Dois alvos de deploy, dois jobs de e2e: o servidor Node (VM) e o Worker da Cloudflare
 # (wrangler dev local, sem conta).
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch: {} # re-rodar a main sob demanda (botão "Run workflow"/API) — usado pelo monitoramento
+  workflow_dispatch: {} # rodar a main sob demanda (botão "Run workflow"/API) se bater dúvida
 
 concurrency:
   group: ci-${{ github.ref }}

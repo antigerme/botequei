@@ -102,7 +102,7 @@ async function main() {
     await step('escolhe "Escuro" → aplica na hora e fecha a pergunta', async () => {
       await page.click('#themepick-row [data-th="dark"]');
       await page.waitForFunction(() => document.getElementById('overlay-themepick').hidden, null, { timeout: 5000 });
-      const dark = await page.evaluate(() => !document.body.classList.contains('light') && !document.body.classList.contains('neon') && !document.body.classList.contains('retro'));
+      const dark = await page.evaluate(() => !document.body.classList.contains('light'));
       if (!dark) throw new Error('tema escuro não aplicou');
     });
 

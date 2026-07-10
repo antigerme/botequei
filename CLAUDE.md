@@ -34,7 +34,7 @@ padrão Auto segue o navegador).
 - **Unit, sem dependências:** `node tests/reducer.test.mjs`, `node tests/features.test.mjs`,
   `node tests/stats.test.mjs` (estatísticas de vida + liga + catálogo), `node tests/core.test.mjs`
   (núcleo da sala de sinalização) e `node tests/contrast.test.mjs` (**trava WCAG AA**: lê o
-  `styles.css` de verdade e mede o contraste dos 4 temas — mudou cor, ele re-mede sozinho).
+  `styles.css` de verdade e mede o contraste dos temas — mudou cor, ele re-mede sozinho).
 - **Auditoria estática (sem deps):** `node tests/audit.mjs` — confere grafo de import/export
   (arquivo existe **e** exporta o nome, evitando o "does not provide an export named …"), o shell
   do `sw.js` + `CACHE`, o array `IDS` do `ui.js` e as chaves de i18n. Descobre os arquivos
@@ -279,8 +279,9 @@ padrão Auto segue o navegador).
 - **Alcance & cara**: `js/i18n.js` (dicionário pt/en/es COMPLETO — shell, toasts e templates —
   com `t(chave, vars)` interpolando `{name}`/`{n}` e `applyI18n` sobre `[data-i18n]`/
   `[data-i18n-ph]`/`[data-i18n-aria]`/`[data-i18n-title]`/`[data-i18n-html]`; idioma padrão
-  **auto** pelo navegador); temas **auto/dark/light/neon/retro**
-  (`resolveTheme`/`applyTheme` em `ui.js`, paletas via CSS vars em `body.neon`/`body.retro`);
+  **auto** pelo navegador); temas **auto/dark/light**
+  (`resolveTheme`/`applyTheme` em `ui.js`; neon/retro foram aposentados — valor antigo gravado
+  cai no claro);
   **molduras** de avatar por nível da liga (`frameClass` → `.fr-silver`/`.fr-gold`); **passaporte**
   de botecos (`store.getCheckins`/`addCheckin` — check-in local, GPS opcional, só no aparelho);
   **foto da noite** (só preview/compartilhar via Web Share — nada é salvo/enviado); **guia de
@@ -354,7 +355,7 @@ padrão Auto segue o navegador).
 - `js/domino.js` — jogo de dominó: baralho/deal/encaixe/abertura/bater/trancar (puro)
 - `js/bots.js` — turma virtual: elenco fixo + cérebros puros (purrinha/dominó/truco, rng semeável) + delay humano — o condutor mora no `app.js`
 - `js/i18n.js` — dicionário pt/en/es + `applyI18n` sobre o shell (puro)
-- `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, temas (auto/dark/light/neon/retro), i18n do shell, molduras por nível, overlays (cerimônia/números/conta/passaporte/foto/boas-vindas)
+- `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, temas (auto/dark/light), i18n do shell, molduras por nível, overlays (cerimônia/números/conta/passaporte/foto/boas-vindas)
 - `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)
 - `server/core.mjs` — NÚCLEO puro da sala de sinalização (presença TTL + caixa-postal + `clean`; compartilhado pelos dois adaptadores) · `server/node.mjs` — adaptador VM (estáticos + `/signaling` polling+WS + `/turn`; zero deps, envs `PORT`/`HOST`/`NO_WS`)
 - `worker/index.mjs` — adaptador Cloudflare (roteador: assets / DO da sala / turn) · `worker/room-do.mjs` — Durable Object da sala (Hibernation API + alarms)

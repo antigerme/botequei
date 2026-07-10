@@ -343,30 +343,6 @@ body.light .sheet { background: linear-gradient(180deg, #fdf6e6, #f2e7cd); }
 body.light .chip, body.light .toast, body.light .fx-plus { background: #fbf2df; }
 body.light .sheet-close { background: var(--card); }
 
-/* Tema neon: balada — roxo profundo + rosa/âmbar elétrico */
-body.neon {
-  --bg: #0c0a1e; --bg-soft: #16112e; --card: #1a1338; --card-hi: #241a4d;
-  --line: #4a2f7a; --chalk-line: rgba(200,160,255,.5); --cream: #f3ebff; --muted: #a79bd0;
-  --gold: #ff5cc8; --gold-deep: #cd58b7; /* fundo do gradiente do botão: ≥4.5:1 sob o texto escuro */
-}
-body.neon { background: #060418; }
-body.neon::before { background:
-  radial-gradient(rgba(180,120,255,.06) .5px, transparent .6px) 0 0 / 7px 7px,
-  radial-gradient(135% 100% at 50% -10%, #1a1140 0%, #0c0a1e 55%, #060418 100%); }
-body.neon .btn-primary { box-shadow: 0 0 16px rgba(255,92,200,.5); }
-body.neon .total-num, body.neon .item-qty { text-shadow: 0 0 14px rgba(255,92,200,.5); }
-
-/* Tema retrô: boteco anos 70 — laranja queimado + madeira */
-body.retro {
-  --bg: #2a1a0e; --bg-soft: #35210f; --card: #3d2712; --card-hi: #4a3016;
-  --line: #6e4a24; --chalk-line: rgba(255,210,150,.4); --cream: #ffe9c9; --muted: #c8a878;
-  --gold: #ff8c1a; --gold-deep: #d46a00;
-}
-body.retro { background: #1a0f06; }
-body.retro::before { background:
-  radial-gradient(rgba(255,180,90,.05) .5px, transparent .6px) 0 0 / 7px 7px,
-  radial-gradient(135% 100% at 50% -10%, #3a2410 0%, #2a1a0e 60%, #1a0f06 100%); }
-
 /* Fonte grande (acessibilidade): escala a RAIZ — com o texto todo em rem, TUDO cresce junto
    (antes só body/btn/chip cresciam). Soma com a fonte do sistema (Dynamic Type): o rem parte
    do tamanho que a pessoa escolheu no aparelho. */

@@ -1,4 +1,4 @@
-// Trava de CONTRASTE (WCAG 2.x) dos 4 temas — lê o styles.css DE VERDADE, extrai os tokens
+// Trava de CONTRASTE (WCAG 2.x) dos temas (escuro + claro) — lê o styles.css DE VERDADE, extrai os tokens
 // de cor de cada tema e mede a razão de luminância dos pares que importam. Mudou uma cor no
 // CSS? O teste re-mede sozinho. Regras travadas:
 //   • texto ≥ 4.5:1 (AA): cream/muted/gold/danger/ok sobre fundo E sobre card; texto do botão
@@ -43,7 +43,7 @@ function blockOf(selector) {
 }
 const root = varsOf(blockOf(':root {'));
 const themes = { dark: root };
-for (const t of ['light', 'neon', 'retro']) themes[t] = { ...root, ...varsOf(blockOf(`body.${t} {`)) };
+for (const t of ['light']) themes[t] = { ...root, ...varsOf(blockOf(`body.${t} {`)) };
 
 // ---- as travas ----
 for (const [name, v] of Object.entries(themes)) {

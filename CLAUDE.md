@@ -58,7 +58,12 @@ padrão Auto segue o navegador).
   suíte e2e que falha no CI re-roda 1× (`::warning` marca o flake no run; 2 falhas seguidas =
   vermelho real; nenhum assert afrouxa) — flake RECORRENTE ganha endurecimento no teste
   (esperar ESTADO com teto generoso, nunca sono fixo). `workflow_dispatch` re-roda a main
-  sob demanda (botão "Run workflow"/API).
+  sob demanda (botão "Run workflow"/API). **Promessa de casa**: toda mudança que exigir um
+  clique do André no GitHub (Settings, proteção de branch, lista de required checks, secrets…)
+  SEMPRE chega com o passo a passo junto, no PR e na conversa — exemplo clássico: **renomear um
+  job no `ci.yml` exige atualizar a lista de required checks na proteção da branch `main`**
+  (senão o merge trava esperando um check que nunca mais reporta); PR que renomeia job avisa
+  em destaque.
 
 ## Arquitetura (essencial)
 - **Sem framework, sem build.** HTML + CSS + JS puro (ES modules). Não introduzir bundler/toolchain.

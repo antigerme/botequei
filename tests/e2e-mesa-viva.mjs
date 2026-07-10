@@ -85,7 +85,9 @@ async function main() {
   {
     const { ctxs, pages, host } = await mkTable(['Andre', 'Bia']);
     const guest = pages[1];
-    await host.click('#btn-menu'); await host.click('#menu-domino');
+    await host.click('#btn-games');
+    await host.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+    await host.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Dominó/.test(b.textContent)).click(); });
       await host.waitForSelector('#btn-dom-go', { timeout: T }); await host.click('#btn-dom-go'); // tela de início (0 bots no multiplayer)
     await Promise.all(pages.map((p) => vis(p, 'dom-game')));
     await tapToasts(host);
@@ -201,7 +203,9 @@ async function main() {
   {
     const { ctxs, pages, host } = await mkTable(['Andre', 'Bia']);
     const guest = pages[1];
-    await host.click('#btn-menu'); await host.click('#menu-domino');
+    await host.click('#btn-games');
+    await host.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+    await host.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Dominó/.test(b.textContent)).click(); });
       await host.waitForSelector('#btn-dom-go', { timeout: T }); await host.click('#btn-dom-go'); // tela de início (0 bots no multiplayer)
     await Promise.all(pages.map((p) => vis(p, 'dom-game')));
     await tapToasts(host);

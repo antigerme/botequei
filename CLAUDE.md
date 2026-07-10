@@ -16,13 +16,13 @@ padrão Auto segue o navegador).
 - **i18n sempre**: TODA string de UI (shell, toasts, templates, aria, placeholder) nasce em
   `js/i18n.js` nas TRÊS línguas via `t(chave)`. Removeu UI? Remova as chaves órfãs. A
   auditoria trava paridade no CI — detalhes na seção de convenções.
-- **Consistência em tudo**: a mesma feature aparece em TODOS os pontos de entrada — menu "…"
-  ↔ grid de jogos ↔ atalhos da mesa (já escapou o Truco do menu uma vez). Adicionou
-  jogo/feature/tela? VARRA os pontos de entrada e os padrões visuais (mesmos botões, mesmos
-  gestos, mesmas molduras). Grep é seu amigo. E rótulo repetido tem UMA fonte de verdade:
-  os jogos usam as chaves `*.title` tanto no menu quanto no grid (já escapou um
-  "🂠 🂠 Truco" quando cada lado carregava o próprio emoji) — o e2e-liso compara
-  menu ↔ grid e trava divergência no CI.
+- **Consistência em tudo**: a mesma feature aparece em TODOS os pontos de entrada e some de
+  TODOS quando sai. Adicionou/removeu jogo/feature/tela? VARRA os pontos de entrada e os padrões
+  visuais (mesmos botões, mesmos gestos, mesmas molduras). Grep é seu amigo. **Os JOGOS moram no
+  grid do chip "🎮 Jogos"** — casa ÚNICA deles (não se repetem no menu "…", que é enxuto: a
+  faxina tirou de lá). O rótulo tem UMA fonte de verdade (as chaves `*.title` — já escapou um
+  "🂠 🂠 Truco" quando cada lado carregava o próprio emoji); o e2e-liso trava o grid com os 3
+  jogos, sem emoji dobrado, E que nenhum jogo vaze de volta pro menu.
 - **Não perder o que já temos**: cada evolução PRESERVA o que existe — rode unit + audit +
   a suíte e2e antes de commitar; toda feature nova ganha assert de e2e (auto-descoberto);
   nunca remover/alterar comportamento existente sem pedido explícito; mexeu em algo
@@ -203,9 +203,8 @@ padrão Auto segue o navegador).
   respondeu (o motor fecha o fold só com as DUAS respostas — `order.forEach`, não `find` do 1º; senão
   a mão trava). `botsTrucoAct` também roda no `onMeshChange` (re-age quando a presença muda), como
   purrinha/dominó. Setup: chip "🤖 Chamar a turma" (0–3) em cada jogo; sozinho já vem 1.
-- **Mãos livres (puro)**: `devicemotion` soma +1 ao chacoalhar o celular (settings `shake`).
-- **Clima**: `js/music.js` (trilha lo-fi **procedural** via WebAudio, sem arquivo — igual
-  ao `sound.js` — + `spectrum()` pro visualizador do "modo festa").
+- **Mãos livres (puro)**: `devicemotion` soma +1 ao chacoalhar o celular (settings `shake`,
+  item mais consumido via `topItem`).
 - **Presença ao vivo (serena)**: `render()` desenha a barra de avatares (self + peers,
   `mesh.peers()`); queda de conexão **NUNCA vira toast** — quem cai fica 💤 esmaecido na barra pelo
   tempo que for (tela apagada/elevador não é "saiu") e a volta é silenciosa; **"👋 saiu" só existe
@@ -361,13 +360,13 @@ padrão Auto segue o navegador).
 - `js/events.js` — eventos + reducer (CRDT, inclui PAYFOR). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
 - `js/lifestats.js` — estatísticas de vida + streak + retrô (puro) · `js/league.js` — nível/XP/desafios/troféu (puro)
 - `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia/retrô; recap e conta desenham a FOTO de perfil redonda quando tem)
-- `js/sound.js` — efeitos (WebAudio) · `js/music.js` — trilha lo-fi procedural + espectro (WebAudio, fora do puro)
+- `js/sound.js` — efeitos (WebAudio)
 - `js/purrinha.js` — jogo da purrinha: commit-reveal (SHA-256) + apuração determinística (puro)
 - `js/truco.js` — motor do truco (paulista/mineira/gaúcha, puro): hierarquias, vazas com parda e cascata, escadas de aposta (TRUCO→…), `mergeResponses` (resposta da dupla, CRDT max), mão de onze/dez/ferro, envido/flor, deal lacrado POR CARTA (`cardSalt`/`cardCommitT`/`verifyPlayReveal`/`verifyHandAudit`) e reducer determinístico `newTrucoHand`/`reduceT` (protocolo/UI chegam no T2)
 - `js/domino.js` — jogo de dominó: baralho/deal/encaixe/abertura/bater/trancar (puro)
 - `js/bots.js` — turma virtual: elenco fixo + cérebros puros (purrinha/dominó/truco, rng semeável) + delay humano — o condutor mora no `app.js`
 - `js/i18n.js` — dicionário pt/en/es + `applyI18n` sobre o shell (puro)
-- `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, modo bebedeira, temas (auto/dark/light), i18n do shell, molduras por nível, overlays (cerimônia/números/conta/passaporte/foto/boas-vindas)
+- `js/ui.js` — telas, cards, gestos (+1 toque / −1 toque longo), vibração, temas (auto/dark/light), i18n do shell, molduras por nível, overlays (cerimônia/números/conta/passaporte/foto/boas-vindas)
 - `js/store.js`, `js/identity.js`, `js/catalog.js` (itens + gramas de álcool), `js/qr.js`, `js/vendor/qrcode.js` + `js/vendor/jsqr.js` (libs MIT; jsQR é lazy, fora do shell do SW)
 - `server/core.mjs` — NÚCLEO puro da sala de sinalização (presença TTL + caixa-postal + `clean`; compartilhado pelos dois adaptadores) · `server/node.mjs` — adaptador VM (estáticos + `/signaling` polling+WS + `/turn`; zero deps, envs `PORT`/`HOST`/`NO_WS`)
 - `worker/index.mjs` — adaptador Cloudflare (roteador: assets / DO da sala / turn) · `worker/room-do.mjs` — Durable Object da sala (Hibernation API + alarms)

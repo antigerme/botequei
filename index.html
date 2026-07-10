@@ -204,13 +204,7 @@
       <button class="menu-item" id="menu-waiter" data-i18n="menu.waiter">🔔 Chamar o garçom</button>
       <button class="menu-item" id="menu-hh" data-i18n="hh.title">⏰ Happy hour</button>
       <button class="menu-item" id="menu-jukebox" data-i18n="menu.jukebox">🎵 Jukebox</button>
-      <button class="menu-item" id="menu-festa" data-i18n="menu.festa">🎉 Modo festa</button>
-      <button class="menu-item" id="menu-bebedeira" data-i18n="menu.bebedeira">🔢 Contador gigante</button>
       <button class="menu-item" id="menu-ceremony" data-i18n="cer.title">🏅 Cerimônia da noite</button>
-      <p class="menu-sec" data-i18n="menu.secGames">Jogos</p>
-      <button class="menu-item" id="menu-purrinha" data-i18n="purr.title">🫲 Purrinha</button>
-      <button class="menu-item" id="menu-domino" data-i18n="dom.title">🁫 Dominó</button>
-      <button class="menu-item" id="menu-truco" data-i18n="tru.title">🂠 Truco</button>
       <p class="menu-sec" data-i18n="common.youCap">Você</p>
       <button class="menu-item" id="menu-profile" data-i18n="menu.profile">🎨 Meu perfil</button>
       <button class="menu-item" id="menu-stats" data-i18n="stats">📊 Meus números</button>
@@ -596,15 +590,6 @@
   </div>
 </div>
 
-<!-- Modo festa (visualizador + trilha lo-fi procedural) -->
-<div class="overlay overlay-full" id="overlay-festa" hidden>
-  <div class="festa-inner">
-    <button class="sheet-close" id="btn-festa-close">✕</button>
-    <canvas class="festa-canvas" id="festa-canvas" width="480" height="300"></canvas>
-    <p class="festa-hint" data-i18n="festa.hint">🎉 modo festa · trilha lo-fi tocando</p>
-  </div>
-</div>
-
 <!-- Purrinha (P2P honesta via commit-reveal) -->
 <div class="overlay" id="overlay-purrinha" hidden>
   <div class="sheet sheet-tall">
@@ -810,15 +795,6 @@
   <div class="brinde-emoji">🥂</div>
   <div class="brinde-count" id="brinde-count">3</div>
   <div class="brinde-word" id="brinde-word" data-i18n="brinde.prep">Preparar…</div>
-</div>
-
-<!-- Modo bebedeira -->
-<div class="bebedeira" id="bebedeira" hidden>
-  <button class="bebedeira-exit" id="btn-bebedeira-exit">✕</button>
-  <div class="bebedeira-item" id="bebedeira-item">🍺</div>
-  <div class="bebedeira-count" id="bebedeira-count">0</div>
-  <button class="bebedeira-plus" id="bebedeira-plus">+1</button>
-  <div class="bebedeira-hint" data-i18n="beb.hint">segure para −1</div>
 </div>
 
 <!-- role=status/aria-live: leitor de tela ANUNCIA o toast (+1, desfazer, garçom…) sem roubar o foco -->

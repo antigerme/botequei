@@ -389,7 +389,7 @@ function enableShake() {
       const mag = Math.abs(a.x || 0) + Math.abs(a.y || 0) + Math.abs(a.z || 0);
       if (mag > 34 && Date.now() - shakeLast > 1200) {
         shakeLast = Date.now();
-        if (room && !document.querySelector('.overlay:not([hidden])') && !ui.isBebedeira()) act('ADD', bebedeiraItem());
+        if (room && !document.querySelector('.overlay:not([hidden])')) act('ADD', topItem());
       }
     };
     window.addEventListener('devicemotion', shakeHandler);
@@ -438,7 +438,6 @@ function onRemoteEvent(ev, fromPeer, isSync) {
 function afterChange(item, kind) {
   scheduleRender();
   ui.pulse(item, kind);
-  if (ui.isBebedeira()) ui.updateBebedeira(getCount(state, self, ui.currentBebedeiraItem()));
 }
 
 // ---- Render ----
@@ -563,7 +562,8 @@ function renderPeers() {
   ui.renderPeers({ rows, selfId: self, mvp: top ? { name: profOf(top.user).name, total: top.total } : null, myBadges: badgesFor(state, self) });
 }
 
-function bebedeiraItem() {
+// Item mais consumido por mim (fallback 'chopp') — usado pelo "mãos livres" (chacoalhar = +1).
+function topItem() {
   let best = 'chopp', bestN = -1;
   for (const it of allItems()) { if (isShare(it) || isCup(it) || it.off) continue; const n = getCount(state, self, it.id); if (n > bestN) { bestN = n; best = it.id; } }
   return best;
@@ -1016,7 +1016,7 @@ function tourTrails() {
     { id: 'diversao', emoji: '🎮', label: t('tour.trail.diversao'), steps: [
       { sel: '#games-grid', pre: () => document.getElementById('btn-games').click(), title: t('tour.td1'), text: t('tour.xd1') },
       { sel: '#btn-react', title: t('tour.td2'), text: t('tour.xd2') },
-      { sel: '#menu-bebedeira', pre: openMenuPre, title: t('tour.td3'), text: t('tour.xd3') },
+      { sel: '#menu-jukebox', pre: openMenuPre, title: t('tour.td3'), text: t('tour.xd3') },
       { sel: '#menu-waiter', pre: openMenuPre, title: t('tour.td4'), text: t('tour.xd4') },
     ] },
     { id: 'mesaviva', emoji: '📊', label: t('tour.trail.mesaviva'), steps: [
@@ -2937,8 +2937,6 @@ const handlers = {
     setTimeout(() => location.reload(), 900);
   },
   onSfx: (kind) => { if (typeof sound[kind] === 'function') sound[kind](); },
-  onBebedeira: () => { const id = bebedeiraItem(); ui.openBebedeira({ item: id, emoji: resolveItem(id).emoji, count: getCount(state, self, id) }); },
-  onBebedeiraClose: () => render(),
   onHappyHour: (minutes) => {
     if (!room) { ui.toast(t('toast.needTableFirst')); return; }
     hhEndedFor = 0;

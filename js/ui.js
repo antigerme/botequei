@@ -19,11 +19,11 @@
 // SUMÁRIO (âncoras "// ----------" na ordem do arquivo):
 //   Gesto curto/longo · Init · A11y · Home · Mesa · Placar · Convite · Perfil
 //   (+ foto: captura e recorte) · Novo item · Preços · Conta · PIX · Configs ·
-//   Reações · Efeitos · Jogos (grid) · Bebedeira · Offline (QR) · Scanner ·
+//   Reações · Efeitos · Jogos (grid) · Offline (QR) · Scanner ·
 //   Meu ritmo · Roleta · Cutucar · Cerimônia · Meus números · Presença ·
 //   Comanda · Tour · Tô de boa? · Retrospectiva · Liga · Torneio ·
 //   Carta da mesa · Purrinha · Jogo minimizado · Dominó · Truco · Jukebox ·
-//   Modo festa · Passaporte de botecos · Foto da noite · Guia de boas-vindas ·
+//   Passaporte de botecos · Foto da noite · Guia de boas-vindas ·
 //   Overlays/toast (tema e idioma vivem na seção Configurações: resolveTheme/
 //   applyTheme/applyLang; a escolha de tema do fim do tour idem: openThemePick)
 // ============================================================================
@@ -31,7 +31,6 @@
 import { EMOJIS, COLORS, AVATARS, CATEGORIES } from './catalog.js';
 import { snakeLayout } from './domino.js';
 import { scanQR, scanSupported } from './scan.js';
-import * as music from './music.js';
 import { applyI18n, setLang, t } from './i18n.js';
 import { VERSION, verLabel } from './version.js';
 
@@ -52,8 +51,8 @@ const IDS = [
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
   'overlay-menu', 'menu-profile', 'menu-board',
-  'menu-jukebox', 'menu-festa', 'menu-payround', 'menu-bill', 'menu-prices',
-  'menu-hh', 'menu-waiter', 'menu-bebedeira', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings', 'menu-tour',
+  'menu-jukebox', 'menu-payround', 'menu-bill', 'menu-prices',
+  'menu-hh', 'menu-waiter', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings', 'menu-tour',
   'overlay-prices', 'price-list',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
   'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-selfie', 'btn-avatar-upload', 'avatar-file',
@@ -73,14 +72,13 @@ const IDS = [
   'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
   'overlay-comanda', 'comanda-title', 'comanda-away', 'comanda-list', 'comanda-total',
   'overlay-jukebox', 'jukebox-input', 'btn-jukebox-add', 'jukebox-list',
-  'overlay-festa', 'festa-canvas', 'btn-festa-close',
   'set-shake',
-  'menu-purrinha', 'overlay-purrinha', 'purr-sub', 'purr-setup', 'purr-pick', 'purr-pstatus', 'purr-hands', 'purr-guess-wrap', 'purr-guesses', 'btn-purr-seal',
+  'overlay-purrinha', 'purr-sub', 'purr-setup', 'purr-pick', 'purr-pstatus', 'purr-hands', 'purr-guess-wrap', 'purr-guesses', 'btn-purr-seal',
   'purr-wait', 'purr-waitcount', 'purr-waitsub', 'purr-seals',
   'purr-guessing', 'purr-status', 'purr-said', 'purr-turnrow', 'purr-gpick', 'btn-purr-say',
   'purr-result', 'purr-rstatus', 'purr-total', 'purr-reveals', 'purr-verdict',
   'btn-purr-again', 'btn-purr-close',
-  'menu-domino', 'menu-truco', 'overlay-domino', 'btn-dom-close', 'dom-setup', 'dom-game', 'dom-verified',
+  'overlay-domino', 'btn-dom-close', 'dom-setup', 'dom-game', 'dom-verified',
   'dom-opps', 'dom-turn', 'dom-board', 'dom-result',
   'dom-hand-wrap', 'dom-hand', 'dom-side-pick', 'btn-dom-L', 'btn-dom-R', 'dom-endL', 'dom-endR',
   'btn-dom-pass', 'btn-dom-again', 'game-pill',
@@ -102,7 +100,7 @@ const IDS = [
   'off-offer-in', 'btn-off-scan-offer', 'btn-off-genanswer', 'off-answer-out', 'off-answer-qr', 'off-answer-code', 'btn-off-copy-answer',
   'overlay-scan', 'scan-title', 'scan-video', 'scan-hint', 'btn-scan-close',
   'fx-layer', 'brinde', 'brinde-count', 'brinde-word',
-  'bebedeira', 'bebedeira-item', 'bebedeira-count', 'bebedeira-plus', 'btn-bebedeira-exit', 'toast',
+  'toast',
 ];
 
 function esc(s) {
@@ -203,17 +201,12 @@ export function init(handlers) {
   // menu
   $('menu-profile').addEventListener('click', () => { closeOverlays(); H.onProfile(); });
   $('menu-board').addEventListener('click', () => { closeOverlays(); H.onPeers(); });
-  $('menu-purrinha').addEventListener('click', () => { closeOverlays(); H.onPurrinha(); });
-  $('menu-domino').addEventListener('click', () => { closeOverlays(); H.onDomino(); });
-  $('menu-truco').addEventListener('click', () => { closeOverlays(); H.onTruco(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
-  $('menu-festa').addEventListener('click', () => { closeOverlays(); openFesta(); });
   $('menu-payround').addEventListener('click', () => { closeOverlays(); H.onPayRound(); });
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
   $('menu-hh').addEventListener('click', () => { closeOverlays(); el['overlay-hh'].hidden = false; });
   $('menu-waiter').addEventListener('click', () => { closeOverlays(); H.onWaiter(); });
-  $('menu-bebedeira').addEventListener('click', () => { closeOverlays(); H.onBebedeira(); });
   $('menu-ceremony').addEventListener('click', () => { closeOverlays(); H.onCeremony(); });
   $('menu-photo').addEventListener('click', () => { closeOverlays(); el['photo-input'].click(); });
   $('menu-share').addEventListener('click', () => { closeOverlays(); H.onShareNight(); });
@@ -229,7 +222,6 @@ export function init(handlers) {
   // retrô / liga
   el['btn-retro-share'].addEventListener('click', () => H.onRetroShare());
   el['btn-jukebox-add'].addEventListener('click', () => submitSong());
-  el['btn-festa-close'].addEventListener('click', () => closeOverlays());
   el['btn-purr-seal'].addEventListener('click', () => {
     if (purrPick.hand == null || (!purrClassic && purrPick.guess == null)) return;
     H.onPurrSeal(purrPick.hand, purrPick.guess);
@@ -343,12 +335,6 @@ export function init(handlers) {
     ov.addEventListener('click', (e) => { if (e.target === ov || e.target.hasAttribute('data-close')) closeOverlays(); });
   });
 
-  // bebedeira
-  $('btn-bebedeira-exit').addEventListener('click', () => closeBebedeira());
-  attachGesture(el['bebedeira-plus'],
-    () => { H.onAdd(bebedeiraItem); },
-    () => { H.onRemove(bebedeiraItem); });
-
   // girar o aparelho / redimensionar: a media query troca o layout, o scale do tabuleiro
   // precisa acompanhar (senão as pedras ficam no tamanho da orientação antiga)
   const domRefit = () => { if (el['overlay-domino'] && !el['overlay-domino'].hidden) requestAnimationFrame(domFitBoard); };
@@ -403,7 +389,6 @@ function setupA11y() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (openOverlayEls().length) { closeOverlays(); e.preventDefault(); }
-      else if (!el['bebedeira'].hidden) closeBebedeira();
       else if (!el['brinde'].hidden) { /* deixa terminar sozinho */ }
       return;
     }
@@ -579,7 +564,6 @@ function gridHTML(items) {
 export function pulse(itemId, kind) {
   const card = el['items-grid'].querySelector(`[data-item="${cssq(itemId)}"]`);
   if (card) { const cls = kind === 'remove' ? 'pop-remove' : 'pop'; card.classList.remove(cls); void card.offsetWidth; card.classList.add(cls); }
-  if (!el['bebedeira'].hidden && itemId === bebedeiraItem) { const n = el['bebedeira-count']; n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop'); }
 }
 export function setConn(msg) { const b = el['conn-banner']; if (!msg) { b.hidden = true; return; } b.hidden = false; b.textContent = msg; }
 export function setHappyHour(msg) { const b = el['hh-banner']; if (!msg) { b.hidden = true; return; } b.hidden = false; b.textContent = msg; }
@@ -1081,20 +1065,6 @@ function openGames() {
   }));
   el['overlay-games'].hidden = false;
 }
-
-// ---------- Bebedeira ----------
-let bebedeiraItem = 'cerveja';
-export function openBebedeira(vm) {
-  bebedeiraItem = vm.item;
-  el['bebedeira-item'].textContent = vm.emoji;
-  el['bebedeira-count'].textContent = vm.count;
-  el['bebedeira-count'].dataset.v = String(vm.count);
-  el['bebedeira'].hidden = false;
-}
-export function updateBebedeira(count) { if (!el['bebedeira'].hidden) countTo(el['bebedeira-count'], count); }
-export function closeBebedeira() { el['bebedeira'].hidden = true; if (H.onBebedeiraClose) H.onBebedeiraClose(); }
-export function isBebedeira() { return !el['bebedeira'].hidden; }
-export function currentBebedeiraItem() { return bebedeiraItem; }
 
 // ---------- Offline (pareamento por QR/código, sem servidor) ----------
 async function copyBox(id, okMsg) {
@@ -1773,35 +1743,6 @@ function submitSong() {
   el['jukebox-input'].value = '';
 }
 
-// ---------- Modo festa (visualizador + trilha lo-fi procedural) ----------
-let festaRAF = null;
-function drawFesta() {
-  const cv = el['festa-canvas'];
-  if (!cv) return;
-  const g = cv.getContext('2d');
-  const W = cv.width, Hh = cv.height;
-  const spec = music.spectrum();
-  g.clearRect(0, 0, W, Hh);
-  const light = document.body.classList.contains('light');
-  const n = spec.length || 1;
-  const bw = W / n;
-  for (let i = 0; i < n; i++) {
-    const h = (spec[i] / 255) * Hh;
-    g.fillStyle = `hsl(${38 + (i / n) * 22}, 85%, ${light ? 42 : 58}%)`;
-    g.fillRect(i * bw + 1, Hh - h, bw - 2, h);
-  }
-  festaRAF = requestAnimationFrame(drawFesta);
-}
-export function openFesta() {
-  music.start();
-  el['overlay-festa'].hidden = false;
-  if (!festaRAF) drawFesta();
-}
-function stopFesta() {
-  if (festaRAF) { cancelAnimationFrame(festaRAF); festaRAF = null; }
-  music.stop();
-}
-
 // ---------- Passaporte de botecos (check-ins locais) ----------
 export function openPassport(vm) {
   const list = (vm && vm.checkins) || [];
@@ -1889,7 +1830,6 @@ export function openTour(vm) {
 // ---------- Overlays / toast ----------
 export function closeOverlays() {
   if (activeScan) { activeScan.stop(); activeScan = null; }
-  stopFesta();
   document.querySelectorAll('.overlay').forEach((o) => { o.hidden = true; });
   if (lastFocus) { try { lastFocus.focus({ preventScroll: true }); } catch { /* ignore */ } lastFocus = null; }
 }

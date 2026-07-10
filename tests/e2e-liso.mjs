@@ -187,27 +187,29 @@ async function main() {
     await B.waitForSelector('#screen-table.is-active', { timeout: T });
     await Promise.all([A, B].map((p) => p.waitForFunction(() => document.getElementById('peer-count')?.textContent === '2', null, { timeout: T })));
 
-    await step('CONSISTÊNCIA: menu "…" e grid de jogos mostram os MESMOS jogos (mesmo emoji+nome)', async () => {
-      // fonte única = chaves *.title; este guarda trava divergência futura (já escapou um
-      // "🂠 🂠 Truco" quando grid e i18n carregavam o emoji cada um por si)
+    await step('JOGOS moram no grid "🎮 Jogos" (os 3, sem emoji dobrado) e NÃO se repetem no menu "…"', async () => {
+      // Os jogos têm UMA casa: o grid do chip 🎮 (decisão de faxina do menu). A fonte única do
+      // rótulo segue sendo a chave *.title — este guarda trava o "🂠 🂠 Truco" (emoji dobrado) E
+      // que nenhum jogo volte a vazar pro menu (a consistência agora é "grid é a casa, menu limpo").
       const norm = (x) => x.replace(/\s+/g, '');
       await A.click('#btn-games');
       await A.waitForFunction(() => !document.getElementById('overlay-games').hidden, null, { timeout: T });
       const grid = (await A.$$eval('#games-grid .game-pick', (bs) => bs.map((b) => b.textContent))).map(norm).sort();
       await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+      // o grid tem EXATAMENTE os 3 jogos, cada rótulo com um único emoji (não "🂠 🂠 Truco")
+      if (grid.length !== 3) throw new Error(`o grid devia ter 3 jogos, veio ${grid.length}: ${grid.join(' | ')}`);
+      for (const g of grid) if (/(\p{Extended_Pictographic}|[\u{1F0A0}-\u{1F0FF}]).*(\p{Extended_Pictographic}|[\u{1F0A0}-\u{1F0FF}])/u.test(g.replace(/[A-Za-zÀ-ÿ]/g, ''))) throw new Error(`emoji dobrado no grid: ${g}`);
+      // o menu "…" NÃO pode ter nenhum jogo (nem seção "Jogos"): a faxina tirou de lá
       await A.click('#btn-menu');
-      const menu = (await A.evaluate(() => {
-        const items = [];
-        let sec = null;
-        for (const el of document.querySelectorAll('#overlay-menu .menu-sec, #overlay-menu .menu-item')) {
-          if (el.classList.contains('menu-sec')) { sec = el.textContent.trim(); continue; }
-          if (sec === 'Jogos') items.push(el.textContent);
-        }
-        return items;
-      })).map(norm).sort();
+      const leaked = await A.evaluate(() => {
+        const names = ['Purrinha', 'Dominó', 'Truco'];
+        const secGames = [...document.querySelectorAll('#overlay-menu .menu-sec')].some((s) => /Jogos/i.test(s.textContent));
+        const items = [...document.querySelectorAll('#overlay-menu .menu-item')].map((b) => b.textContent);
+        return { secGames, hits: items.filter((tx) => names.some((n) => tx.includes(n))) };
+      });
       await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
-      if (grid.length === 0 || menu.length === 0) throw new Error(`coleta vazia (grid=${grid.length}, menu=${menu.length})`);
-      if (JSON.stringify(grid) !== JSON.stringify(menu)) throw new Error(`menu e grid divergem!\n  menu: ${menu.join(' | ')}\n  grid: ${grid.join(' | ')}`);
+      if (leaked.secGames) throw new Error('a seção "Jogos" voltou pro menu "…" (era pra morar só no grid)');
+      if (leaked.hits.length) throw new Error(`jogo vazou de volta pro menu "…": ${leaked.hits.join(' | ')}`);
     });
 
     await step('tocar em "Rodada" NÃO marca direto: abre a ESCOLHA do item (total segue 0)', async () => {

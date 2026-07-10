@@ -145,9 +145,10 @@ async function main() {
   {
     const { ctxs, pages, host } = await mkTable(['Andre', 'Bia', 'Caio', 'Duda']);
 
-    await step('2v2: mineira abre pros quatro com mãos privadas (pelo menu "…" — consistência com o grid)', async () => {
-      await host.click('#btn-menu');
-      await host.click('#menu-truco');
+    await step('2v2: mineira abre pros quatro com mãos privadas (pelo grid "🎮 Jogos")', async () => {
+      await host.click('#btn-games');
+      await host.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+      await host.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Truco/.test(b.textContent)).click(); });
       await vis(host, 'tru-setup');
       await host.click('#btn-tru-min');
       await Promise.all(pages.map((p) => vis(p, 'tru-game')));

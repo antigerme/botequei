@@ -405,7 +405,13 @@ padrão Auto segue o navegador).
   ("cerveja" europeia = chopp BR), o dado sincronizado (id+contagem) segue idêntico.
   Nos e2e, force `lang:'pt'` no addInitScript (o CI roda Chromium en-US e os asserts são pt).
   Cuidado clássico: `const t = algumaCoisa()` SOMBREIA o `t()` do i18n — renomeie o local.
-- Ao adicionar `js/*.js` do shell, atualize a lista do `sw.js` **e** bump o `CACHE` (`botequei-vN`).
+- **Versão = serial de zona DNS (RFC 1912), `YYYYMMDDnn`** (data + revisão do dia): a fonte
+  única é `js/version.js` (`VERSION`), o `CACHE` do `sw.js` é `botequei-` + o MESMO serial e a
+  auditoria trava a paridade/formato. Bump de versão = mexer nos DOIS juntos. O rodapé das
+  ⚙️ Configurações mostra "🍺 Botequei 2026.07.10-01" (`verLabel`) e TOCAR confere atualização
+  na hora (`onCheckUpdate` → `reg.update()`; achou → auto-update assume; não achou → "na
+  última"; sem rede → diz a versão). Ao adicionar `js/*.js` do shell, atualize a lista do
+  `sw.js` **e** bump o serial.
 - O SW **não** chama `skipWaiting` no install — quem decide a hora é o **app**, e sozinho:
   versão nova instalada → o app aplica **automaticamente** (toast "atualizando…" → `SKIP_WAITING`
   → reload no `controllerchange`; o hash re-entra na mesa), **adiando** enquanto houver jogo

@@ -1,6 +1,8 @@
 // Service worker do Botequei — cache do "app shell" para abrir offline e instalar como PWA.
 // Importante: nunca intercepta a sinalizacao (/signaling, /turn) nem o que nao for GET.
-const CACHE = 'botequei-v81';
+// CACHE = 'botequei-' + serial da versão (padrão de zona DNS, YYYYMMDDnn — js/version.js é a
+// fonte única; a auditoria trava a paridade). Serial novo = shell novo = ciclo de atualização.
+const CACHE = 'botequei-2026071001';
 const SHELL = [
   './',
   'index.html',
@@ -23,6 +25,7 @@ const SHELL = [
   'js/qr.js',
   'js/vendor/qrcode.js',
   'js/settings.js',
+  'js/version.js',
   'js/sound.js',
   'js/music.js',
   'js/achievements.js',

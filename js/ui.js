@@ -33,6 +33,7 @@ import { snakeLayout } from './domino.js';
 import { scanQR, scanSupported } from './scan.js';
 import * as music from './music.js';
 import { applyI18n, setLang, t } from './i18n.js';
+import { VERSION, verLabel } from './version.js';
 
 const $ = (id) => document.getElementById(id);
 let H = {};
@@ -62,7 +63,7 @@ const IDS = [
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
-  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-keepawake',
+  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-keepawake', 'btn-version',
   'set-lang',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
@@ -308,6 +309,9 @@ export function init(handlers) {
   el['set-sound'].addEventListener('change', () => H.onSetting({ sound: el['set-sound'].checked }));
   el['set-shake'].addEventListener('change', () => H.onShakeToggle(el['set-shake'].checked));
   el['set-keepawake'].addEventListener('change', () => H.onSetting({ keepAwake: el['set-keepawake'].checked }));
+  // versão no rodapé das configs (serial de zona YYYYMMDDnn): tocar confere se há mais nova
+  el['btn-version'].textContent = '🍺 Botequei ' + verLabel(VERSION);
+  el['btn-version'].addEventListener('click', () => H.onCheckUpdate());
   el['set-pixkey'].addEventListener('change', () => H.onSetting({ pixKey: el['set-pixkey'].value.trim() }));
   el['set-pixcity'].addEventListener('change', () => H.onSetting({ pixCity: el['set-pixcity'].value.trim() }));
   $('btn-clear-data').addEventListener('click', () => H.onClearData());

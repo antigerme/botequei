@@ -115,7 +115,14 @@ for (const file of [...JS_FILES, ...TEST_FILES]) {
   const sw = read('sw.js');
   const cache = sw.match(/const\s+CACHE\s*=\s*['"]([^'"]+)['"]/);
   if (!cache) fail('[sw] não achei a constante CACHE');
-  else if (!/^botequei-v\d+$/.test(cache[1])) fail(`[sw] CACHE "${cache[1]}" fora do padrão botequei-vN`);
+  // padrão de zona DNS (YYYYMMDDnn): data válida + revisão do dia; js/version.js é a fonte única
+  else if (!/^botequei-20\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{2}$/.test(cache[1]))
+    fail(`[sw] CACHE "${cache[1]}" fora do padrão botequei-YYYYMMDDnn (serial de zona)`);
+  const verSrc = read('js/version.js');
+  const ver = verSrc.match(/export\s+const\s+VERSION\s*=\s*['"](\d{10})['"]/);
+  if (!ver) fail('[version] não achei export const VERSION (serial YYYYMMDDnn) em js/version.js');
+  else if (cache && cache[1] !== 'botequei-' + ver[1])
+    fail(`[version] serial dessincronizado: js/version.js diz ${ver[1]}, sw.js diz ${cache[1]} — bump os DOIS juntos`);
 
   const shellBlock = sw.match(/const\s+SHELL\s*=\s*\[([\s\S]*?)\]/);
   const shell = new Set();

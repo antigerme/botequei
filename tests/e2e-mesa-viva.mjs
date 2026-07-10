@@ -1,8 +1,9 @@
 // E2E da "mesa viva" (navegadores reais, WebRTC):
 //   A) fechar um jogo NÃO cancela mais: ✕ minimiza (pill "voltar" na mesa), o jogo segue nos
 //      outros; "Encerrar" é explícito, com confirmação e ATRIBUIÇÃO (toast diz quem encerrou);
-//   B) presença SERENA: quem cai vira 💤 na barra SEM toast e fica lá pelo tempo que for;
-//      "👋 saiu" só existe no tchau EXPLÍCITO do botão sair (tela apagada não vira drama);
+//   B) presença SERENA com MEMÓRIA: quem cai vira 💤 SEM toast e ganha o RELÓGIO de há quanto
+//      tempo; fechar o APP (pagehide → 'gone') sai da barra em silêncio após a graça; "👋 saiu"
+//      só existe no tchau EXPLÍCITO do botão sair (tela apagada não vira drama);
 //   C) ausente não trava o dominó: com o dono da vez offline, a vez é PULADA sozinha (~20s)
 //      e a mesa segue jogando.
 //
@@ -105,19 +106,40 @@ async function main() {
     for (const c of ctxs) await c.close();
   }
 
-  // ---------- B) presença SERENA: queda vira 💤 sem toast (pra sempre); "saiu" só no tchau explícito ----------
+  // ---------- B) presença SERENA com MEMÓRIA: 💤 + relógio; fechar o app arruma a barra; "saiu" só no tchau ----------
   {
-    const { ctxs, pages, host } = await mkTable(['Andre', 'Bia', 'Caio']);
+    const { ctxs, pages, host } = await mkTable(['Andre', 'Bia', 'Caio', 'Dani']);
     await tapToasts(host);
-    await ctxs[2].close(); // Caio "apagou a tela" (fecha o navegador) — NÃO é sair
 
-    await step('quem caiu vira 💤 esmaecido na barra e NUNCA vira toast de "saiu"', async () => {
+    await step('morte SEM tchau (renderer morto) vira 💤 sem NENHUM toast e segue na barra', async () => {
+      // mata o renderer do Caio via CDP (Page.crash) — tela apagada/bateria/OS matando o app:
+      // JS some, WebRTC cai e NÃO dispara pagehide; fechar o app dispara (caso da Dani, adiante).
+      // fire-and-forget: o renderer morre no MEIO da resposta do CDP (await pendura pra sempre)
+      const cdp = await ctxs[2].newCDPSession(pages[2]);
+      cdp.send('Page.crash').catch(() => { /* esperado */ });
       await host.waitForFunction(() => !!document.querySelector('.pres-av.zz'), null, { timeout: 30000 });
-      await host.waitForTimeout(50000); // MUITO além da antiga "graça" de 45s — o modelo novo não tem prazo
+      await host.waitForTimeout(50000); // muito além de qualquer "graça" — 💤 não tem prazo
       const said = await toasts(host);
       if (said.some((t) => /saiu/.test(t))) throw new Error('queda de conexão virou toast de "saiu": ' + JSON.stringify(said));
       const zz = await host.evaluate(() => !!document.querySelector('.pres-av.zz'));
       if (!zz) throw new Error('o 💤 sumiu da barra — quem caiu deveria seguir visível, esmaecido');
+    });
+
+    await step('o 💤 ganha RELÓGIO ("1min"+): a mesa conclui sozinha quem já foi embora', async () => {
+      await host.waitForFunction(() => /min|h/.test(document.querySelector('.pres-av.zz .zz-t')?.textContent || ''), null, { timeout: 75000 });
+    });
+
+    await step('fechar o APP (pagehide → tchau educado): sai da barra em SILÊNCIO após a graça', async () => {
+      const dani = pages[3];
+      // dispara o pagehide com a página ainda viva (o 'gone' sai garantido) e aí fecha de verdade
+      await dani.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+      await ctxs[3].close();
+      // graça de 45s (reload/atualização de SW voltam antes) + folga: Dani sai SEM toast
+      await host.waitForFunction(() => [...document.querySelectorAll('.pres-av')].length === 3, null, { timeout: 75000 });
+      const said = await toasts(host);
+      if (said.some((t) => /Dani saiu/.test(t))) throw new Error('fechar o app virou toast de "saiu" — devia ser silencioso');
+      const zz = await host.evaluate(() => !!document.querySelector('.pres-av.zz'));
+      if (!zz) throw new Error('a arrumação tirou a pessoa errada — Caio (💤) deveria seguir na barra');
     });
 
     await step('sair DE VERDADE (botão sair) → "👋 Bia saiu" toca no host NA HORA', async () => {
@@ -126,7 +148,7 @@ async function main() {
       await bia.waitForFunction(() => !document.getElementById('toast').hidden, null, { timeout: 5000 });
       await bia.click('#toast'); // confirma o actionToast de sair
       await host.waitForFunction(() => (window.__toasts || []).some((t) => /Bia saiu/.test(t)), null, { timeout: 10000 });
-      // Bia (tchau explícito) sai da barra; Caio (queda) segue lá de 💤
+      // Bia (tchau explícito) sai da barra; sobram eu + Caio (💤 com relógio)
       await host.waitForFunction(() => [...document.querySelectorAll('.pres-av')].length === 2, null, { timeout: 8000 });
     });
 

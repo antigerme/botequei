@@ -606,6 +606,10 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 /* tela apagada / caiu há pouco: esmaece com 💤 em vez de sumir da barra */
 .pres-av.zz { filter: grayscale(1); opacity: .5; }
 .pres-av .zz-b { position: absolute; right: -5px; bottom: -5px; font-size: 0.6875rem; font-style: normal; filter: none; }
+/* relógio do 💤: há quanto tempo a pessoa está fora (a mesa conclui sozinha quem já foi embora) */
+.pres-av .zz-t { position: absolute; left: 50%; transform: translateX(-50%); bottom: -6px; font-size: 0.625rem;
+  font-style: normal; line-height: 1; padding: 1px 4px; border-radius: var(--r-full);
+  background: rgba(20, 14, 8, .78); color: #f3ead6; white-space: nowrap; filter: none; }
 
 /* Seções do menu */
 .menu-sec { font-size: var(--fs-xs); letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin: 14px 2px 2px; }
@@ -618,11 +622,13 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 
 /* Placar: indicador de conexão por pessoa + nome clicável (abre comanda) */
 .peer-net { font-size: var(--fs-ml); width: 22px; text-align: center; flex: none; }
-.peer-net.off { opacity: .6; }
+.peer-net.off { opacity: .6; width: auto; min-width: 22px; }
+.peer-net .net-away { font-style: normal; font-size: var(--fs-xs); color: var(--muted); margin-left: 2px; }
 .peer-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
   background: none; border: 0; color: inherit; font: inherit; text-align: left; padding: 0; cursor: pointer; }
 
 /* Comanda individual */
+.comanda-away { margin: 2px 0 0; font-size: var(--fs-s); color: var(--muted); }
 .comanda-list { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 8px; }
 .comanda-row { display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, .03);
   border: 2px dashed var(--chalk-line); border-radius: var(--r-m); padding: 11px 13px; }
@@ -637,7 +643,7 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 /* Respeita "reduzir movimento" (acessibilidade): corta animações decorativas */
 @media (prefers-reduced-motion: reduce) {
   .confetti, .fx-float, .fx-plus, .logo, .bebedeira-item, .brinde-emoji, .hh-banner { animation: none !important; }
-  .item-card.pop, .item-card.pop-remove, .bebedeira-plus.pop, .brinde.go .brinde-count { animation: none !important; }
+  .item-card.pop, .item-card.pop-remove, .bebedeira-plus.pop, .welcome-card.pop, .brinde.go .brinde-count { animation: none !important; }
   .screen.is-active, .sheet, .overlay { animation: none !important; }
   * { scroll-behavior: auto !important; }
 }
@@ -743,10 +749,24 @@ body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
 .photo-wrap img { display: block; width: 100%; max-height: 60vh; object-fit: contain; }
 .photo-wrap:empty::after { content: "📷"; font-size: 3rem; opacity: .5; }
 
-/* Guia de boas-vindas */
+/* Guia de boas-vindas: subtítulo + card de DEMONSTRAÇÃO (treina o gesto de verdade) + CTAs */
+.welcome-sub { margin: 4px 0 0; font-size: var(--fs-base); color: var(--cream); line-height: 1.4; }
+.welcome-demo { margin: 14px 0 4px; }
+.welcome-try { margin: 0 0 8px; font-size: var(--fs-s); color: var(--muted); }
+.welcome-try b { color: var(--gold); }
+.welcome-card { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 16px;
+  background: rgba(255, 255, 255, .04); border: 2px dashed var(--chalk-line); border-radius: var(--r-l);
+  color: var(--cream); font-family: inherit; cursor: pointer; touch-action: manipulation;
+  user-select: none; -webkit-user-select: none; }
+.welcome-card .wd-emoji { font-size: 1.75rem; }
+.welcome-card .wd-name { flex: 1; text-align: left; font-family: var(--hand); font-size: var(--fs-title); }
+.welcome-card .wd-count { font-family: var(--num); font-size: 1.75rem; color: var(--gold); min-width: 2ch; text-align: right; }
+.welcome-card.pop { animation: pop .42s var(--ease-spring); }
 .welcome-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; }
-.welcome-list li { display: flex; gap: 10px; align-items: baseline; font-size: var(--fs-base); line-height: 1.35; }
+/* fluxo NORMAL (nada de flex): o <b> do data-i18n-html é inline — flex fatiava a frase em pedaços */
+.welcome-list li { font-size: var(--fs-base); line-height: 1.35; }
 .welcome-list b { color: var(--gold); }
+.welcome-name { margin-top: 12px; }
 
 /* ===================== Purrinha (commit-reveal) ===================== */
 .purr-lbl { margin: 16px 0 10px; font-size: var(--fs-ml); color: var(--cream); }
@@ -918,7 +938,11 @@ body.light .bot-chip { background: rgba(120,90,50,.05); }
 .tour-balloon { position: absolute; left: 16px; right: 16px; max-width: 430px; margin: 0 auto;
   background: linear-gradient(180deg, #1c2314, #141a0f); border: 2px dashed var(--chalk-line);
   border-radius: var(--r-xl); padding: 14px 16px 16px; box-shadow: 0 12px 40px rgba(0, 0, 0, .55); }
-.tour-count { font-size: var(--fs-xs); letter-spacing: 1px; color: var(--muted); }
+.tour-count { display: flex; align-items: center; gap: 5px; font-size: var(--fs-xs); letter-spacing: 1px; color: var(--muted); }
+.tour-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--chalk-line); transition: background var(--t-fade), transform var(--t-fade); }
+.tour-dot.done { background: var(--muted); }
+.tour-dot.on { background: var(--gold); transform: scale(1.25); }
+.tour-num { margin-left: 4px; }
 .tour-title { font-family: var(--hand); font-size: 1.4375rem; color: var(--gold); margin-top: 2px; }
 .tour-text { font-size: var(--fs-ml); color: var(--cream); margin-top: 4px; line-height: 1.45; }
 .tour-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }

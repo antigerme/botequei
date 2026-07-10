@@ -97,6 +97,12 @@ let prevOnline = new Set();  // presença: quem estava online na última passada
 let presenceSeeded = false;  // 1ª passada de presença só semeia (sem toast)
 let everSeen = new Set();    // quem já apareceu online na sessão ("entrou!" só na 1ª vez)
 let saidBye = new Set();     // quem deu tchau EXPLÍCITO (fx 'bye' do leaveTable) — sai da barra
+let leftQuiet = new Set();   // fechou o app (fx 'gone' confirmado pela graça) — sai da barra SEM toast
+let goneAt = new Map();      // user -> timer da graça do 'gone' (reload/atualização de SW voltam em segundos)
+let awaySince = new Map();   // user -> desde quando está 💤 (relógio na barra/placar/comanda + arrumação)
+let presTick = null;         // re-render periódico com a mesa aberta (o relógio do 💤 anda sozinho)
+const GONE_GRACE_MS = 45000;  // fechou o app: só sai da barra se não voltar nisso
+const AWAY_HIDE_MS = 3600000; // 💤 por 1h+: a barra se arruma sozinha (quem morreu sem tchau — bateria)
 let sessionMates = new Set(); // nomes que apareceram na mesa (p/ "com quem você mais bebeu")
 let lastRetro = null;        // dados da última retrospectiva (p/ compartilhar)
 let shakeHandler = null, shakeLast = 0; // mãos livres (chacoalhar pra +1)
@@ -345,6 +351,7 @@ function onFx(fx, fromId) {
   else if (fx.kind === 'ceremony') { if (Array.isArray(fx.awards)) ui.openCeremony({ awards: fx.awards }); }
   else if (fx.kind === 'waiter') receiveWaiter(fx);
   else if (fx.kind === 'bye') receiveBye(fx);
+  else if (fx.kind === 'gone') receiveGone(fx);
   else if (fx.kind === 'purrinha') routePurrFx(fx);
   else if (fx.kind === 'truco') routeTrucoFx(fx);
   else if (fx.kind === 'domino') {
@@ -512,8 +519,16 @@ function renderPresence() {
   const me = profOf(self);
   const list = [{ user: self, emoji: me.emoji, photo: me.photo, color: me.color, name: getName() || t('common.you'), level: me.level, online: true, self: true }];
   const listed = new Set([self]);
-  // quem caiu segue na barra como 💤 (presença serena) — só sai quem deu tchau explícito (bye)
-  if (mesh) for (const p of mesh.peers()) { if (saidBye.has(p.user)) continue; listed.add(p.user); const pr = profOf(p.user); list.push({ user: p.user, emoji: pr.emoji, photo: pr.photo, color: pr.color, name: pr.name || t('common.someoneLow'), level: pr.level, online: p.online }); }
+  // quem caiu segue na barra como 💤 (presença serena) com o RELÓGIO de há quanto tempo; sai da
+  // barra quem deu tchau explícito (bye), quem fechou o app (gone + graça vencida) ou quem passou
+  // de 1h de 💤 (arrumação) — sempre SEM toast, e todos voltam na hora se reconectarem.
+  if (mesh) for (const p of mesh.peers()) {
+    if (saidBye.has(p.user) || leftQuiet.has(p.user)) continue;
+    const awayMs = p.online ? 0 : Date.now() - (awaySince.get(p.user) || Date.now());
+    if (awayMs > AWAY_HIDE_MS) continue;
+    listed.add(p.user); const pr = profOf(p.user);
+    list.push({ user: p.user, emoji: pr.emoji, photo: pr.photo, color: pr.color, name: pr.name || t('common.someoneLow'), level: pr.level, online: p.online, awayLabel: awayLabel(awayMs) });
+  }
   ui.renderPresence(list);
 }
 
@@ -524,7 +539,8 @@ function renderPeers() {
   const rows = base.map((r) => {
     const p = profOf(r.user);
     const net = nets.get(r.user);
-    return { ...r, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, level: p.level, badges: badgesFor(state, r.user), online: net ? net.online : undefined, conn: net ? net.conn : null };
+    return { ...r, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, level: p.level, badges: badgesFor(state, r.user), online: net ? net.online : undefined, conn: net ? net.conn : null,
+      away: net && net.online === false ? awayLabel(Date.now() - (awaySince.get(r.user) || Date.now())) : '' };
   });
   // garante que eu apareço mesmo sem ter consumido
   if (!rows.some((r) => r.user === self)) {
@@ -581,6 +597,7 @@ async function enterTable(code, { create = false, pin = '', joined = false } = {
   ui.showScreen('table');
   render();
   acquireWakeLock(); // tela acesa na mesa (se o usuário quer)
+  if (!presTick) presTick = setInterval(scheduleRender, 30000); // relógio do 💤 anda mesmo com a mesa parada
   if (create) { openInvite(); maybeSuggestByGps(); } // GPS: perto de um boteco conhecido? oferece o cardápio
   maybeStartTour(); // 1ª mesa da vida: mostra o caminho das pedras (espera fechar o convite)
 
@@ -602,6 +619,7 @@ function enterTableOffline(code) {
   ui.showScreen('table');
   render();
   acquireWakeLock();
+  if (!presTick) presTick = setInterval(scheduleRender, 30000);
   maybeStartTour();
   startMesh([]);
   location.hash = '#/mesa?room=' + room;
@@ -631,7 +649,14 @@ function onMeshChange() {
 function diffPresence() {
   if (!mesh) return;
   const cur = new Set(mesh.peers().filter((p) => p.online).map((p) => p.user));
-  for (const u of cur) { const n = profOf(u).name; if (n) sessionMates.add(n); saidBye.delete(u); } // voltou depois do tchau? reentra na barra
+  for (const u of cur) {
+    const n = profOf(u).name; if (n) sessionMates.add(n);
+    // voltou (do tchau, do fechar-o-app ou de um 💤 longo)? reentra na barra em silêncio
+    saidBye.delete(u); leftQuiet.delete(u); awaySince.delete(u);
+    const tm = goneAt.get(u); if (tm) { clearTimeout(tm); goneAt.delete(u); }
+  }
+  // relógio do 💤: anota QUANDO cada um caiu (alimenta o "12min" da barra e a arrumação de 1h)
+  for (const p of mesh.peers()) if (!p.online && !awaySince.has(p.user)) awaySince.set(p.user, Date.now());
   if (!presenceSeeded) { prevOnline = cur; presenceSeeded = true; for (const u of cur) everSeen.add(u); return; }
   for (const u of cur) {
     if (!prevOnline.has(u) && !everSeen.has(u)) { ui.toast(t('pres.joined', { name: profOf(u).name || t('common.someone') })); sound.pop(); }
@@ -644,15 +669,37 @@ function diffPresence() {
 // A pessoa sai da barra na hora; se voltar, ganha o "entrou!" de novo (everSeen zera).
 function receiveBye(fx) {
   if (!fx.from || fx.from === self) return;
-  saidBye.add(fx.from); everSeen.delete(fx.from); prevOnline.delete(fx.from);
+  saidBye.add(fx.from); everSeen.delete(fx.from); prevOnline.delete(fx.from); awaySince.delete(fx.from);
   const name = (typeof fx.fromName === 'string' && fx.fromName.slice(0, 24)) || profOf(fx.from).name || t('common.someone');
   ui.toast(t('pres.bye', { name }));
   scheduleRender();
 }
 
+// Tchau EDUCADO (fechou o app/aba — pagehide manda 'gone' best-effort): NÃO toasta nada.
+// Se a pessoa não voltar na graça (reload/atualização de SW voltam em segundos), sai da barra
+// EM SILÊNCIO — e volta a valer o "entrou!" quando reaparecer. Quem morre SEM avisar
+// (bateria, app morto à força) não manda gone: a arrumação de 1h (AWAY_HIDE_MS) cobre.
+function receiveGone(fx) {
+  if (!fx.from || fx.from === self || goneAt.has(fx.from)) return;
+  const u = fx.from;
+  goneAt.set(u, setTimeout(() => {
+    goneAt.delete(u);
+    const on = mesh && mesh.peers().some((p) => p.user === u && p.online);
+    if (!on) { leftQuiet.add(u); everSeen.delete(u); scheduleRender(); }
+  }, GONE_GRACE_MS));
+}
+
+// "há quanto tempo" curtinho pro 💤 (vazio nos primeiros 60s: piscada não ganha relógio)
+function awayLabel(ms) {
+  if (!ms || ms < 60000) return '';
+  const min = Math.floor(ms / 60000);
+  return min < 60 ? t('pres.agoMin', { n: min }) : t('pres.agoH', { n: Math.floor(min / 60) });
+}
+
 function startMesh(iceServers) {
   presenceSeeded = false; prevOnline = new Set();
-  everSeen = new Set(); saidBye = new Set();
+  everSeen = new Set(); saidBye = new Set(); leftQuiet = new Set(); awaySince = new Map();
+  for (const tm of goneAt.values()) clearTimeout(tm); goneAt = new Map();
   mesh = new Mesh({
     room: sigRoom(room, roomPin), code: room, selfId: self, name: getName(), iceServers,
     onEvent: onRemoteEvent, onFx, onPeersChange: onMeshChange, onStatus: onMeshChange,
@@ -720,7 +767,9 @@ function leaveTable() {
   room = null; roomPin = ''; myDriver = false; offlineWaiting = false; gpsBoteco = '';
   lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; sessionJoined = false; lastAwards = [];
   prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set();
-  everSeen = new Set(); saidBye = new Set();
+  everSeen = new Set(); saidBye = new Set(); leftQuiet = new Set(); awaySince = new Map();
+  for (const tm of goneAt.values()) clearTimeout(tm); goneAt = new Map();
+  if (presTick) { clearInterval(presTick); presTick = null; }
   purr = null; dom = null; dv = null; seenFx.clear(); purrPreFx = [];
   cancelTruco(false); trucoPreFx = [];
   domClearTimers(); gameMinned.clear(); ui.setGameMin('dom', false); ui.setGameMin('purr', false); ui.setGamePill(null);
@@ -907,7 +956,21 @@ function trySwUpdate() {
   setTimeout(() => { try { w.postMessage('SKIP_WAITING'); } catch { /* já ativou */ } }, 1200);
 }
 
-// ---- Tour guiado da primeira mesa (4 paradas; 1× por aparelho) ----
+// ---- Tour guiado da primeira mesa (4 paradas; 1× por aparelho + "🎓 Rever" no menu) ----
+// UMA fonte de verdade pras paradas: a 1ª mesa e o "Rever o tour" mostram o MESMO caminho.
+function tourStopList() {
+  // mesa nova nasce LIMPA → a 1ª parada aponta o botão que abre o catálogo; se já
+  // tem cards (entrou numa mesa rodando), ensina o toque no card
+  const hasCards = !!document.querySelector('.item-card');
+  return [
+    hasCards
+      ? { sel: '.item-card', title: t('tour.t1'), text: t('tour.x1') }
+      : { sel: '#btn-empty-custom', title: t('tour.t0'), text: t('tour.x0') },
+    { sel: '.total-hero', title: t('tour.t2'), text: t('tour.x2') },
+    { sel: '#btn-games', title: t('tour.t3'), text: t('tour.x3') },
+    { sel: '#btn-menu', title: t('tour.t4'), text: t('tour.x4') },
+  ];
+}
 function maybeStartTour() {
   if (store.getFlag('tourSeen')) return;
   const tick = setInterval(() => {
@@ -918,16 +981,7 @@ function maybeStartTour() {
     if (!hasCards && !emptyOpen) return; // miolo ainda não renderizou
     clearInterval(tick);
     store.setFlag('tourSeen'); // marca ao MOSTRAR (pular também conta como visto)
-    ui.startTour([
-      // mesa nova nasce LIMPA → a 1ª parada aponta o botão que abre o catálogo; se já
-      // tem cards (entrou numa mesa rodando), ensina o toque no card
-      hasCards
-        ? { sel: '.item-card', title: t('tour.t1'), text: t('tour.x1') }
-        : { sel: '#btn-empty-custom', title: t('tour.t0'), text: t('tour.x0') },
-      { sel: '.total-hero', title: t('tour.t2'), text: t('tour.x2') },
-      { sel: '#btn-games', title: t('tour.t3'), text: t('tour.x3') },
-      { sel: '#btn-menu', title: t('tour.t4'), text: t('tour.x4') },
-    ], (completed) => {
+    ui.startTour(tourStopList(), (completed) => {
       // fim do tour: pergunta o tema preferido (quem PULOU quer usar logo — não pergunta;
       // o tema segue à mão nas ⚙️ Configurações)
       if (completed) ui.openThemePick();
@@ -2493,7 +2547,11 @@ function openComanda(user) {
   }
   // unidades que a pessoa PAGOU (perdeu o jogo / bancou): a garrafa "dela" aparece na comanda
   for (const it of allItems()) { const n = paidCount(state, user, it.id); if (n > 0) rows.push({ emoji: '💸', name: t('comanda.paid', { item: itemLabel(it) }), n, money: (it.price || 0) * n, note: '' }); }
-  ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user), money: userMoney(state, user, resolveItem) });
+  // se a pessoa está 💤, a comanda diz DESDE QUANDO (ajuda a decidir se "foi embora de vez")
+  const net = mesh ? mesh.peers().find((x) => x.user === user) : null;
+  const since = net && !net.online ? awaySince.get(user) : 0;
+  ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user), money: userMoney(state, user, resolveItem),
+    away: since ? t('comanda.away', { time: new Date(since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }) : '' });
 }
 
 function myLevel() { return levelFor(lifeStats(store.getHistory(), { now: Date.now() })).level; }
@@ -2553,6 +2611,13 @@ function openBotecoFicha(name) {
 const handlers = {
   onName: (v) => setName(v),
   onCreate: () => { if (!getName()) { ui.toast(t('toast.needName')); return; } enterTable(newRoomCode(), { create: true }); },
+  // CTA do bem-vindo: apelido + mesa num toque só (espelha o onJoinConfirm do convite)
+  onWelcomeCreate: (name) => {
+    const n = setName(name);
+    if (!n) { ui.toast(t('toast.needNick')); return; }
+    ui.closeOverlays();
+    enterTable(newRoomCode(), { create: true });
+  },
   onJoinCode: (code) => {
     code = (code || '').trim().toUpperCase();
     if (!code) { ui.toast(t('toast.needCode')); return; }
@@ -2697,6 +2762,8 @@ const handlers = {
   onCeremonyBroadcast: () => { if (mesh) mesh.sendFx({ kind: 'ceremony', awards: lastAwards }); ui.toast(t('toast.sentToTable')); },
   onStats: openStats,
   onComanda: openComanda,
+  // rever o tour quando quiser (menu "…"): mesmas paradas da 1ª mesa, sem re-perguntar o tema
+  onTourReplay: () => { if (room) ui.startTour(tourStopList(), null); },
   onRetro: openRetro,
   onJukebox: () => { if (!room) { ui.toast(t('toast.needTable')); return; } ui.openJukebox({ songs: songs(state) }); },
   onSongAdd: (title) => {
@@ -2894,7 +2961,13 @@ function boot() {
     ui.openWelcome(); // primeiro uso: guia rápido (sem convite pendente)
   }
 
-  window.addEventListener('pagehide', () => { if (room) { store.saveEvents(room, log); if (mesh) mesh.sig.leave(); } });
+  // fechar o app/aba manda o tchau EDUCADO ('gone', best-effort): a mesa NÃO toasta, só tira
+  // da barra se a pessoa não voltar na graça (reload/atualização de SW voltam em segundos)
+  window.addEventListener('pagehide', () => {
+    if (!room) return;
+    store.saveEvents(room, log);
+    if (mesh) { try { mesh.sendFx({ kind: 'gone', from: self }); } catch { /* ignore */ } mesh.sig.leave(); }
+  });
   const wake = () => { if (document.hidden) return; if (mesh) mesh.wake(); acquireWakeLock(); };
   document.addEventListener('visibilitychange', wake);
   window.addEventListener('focus', wake);

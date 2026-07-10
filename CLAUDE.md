@@ -94,8 +94,9 @@ padrão Auto segue o navegador).
   jogada chegar em todos mesmo se a malha não estiver completa (4 pessoas = 6 links); os demais
   (reações etc.) são disparo único. Tipos: brinde, reação, **cerimônia** (mostrar troféus
   pra mesa), **chamar o garçom** (`waiter`, opcionalmente com `item`+`n` da rodada paga) e
-  **tchau** (`bye` — o botão sair anuncia a saída; é a ÚNICA fonte do toast "👋 saiu"). Nada
-  disso persiste. O **Brinde não tem chip próprio na barra**: o 🍻 dentro de "Reagir" (`openReact`)
+  **tchau** (`bye` — o botão sair anuncia a saída; é a ÚNICA fonte do toast "👋 saiu") e
+  **fechou-o-app** (`gone` — pagehide, best-effort e SILENCIOSO: só arruma a barra após a
+  graça de 45s). Nada disso persiste. O **Brinde não tem chip próprio na barra**: o 🍻 dentro de "Reagir" (`openReact`)
   dispara o brinde de verdade (3‑2‑1 na tela de todos) — ação óbvia > botão extra.
 - **Purrinha (jogo P2P honesto)** (`js/purrinha.js`, puro): sem "banca" central, cada um esconde a
   mão. **Três modos**, escolhidos por quem inicia (tela "como quer jogar?"): **por palitos (3-2-1)**
@@ -196,7 +197,13 @@ padrão Auto segue o navegador).
   tempo que for (tela apagada/elevador não é "saiu") e a volta é silenciosa; **"👋 saiu" só existe
   no tchau EXPLÍCITO**: o botão sair manda o fx `bye` antes do `mesh.close()` e o `receiveBye`
   toasta e tira a pessoa da barra (presença é MOSTRADA, não anunciada — padrão Docs/Figma);
-  "entrou!" só na 1ª vez da sessão. **Tela acesa na mesa**: Screen Wake Lock segura a tela
+  "entrou!" só na 1ª vez da sessão. **Memória do 💤**: o avatar caído ganha o RELÓGIO de há
+  quanto tempo está fora (`awayLabel` — "12min"/"1h" na barra e no placar; a comanda diz "fora
+  desde HH:MM"); **fechar o app** manda um `gone` best-effort no `pagehide` — se não voltar na
+  graça de 45s (reload/atualização de SW voltam antes), sai da barra EM SILÊNCIO; e 💤 por 1h+
+  sai da barra sozinho (`AWAY_HIDE_MS` — bateria/app morto à força não avisam). Em todos os
+  casos a pessoa segue no placar/conta e reentra na barra na hora se reconectar (aí o "entrou!"
+  volta a valer). **Tela acesa na mesa**: Screen Wake Lock segura a tela
   enquanto a mesa está aberta (`settings.keepAwake`, ligado de fábrica; switch nas configs) —
   `acquireWakeLock` no entrar/`visibilitychange` (o sistema solta sozinho ao esconder a aba),
   release no sair/switch; sem suporte, falha em silêncio. O placar mostra a qualidade da conexão
@@ -266,9 +273,13 @@ padrão Auto segue o navegador).
   **molduras** de avatar por nível da liga (`frameClass` → `.fr-silver`/`.fr-gold`); **passaporte**
   de botecos (`store.getCheckins`/`addCheckin` — check-in local, GPS opcional, só no aparelho);
   **foto da noite** (só preview/compartilhar via Web Share — nada é salvo/enviado); **guia de
-  boas-vindas** no 1º uso (sem nome/histórico/convite; 1× só — flag `welcomeSeen` no
-  `store.getFlag`/`setFlag`) e **tour guiado** de 4 paradas na 1ª mesa (`ui.startTour`, flag
-  `tourSeen`; spotlight + balão, avança no toque, "pular" sempre à mão).
+  boas-vindas** no 1º uso (1× só — flag `welcomeSeen` no `store.getFlag`/`setFlag`): card de
+  DEMONSTRAÇÃO tocável (treina o toque=+1/segurar=−1 antes da 1ª mesa), apelido ali mesmo e
+  CTA "criar minha primeira mesa" que já abre a mesa (`onWelcomeCreate`, espelho do
+  `onJoinConfirm`); e **tour guiado** de 4 paradas na 1ª mesa (`ui.startTour`, flag `tourSeen`;
+  spotlight + balão, bolinhas de progresso, toque em qualquer lugar avança, re-posiciona ao
+  girar o aparelho, "pular" sempre à mão; **"🎓 Rever o tour"** no menu "…" repete as MESMAS
+  paradas — `tourStopList` no `app.js` é a fonte única — sem re-perguntar o tema).
 - **Persistência:** só `localStorage` (`js/store.js`; histórico por mesa com meus itens, gasto,
   duração e **`mates`** — quem estava na mesa, p/ o "com quem você mais bebeu"; `exportAll`/
   `importAll` = backup JSON; `getCheckins`/`addCheckin` = passaporte de botecos). Nada central.

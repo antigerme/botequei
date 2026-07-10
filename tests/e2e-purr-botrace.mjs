@@ -37,7 +37,9 @@ async function main() {
 
   // helper: abre a purrinha no modo pedido (solo já vem com 1 bot) e espera a tela de escolher a mão
   const openMode = async (btn) => {
-    await A.click('#btn-menu'); await A.click('#menu-purrinha');
+    await A.click('#btn-games');
+    await A.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+    await A.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Purrinha/.test(b.textContent)).click(); });
     await A.waitForFunction(() => !document.getElementById('overlay-purrinha').hidden, null, { timeout: T });
     await A.waitForFunction(() => document.getElementById('purr-setup') && !document.getElementById('purr-setup').hidden, null, { timeout: T });
     await A.click(btn);

@@ -35,7 +35,9 @@ async function main() {
   await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
 
   // ---------- PURRINHA rápida: sozinho + 2 bots ----------
-  await A.click('#btn-menu'); await A.click('#menu-purrinha');
+  await A.click('#btn-games');
+  await A.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+  await A.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Purrinha/.test(b.textContent)).click(); });
   await A.waitForFunction(() => !document.getElementById('overlay-purrinha').hidden, null, { timeout: T });
 
   await step('sozinho na mesa: o setup já sugere 1 bot (pra poder jogar)', async () => {
@@ -94,7 +96,9 @@ async function main() {
   await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
 
   // ---------- DOMINÓ (mesa verificada): sozinho + 1 bot, partida completa + auditoria ----------
-  await A.click('#btn-menu'); await A.click('#menu-domino');
+  await A.click('#btn-games');
+  await A.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+  await A.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Dominó/.test(b.textContent)).click(); });
   await A.waitForFunction(() => !document.getElementById('overlay-domino').hidden, null, { timeout: T });
 
   await step('dominó: handshake da mesa verificada FECHA com o seed do bot (host fala por ele)', async () => {
@@ -136,7 +140,9 @@ async function main() {
   await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
 
   // ---------- TRUCO (paulista 1v1): sozinho + 1 bot — handshake, jogo corre, aposta resolve ----------
-  await A.click('#btn-menu'); await A.click('#menu-truco');
+  await A.click('#btn-games');
+  await A.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+  await A.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Truco/.test(b.textContent)).click(); });
   await A.waitForFunction(() => !document.getElementById('overlay-truco').hidden, null, { timeout: T });
 
   await step('truco: handshake da mão FECHA com o bot dando/recebendo as cartas (host proxy)', async () => {

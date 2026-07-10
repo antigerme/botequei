@@ -58,7 +58,9 @@ async function main() {
     await host.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
     for (let i = 1; i < N; i++) { await pages[i].goto(BASE + '#/join?room=' + code); await pages[i].waitForSelector('#screen-table.is-active', { timeout: T }); }
     await peersAll(pages, N);
-    await host.click('#btn-menu'); await host.click('#menu-purrinha');
+    await host.click('#btn-games');
+    await host.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+    await host.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Purrinha/.test(b.textContent)).click(); });
     await vis(host, 'purr-setup'); await host.click(modeBtn); // quem inicia escolhe o modo
     return { ctxs, pages, host };
   }

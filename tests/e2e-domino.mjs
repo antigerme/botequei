@@ -92,7 +92,9 @@ async function main() {
     await Promise.all(pages.map((p) => p.waitForFunction((n) => document.getElementById('peer-count')?.textContent === String(n), N, { timeout: T })));
 
     await step(`${N}p: dominó abre em todos e o tabuleiro começa (abertura forçada)`, async () => {
-      await host.click('#btn-menu'); await host.click('#menu-domino');
+      await host.click('#btn-games');
+      await host.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+      await host.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Dominó/.test(b.textContent)).click(); });
       await host.waitForSelector('#btn-dom-go', { timeout: T }); await host.click('#btn-dom-go'); // tela de início (0 bots no multiplayer)
       // sempre mesa verificada: o handshake (lacres + corte coletivo) roda primeiro, aí o jogo abre
       await Promise.all(pages.map((p) => vis(p, 'dom-game')));

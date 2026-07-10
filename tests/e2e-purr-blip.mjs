@@ -48,7 +48,9 @@ async function main() {
   await Promise.all([A, B].map((p) => p.waitForFunction(() => document.getElementById('peer-count')?.textContent === '2', null, { timeout: T })));
 
   // A abre a clássica com 1 bot -> assentos [A, B, bot]
-  await A.click('#btn-menu'); await A.click('#menu-purrinha');
+  await A.click('#btn-games');
+  await A.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+  await A.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Purrinha/.test(b.textContent)).click(); });
   await vis(A, 'purr-setup');
   await A.click('#purr-setup .bot-chip[data-n="1"]');
   await A.click('#btn-purr-classic');

@@ -269,9 +269,9 @@ const DICT = {
     'off.noCamera': 'Sem câmera aqui — use o copia-e-cola 🙂', 'off.noCamera2': 'Sem câmera — use o copia-e-cola 🙂',
     'off.cameraPerm': 'Precisa permitir a câmera 📷',
     // ---- menu (⋯) ----
-    'menu.secYou': 'Você', 'menu.secGames': 'Jogos', 'menu.secBill': 'Conta', 'menu.secExtra': 'A noite', 'menu.secApp': 'App',
+    'menu.secYou': 'Você', 'menu.secBill': 'Conta', 'menu.secExtra': 'A noite', 'menu.secApp': 'App',
     'menu.profile': '🎨 Meu perfil', 'menu.waiter': '🔔 Chamar o garçom',
-    'menu.jukebox': '🎵 Jukebox', 'menu.festa': '🎉 Modo festa', 'menu.bebedeira': '🔢 Contador gigante',
+    'menu.jukebox': '🎵 Jukebox',
     'menu.shareNight': '📸 Compartilhar a noite', 'menu.settings': '⚙️ Configurações',
     'menu.leaveQ': 'Sair da mesa?', 'menu.leaveDo': 'Sair',
     // ---- perfil / novo item ----
@@ -298,10 +298,9 @@ const DICT = {
     'set.pixCity': 'Cidade', 'set.pixCityPh': 'ex: São Paulo',
     'set.export': '⬇️ Exportar', 'set.import': '⬆️ Importar',
     'set.privacy': '🔒 Nada disso é enviado a servidor. Tudo vive no seu navegador.',
-    // ---- extras (react/cerimônia/festa) ----
+    // ---- extras (react/cerimônia) ----
     'react.title': 'Mandar reação',
     'cer.title': '🏅 Cerimônia da noite', 'cer.sub': 'Os troféus da mesa 🏆', 'cer.empty': 'Ninguém pontuou ainda 🥲',
-    'festa.hint': '🎉 modo festa · trilha lo-fi tocando',
     // ---- estatísticas / retrô ----
     'stats.trendH': 'Tendência (bebidas/mês)', 'stats.nightsH': 'Suas noites',
     'stats.nights': 'noites', 'stats.drinks': 'rodadas', 'stats.avg': 'média/noite', 'stats.month': 'este mês',
@@ -331,7 +330,7 @@ const DICT = {
     'pass.fallback': 'Boteco',
     'photo.title': '📷 Foto da noite', 'photo.retake': '🔄 Outra', 'photo.alt': 'foto da noite',
     'photo.shareText': 'Foto da noite 🍺',
-    // ---- boas-vindas / tour / brinde / bebedeira / sw ----
+    // ---- boas-vindas / tour / brinde / sw ----
     'welcome.sub': 'A lousa da mesa: cada um marca o que bebeu e todo mundo vê junto, na hora.',
     'welcome.try': 'Experimenta aqui: <b>toque</b> = +1 · <b>segure</b> = −1',
     'welcome.demoAria': 'Card de demonstração — toque pra somar, segure pra corrigir',
@@ -349,14 +348,13 @@ const DICT = {
     'tour.tc4': 'Cardápio da mesa 📝', 'tour.xc4': 'Preço, marca e descrição por item; esconda o que acabou. O app LEMBRA o cardápio do boteco pra próxima visita.',
     'tour.td1': 'Quem paga? Joga! 🎮', 'tour.xd1': 'Purrinha, dominó e truco — com lacre e auditoria, trapaça não cola. Sozinho? Chama os 🤖 da casa.',
     'tour.td2': 'Reagir 😀', 'tour.xd2': 'Emoji voando na tela de todo mundo — e o 🍻 dispara o brinde de verdade, com 3‑2‑1 na mesa toda.',
-    'tour.td3': 'Contador gigante 🔢', 'tour.xd3': 'Modo balcão: número gigante na tela, +1 no tapa — pro fim de noite, quando mirar no card já é difícil.',
+    'tour.td3': 'Jukebox 🎵', 'tour.xd3': 'A trilha da mesa: todo mundo bota música na fila e a de cada um toca — sem brigar pelo celular do dono do som.',
     'tour.td4': 'Chamar o garçom 🔔', 'tour.xd4': 'Um toque e aparece na tela da mesa toda — na rodada paga, já vai com o pedido (2× chopp).',
     'tour.tv1': 'Quem tá na mesa', 'tour.xv1': 'Avatares ao vivo: tela apagada vira 💤 com o relógio de há quanto tempo. "Saiu" só quem toca em sair.',
     'tour.tv2': 'Placar 👥', 'tour.xv2': 'Medalhas, conexão de cada um — e tocar num nome abre a comanda da pessoa.',
     'tour.tv3': 'Meus números 📊', 'tour.xv3': 'Média, recorde, sequência e a retrospectiva do rolê — tudo só no SEU aparelho.',
     'tour.tv4': 'Meu perfil 🎨', 'tour.xv4': 'Apelido, emoji ou foto, cor — e o modo motorista, que te tira das rodadas alcoólicas.',
     'brinde.prep': 'Preparar…', 'brinde.go': 'Brinde!',
-    'beb.hint': 'segure para −1',
     'sw.updating': '🔄 Nova versão do Botequei — atualizando…',
   },
   en: {
@@ -620,9 +618,9 @@ const DICT = {
     'off.noCamera': 'No camera here — use copy-and-paste 🙂', 'off.noCamera2': 'No camera — use copy-and-paste 🙂',
     'off.cameraPerm': 'Camera permission needed 📷',
     // ---- menu (⋯) ----
-    'menu.secYou': 'You', 'menu.secGames': 'Games', 'menu.secBill': 'Tab', 'menu.secExtra': 'The night', 'menu.secApp': 'App',
+    'menu.secYou': 'You', 'menu.secBill': 'Tab', 'menu.secExtra': 'The night', 'menu.secApp': 'App',
     'menu.profile': '🎨 My profile', 'menu.waiter': '🔔 Call the waiter',
-    'menu.jukebox': '🎵 Jukebox', 'menu.festa': '🎉 Party mode', 'menu.bebedeira': '🔢 Giant counter',
+    'menu.jukebox': '🎵 Jukebox',
     'menu.shareNight': '📸 Share the night', 'menu.settings': '⚙️ Settings',
     'menu.leaveQ': 'Leave the table?', 'menu.leaveDo': 'Leave',
     // ---- profile / new item ----
@@ -652,7 +650,6 @@ const DICT = {
     // ---- extras ----
     'react.title': 'Send a reaction',
     'cer.title': '🏅 Ceremony of the night', 'cer.sub': 'The table’s trophies 🏆', 'cer.empty': 'Nobody scored yet 🥲',
-    'festa.hint': '🎉 party mode · lo-fi track playing',
     // ---- stats / recap ----
     'stats.trendH': 'Trend (drinks/month)', 'stats.nightsH': 'Your nights',
     'stats.nights': 'nights', 'stats.drinks': 'rounds', 'stats.avg': 'avg/night', 'stats.month': 'this month',
@@ -700,14 +697,13 @@ const DICT = {
     'tour.tc4': 'Table menu 📝', 'tour.xc4': "Price, brand and notes per item; hide what ran out. The app REMEMBERS this bar's menu for next time.",
     'tour.td1': 'Who pays? Play! 🎮', 'tour.xd1': "Purrinha, dominoes and truco — sealed and audited, cheating won't stick. Alone? Call the house 🤖.",
     'tour.td2': 'React 😀', 'tour.xd2': "Emoji flying on everyone's screen — and 🍻 fires the real toast, 3‑2‑1 across the table.",
-    'tour.td3': 'Giant counter 🔢', 'tour.xd3': 'Bar-counter mode: a huge number, +1 with a slap — for late night when aiming at a card is hard.',
+    'tour.td3': 'Jukebox 🎵', 'tour.xd3': "The table's soundtrack: everyone queues a song and each one plays — no fighting over the sound owner's phone.",
     'tour.td4': 'Call the waiter 🔔', 'tour.xd4': 'One tap and the whole table sees it — on a paid round it carries the order (2× pints).',
     'tour.tv1': "Who's at the table", 'tour.xv1': 'Live avatars: a dark screen turns 💤 with a clock of how long. "Left" only when someone taps leave.',
     'tour.tv2': 'Leaderboard 👥', 'tour.xv2': "Medals, each person's connection — and tapping a name opens their tab.",
     'tour.tv3': 'My numbers 📊', 'tour.xv3': "Average, record, streak and your night's recap — all on YOUR phone only.",
     'tour.tv4': 'My profile 🎨', 'tour.xv4': 'Nickname, emoji or photo, color — and driver mode, which skips you from alcohol rounds.',
     'brinde.prep': 'Ready…', 'brinde.go': 'Cheers!',
-    'beb.hint': 'hold for −1',
     'sw.updating': '🔄 New Botequei version — updating…',
   },
   es: {
@@ -971,9 +967,9 @@ const DICT = {
     'off.noCamera': 'Sin cámara aquí — usa copiar y pegar 🙂', 'off.noCamera2': 'Sin cámara — usa copiar y pegar 🙂',
     'off.cameraPerm': 'Hay que permitir la cámara 📷',
     // ---- menú (⋯) ----
-    'menu.secYou': 'Tú', 'menu.secGames': 'Juegos', 'menu.secBill': 'Cuenta', 'menu.secExtra': 'La noche', 'menu.secApp': 'App',
+    'menu.secYou': 'Tú', 'menu.secBill': 'Cuenta', 'menu.secExtra': 'La noche', 'menu.secApp': 'App',
     'menu.profile': '🎨 Mi perfil', 'menu.waiter': '🔔 Llamar al mesero',
-    'menu.jukebox': '🎵 Jukebox', 'menu.festa': '🎉 Modo fiesta', 'menu.bebedeira': '🔢 Contador gigante',
+    'menu.jukebox': '🎵 Jukebox',
     'menu.shareNight': '📸 Compartir la noche', 'menu.settings': '⚙️ Configuración',
     'menu.leaveQ': '¿Salir de la mesa?', 'menu.leaveDo': 'Salir',
     // ---- perfil / nuevo ítem ----
@@ -1003,7 +999,6 @@ const DICT = {
     // ---- extras ----
     'react.title': 'Mandar reacción',
     'cer.title': '🏅 Ceremonia de la noche', 'cer.sub': 'Los trofeos de la mesa 🏆', 'cer.empty': 'Nadie puntuó todavía 🥲',
-    'festa.hint': '🎉 modo fiesta · pista lo-fi sonando',
     // ---- estadísticas / resumen ----
     'stats.trendH': 'Tendencia (bebidas/mes)', 'stats.nightsH': 'Tus noches',
     'stats.nights': 'noches', 'stats.drinks': 'rondas', 'stats.avg': 'media/noche', 'stats.month': 'este mes',
@@ -1051,14 +1046,13 @@ const DICT = {
     'tour.tc4': 'Menú de la mesa 📝', 'tour.xc4': 'Precio, marca y nota por ítem; esconde lo que se acabó. La app RECUERDA el menú del bar para la próxima.',
     'tour.td1': '¿Quién paga? ¡Juega! 🎮', 'tour.xd1': 'Purrinha, dominó y truco — con sello y auditoría, la trampa no pega. ¿Solo? Llama a los 🤖 de la casa.',
     'tour.td2': 'Reaccionar 😀', 'tour.xd2': 'Emoji volando en la pantalla de todos — y el 🍻 dispara el brindis real, 3‑2‑1 en toda la mesa.',
-    'tour.td3': 'Contador gigante 🔢', 'tour.xd3': 'Modo barra: número gigante, +1 de un golpe — para el final de la noche, cuando apuntar a la tarjeta cuesta.',
+    'tour.td3': 'Jukebox 🎵', 'tour.xd3': 'La banda sonora de la mesa: cada uno pone su canción en la cola y suena por turnos — sin pelear por el móvil del dueño del sonido.',
     'tour.td4': 'Llamar al mesero 🔔', 'tour.xd4': 'Un toque y toda la mesa lo ve — en la ronda pagada ya va con el pedido (2× caña).',
     'tour.tv1': 'Quién está en la mesa', 'tour.xv1': 'Avatares en vivo: pantalla apagada = 💤 con el reloj de hace cuánto. "Se fue" solo quien toca salir.',
     'tour.tv2': 'Marcador 👥', 'tour.xv2': 'Medallas, conexión de cada uno — y tocar un nombre abre su cuenta individual.',
     'tour.tv3': 'Mis números 📊', 'tour.xv3': 'Media, récord, racha y la retro de tu salida — todo solo en TU móvil.',
     'tour.tv4': 'Mi perfil 🎨', 'tour.xv4': 'Apodo, emoji o foto, color — y el modo conductor, que te salta las rondas con alcohol.',
     'brinde.prep': 'Preparados…', 'brinde.go': '¡Salud!',
-    'beb.hint': 'mantén para −1',
     'sw.updating': '🔄 Nueva versión de Botequei — actualizando…',
   },
 };

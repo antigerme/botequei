@@ -299,20 +299,6 @@ body::after {
   background: var(--card); cursor: pointer; }
 .emoji-pick.sel { border-color: var(--gold); background: var(--card-hi); }
 
-/* ---------- Modo bebedeira ---------- */
-.bebedeira { position: fixed; inset: 0; z-index: 60; background: radial-gradient(120% 90% at 50% 0%, #23301a, #0b0e07);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; }
-.bebedeira-exit { position: absolute; top: calc(16px + var(--safe-t)); right: 18px; background: transparent;
-  border: 2px dashed var(--chalk-line); color: var(--muted); width: 48px; height: 48px; border-radius: 50%; font-size: var(--fs-l); }
-.bebedeira-item { font-size: 5.625rem; line-height: 1; animation: bob 3s ease-in-out infinite; }
-.bebedeira-count { font-family: var(--num); font-size: min(9.375rem, 26vw); line-height: .85; color: var(--gold); font-variant-numeric: tabular-nums; text-shadow: 0 0 40px rgba(244,177,60,.3); }
-.bebedeira-plus { width: min(78vw, 340px); height: min(38vh, 300px); border-radius: 40px; border: 0;
-  background: linear-gradient(180deg, var(--gold), var(--gold-deep)); color: var(--on-gold); font-family: var(--num); font-size: 4.5rem; cursor: pointer;
-  box-shadow: 0 10px 30px rgba(244,177,60,.35); }
-.bebedeira-plus:active { transform: scale(.97); }
-.bebedeira-plus.pop { animation: pop .3s ease; }
-.bebedeira-hint { color: var(--muted); font-size: var(--fs-ml); }
-
 /* ---------- Toast ---------- */
 .toast { position: fixed; left: 50%; bottom: calc(90px + var(--safe-b)); transform: translateX(-50%);
   background: #26301a; border: 2px dashed var(--chalk-line); color: var(--cream); padding: 12px 18px;
@@ -626,8 +612,8 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 
 /* Respeita "reduzir movimento" (acessibilidade): corta animações decorativas */
 @media (prefers-reduced-motion: reduce) {
-  .confetti, .fx-float, .fx-plus, .logo, .bebedeira-item, .brinde-emoji, .hh-banner { animation: none !important; }
-  .item-card.pop, .item-card.pop-remove, .bebedeira-plus.pop, .welcome-card.pop, .brinde.go .brinde-count { animation: none !important; }
+  .confetti, .fx-float, .fx-plus, .logo, .brinde-emoji, .hh-banner { animation: none !important; }
+  .item-card.pop, .item-card.pop-remove, .welcome-card.pop, .brinde.go .brinde-count { animation: none !important; }
   .screen.is-active, .sheet, .overlay { animation: none !important; }
   * { scroll-behavior: auto !important; }
 }
@@ -668,7 +654,7 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 /* Chip de nível no placar */
 .lvl-chip { font-family: var(--num); font-size: var(--fs-xs); background: rgba(244, 177, 60, .2); color: var(--gold); border-radius: var(--r-full); padding: 1px 7px; }
 
-/* ===================== Leva 4 (jukebox, modo festa) ===================== */
+/* ===================== Jukebox (fila de músicas da mesa) ===================== */
 
 .jukebox-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; max-height: 50vh; overflow-y: auto; }
 .jbx-row { display: flex; align-items: center; gap: 12px; background: rgba(255, 255, 255, .03); border: 2px dashed var(--chalk-line); border-radius: var(--r-m); padding: 10px 13px; }
@@ -677,16 +663,6 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 .jbx-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .jbx-by { font-size: var(--fs-s); color: var(--muted); }
 .jbx-play { background: rgba(255, 255, 255, .05); border: 2px dashed var(--chalk-line); border-radius: var(--r-s); width: 48px; height: 48px; font-size: var(--fs-l); cursor: pointer; flex: none; }
-
-/* Modo festa (overlay full-screen com visualizador) */
-.overlay-full { align-items: stretch; }
-.festa-inner { position: relative; width: 100%; min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-  background: radial-gradient(120% 90% at 50% 0%, #23301a, #0b0e07); }
-body.light .festa-inner { background: radial-gradient(120% 90% at 50% 0%, #fdf6e6, #ece0c7); }
-.festa-canvas { width: min(92vw, 560px); height: auto; aspect-ratio: 8 / 5; background: rgba(0, 0, 0, .18); border: 2px dashed var(--chalk-line); border-radius: var(--r-xl); }
-body.light .festa-canvas { background: rgba(120, 90, 50, .08); }
-.festa-hint { color: var(--muted); font-family: var(--hand); font-size: var(--fs-l); }
-.overlay-full .sheet-close { position: absolute; top: calc(16px + var(--safe-t)); right: 18px; z-index: 2; }
 
 /* ---------- Telas largas (tablet/desktop): aproveita o espaço ---------- */
 @media (min-width: 720px) {

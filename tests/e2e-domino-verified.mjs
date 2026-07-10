@@ -51,7 +51,9 @@ async function main() {
   await Promise.all(pages.map((p) => p.waitForFunction(() => document.getElementById('peer-count')?.textContent === '2', null, { timeout: T })));
 
   await step('handshake da mesa verificada (seeds+corte) → jogo começa nos dois', async () => {
-    await pageA.click('#btn-menu'); await pageA.click('#menu-domino'); // dominó é SEMPRE mesa verificada
+    await pageA.click('#btn-games'); // dominó é SEMPRE mesa verificada
+    await pageA.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+    await pageA.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Dominó/.test(b.textContent)).click(); });
     await pageA.waitForSelector('#btn-dom-go', { timeout: T }); await pageA.click('#btn-dom-go'); // tela de início (0 bots)
     // dom-game só aparece DEPOIS do handshake (seed commit-reveal + deal com lacre)
     await Promise.all(pages.map((p) => vis(p, 'dom-game')));

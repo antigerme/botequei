@@ -210,8 +210,14 @@ padrão Auto segue o navegador).
   `mesh.peers()`); queda de conexão **NUNCA vira toast** — quem cai fica 💤 esmaecido na barra pelo
   tempo que for (tela apagada/elevador não é "saiu") e a volta é silenciosa; **"👋 saiu" só existe
   no tchau EXPLÍCITO**: o botão sair manda o fx `bye` antes do `mesh.close()` e o `receiveBye`
-  toasta e tira a pessoa da barra (presença é MOSTRADA, não anunciada — padrão Docs/Figma);
-  "entrou!" só na 1ª vez da sessão. **Memória do 💤**: o avatar caído ganha o RELÓGIO de há
+  toasta e tira a pessoa da barra (presença é MOSTRADA, não anunciada — padrão Docs/Figma).
+  **O bye é AUTORITATIVO**: `receiveBye` derruba a conexão de quem saiu NA HORA (`mesh.dropUser`,
+  só se o fx veio pelo canal do PRÓPRIO dono — bye forjado não desconecta os outros); sem isso o
+  pc dele ficava "online" zumbi por até 12s (o close() remoto nem sempre chega) e QUALQUER
+  mudança na malha nessa janela (alguém entrando…) fazia o `diffPresence` apagar o `saidBye`
+  ("voltou!") — quem saiu ressuscitava na barra como 💤 fantasma (pegou no CI; o e2e-mesa-viva
+  trava a regressão com teardown neutralizado + join na janela, e a sonda `window.__presDbg`
+  vira raio-x nos erros de espera de presença). "entrou!" só na 1ª vez da sessão. **Memória do 💤**: o avatar caído ganha o RELÓGIO de há
   quanto tempo está fora (`awayLabel` — "12min"/"1h" na barra e no placar; a comanda diz "fora
   desde HH:MM"); **fechar o app** manda um `gone` best-effort no `pagehide` — se não voltar na
   graça de 45s (reload/atualização de SW voltam antes), sai da barra EM SILÊNCIO; e 💤 por 1h+

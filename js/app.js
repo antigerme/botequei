@@ -352,7 +352,7 @@ function onFx(fx, fromId) {
   else if (fx.kind === 'challenge') { if (fx.to === self) receiveChallenge(fx); }
   else if (fx.kind === 'ceremony') { if (Array.isArray(fx.awards)) ui.openCeremony({ awards: fx.awards }); }
   else if (fx.kind === 'waiter') receiveWaiter(fx);
-  else if (fx.kind === 'bye') receiveBye(fx);
+  else if (fx.kind === 'bye') receiveBye(fx, fromId);
   else if (fx.kind === 'gone') receiveGone(fx);
   else if (fx.kind === 'purrinha') routePurrFx(fx);
   else if (fx.kind === 'truco') routeTrucoFx(fx);
@@ -684,9 +684,16 @@ function diffPresence() {
 
 // Tchau explícito (quem toca "sair da mesa" avisa a mesa): o ÚNICO "saiu" que toasta.
 // A pessoa sai da barra na hora; se voltar, ganha o "entrou!" de novo (everSeen zera).
-function receiveBye(fx) {
+// O bye é AUTORITATIVO: a conexão de quem saiu cai NA HORA (mesh.dropUser). Sem isso, o pc
+// dele ficava meio-aberto parecendo "online" por até 12s (o close() remoto nem sempre chega) e
+// qualquer mudança na malha nessa janela — alguém entrando, GC — rodava o diffPresence, que
+// via o zumbi em `cur` e APAGAVA o saidBye ("voltou!") → quem saiu ressuscitava na barra como
+// 💤 fantasma. Higiene P2P: só derruba se o bye veio pelo canal do PRÓPRIO dono (fromId) —
+// bye forjado não desconecta os outros.
+function receiveBye(fx, fromId) {
   if (!fx.from || fx.from === self) return;
   saidBye.add(fx.from); everSeen.delete(fx.from); prevOnline.delete(fx.from); awaySince.delete(fx.from);
+  if (mesh && fx.from === fromId) mesh.dropUser(fx.from);
   const name = (typeof fx.fromName === 'string' && fx.fromName.slice(0, 24)) || profOf(fx.from).name || t('common.someone');
   ui.toast(t('pres.bye', { name }));
   scheduleRender();
@@ -712,6 +719,15 @@ function awayLabel(ms) {
   const min = Math.floor(ms / 60000);
   return min < 60 ? t('pres.agoMin', { n: min }) : t('pres.agoH', { n: Math.floor(min / 60) });
 }
+
+// Sonda SÓ-LEITURA do estado de presença (irmã do __sigTransport): os e2e despejam isto no
+// diagnóstico quando uma espera de barra estoura — flake de CI vira dado, não mistério.
+window.__presDbg = () => ({
+  saidBye: [...saidBye], leftQuiet: [...leftQuiet],
+  away: [...awaySince.entries()].map(([u, ts]) => ({ u, s: Math.round((Date.now() - ts) / 1000) })),
+  gone: [...goneAt.keys()],
+  peers: mesh ? mesh.peers().map((p) => ({ u: p.user, on: p.online, st: p.state })) : null,
+});
 
 function startMesh(iceServers) {
   presenceSeeded = false; prevOnline = new Set();

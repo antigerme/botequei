@@ -299,6 +299,21 @@ export class Mesh {
   // Efeito efemero (reacao, brinde, cutucada) para todos — nao entra no log.
   sendFx(fx) { this.broadcast({ k: 'fx', fx }); }
 
+  // Tchau explicito recebido (fx 'bye'): derruba a conexao de quem saiu NA HORA. O close()
+  // remoto nem sempre chega (rede caiu junto do sair, runner lento) e o pc ficaria meio-aberto
+  // por ate STALE_MS parecendo "online" — janela em que qualquer mudanca na malha apagava a
+  // memoria do tchau (a pessoa ressuscitava na barra como 💤 fantasma). Quem avisou que saiu
+  // e removido da malha; se voltar, entra pelo caminho normal (signaling -> conexao nova).
+  dropUser(user) {
+    const rec = this.conns.get(user);
+    if (!rec) return;
+    try { rec.pc.close(); } catch { /* ignore */ }
+    this.conns.delete(user);
+    this._retryAt.delete(user);
+    this.onPeersChange();
+    this.onStatus();
+  }
+
   peers() {
     const out = [];
     for (const [id, rec] of this.conns) {

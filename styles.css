@@ -945,9 +945,11 @@ body.light .bot-chip { background: rgba(120,90,50,.05); }
 .tour-num { margin-left: 4px; }
 .menu-item .trail-done { float: right; color: var(--ok); font-weight: 700; }
 
-/* Versão no rodapé das configurações (serial de zona YYYYMMDDnn; tocar confere atualização) */
-.set-version { display: block; margin: 18px auto 4px; background: none; border: 0; color: var(--muted);
-  font: inherit; font-size: var(--fs-s); letter-spacing: .5px; cursor: pointer; padding: 8px 12px; }
+/* Versão no RODAPÉ das configurações — último elemento do sheet, linha discreta e centrada
+   (não é ação da tela: é assinatura; tocar confere atualização) */
+.set-version { display: block; width: 100%; margin: 4px 0 0; background: none; border: 0;
+  color: var(--muted); font: inherit; font-size: var(--fs-s); letter-spacing: .5px;
+  cursor: pointer; padding: 10px 12px; text-align: center; }
 .tour-title { font-family: var(--hand); font-size: 1.4375rem; color: var(--gold); margin-top: 2px; }
 .tour-text { font-size: var(--fs-ml); color: var(--cream); margin-top: 4px; line-height: 1.45; }
 .tour-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }

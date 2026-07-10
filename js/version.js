@@ -3,7 +3,7 @@
 // como número e, diferente de um "v82", diz DE QUANDO é a versão só de olhar.
 // FONTE ÚNICA: o CACHE do sw.js usa ESTE serial ('botequei-' + VERSION) e a auditoria
 // (tests/audit.mjs) trava a paridade — bump de versão é mexer AQUI e no sw.js juntos.
-export const VERSION = '2026071001';
+export const VERSION = '2026071002';
 
 // '2026071001' → '2026.07.10-01' (pra gente ler; o serial cru fica pras máquinas)
 export function verLabel(v) {

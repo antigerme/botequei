@@ -277,13 +277,16 @@ padrão Auto segue o navegador).
   **molduras** de avatar por nível da liga (`frameClass` → `.fr-silver`/`.fr-gold`); **passaporte**
   de botecos (`store.getCheckins`/`addCheckin` — check-in local, GPS opcional, só no aparelho);
   **foto da noite** (só preview/compartilhar via Web Share — nada é salvo/enviado); **guia de
-  boas-vindas** no 1º uso (1× só — flag `welcomeSeen` no `store.getFlag`/`setFlag`): card de
-  DEMONSTRAÇÃO tocável (treina o toque=+1/segurar=−1 antes da 1ª mesa), apelido ali mesmo e
-  CTA "criar minha primeira mesa" que já abre a mesa (`onWelcomeCreate`, espelho do
-  `onJoinConfirm`); e **tour guiado** de 4 paradas na 1ª mesa (`ui.startTour`, flag `tourSeen`;
-  spotlight + balão, bolinhas de progresso, toque em qualquer lugar avança, re-posiciona ao
-  girar o aparelho, "pular" sempre à mão; **"🎓 Rever o tour"** no menu "…" repete as MESMAS
-  paradas — `tourStopList` no `app.js` é a fonte única — sem re-perguntar o tema).
+  boas-vindas** no 1º uso (1× só — flag `welcomeSeen` no `store.getFlag`/`setFlag`): SAUDAÇÃO
+  leve — card de DEMONSTRAÇÃO tocável (treina toque=+1/segurar=−1) e "Bora!" que SOLTA na home
+  (apelido/criar mesa moram SÓ lá — o funil que engolia a tela inicial morreu); e **Tour do
+  Botequei** por TRILHAS (`tourTrails` no `app.js`, motor em `ui.startTour`): 🍺 O básico
+  (roda sozinho na 1ª mesa — flag `tourSeen`; no fim pergunta o tema) · 💸 A conta · 🎮 A
+  diversão · 📊 A mesa viva — 4 paradas cada; parada com `pre` ABRE a tela de verdade (clique
+  real no menu/jogos), o motor parte da mesa LIMPA a cada parada (`closeOverlays`) e espera a
+  âncora ficar visível (ausente = pula); **"🎓 Tour do Botequei"** no menu "…" abre o índice
+  de trilhas com ✓ nas concluídas (flags `tourDone_*`); spotlight + balão, bolinhas de
+  progresso, toque avança, re-posiciona ao girar, "pular" sempre à mão.
 - **Persistência:** só `localStorage` (`js/store.js`; histórico por mesa com meus itens, gasto,
   duração e **`mates`** — quem estava na mesa, p/ o "com quem você mais bebeu"; `exportAll`/
   `importAll` = backup JSON; `getCheckins`/`addCheckin` = passaporte de botecos). Nada central.

@@ -956,20 +956,52 @@ function trySwUpdate() {
   setTimeout(() => { try { w.postMessage('SKIP_WAITING'); } catch { /* já ativou */ } }, 1200);
 }
 
-// ---- Tour guiado da primeira mesa (4 paradas; 1× por aparelho + "🎓 Rever" no menu) ----
-// UMA fonte de verdade pras paradas: a 1ª mesa e o "Rever o tour" mostram o MESMO caminho.
-function tourStopList() {
-  // mesa nova nasce LIMPA → a 1ª parada aponta o botão que abre o catálogo; se já
+// ---- Tour do Botequei (trilhas curtas; a 1ª mesa roda "O básico" sozinha) ----
+// Paradas com `pre` ABREM a tela de verdade (clique real — menu, jogos); o motor do tour
+// (ui.js) parte da mesa limpa a cada parada e fecha tudo no fim. Trilha concluída ganha ✓
+// no índice (flag local `tourDone_*`) — dá pra rever quantas vezes quiser.
+const openMenuPre = () => document.getElementById('btn-menu').click();
+function tourTrails() {
+  // mesa nova nasce LIMPA → a 1ª parada do básico aponta o botão que abre o catálogo; se já
   // tem cards (entrou numa mesa rodando), ensina o toque no card
   const hasCards = !!document.querySelector('.item-card');
   return [
-    hasCards
-      ? { sel: '.item-card', title: t('tour.t1'), text: t('tour.x1') }
-      : { sel: '#btn-empty-custom', title: t('tour.t0'), text: t('tour.x0') },
-    { sel: '.total-hero', title: t('tour.t2'), text: t('tour.x2') },
-    { sel: '#btn-games', title: t('tour.t3'), text: t('tour.x3') },
-    { sel: '#btn-menu', title: t('tour.t4'), text: t('tour.x4') },
+    { id: 'basico', emoji: '🍺', label: t('tour.trail.basico'), steps: [
+      hasCards
+        ? { sel: '.item-card', title: t('tour.t1'), text: t('tour.x1') }
+        : { sel: '#btn-empty-custom', title: t('tour.t0'), text: t('tour.x0') },
+      { sel: '.total-hero', title: t('tour.t2'), text: t('tour.x2') },
+      { sel: '#btn-games', title: t('tour.t3'), text: t('tour.x3') },
+      { sel: '#btn-menu', title: t('tour.t4'), text: t('tour.x4') },
+    ] },
+    { id: 'conta', emoji: '💸', label: t('tour.trail.conta'), steps: [
+      { sel: '#btn-rodada', title: t('tour.tc1'), text: t('tour.xc1') },
+      { sel: '#menu-payround', pre: openMenuPre, title: t('tour.tc2'), text: t('tour.xc2') },
+      { sel: '#menu-bill', pre: openMenuPre, title: t('tour.tc3'), text: t('tour.xc3') },
+      { sel: '#menu-prices', pre: openMenuPre, title: t('tour.tc4'), text: t('tour.xc4') },
+    ] },
+    { id: 'diversao', emoji: '🎮', label: t('tour.trail.diversao'), steps: [
+      { sel: '#games-grid', pre: () => document.getElementById('btn-games').click(), title: t('tour.td1'), text: t('tour.xd1') },
+      { sel: '#btn-react', title: t('tour.td2'), text: t('tour.xd2') },
+      { sel: '#menu-bebedeira', pre: openMenuPre, title: t('tour.td3'), text: t('tour.xd3') },
+      { sel: '#menu-waiter', pre: openMenuPre, title: t('tour.td4'), text: t('tour.xd4') },
+    ] },
+    { id: 'mesaviva', emoji: '📊', label: t('tour.trail.mesaviva'), steps: [
+      { sel: '#presence-bar', title: t('tour.tv1'), text: t('tour.xv1') }, // só com gente na mesa (sozinho, pula)
+      { sel: '#btn-peers', title: t('tour.tv2'), text: t('tour.xv2') },
+      { sel: '#menu-stats', pre: openMenuPre, title: t('tour.tv3'), text: t('tour.xv3') },
+      { sel: '#menu-profile', pre: openMenuPre, title: t('tour.tv4'), text: t('tour.xv4') },
+    ] },
   ];
+}
+function startTrail(id, { askTheme = false } = {}) {
+  const tr = tourTrails().find((x) => x.id === id);
+  if (!tr) return;
+  ui.startTour(tr.steps, (completed) => {
+    if (!completed) return; // pulou: sem ✓, sem pergunta
+    store.setFlag('tourDone_' + id);
+    if (askTheme) ui.openThemePick();
+  });
 }
 function maybeStartTour() {
   if (store.getFlag('tourSeen')) return;
@@ -981,11 +1013,9 @@ function maybeStartTour() {
     if (!hasCards && !emptyOpen) return; // miolo ainda não renderizou
     clearInterval(tick);
     store.setFlag('tourSeen'); // marca ao MOSTRAR (pular também conta como visto)
-    ui.startTour(tourStopList(), (completed) => {
-      // fim do tour: pergunta o tema preferido (quem PULOU quer usar logo — não pergunta;
-      // o tema segue à mão nas ⚙️ Configurações)
-      if (completed) ui.openThemePick();
-    });
+    // 1ª mesa da vida = só a trilha básica (curta); o resto mora no "🎓 Tour do Botequei".
+    // Fim do básico pergunta o tema preferido (quem PULOU quer usar logo — não pergunta).
+    startTrail('basico', { askTheme: true });
   }, 600);
 }
 
@@ -2611,13 +2641,6 @@ function openBotecoFicha(name) {
 const handlers = {
   onName: (v) => setName(v),
   onCreate: () => { if (!getName()) { ui.toast(t('toast.needName')); return; } enterTable(newRoomCode(), { create: true }); },
-  // CTA do bem-vindo: apelido + mesa num toque só (espelha o onJoinConfirm do convite)
-  onWelcomeCreate: (name) => {
-    const n = setName(name);
-    if (!n) { ui.toast(t('toast.needNick')); return; }
-    ui.closeOverlays();
-    enterTable(newRoomCode(), { create: true });
-  },
   onJoinCode: (code) => {
     code = (code || '').trim().toUpperCase();
     if (!code) { ui.toast(t('toast.needCode')); return; }
@@ -2762,8 +2785,9 @@ const handlers = {
   onCeremonyBroadcast: () => { if (mesh) mesh.sendFx({ kind: 'ceremony', awards: lastAwards }); ui.toast(t('toast.sentToTable')); },
   onStats: openStats,
   onComanda: openComanda,
-  // rever o tour quando quiser (menu "…"): mesmas paradas da 1ª mesa, sem re-perguntar o tema
-  onTourReplay: () => { if (room) ui.startTour(tourStopList(), null); },
+  // "🎓 Tour do Botequei" (menu "…"): índice de trilhas com ✓ nas concluídas
+  onTourMenu: () => { if (room) ui.openTour({ trails: tourTrails().map((tr) => ({ id: tr.id, emoji: tr.emoji, label: tr.label, done: !!store.getFlag('tourDone_' + tr.id) })) }); },
+  onTourTrail: (id) => { ui.closeOverlays(); startTrail(id); },
   onRetro: openRetro,
   onJukebox: () => { if (!room) { ui.toast(t('toast.needTable')); return; } ui.openJukebox({ songs: songs(state) }); },
   onSongAdd: (title) => {

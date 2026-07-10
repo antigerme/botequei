@@ -44,14 +44,15 @@ async function main() {
       await page.mouse.up();
       await page.waitForFunction(() => document.getElementById('welcome-demo-n').textContent === '0', null, { timeout: 5000 });
     });
-    await step('CTA leva DIRETO pra ação: apelido + "criar minha primeira mesa" abre a mesa', async () => {
-      await page.fill('#welcome-name', 'Novato');
-      await page.click('#btn-welcome-create');
-      await page.waitForSelector('#screen-table.is-active', { timeout: T });
+    await step('"Bora!" fecha a saudação e SOLTA na home (apelido/criar mesa moram lá)', async () => {
+      await page.click('#btn-welcome-go');
+      await page.waitForFunction(() => document.getElementById('overlay-welcome').hidden, null, { timeout: 5000 });
+      const home = await page.evaluate(() => document.getElementById('screen-home').classList.contains('is-active'));
+      if (!home) throw new Error('fechar o welcome deveria deixar a pessoa na HOME');
     });
     await step('reload NÃO repete o guia (flag persistente)', async () => {
       await page.reload();
-      await page.waitForSelector('#screen-table.is-active', { timeout: T }); // o hash devolve pra mesa criada
+      await page.waitForSelector('#screen-home.is-active', { timeout: T });
       await page.waitForTimeout(700);
       const open = await page.evaluate(() => !document.getElementById('overlay-welcome').hidden);
       if (open) throw new Error('welcome apareceu de novo no reload');
@@ -117,18 +118,36 @@ async function main() {
       if (pickOpen) throw new Error('pergunta de tema apareceu de novo no reload');
     });
 
-    await step('"🎓 Rever o tour" no menu roda o MESMO tour (bolinhas 4/4; sem re-perguntar tema)', async () => {
+    await step('"🎓 Tour do Botequei": índice com 4 trilhas; a 💸 ABRE o menu de verdade na parada 2', async () => {
       await page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
       await page.click('#btn-menu');
       await page.waitForFunction(() => !document.getElementById('overlay-menu').hidden, null, { timeout: T });
       await page.click('#menu-tour');
+      await page.waitForFunction(() => !document.getElementById('overlay-tour').hidden, null, { timeout: T });
+      const trails = await page.evaluate(() => document.querySelectorAll('#tour-trails [data-trail]').length);
+      if (trails !== 4) throw new Error('esperava 4 trilhas no índice, vi ' + trails);
+      await page.click('#tour-trails [data-trail="conta"]');
       await vis(page, 'tour');
       const dots = await page.evaluate(() => document.querySelectorAll('#tour-count .tour-dot').length);
-      if (dots !== 4) throw new Error('esperava 4 bolinhas de progresso, vi ' + dots);
-      await page.click('#btn-tour-skip');
+      if (dots !== 4) throw new Error('trilha da conta devia ter 4 paradas, vi ' + dots);
+      await page.click('#btn-tour-next'); // parada 2 (💸 Pagar rodada) mora DENTRO do menu → o `pre` abre o menu de verdade
+      await page.waitForFunction(() => !document.getElementById('overlay-menu').hidden && !document.getElementById('tour').hidden, null, { timeout: 8000 });
+      for (let i = 0; i < 3; i++) { await page.click('#btn-tour-next'); await page.waitForTimeout(400); }
       await page.waitForFunction(() => document.getElementById('tour').hidden, null, { timeout: 5000 });
-      const pick = await page.evaluate(() => !document.getElementById('overlay-themepick').hidden);
-      if (pick) throw new Error('rever o tour não devia re-perguntar o tema');
+      const clean = await page.evaluate(() => document.getElementById('overlay-menu').hidden && document.getElementById('overlay-themepick').hidden);
+      if (!clean) throw new Error('fim da trilha deveria FECHAR o menu e não re-perguntar o tema');
+    });
+
+    await step('trilha concluída ganha ✓ no índice (lembra no aparelho)', async () => {
+      await page.click('#btn-menu');
+      await page.waitForFunction(() => !document.getElementById('overlay-menu').hidden, null, { timeout: T });
+      await page.click('#menu-tour');
+      await page.waitForFunction(() => !document.getElementById('overlay-tour').hidden, null, { timeout: T });
+      const done = await page.evaluate(() => !!document.querySelector('#tour-trails [data-trail="conta"] .trail-done'));
+      if (!done) throw new Error('trilha concluída deveria mostrar o ✓');
+      const basicoDone = await page.evaluate(() => !!document.querySelector('#tour-trails [data-trail="basico"] .trail-done'));
+      if (!basicoDone) throw new Error('o básico (feito na 1ª mesa) também deveria ter ✓');
+      await page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
     });
     await ctx.close();
   }

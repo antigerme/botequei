@@ -943,6 +943,7 @@ body.light .bot-chip { background: rgba(120,90,50,.05); }
 .tour-dot.done { background: var(--muted); }
 .tour-dot.on { background: var(--gold); transform: scale(1.25); }
 .tour-num { margin-left: 4px; }
+.menu-item .trail-done { float: right; color: var(--ok); font-weight: 700; }
 .tour-title { font-family: var(--hand); font-size: 1.4375rem; color: var(--gold); margin-top: 2px; }
 .tour-text { font-size: var(--fs-ml); color: var(--cream); margin-top: 4px; line-height: 1.45; }
 .tour-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }

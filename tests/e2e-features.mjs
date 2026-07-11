@@ -199,8 +199,7 @@ async function main() {
 
   await step('💸 pagar uma rodada: a garrafa do A sai do racha e cai na conta dele', async () => {
     await closeAll(pageA);
-    await pageA.click('#btn-menu');
-    await pageA.click('#menu-payround');
+    await pageA.click('#btn-rodada'); // 💸 Rodada no dock (era o "Pagar rodada" do menu "…")
     await visible(pageA, 'overlay-payround');
     await pageA.click('#payround-list .pay-btn[data-id="x-garrafa-600"]'); // item DA MESA: paga uma garrafa só (com dono)
     // a garrafa com dono AINDA é da mesa: o card sobe pra 2 nos DOIS peers
@@ -240,7 +239,7 @@ async function main() {
     await pageA.$eval('.price-row[data-id="x-chopp"] .pr-price', (e) => e.dispatchEvent(new Event('change')));
     await closeAll(pageA);
     // Bia já tinha 1 chopp (clicou antes). A PAGA uma rodada de CHOPP (pessoal) → +1 pra A e +1 pra B.
-    await pageA.click('#btn-menu'); await pageA.click('#menu-payround');
+    await pageA.click('#btn-rodada'); // 💸 Rodada no dock
     await visible(pageA, 'overlay-payround');
     await pageA.click('#payround-list .pay-btn[data-id="x-chopp"]');
     // cada um bebeu: o card do chopp vai a 3 (A=1, B=2) nos dois peers

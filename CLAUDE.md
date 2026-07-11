@@ -258,12 +258,14 @@ padrão Auto segue o navegador).
   da conta tira qualquer um do racha). **Garrafa com dono** (`payer` no evento ADD/REMOVE):
   perdeu o jogo ou bancou a rodada → a unidade SAI do bolo (`sharePool` exclui) e cai
   inteira na conta do pagador (`userMoney` soma; `paidCount` pro detalhe). O contador da
-  mesa NÃO muda. Entradas: menu "💸 Pagar uma rodada" e toast no aparelho do PERDEDOR
-  (purrinha ×3, dominó 2p, truco — é oferta, não automação). **Rodada por ITEM (mesma regra nos
-  dois botões — 🍻 Rodada e 💸 Pagar; muda só o dono)**: item PESSOAL (chopp/dose/refri) = UM pra
-  cada pessoa online (motorista fora se alcoólico); item DA MESA (share) = UMA unidade só (o card
-  dela já é coletivo). Escolha em `roundChoices`/`payChoices` (ambos = `drinkItems`, com selo "da
-  mesa" nos share) e alvos em `roundTargets`. **Pagar item pessoal** = "cada um bebeu; você paga":
+  mesa NÃO muda. Entradas: o chip **💸 Rodada** no dock da mesa e o toast no aparelho do PERDEDOR
+  (purrinha ×3, dominó 2p, truco — é oferta, não automação). **A "Rodada" do dock É "pagar uma
+  rodada"** (o 🍻 Rodada plano — que só somava +1 pra cada um SEM dono — saiu: num item da mesa
+  fazia o MESMO que tocar no card, e num pessoal era registro confuso; a casa única virou o dock,
+  `btn-rodada` → `onPayRound`): item PESSOAL (chopp/dose/refri) = UM pra cada pessoa online
+  (motorista fora se alcoólico); item DA MESA (share) = UMA unidade só (o card dela já é coletivo).
+  Escolha em `payChoices` (= `drinkItems`, com selo "da mesa" nos share) e alvos em `roundTargets`.
+  **Pagar item pessoal** = "cada um bebeu; você paga":
   cada online ganha +1 no CONSUMO, mas o dinheiro é TODO do pagador — o reducer guarda um mapa
   **`covered`** (`user\x00item` → unidades que OUTRO pagou) e o `userMoney` DESCONTA o covered do
   consumidor (bebeu, não paga; `coveredCount` mostra "na conta de quem pagou" na comanda — **com
@@ -274,7 +276,7 @@ padrão Auto segue o navegador).
   do jogo**: pagar rodada vindo de um JOGO paga só pros JOGADORES, não a mesa toda — `offerLoserPay`
   leva os ids do jogo (`purr.entrants`/`dom.order`/`truco.order`) e `roundTargets(def, scope)` os usa
   (bot fora, que não bebe; motorista fora se alcoólico). O núcleo é `roundTargetIds` (puro no
-  `events.js`, irmão do `shareSplit`, testado). Do MENU (sem jogo) segue a mesa online. **Chamar o
+  `events.js`, irmão do `shareSplit`, testado). Do DOCK (💸 Rodada, sem jogo) segue a mesa online. **Chamar o
   garçom** sai sozinho ao 💸 PAGAR a rodada (fx `waiter` com `item`+`n` → "🔔 fulano pediu: 2× Chopp"
   na mesa toda; efêmero, higiene P2P no `receiveWaiter`). **SEM contagem de copo** — contar copo é mesquinharia
   (decisão de produto): o card compartilhado é só o contador DA MESA; consumo pessoal vem só

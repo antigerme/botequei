@@ -205,23 +205,25 @@ async function main() {
         const names = ['Purrinha', 'Dominó', 'Truco'];
         const secGames = [...document.querySelectorAll('#overlay-menu .menu-sec')].some((s) => /Jogos/i.test(s.textContent));
         const items = [...document.querySelectorAll('#overlay-menu .menu-item')].map((b) => b.textContent);
-        return { secGames, hits: items.filter((tx) => names.some((n) => tx.includes(n))) };
+        // "Pagar uma rodada" saiu do menu → virou o 💸 Rodada do dock (não pode voltar pro "…")
+        return { secGames, hits: items.filter((tx) => names.some((n) => tx.includes(n))), payround: !!document.getElementById('menu-payround') };
       });
       await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
       if (leaked.secGames) throw new Error('a seção "Jogos" voltou pro menu "…" (era pra morar só no grid)');
       if (leaked.hits.length) throw new Error(`jogo vazou de volta pro menu "…": ${leaked.hits.join(' | ')}`);
+      if (leaked.payround) throw new Error('"Pagar uma rodada" ainda está no menu "…" (virou o 💸 Rodada do dock)');
     });
 
-    await step('tocar em "Rodada" NÃO marca direto: abre a ESCOLHA do item (total segue 0)', async () => {
-      await A.click('#btn-rodada');
-      await A.waitForFunction(() => !document.getElementById('overlay-round').hidden, null, { timeout: 5000 });
+    await step('💸 Rodada NÃO marca direto: abre a ESCOLHA do item pra pagar (total segue 0)', async () => {
+      await A.click('#btn-rodada'); // dock: você paga uma rodada pra mesa (era o "Pagar rodada" do menu)
+      await A.waitForFunction(() => !document.getElementById('overlay-payround').hidden, null, { timeout: 5000 });
       await A.waitForTimeout(400); // ninguém escolheu ainda → total segue 0
       const tot = (await A.textContent('#table-total')).trim();
       if (tot !== '0') throw new Error('rodada marcou sem escolher! total=' + tot);
     });
 
-    await step('escolheu chopp → +1 pra cada um online, sincronizado nos dois', async () => {
-      await A.click('#round-grid button[data-id="x-chopp"]');
+    await step('escolheu chopp → +1 pra cada um online (você paga), sincronizado nos dois', async () => {
+      await A.click('#payround-list .pay-btn[data-id="x-chopp"]');
       await Promise.all([A, B].map((p) => p.waitForFunction(() => document.getElementById('table-total')?.textContent.trim() === '2', null, { timeout: T })));
     });
 

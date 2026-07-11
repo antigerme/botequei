@@ -45,13 +45,12 @@ const IDS = [
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'menu-empty', 'btn-empty-custom', 'btn-empty-boteco',
   'btn-react', 'btn-rodada', 'btn-games', 'overlay-games', 'games-grid',
-  'overlay-round', 'round-grid',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
   'overlay-menu', 'menu-profile', 'menu-board',
-  'menu-jukebox', 'menu-payround', 'menu-bill', 'menu-prices',
+  'menu-jukebox', 'menu-bill', 'menu-prices',
   'menu-hh', 'menu-waiter', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings', 'menu-tour',
   'overlay-prices', 'price-list',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
@@ -186,7 +185,7 @@ export function init(handlers) {
   $('btn-empty-custom').addEventListener('click', () => openAddItem()); // mesa limpa: mesmo overlay, catálogo primeiro
   $('btn-empty-boteco').addEventListener('click', () => H.onLoadBoteco()); // recarrega o cardápio salvo do boteco
   $('btn-react').addEventListener('click', () => openReact());
-  $('btn-rodada').addEventListener('click', () => H.onRodada());
+  $('btn-rodada').addEventListener('click', () => H.onPayRound()); // 💸 Rodada: você paga uma rodada pra mesa (era o "Pagar rodada" do menu)
 
   $('btn-additem-confirm').addEventListener('click', () => submitAddItem());
   $('add-name').addEventListener('input', renderAddPreview);   // preview ao vivo enquanto digita
@@ -204,7 +203,6 @@ export function init(handlers) {
   $('menu-profile').addEventListener('click', () => { closeOverlays(); H.onProfile(); });
   $('menu-board').addEventListener('click', () => { closeOverlays(); H.onPeers(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
-  $('menu-payround').addEventListener('click', () => { closeOverlays(); H.onPayRound(); });
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
   $('menu-hh').addEventListener('click', () => { closeOverlays(); el['overlay-hh'].hidden = false; });
@@ -1064,14 +1062,6 @@ export function brinde() {
 }
 
 // ---------- Rodada: escolher o item (2 toques no total; sem disparo acidental) ----------
-export function openRound(items, lastId) {
-  el['round-grid'].innerHTML = items.map((it) => `
-    <button class="btn ${it.id === lastId ? 'btn-primary' : 'btn-ghost'}" data-id="${esc(it.id)}">${esc(it.emoji)} ${esc(it.name)}${it.share ? ` <small class="opt-tag">${t('round.tableTag')}</small>` : ''}</button>`).join('');
-  el['round-grid'].querySelectorAll('button[data-id]').forEach((b) =>
-    b.addEventListener('click', () => { closeOverlays(); H.onRoundPick(b.dataset.id); }));
-  el['overlay-round'].hidden = false;
-}
-
 // ---------- Jogos (atalho rápido da mesa) ----------
 // FONTE ÚNICA por jogo: as MESMAS chaves *.title que o menu "…" usa (emoji + nome juntos).
 // Lição aprendida: quando o grid tinha emoji próprio E o i18n do truco também carregava um,

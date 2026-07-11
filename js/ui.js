@@ -348,25 +348,36 @@ export function init(handlers) {
 }
 
 // ---------- Acessibilidade: diálogos, ESC, armadilha de foco ----------
-let lastFocus = null;
 function openOverlayEls() { return [...document.querySelectorAll('.overlay')].filter((o) => !o.hidden); }
 function focusables(root) {
   return [...root.querySelectorAll('button,input,select,textarea,[tabindex]:not([tabindex="-1"])')]
     .filter((x) => !x.disabled && x.offsetParent !== null);
 }
-// Botão VOLTAR (Android) / swipe de voltar (iOS) fecha o overlay aberto, em vez de sair do app: ao
-// abrir o 1º overlay, empurra um estado no histórico; o "voltar" consome esse estado e o popstate
-// fecha os overlays. Fechar por ✕/ESC/toque-fora desfaz o estado (mantém o histórico limpo).
-let overlayHistoryPushed = false;
+// Botão VOLTAR (Android) / swipe de voltar (iOS) fecha o overlay aberto, em vez de sair do app.
+// PILHA de overlays em ordem de abertura (o topo é o mais recente): empurra UM estado de histórico
+// por overlay aberto; o "voltar" fecha SÓ o topo (antes um marcador ÚNICO fazia o voltar fechar
+// TODOS de uma vez — recortar foto sobre o perfil e apertar voltar perdia o apelido não salvo).
+// Fechar por ✕/ESC/toque-fora desfaz os estados extras SEM disparar o nosso fechamento (guard).
+const overlayStack = []; // [{ ov, focus }] — foco = o que estava ativo quando aquele overlay abriu
+let overlayPushed = 0;   // quantos estados de overlay temos no histórico
+let overlayPopGuard = 0; // popstates que NÓS geramos (desfazendo estado) e o handler deve ignorar
 function syncOverlayHistory() {
-  const open = openOverlayEls().length > 0;
-  if (open && !overlayHistoryPushed) {
-    overlayHistoryPushed = true;
-    try { history.pushState({ botequeiOverlay: 1 }, ''); } catch { /* ignore */ }
-  } else if (!open && overlayHistoryPushed) {
-    overlayHistoryPushed = false;
-    try { if (history.state && history.state.botequeiOverlay) history.back(); } catch { /* ignore */ }
+  const want = overlayStack.length;
+  while (overlayPushed < want) { overlayPushed++; try { history.pushState({ botequeiOverlay: overlayPushed }, ''); } catch { /* ignore */ } }
+  if (overlayPushed > want) {
+    const extra = overlayPushed - want; overlayPushed = want;
+    overlayPopGuard++;                            // history.go(-N) dispara UM popstate
+    try { history.go(-extra); } catch { /* ignore */ }
   }
+}
+// remove um overlay da pilha e devolve o foco pro que ficou POR BAIXO (empilhado) ou pra origem
+function popOverlayEntry(ov) {
+  const i = overlayStack.findIndex((e) => e.ov === ov);
+  if (i < 0) return;
+  const [entry] = overlayStack.splice(i, 1);
+  const top = overlayStack[overlayStack.length - 1];
+  const target = top ? (top.ov.querySelector('.sheet') || top.ov) : entry.focus;
+  if (target) { try { target.focus({ preventScroll: true }); } catch { /* ignore */ } }
 }
 function setupA11y() {
   // marca cada sheet como diálogo pro leitor de tela; foca o diálogo ao abrir, devolve ao fechar
@@ -378,15 +389,24 @@ function setupA11y() {
     const h = sheet.querySelector('h2');
     if (h) { if (!h.id) h.id = 'h_' + Math.abs(hashStr(ov.id)); sheet.setAttribute('aria-labelledby', h.id); }
     new MutationObserver(() => {
-      // sheet reabre sempre do TOPO: o scroll fica gravado no elemento escondido, e reabrir um
-      // menu já rolado desorienta (a alcinha de arrasto nem aparece)
-      if (!ov.hidden) { lastFocus = document.activeElement; sheet.scrollTop = 0; try { sheet.focus({ preventScroll: true }); } catch { /* ignore */ } }
-      syncOverlayHistory(); // mantém o histórico em sincronia pro "voltar" fechar o overlay
+      if (!ov.hidden) {
+        // abriu: entra na pilha (guardando o foco de origem); sheet reabre sempre do TOPO
+        // (scroll fica gravado no elemento escondido, e reabrir rolado esconde a alcinha)
+        if (!overlayStack.some((e) => e.ov === ov)) overlayStack.push({ ov, focus: document.activeElement });
+        sheet.scrollTop = 0; try { sheet.focus({ preventScroll: true }); } catch { /* ignore */ }
+      } else {
+        popOverlayEntry(ov); // fechou: sai da pilha e devolve o foco (nunca cai no <body>)
+      }
+      syncOverlayHistory(); // mantém a profundidade do histórico = tamanho da pilha
     }).observe(ov, { attributes: true, attributeFilter: ['hidden'] });
   });
-  // voltar (Android/iOS) com overlay aberto → fecha o overlay em vez de sair
+  // voltar (Android/iOS): fecha SÓ o overlay do topo (não a pilha toda)
   window.addEventListener('popstate', () => {
-    if (openOverlayEls().length) { overlayHistoryPushed = false; closeOverlays(); }
+    if (overlayPopGuard > 0) { overlayPopGuard--; return; } // fomos nós desfazendo estado (✕/ESC)
+    if (!overlayStack.length) return;
+    overlayPushed = Math.max(0, overlayPushed - 1); // o voltar já consumiu este estado
+    const top = overlayStack[overlayStack.length - 1];
+    if (top) top.ov.hidden = true; // o observer tira da pilha, devolve o foco e re-sincroniza
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -1836,8 +1856,15 @@ export function openTour(vm) {
 // ---------- Overlays / toast ----------
 export function closeOverlays() {
   if (activeScan) { activeScan.stop(); activeScan = null; }
+  // Fecha TUDO de uma vez (ESC / tour / arrastar-pra-fechar): captura a origem do 1º overlay da
+  // pilha, ESVAZIA a pilha ANTES de esconder (assim os observers viram no-op e não brigam pelo
+  // foco, cada um restaurando um elemento transitório) e devolve o foco à origem. O
+  // syncOverlayHistory desfaz de uma vez os N estados de histórico dos overlays fechados.
+  const origin = overlayStack.length ? overlayStack[0].focus : null;
+  overlayStack.length = 0;
   document.querySelectorAll('.overlay').forEach((o) => { o.hidden = true; });
-  if (lastFocus) { try { lastFocus.focus({ preventScroll: true }); } catch { /* ignore */ } lastFocus = null; }
+  syncOverlayHistory();
+  if (origin) { try { origin.focus({ preventScroll: true }); } catch { /* ignore */ } }
 }
 let toastTimer = null;
 let pendingAction = null; // actionToast em andamento (tem AÇÃO clicável — ex.: "desfazer")

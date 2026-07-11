@@ -75,6 +75,30 @@ async function main() {
     if (!(await onTable())) throw new Error('voltar saiu da mesa');
   });
 
+  await step('overlays EMPILHADOS: recorte sobre o perfil — voltar fecha SÓ o recorte (o perfil fica)', async () => {
+    // O bug do André: recortar a foto sobre o perfil e apertar VOLTAR fechava TUDO (a pilha
+    // inteira num marcador único) e perdia o apelido não salvo. Agora cada overlay empurra UM
+    // estado; o voltar fecha só o TOPO. O recorte abre POR CIMA do perfil (não o fecha).
+    await page.click('#btn-menu');
+    await page.click('#menu-profile');
+    await visible('overlay-profile');
+    await page.fill('#profile-name', 'Zé Não-Salvo'); // apelido em edição, ainda não salvo
+    // PNG 1×1 abre o recorte por cima do perfil (mesmo caminho da selfie/galeria)
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    await page.setInputFiles('#avatar-file', { name: 'selfie.png', mimeType: 'image/png', buffer: png });
+    await visible('overlay-crop');
+    // os DOIS abertos ao mesmo tempo = empilhou (não foi close-then-open)
+    const empilhou = await page.evaluate(() => !document.getElementById('overlay-profile').hidden && !document.getElementById('overlay-crop').hidden);
+    if (!empilhou) throw new Error('recorte não empilhou sobre o perfil (perfil fechou)');
+    await page.goBack(); // voltar #1: fecha SÓ o recorte
+    await hidden('overlay-crop');
+    const perfilFicou = await page.evaluate(() => !document.getElementById('overlay-profile').hidden && document.getElementById('profile-name').value === 'Zé Não-Salvo');
+    if (!perfilFicou) throw new Error('voltar fechou o perfil junto (perdeu o apelido não salvo) — regressão da pilha de overlays');
+    await page.goBack(); // voltar #2: agora fecha o perfil
+    await hidden('overlay-profile');
+    if (!(await onTable())) throw new Error('voltar saiu da mesa em vez de fechar o perfil');
+  });
+
   await A.close();
 
   // ---- 2) botão "Instalar" aparece no iOS (sem beforeinstallprompt) ----

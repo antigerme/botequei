@@ -98,9 +98,16 @@ padrão Auto segue o navegador).
   Anti-entropy no join (troca o log completo, em **lotes de 64 eventos** — mensagem única
   estouraria o teto do DataChannel com o log grande) + gossip (repassa eventos novos). LWW (ts→eventId)
   p/ ITEM/PROFILE/TABLE/HAPPYHOUR/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
-  O ADD/REMOVE aceita `payer` (unidade "com dono"): soma no `paid` do pagador e, quando o
-  consumidor é OUTRO, no `covered` dele (o `userMoney` desconta → bebeu, mas não paga — a "rodada
-  paga" de item pessoal). O `PROFILE` também leva o **nível** (liga) e a **foto** (miniatura 128px, dataURL ≤20k chars,
+  **Crédito/promessa** (evento `PLEDGE` — "banco uma rodada / N garrafas") é como se banca a mesa:
+  o `settle(state)` (FONTE ÚNICA da conta) acerta no ESTADO FINAL — rodada de item pessoal cobre
+  **1 de cada** no escopo com teto `min(1, consumido de verdade)`; garrafa da mesa reivindica
+  `min(N prometido, bolo aberto)`. Assim "pago só o que foi bebido" e o −1 do toque longo NÃO deixa
+  **dinheiro fantasma** (o "Dinheiro B": pré-marcar unidade não sobrevivia ao −1); determinístico
+  (promessas em ordem ts→eventId) → converge (regra de ouro). `userMoney`/`sharePool`/
+  `coveredCount`/`paidCount`/`summary` LEEM do `settle`; o fechar a conta ganha o quadro **🎁 quem
+  bancou o quê**. `PLEDGE`/`settle` é o **único** mecanismo de dinheiro-com-dono — o caminho antigo
+  `payer`/`covered`/`paid` foi REMOVIDO (o app ainda não está em produção; sem compat de versão).
+  O `PROFILE` também leva o **nível** (liga) e a **foto** (miniatura 128px, dataURL ≤20k chars,
   validada por `cleanPhoto` na entrada E na saída do fio — emoji é o fallback eterno). `SONG` (jukebox) **acumula**
   (não é LWW) — a fila de músicas da mesa (teto de 500 + `title`/`url` coados na ENTRADA do reducer).
   ⚠️ **Higiene P2P no reducer** (irmã do `cleanPhoto`): todo dado do fio que vira dinheiro/render

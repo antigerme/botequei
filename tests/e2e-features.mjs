@@ -281,6 +281,18 @@ async function main() {
     await closeAll(pageB);
   });
 
+  await step('🎁 fechar a conta mostra QUEM bancou (rodadas/garrafas) — "cada um nas suas costas"', async () => {
+    await closeAll(pageB);
+    await pageB.click('#btn-menu'); await pageB.click('#menu-bill');
+    await visible(pageB, 'overlay-bill');
+    // o quadro do crédito lista o André bancando a garrafa E a rodada de chopp
+    await pageB.waitForFunction(() => {
+      const b = document.getElementById('bill-bankrolls');
+      return b && !b.hidden && /Andre/i.test(b.textContent) && /Chopp/i.test(b.textContent);
+    }, null, { timeout: T });
+    await closeAll(pageB);
+  });
+
   await step('estatísticas: B sai e vê 1 noite', async () => {
     await closeAll(pageB);
     await pageB.click('#btn-leave');

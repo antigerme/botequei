@@ -143,19 +143,21 @@ export function vibrate(p) { try { if (navigator.vibrate) navigator.vibrate(p); 
 
 // ---------- Gesto: toque curto vs toque longo ----------
 function attachGesture(node, onTap, onLong) {
-  let timer = null, longFired = false, sx = 0, sy = 0, active = false;
+  let timer = null, longFired = false, sx = 0, sy = 0, active = false, pid = null;
   const LONG = 480, MOVE = 14;
-  const cancel = () => { active = false; if (timer) { clearTimeout(timer); timer = null; } };
+  const cancel = () => { active = false; pid = null; if (timer) { clearTimeout(timer); timer = null; } };
   node.addEventListener('pointerdown', (e) => {
-    active = true; longFired = false; sx = e.clientX; sy = e.clientY;
+    if (active) return; // UM dedo por card: o 2º toque simultâneo NÃO abre outro gesto (dois
+    // dedos no mesmo card sobrescreviam o timer sem cancelá-lo → onLong dobrado = −1/−2 fantasma)
+    active = true; longFired = false; pid = e.pointerId; sx = e.clientX; sy = e.clientY;
     try { node.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     timer = setTimeout(() => { if (active) { longFired = true; onLong(); } }, LONG);
   });
   node.addEventListener('pointermove', (e) => {
-    if (active && (Math.abs(e.clientX - sx) > MOVE || Math.abs(e.clientY - sy) > MOVE)) cancel();
+    if (active && e.pointerId === pid && (Math.abs(e.clientX - sx) > MOVE || Math.abs(e.clientY - sy) > MOVE)) cancel();
   });
-  node.addEventListener('pointerup', (e) => { if (active && !longFired) onTap(); cancel(); e.preventDefault(); });
-  node.addEventListener('pointercancel', cancel);
+  node.addEventListener('pointerup', (e) => { if (e.pointerId !== pid) return; if (active && !longFired) onTap(); cancel(); e.preventDefault(); });
+  node.addEventListener('pointercancel', (e) => { if (e.pointerId === pid) cancel(); });
   node.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
@@ -531,7 +533,7 @@ function cardHTML(it) {
     // COMPARTILHADO: o número grande é DA MESA ("chegou mais uma" — qualquer um marca).
     // SEM contagem de copo (mesquinharia): quem não bebe sai do racha na própria conta.
     return `<div class="item-card share" data-item="${esc(it.id)}" role="button" tabindex="0" aria-label="${esc(it.name)}: ${t('card.ariaShare')}"${note}>
-    <div class="item-qty">${it.qty}</div>
+    <div class="item-qty" data-v="${it.qty}">${it.qty}</div>
     <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
     ${it.note ? `<div class="item-note">${esc(it.note)}</div>` : ''}
@@ -539,7 +541,7 @@ function cardHTML(it) {
     <div class="share-flag" aria-hidden="true">${t('card.mesa')}</div></div>`;
   }
   return `<div class="item-card" data-item="${esc(it.id)}" role="button" tabindex="0" aria-label="${esc(it.name)}: ${t('card.aria')}"${note}>
-    <div class="item-qty">${it.qty}</div>
+    <div class="item-qty" data-v="${it.qty}">${it.qty}</div>
     <div class="item-emoji">${esc(it.emoji)}</div>
     <div class="item-name">${esc(it.name)}</div>
     <div class="item-sub">${esc(it.sub)}</div>
@@ -1838,7 +1840,16 @@ export function closeOverlays() {
   if (lastFocus) { try { lastFocus.focus({ preventScroll: true }); } catch { /* ignore */ } lastFocus = null; }
 }
 let toastTimer = null;
+let pendingAction = null; // actionToast em andamento (tem AÇÃO clicável — ex.: "desfazer")
+let queuedToast = null;   // toast comum represado enquanto a ação está aberta (não a engole)
 export function toast(msg) {
+  // Toast comum (cutucada, presença, garçom) que chega durante a janela de um actionToast
+  // ENGOLIA a ação: zerava o `onclick` e o timer, e o "desfazer" sumia. Agora espera a ação
+  // fechar (clique ou timeout) e sai logo em seguida — o undo sobrevive.
+  if (pendingAction) { queuedToast = msg; return; }
+  showToast(msg);
+}
+function showToast(msg) {
   const t = el['toast']; t.onclick = null; t.textContent = msg; t.hidden = false;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2400);
 }
@@ -1847,7 +1858,11 @@ export function actionToast(msg, label, cb, ms = 5000) {
   const t = el['toast'];
   t.innerHTML = `${esc(msg)} · <span class="toast-action">${esc(label)}</span>`;
   t.hidden = false;
-  const done = () => { clearTimeout(toastTimer); t.hidden = true; t.onclick = null; };
+  const done = () => {
+    clearTimeout(toastTimer); t.hidden = true; t.onclick = null; pendingAction = null;
+    const q = queuedToast; queuedToast = null; if (q) showToast(q); // solta o toast represado
+  };
+  pendingAction = { done };
   t.onclick = () => { done(); if (cb) cb(); };
   clearTimeout(toastTimer); toastTimer = setTimeout(done, ms);
 }

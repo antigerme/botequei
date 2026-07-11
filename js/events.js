@@ -38,6 +38,26 @@ export function makeItem(def) {
 // SAÍDA do fio (reducer) — peer malicioso não infla o log nem injeta src estranho.
 export const cleanPhoto = (s) => (typeof s === 'string' && s.startsWith('data:image/') && s.length <= 20000 ? s : '');
 
+// Def de item vindo do fio (evento ITEM): COAGE os campos perigosos antes de entrar no state.
+// Higiene P2P (irmã do cleanPhoto): um peer bugado/malicioso mandava `price` string/negativo/
+// Infinity e a conta de TODOS virava "R$NaN"/negativa/∞ (os sinks `(it.price||0)*n` da comanda
+// e do sharePool NÃO têm guarda-verdade) — e PERSISTE no log (LWW, ts no futuro vence sempre).
+// Aqui preço vira número finito ≥0 com teto, gramas idem, e textos ganham teto (10 MB no name
+// estouraria localStorage/innerHTML). Coage, não REJEITA: todo item legítimo passa intacto.
+export function cleanItemDef(def) {
+  if (!def || typeof def !== 'object' || !def.id) return null;
+  const num = (v, max) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.min(n, max) : 0; };
+  const cut = (v, n) => (typeof v === 'string' ? v.slice(0, n) : v);
+  return {
+    ...def,
+    id: String(def.id).slice(0, 80),
+    price: num(def.price, 1e6),
+    g: num(def.g, 1e5),
+    name: cut(def.name, 40), brand: cut(def.brand, 40), note: cut(def.note, 200),
+    emoji: cut(def.emoji, 16), cat: cut(def.cat, 24),
+  };
+}
+
 export function makeProfile({ color, emoji, driver, level, photo }) {
   return { type: 'PROFILE', user: clientId(), name: getName(), color: color || '', emoji: emoji || '', driver: !!driver, level: Number(level) || 0, photo: cleanPhoto(photo), ts: Date.now(), eventId: newEventId() };
 }
@@ -111,8 +131,8 @@ export function applyEvent(state, ev) {
       return true;
     }
     case 'ITEM': {
-      const def = ev.def;
-      if (!def || !def.id) return false;
+      const def = cleanItemDef(ev.def); // coage preço/gramas/textos na ENTRADA (higiene P2P)
+      if (!def) return false;
       if (wins(state.items.get(def.id), ev)) state.items.set(def.id, { def, ts: ev.ts, eventId: ev.eventId });
       return true;
     }
@@ -144,7 +164,10 @@ export function applyEvent(state, ev) {
     }
     case 'SONG': {
       if (!ev.title) return false;
-      state.songs.push({ title: ev.title, url: ev.url || '', by: ev.user || '', name: ev.name || '', ts: ev.ts });
+      // teto de fila + textos coados na ENTRADA (o slice do makeSong só vale na emissão): sem
+      // isto um peer floodando SONG com title gigante estourava state.songs/localStorage.
+      if (state.songs.length >= 500) return false;
+      state.songs.push({ title: String(ev.title).slice(0, 80), url: String(ev.url || '').slice(0, 300), by: ev.user || '', name: String(ev.name || '').slice(0, 40), ts: ev.ts });
       return true;
     }
     default:

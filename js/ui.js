@@ -61,7 +61,7 @@ const IDS = [
   'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'add-share', 'btn-additem-confirm',
   'add-prev-emoji', 'add-prev-name', 'add-prev-sub',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
-  'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall',
+  'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall', 'bill-bankrolls',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
   'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-keepawake', 'btn-version',
   'set-lang',
@@ -948,6 +948,15 @@ export function renderBill(vm) {
     const items = pool.lines.map((l) => `${l.count}× ${l.name}`).join(' + ');
     el['bill-pool-line'].textContent = t('bill.pool', { items, total: fmtMoney(pool.total), each: fmtMoney(pool.each), n: pool.heads });
     el['bill-shareall-wrap'].hidden = !pool.canToggle;
+  }
+  // 🎁 quem BANCOU o quê (rodadas/garrafas) — "cada um nas suas costas o que prometeu"
+  const bk = vm.bankrolls || [];
+  el['bill-bankrolls'].hidden = !bk.length;
+  if (bk.length) {
+    el['bill-bankrolls'].innerHTML = `<span class="b-bank-title">${t('bill.bankTitle')}</span>` + bk.map((b) => {
+      const what = b.items.map((x) => `${x.units}× ${esc(x.name)}`).join(', ');
+      return `<span class="b-bank-line">🎁 <b>${esc(b.name)}</b> ${t('bill.bankVerb')} ${what} · ${fmtMoney(b.total)}</span>`;
+    }).join('');
   }
   const equal = !!vm.equal;
   el['bill-list'].innerHTML = vm.rows.map((r) => {

@@ -34,8 +34,9 @@ import { VERSION, verLabel } from './version.js';
 import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar, catOf, isShare, isCup, isDefault } from './catalog.js';
 import {
   emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor, makeSong,
+  makePledge, makePledgeOff, settle,
   getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver, happyHour,
-  paysFor, payerOf, songs, sharePool, shareSplit, paidCount, coveredCount, roundTargetIds, roundToCents,
+  paysFor, payerOf, songs, sharePool, shareSplit, roundTargetIds, roundToCents,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
 import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro, botecoProfiles, nearestBoteco } from './lifestats.js';
@@ -272,6 +273,7 @@ function roundTargets(def, scope) {
 // UMA garrafa com dono: sai do racha (sharePool) e cai inteira na sua conta. `covered`/`paid`
 // no reducer garantem que ninguém é cobrado duas vezes.
 let lastPaid = null; // últimos ADDs do pagamento (p/ desfazer — pode ser vários numa rodada)
+let lastPledge = null; // id da PROMESSA (crédito) criada na rodada — p/ desfazer junto dos ADDs
 let payScope = null; // escopo do pagamento corrente: jogadores do jogo (do menu = null = mesa toda)
 function payChoices() {
   return drinkItems().map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it), price: it.price || 0, share: isShare(it) ? 1 : 0 }));
@@ -286,10 +288,16 @@ function payRoundGo(itemId) {
   const def = resolveItem(itemId);
   if (!def || isCup(def)) return;
   const scope = payScope; payScope = null; // consome o escopo (jogo) uma vez
+  const tgts = roundTargets(def, scope);
   const evs = [];
-  for (const tg of roundTargets(def, scope)) { const ev = makeAdd(itemId, tg.user, tg.name, self); if (emitLocal(ev)) evs.push(ev); }
+  // +1 pra cada (SEM `payer`: o consumo é da pessoa). O DINHEIRO vem da PROMESSA abaixo, acertada
+  // no fim (settle) — nunca pré-marca unidade, então o −1 do toque longo não deixa fantasma.
+  for (const tg of tgts) { const ev = makeAdd(itemId, tg.user, tg.name); if (emitLocal(ev)) evs.push(ev); }
   if (!evs.length) return;
-  lastPaid = evs;
+  // a PROMESSA (crédito pra mesa): item pessoal → cobre 1 de cada no escopo; item da mesa → banco N unidades.
+  const pledge = isShare(def) ? makePledge(itemId, { units: evs.length }) : makePledge(itemId, { scope: tgts.map((tg) => tg.user) });
+  emitLocal(pledge);
+  lastPaid = evs; lastPledge = pledge.id;
   // 🔔 pagou a rodada = chama o garçom pra mesa, dizendo o item e QUANTOS são (efêmero, não persiste).
   if (mesh && mesh.connectedCount() > 0) mesh.sendFx({ kind: 'waiter', from: self, fromName: getName() || t('common.someoneLow'), item: itemLabel(def), n: evs.length });
   ui.floatReaction('💸'); ui.floatReaction('🔔'); sound.cheers(); ui.celebrate([def.emoji || '🍻', '💸', '🎉']);
@@ -298,7 +306,8 @@ function payRoundGo(itemId) {
   ui.actionToast(t('pay.done', { item: label }), t('common.undo'), () => {
     if (!lastPaid) return;
     let undone = false;
-    for (const e of lastPaid) if (emitLocal(makeRemove(e.item, e.user, e.name, self))) undone = true;
+    if (lastPledge) { if (emitLocal(makePledgeOff(lastPledge))) undone = true; lastPledge = null; } // desfaz o crédito
+    for (const e of lastPaid) if (emitLocal(makeRemove(e.item, e.user, e.name))) undone = true;      // −1 (SEM payer)
     if (undone) { lastPaid = null; scheduleRender(); }
   }, 7000);
 }
@@ -973,12 +982,19 @@ function computeBill() {
     canToggle: !o.equal && incRows.some((r) => isDriver(state, r.user)),
     shareAll: !!o.shareAll,
   } : null;
-  return { rows: out, total: out.reduce((a, r) => a + r.amount, 0), equal: o.equal, hasPrices: allItems().some((i) => i.price > 0), pool: poolVm };
+  // quem BANCOU o quê (rodadas/garrafas) — o quadro "🎁" do fechar a conta ("cada um nas suas costas")
+  const byFrom = new Map();
+  for (const l of settle(state, resolveItem).pledgeLines) {
+    if (!byFrom.has(l.from)) byFrom.set(l.from, []);
+    byFrom.get(l.from).push({ name: itemLabel(resolveItem(l.item)), units: l.units, amount: l.amount });
+  }
+  const bankrolls = [...byFrom].map(([from, items]) => ({ from, name: profOf(from).name || t('common.someoneLow'), items, total: items.reduce((a, x) => a + x.amount, 0) }));
+  return { rows: out, total: out.reduce((a, r) => a + r.amount, 0), equal: o.equal, hasPrices: allItems().some((i) => i.price > 0), pool: poolVm, bankrolls };
 }
 function renderBill() {
   const b = computeBill(); lastBill = b;
   const note = b.hasPrices ? t('bill.noteCons') : t('bill.notePriceless');
-  ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self, pool: b.pool });
+  ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self, pool: b.pool, bankrolls: b.bankrolls });
 }
 
 // ---- Jogo minimizado (✕ = minimizar; encerrar pra mesa toda é ação explícita) ----
@@ -2638,22 +2654,24 @@ function openStats() {
 // Comanda de uma pessoa (o que ela pediu).
 function openComanda(user) {
   const p = profOf(user);
+  const s = settle(state, resolveItem); // uma passada só: cobertura, pago e dinheiro saem daqui
+  const K = (i) => user + '\x00' + i;
   const rows = [];
   for (const it of allItems()) {
     if (isShare(it)) continue; // item DA MESA não é consumo PESSOAL: o dinheiro vive no bolo/rateio,
     const n = getCount(state, user, it.id); // não na comanda de quem tocou (senão superconta e joga
     if (n <= 0) continue;                   // a garrafa inteira no bolso dele — contradiz placar/conta)
-    // unidades que OUTRO pagou (rodada paga): conta no ×N, mas o dinheiro é de quem pagou.
-    const cov = coveredCount(state, user, it.id);
+    // unidades que OUTRO bancou (rodada/crédito): conta no ×N, mas o dinheiro é de quem pagou.
+    const cov = s.covered.get(K(it.id)) || 0;
     const charged = Math.max(0, n - cov);
     rows.push({ emoji: it.emoji, name: it.name, n, money: (it.price || 0) * charged, note: cov > 0 ? t('comanda.covered', { n: cov }) : (it.note || '') });
   }
-  // unidades que a pessoa PAGOU (perdeu o jogo / bancou): a garrafa "dela" aparece na comanda
-  for (const it of allItems()) { const n = paidCount(state, user, it.id); if (n > 0) rows.push({ emoji: '💸', name: t('comanda.paid', { item: itemLabel(it) }), n, money: (it.price || 0) * n, note: '' }); }
+  // unidades que a pessoa BANCOU (perdeu o jogo / rodada / garrafa): aparecem na comanda dela
+  for (const it of allItems()) { const n = s.paidUnits.get(K(it.id)) || 0; if (n > 0) rows.push({ emoji: '💸', name: t('comanda.paid', { item: itemLabel(it) }), n, money: (it.price || 0) * n, note: '' }); }
   // se a pessoa está 💤, a comanda diz DESDE QUANDO (ajuda a decidir se "foi embora de vez")
   const net = mesh ? mesh.peers().find((x) => x.user === user) : null;
   const since = net && !net.online ? awaySince.get(user) : 0;
-  ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user, resolveItem), money: userMoney(state, user, resolveItem),
+  ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user, resolveItem), money: s.money.get(user) || 0,
     away: since ? t('comanda.away', { time: new Date(since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }) : '' });
 }
 

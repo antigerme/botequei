@@ -452,6 +452,11 @@ html.bigfont { font-size: 120%; }
   border: 1px dashed var(--gold); background: rgba(255, 200, 87, .07); font-size: var(--fs-ml); }
 .bill-pool .check { margin: 0; font-size: var(--fs-m); }
 body.light .bill-pool { background: rgba(178, 108, 0, .06); }
+/* 🎁 quem bancou o quê (rodadas/garrafas) — resumo do fechar a conta */
+.bill-bank { display: grid; gap: 4px; margin: 2px 0 10px; padding: 9px 12px; border-radius: var(--r-m);
+  border: 1px dashed var(--gold); background: rgba(255, 200, 87, .07); font-size: var(--fs-m); }
+.bill-bank .b-bank-title { font-size: var(--fs-ml); font-weight: 700; }
+body.light .bill-bank { background: rgba(178, 108, 0, .06); }
 
 /* Foto de perfil: a fotinho no lugar do emoji (fill nos círculos fixos; mini segue a fonte) */
 .av-img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }

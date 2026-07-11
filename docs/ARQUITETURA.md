@@ -35,12 +35,11 @@ chega no mesmo estado.
 evento ADD — o que muda é a leitura: o dinheiro deles não pendura em quem tocou
 (`userMoney` pula, `sharePool` junta o bolo da mesa e `shareSplit` decide quem racheia na
 conta — motorista fora por padrão, e a caixinha da conta tira do racha quem não bebe).
-**Garrafa com dono**: o evento ADD/REMOVE aceita `payer` — perdeu o jogo ou bancou a
-rodada (menu "💸 Pagar uma rodada" / toast no aparelho do perdedor) → a unidade sai do
-bolo e cai inteira na conta do pagador; o contador da mesa não muda.
+**Bancar (crédito da mesa)**: uma PROMESSA (evento `PLEDGE`), acertada no fim pelo `settle`
+— perdeu o jogo ou bancou a rodada (chip "💸 Rodada" / toast no aparelho do perdedor) → a
+unidade bancada sai do bolo e cai na conta do pagador; o contador da mesa não muda.
 **Sem contagem de copo** (contar copo é mesquinharia — decisão de produto): o card
-compartilhado é só o contador DA MESA; consumo pessoal vem de item individual. O item
-`copo` segue no catálogo apenas por compat de mesas antigas (`isCup` filtra; nada o emite).
+compartilhado é só o contador DA MESA; consumo pessoal vem de item individual.
 
 **A mesa nasce limpa (e o ➕ também)**: sem chips de sugestão em lugar nenhum — a tela
 vazia mostra o convite + "➕ Montar o cardápio", e o overlay ➕ abre direto no formulário
@@ -54,7 +53,7 @@ antigas e cobre rodada de item que o receptor ainda não tinha.
 
 ```
 ┌─────────────────────────── navegador de CADA pessoa ───────────────────────────┐
-│  index.html + styles.css   shell e temas (auto/claro/escuro/neon/retrô)        │
+│  index.html + styles.css   shell e temas (auto/claro/escuro)                   │
 │  ui.js          APRESENTAÇÃO: telas/overlays/gestos; recebe view-model,        │
 │                 dispara H.* — não sabe o que é CRDT nem WebRTC                 │
 │  app.js         ORQUESTRADOR: único que conhece todo mundo; handlers H.*,      │
@@ -125,7 +124,7 @@ antigas e cobre rodada de item que o receptor ainda não tinha.
 | novo efeito social           | fx em `app.js` (sendFx/onFx) + overlay em `ui.js`/`index.html` |
 | novo jogo                    | motor PURO em `js/<jogo>.js` + unit; protocolo por fx em `app.js`; UI; entradas no menu "…" E no grid |
 | protocolo da sala            | `server/core.mjs` (os DOIS adaptadores herdam; e2e pega divergência) |
-| visual/tema                  | `styles.css` (CSS vars por tema em `body.light/neon/retro`) |
+| visual/tema                  | `styles.css` (CSS vars por tema: escuro base + `body.light`) |
 | texto                        | `js/i18n.js` — SEMPRE nas três línguas                      |
 | regra de negócio derivada    | módulo puro (`stats/league/...`) + unit                     |
 

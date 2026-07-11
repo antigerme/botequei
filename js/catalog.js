@@ -12,10 +12,7 @@
 //   "chegou mais uma" (qualquer um marca, UMA vez); o dinheiro vai pro rateio da conta
 //   (quem não bebe sai do racha lá; motorista já fica fora), e o `g` é 0 de propósito.
 //   SEM contagem de copo — contar copo é mesquinharia (decisão de produto).
-// O item 'copo' (`cup: 1`) segue no catálogo SÓ por compat: mesas antigas têm contagens
-// dele no log (isCup o filtra de cards/rodada/editor). Nada mais o emite.
-// O id 'cerveja' segue existindo (agora = garrafa 600, que É "a cerveja" do boteco
-// brasileiro): eventos de mesas antigas continuam resolvendo sem buraco no CRDT.
+// O id 'cerveja' é a Garrafa 600 (a "cerveja" do boteco brasileiro) — item DA MESA (share:1).
 export const DEFAULT_ITEMS = [
   { id: 'chopp',    emoji: '🍺', name: 'Chopp',          price: 0, g: 12, cat: 'cerveja' },
   { id: 'cerveja',  emoji: '🍻', name: 'Garrafa 600',    price: 0, g: 0,  cat: 'cerveja', share: 1 },
@@ -23,7 +20,6 @@ export const DEFAULT_ITEMS = [
   { id: 'lata',     emoji: '🥫', name: 'Lata',           price: 0, g: 14, cat: 'cerveja' },
   { id: 'longneck', emoji: '🍾', name: 'Long neck',      price: 0, g: 14, cat: 'cerveja' },
   { id: 'torre',    emoji: '🗼', name: 'Torre de chopp', price: 0, g: 0,  cat: 'cerveja', share: 1 },
-  { id: 'copo',     emoji: '🥂', name: 'Copo da mesa',   price: 0, g: 11, cat: 'cerveja', cup: 1 },
   { id: 'dose',     emoji: '🥃', name: 'Dose',           price: 0, g: 15, cat: 'destilado' },
   { id: 'drink',    emoji: '🍸', name: 'Drink',          price: 0, g: 14, cat: 'destilado' },
   { id: 'refri',    emoji: '🥤', name: 'Refri',          price: 0, g: 0,  cat: 'sem-alcool' },
@@ -35,9 +31,6 @@ export const DEFAULT_ITEMS = [
 // Compartilhado ("da mesa"): pedido coletivo — dinheiro rateado na conta, g=0 (não entra
 // no corpo de quem tocou). Vale pros padrões e pra item personalizado criado com a marca.
 export const isShare = (def) => !!(def && def.share);
-// Copo da mesa (LEGADO, só compat): mesas antigas têm contagens de 'copo' no log — este
-// filtro o mantém fora de cards/rodada/editor. A UI não emite mais copo.
-export const isCup = (def) => !!(def && def.cup);
 
 // Categorias do cardápio, na ordem de exibição ("outros" é o fallback; o item novo ABRE na
 // categoria do ícone escolhido — EMOJI_CAT no ui.js liga 🍺→cerveja, 🍕→comida etc.).

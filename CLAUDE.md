@@ -268,38 +268,27 @@ padrão Auto segue o navegador).
 - **Cardápio por categoria**: `catalog.js` (`cat` + `CATEGORIES`/`catOf`); itens custom levam
   `cat`/`note` no def do evento `ITEM` (⚠️ ao editar preço, faça `makeItem({...it, price})` pra
   não perder `g`/`cat`/`note`/`share`). **Itens compartilhados** (`share:1` — garrafa 600
-  [id `cerveja`, mantido por compat], litrão, torre): pedido é DA MESA — g=0 (não entra nas
+  (id `cerveja`), litrão, torre): pedido é DA MESA — g=0 (não entra nas
   estatísticas de quem tocou), dinheiro vai pro bolo (`sharePool`) e racheia na conta via `shareSplit`
   (puro: motorista fora por padrão, toggle "todos", fallback se só tem motorista; a caixinha
-  da conta tira qualquer um do racha). **Garrafa com dono** (`payer` no evento ADD/REMOVE):
-  perdeu o jogo ou bancou a rodada → a unidade SAI do bolo (`sharePool` exclui) e cai
-  inteira na conta do pagador (`userMoney` soma; `paidCount` pro detalhe). O contador da
-  mesa NÃO muda. Entradas: o chip **💸 Rodada** no dock da mesa e o toast no aparelho do PERDEDOR
-  (purrinha ×3, dominó 2p, truco — é oferta, não automação). **A "Rodada" do dock É "pagar uma
-  rodada"** (o 🍻 Rodada plano — que só somava +1 pra cada um SEM dono — saiu: num item da mesa
-  fazia o MESMO que tocar no card, e num pessoal era registro confuso; a casa única virou o dock,
-  `btn-rodada` → `onPayRound`): item PESSOAL (chopp/dose/refri) = UM pra cada pessoa online
-  (motorista fora se alcoólico); item DA MESA (share) = UMA unidade só (o card dela já é coletivo).
-  Escolha em `payChoices` (= `drinkItems`, com selo "da mesa" nos share) e alvos em `roundTargets`.
-  **Pagar item pessoal** = "cada um bebeu; você paga":
-  cada online ganha +1 no CONSUMO, mas o dinheiro é TODO do pagador — o reducer guarda um mapa
-  **`covered`** (`user\x00item` → unidades que OUTRO pagou) e o `userMoney` DESCONTA o covered do
-  consumidor (bebeu, não paga; `coveredCount` mostra "na conta de quem pagou" na comanda — **com
-  TETO no consumo real**, pois um REMOVE comum (−1 do toque longo, sem `payer`) baixa o `counts` mas
-  não o `covered`, então sem o cap o display mentiria "×2 pago" com só 1 na mesa; o desfazer da
-  rodada paga carrega o `payer` e baixa os dois em par). `payer`
-  entra no ADD de cada um (motorista pulado). Item da mesa segue como a garrafa com dono. **Escopo
-  do jogo**: pagar rodada vindo de um JOGO paga só pros JOGADORES, não a mesa toda — `offerLoserPay`
-  leva os ids do jogo (`purr.entrants`/`dom.order`/`truco.order`) e `roundTargets(def, scope)` os usa
-  (bot fora, que não bebe; motorista fora se alcoólico). O núcleo é `roundTargetIds` (puro no
-  `events.js`, irmão do `shareSplit`, testado). Do DOCK (💸 Rodada, sem jogo) segue a mesa online. **Chamar o
-  garçom** sai sozinho ao 💸 PAGAR a rodada (fx `waiter` com `item`+`n` → "🔔 fulano pediu: 2× Chopp"
-  na mesa toda; efêmero, higiene P2P no `receiveWaiter`). **SEM contagem de copo** — contar copo é mesquinharia
-  (decisão de produto): o card compartilhado é só o contador DA MESA; consumo pessoal vem só
-  de item individual. O item `copo` (`cup:1`) segue no catálogo APENAS por compat de mesas
-  antigas (nada o emite; `isCup` filtra de cards/rodada/editor; `tableTotal` segue excluindo
-  `cup` pra log velho não contar dobrado). `userTotal`/`userMoney`/`summary` aceitam
-  `resolveItem` e excluem share do pessoal.
+  da conta tira qualquer um do racha). **Bancar (crédito da mesa)** = uma **PROMESSA** (evento
+  `PLEDGE`), acertada no fim pelo `settle` (detalhes na seção de eventos): item PESSOAL cobre 1 de
+  cada no escopo; item DA MESA reivindica N garrafas do bolo. A unidade bancada SAI do bolo
+  (`sharePool` exclui) e cai na conta do pagador (`userMoney` soma; `paidCount` pro detalhe); o
+  contador da mesa NÃO muda. Entradas: o chip **💸 Rodada** no dock da mesa e o toast no aparelho do
+  PERDEDOR (purrinha ×3, dominó 2p, truco — é oferta, não automação). **A "Rodada" do dock É "pagar
+  uma rodada"** (`btn-rodada` → `onPayRound`): item PESSOAL (chopp/dose/refri) = UM pra cada pessoa
+  online (motorista fora se alcoólico) + uma promessa cobrindo o escopo; item DA MESA (share) = +1 no
+  bolo + promessa de N unidades. Escolha em `payChoices` (= `drinkItems`, com selo "da mesa" nos
+  share) e alvos em `roundTargets`. **Escopo do jogo**: pagar rodada vindo de um JOGO paga só pros
+  JOGADORES, não a mesa toda — `offerLoserPay` leva os ids do jogo (`purr.entrants`/`dom.order`/
+  `truco.order`) e `roundTargets(def, scope)` os usa (bot fora, que não bebe; motorista fora se
+  alcoólico). O núcleo é `roundTargetIds` (puro no `events.js`, irmão do `shareSplit`, testado). Do
+  DOCK (💸 Rodada, sem jogo) segue a mesa online. **Chamar o garçom** sai sozinho ao 💸 PAGAR a rodada
+  (fx `waiter` com `item`+`n` → "🔔 fulano pediu: 2× Chopp" na mesa toda; efêmero, higiene P2P no
+  `receiveWaiter`). **SEM contagem de copo** — contar copo é mesquinharia (decisão de produto): o card
+  compartilhado é só o contador DA MESA; consumo pessoal vem só de item individual.
+  `userTotal`/`userMoney`/`summary` aceitam `resolveItem` e excluem share do pessoal.
   **Cardápio da mesa** (ex-"Preços", `menu-prices`): cada item aceita **marca/apelido**
   (`brand` no def, LWW — `itemLabel` prioriza), **descrição** (`note` no def, LWW — nasce
   no ➕ como "Descrição (opcional)" e é editável aqui; o card mostra como legenda — caso
@@ -331,8 +320,7 @@ padrão Auto segue o navegador).
   com `t(chave, vars)` interpolando `{name}`/`{n}` e `applyI18n` sobre `[data-i18n]`/
   `[data-i18n-ph]`/`[data-i18n-aria]`/`[data-i18n-title]`/`[data-i18n-html]`; idioma padrão
   **auto** pelo navegador); temas **auto/dark/light**
-  (`resolveTheme`/`applyTheme` em `ui.js`; neon/retro foram aposentados — valor antigo gravado
-  cai no claro);
+  (`resolveTheme`/`applyTheme` em `ui.js`; valor desconhecido cai no claro);
   **molduras** de avatar por nível da liga (`frameClass` → `.fr-silver`/`.fr-gold`); **passaporte**
   de botecos (`store.getCheckins`/`addCheckin` — check-in local, GPS opcional, só no aparelho);
   **foto da noite** (só preview/compartilhar via Web Share — nada é salvo/enviado); **guia de

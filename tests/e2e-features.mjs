@@ -126,10 +126,8 @@ async function main() {
   });
 
   // consumo p/ dar substância à conta/estatísticas — cobrindo o fluxo COMPARTILHADO
-  await step('garrafa da mesa: +1 é DA MESA e SEM zona de copo (contar copo é mesquinharia)', async () => {
-    // o card compartilhado é só o contador da mesa — quem não bebe sai do racha na conta
-    const temCup = await pageA.evaluate(() => !!document.querySelector('.item-card[data-item="x-garrafa-600"] .item-cup'));
-    if (temCup) throw new Error('o card compartilhado não devia ter zona de copo');
+  await step('garrafa da mesa: +1 é DA MESA (o card compartilhado é só o contador da mesa)', async () => {
+    // quem não bebe sai do racha na conta; sem contagem por copo (contar copo é mesquinharia)
     await pageA.click('.item-card[data-item="x-garrafa-600"]'); // chegou mais uma garrafa (qualquer um marca)
     await Promise.all([pageA, pageB].map((p) => p.waitForFunction(
       () => document.querySelector('.item-card[data-item="x-garrafa-600"] .item-qty')?.textContent.trim() === '1',

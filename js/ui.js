@@ -40,7 +40,7 @@ const el = {};
 
 const IDS = [
   'screen-home', 'screen-table', 'input-name', 'input-code', 'btn-create', 'btn-join-code',
-  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-me',
+  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-me', 'btn-home-checkin',
   'overlay-me', 'me-avatar', 'me-name', 'me-profile', 'me-stats', 'me-retro', 'me-passport', 'me-settings',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
@@ -63,7 +63,7 @@ const IDS = [
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall', 'bill-bankrolls',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
-  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-keepawake', 'btn-version',
+  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-keepawake', 'set-geo', 'btn-version',
   'set-lang',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
@@ -254,6 +254,7 @@ export function init(handlers) {
   el['btn-dom-L'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'L'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-dom-R'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'R'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-passport-checkin'].addEventListener('click', () => H.onCheckin(el['passport-name'].value));
+  el['btn-home-checkin'].addEventListener('click', () => H.onPassport()); // atalho da home → passaporte (check-in à mão)
   el['btn-boteco-load'].addEventListener('click', () => H.onBotecoLoadNew(el['btn-boteco-load'].dataset.place || ''));
   // gerenciar cardápio salvo (na ficha do boteco): renomear o lugar / apagar o cardápio
   el['btn-boteco-rename'].addEventListener('click', () => {
@@ -306,6 +307,8 @@ export function init(handlers) {
   el['set-sound'].addEventListener('change', () => H.onSetting({ sound: el['set-sound'].checked }));
   el['set-shake'].addEventListener('change', () => H.onShakeToggle(el['set-shake'].checked));
   el['set-keepawake'].addEventListener('change', () => H.onSetting({ keepAwake: el['set-keepawake'].checked }));
+  el['set-geo'].addEventListener('change', () => H.onGeoToggle(el['set-geo'].checked)); // ligar pede a permissão; recusar volta pra off
+
   // versão no rodapé das configs (serial de zona YYYYMMDDnn): tocar confere se há mais nova
   el['btn-version'].textContent = '🍺 Botequei ' + verLabel(VERSION);
   el['btn-version'].addEventListener('click', () => H.onCheckUpdate());
@@ -1044,6 +1047,7 @@ export function fillSettings(s) {
   el['set-sound'].checked = !!s.sound;
   el['set-shake'].checked = !!s.shake;
   el['set-keepawake'].checked = s.keepAwake !== false; // default ligado
+  el['set-geo'].checked = s.geo !== false;             // default ligado (o 1º uso pede a permissão)
   el['set-pixkey'].value = s.pixKey || '';
   el['set-pixcity'].value = s.pixCity || '';
 }

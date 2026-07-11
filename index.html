@@ -48,7 +48,8 @@
       </div>
 
       <button class="btn btn-ghost btn-offline" id="btn-offline-join" data-i18n="offline">📴 Entrar sem internet</button>
-      <!-- Números, Retrô e Passaporte agora moram no hub do avatar (toque no seu rosto no canto ↗) -->
+      <!-- Números e Retrô moram no hub do avatar; o Passaporte tem atalho direto aqui (check-in fica à mão) -->
+      <button class="btn btn-ghost" id="btn-home-checkin" data-i18n="home.checkin">📍 Check-in num boteco</button>
     </div>
 
     <div class="home-history" id="home-history" hidden>
@@ -396,6 +397,9 @@
     <label class="check"><input type="checkbox" role="switch" id="set-sound" /><span data-i18n="set.sound">🔊 Sons</span></label>
     <label class="check"><input type="checkbox" role="switch" id="set-shake" /><span data-i18n="set.shake">📳 Chacoalhar o celular pra +1 (mãos livres)</span></label>
     <label class="check"><input type="checkbox" role="switch" id="set-keepawake" /><span data-i18n="set.keepawake">📱 Manter a tela acesa na mesa</span></label>
+    <p class="menu-sec" data-i18n="set.secGeo">📍 Localização</p>
+    <label class="check"><input type="checkbox" role="switch" id="set-geo" /><span data-i18n="set.geo">📍 Reconhecer meus botecos (passaporte + sugerir o cardápio)</span></label>
+    <p class="sheet-sub" data-i18n="set.geoHelp">Fica tudo no seu aparelho — nada sai daqui. Desligar aqui só faz o app parar de usar; pra revogar de vez, use as configurações do navegador.</p>
     <p class="menu-sec" data-i18n="set.secPix">💸 PIX pra dividir</p>
     <label class="field"><span data-i18n="set.pixKey">Sua chave PIX</span>
       <input id="set-pixkey" type="text" maxlength="77" placeholder="email, telefone, CPF ou aleatória" data-i18n-ph="set.pixKeyPh" /></label>

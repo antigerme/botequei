@@ -24,7 +24,9 @@ async function main() {
   // O check-in é da HOME (só aparece com histórico), então semeamos direto no localStorage — é
   // o MESMO dado que o passaporte grava — fresco (agora) pra o "boteco da sessão" puxar o cardápio.
   const mkCtx = async (name, checkin) => {
-    const c = await browser.newContext();
+    // geolocation concedida (posição fixa) — assim o getCurrentPosition RESOLVE no headless (sem
+    // permissão ele fica pendurado): o check-in automático do join grava com coordenada, sem travar.
+    const c = await browser.newContext({ permissions: ['geolocation'], geolocation: { latitude: -23.56, longitude: -46.64 } });
     await c.addInitScript((a) => {
       localStorage.setItem('botequei.name', a.n);
       localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 }));
@@ -109,6 +111,15 @@ async function main() {
     // a mesa "colou" o boteco: o título vira "Bar do Zé" nos dois (evento TABLE)
     await Promise.all([pageA, pageB].map((p) => p.waitForFunction(
       () => document.getElementById('table-title')?.textContent.trim() === 'Bar do Zé', null, { timeout: T })));
+  });
+
+  await step('auto check-in: a Bia ENTROU numa mesa nomeada → "Bar do Zé" cai no passaporte dela sozinho', async () => {
+    // ela entrou por código (join) e a mesa tem nome → check-in automático (sem GPS obrigatório).
+    // A Bia NÃO tinha check-in prévio (contexto sem seed), então o registro só pode ter vindo do join.
+    await pageB.waitForFunction(() => {
+      const p = JSON.parse(localStorage.getItem('botequei.passport') || '[]');
+      return p.some((c) => c.name === 'Bar do Zé');
+    }, null, { timeout: T });
   });
 
   await step('#3 efeito de rede: a Bia ENTROU na mesa → ao sair, "você conhece o cardápio do Bar do Zé"', async () => {

@@ -364,10 +364,20 @@ padrão Auto segue o navegador).
   + títulos do histórico, pra a ficha seguir agregando sob o novo nome) e **🗑️ Apagar cardápio**
   (`store.deleteBotecoMenu` — só o cardápio; check-ins/histórico ficam, com confirmação). Renomear/
   apagar re-renderizam a ficha + o passaporte por baixo (`openPassportView`/`openBotecoFicha`).
-  **Sugestão por GPS (opt-in)**: sem check-in fresco, o `sessionBoteco` ainda cai no `gpsBoteco` —
-  ao **criar** a mesa, `maybeSuggestByGps` (só se a permissão de localização JÁ foi concedida, nunca
-  pergunta na hora) pega a posição e o `nearestBoteco` (puro, haversine, raio 250m em `lifestats.js`)
-  acha o boteco mais perto onde você já fez check-in; tem cardápio salvo → o CTA aparece sozinho.
+  **Localização & check-in**: um **switch nas ⚙️ Configurações** (`settings.geo`, LIGADO de fábrica)
+  controla se o app usa a localização pros seus botecos. Ligado por padrão = o 1º uso PEDE a permissão
+  num GESTO seu (criar mesa / check-in / ligar o switch — nunca no boot, senão o navegador bloqueia o
+  prompt); **recusou → o switch volta pra OFF sozinho** (`geoDeny`, só no `code 1` = negou de verdade;
+  timeout/indisponível mantêm on) e não insiste; religar tenta de novo (bloqueio de vez no navegador
+  não re-pergunta → aviso). O switch é do APP — NÃO revoga a permissão do navegador (a web não deixa;
+  o helper avisa). O **check-in** ganhou atalho na home (`btn-home-checkin` → passaporte); e **entrar
+  numa mesa NOMEADA** (join por QR/código) faz um **check-in automático** com o nome do bar no
+  passaporte (`maybeAutoCheckin` — só quem ENTRA, `sessionJoined`; deduplica por check-in fresco do
+  mesmo lugar; toast transparente). **Sugestão por GPS**: com o switch ON, ao **criar** a mesa perto
+  de um lugar onde já fez check-in COM cardápio salvo, `maybeSuggestByGps` (via `nearestBoteco`, puro/
+  haversine/raio 250m em `lifestats.js`) PERGUNTA "você está no {nome}?" (`askLoadBoteco`, actionToast)
+  além do CTA do empty-state. `e2e-geo` trava o switch default-on + recusou→off; `e2e-boteco` trava o
+  check-in automático no join.
   **Re-conferir preço**: ao carregar um cardápio COM preço, o toast vira ação **"revisar preços"**
   (`ui.actionToast`) que abre o Cardápio da mesa (os preços são os da última visita — podem ter mudado).
 - **Acessibilidade**: diálogos com `role="dialog"`/foco preso/ESC (`setupA11y` em `ui.js`),

@@ -257,7 +257,14 @@ padrão Auto segue o navegador).
   Lock segura a tela
   enquanto a mesa está aberta (`settings.keepAwake`, ligado de fábrica; switch nas configs) —
   `acquireWakeLock` no entrar/`visibilitychange` (o sistema solta sozinho ao esconder a aba),
-  release no sair/switch; sem suporte, falha em silêncio. ⚠️ **Idempotência dos fluxos async**
+  release no sair/switch; sem suporte, falha em silêncio. **Catch-up na volta**: esconder o app /
+  bloquear a tela CONGELA o WebRTC (regra do SO — sem receber em tempo real). No `visibilitychange`
+  o app fotografa o total da mesa (`awaySnap`) ao SUMIR e, na VOLTA, resume o que rolou enquanto você
+  esteve fora (`catchup.back` — um toast "+N na mesa"), lido do próprio estado depois do anti-entropy
+  ASSENTAR (debounce `CATCHUP_SETTLE_MS`, re-armado a cada evento sincronizado, teto `CATCHUP_MAX_MS`).
+  100% local (nada de servidor/push) e só aparece se houve novidade (delta > 0 — presença serena, não
+  cutuca à toa); `clearCatchup` no sair. O e2e-catchup trava o resumo "+3" e o silêncio no delta 0.
+  ⚠️ **Idempotência dos fluxos async**
   (fechar corridas): a re-malha carrega um **selo de geração** (`meshGen`) — o `loadIce()` é async,
   então só a ÚLTIMA `restartMesh` da sala vigente aplica (troca de sala no meio descarta o ICE que
   chega tarde), e `startMesh` fecha a malha anterior antes de abrir a nova; `acquireWakeLock` tem

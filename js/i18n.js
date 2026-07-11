@@ -79,6 +79,7 @@ const DICT = {
     'add.share': '🍻 É da mesa (compartilhado — o valor é rateado na conta)',
     // ---- presença / conexão ----
     'pres.joined': '🍻 {name} entrou!', 'pres.bye': '👋 {name} saiu',
+    'catchup.back': '👋 Bem-vindo de volta! Enquanto você esteve fora, rolou +{n} na mesa 🍺',
     'pres.agoMin': '{n}min', 'pres.agoH': '{n}h',
     'pres.away': ' (fora da mesa)', 'pres.aria': 'Quem está na mesa',
     'conn.alone': 'Você está sozinho na mesa — toque em MESA pra chamar a turma 🍻',
@@ -425,6 +426,7 @@ const DICT = {
     'add.share': "🍻 It's the table's (shared — the cost is split in the bill)",
     // ---- presence / connection ----
     'pres.joined': '🍻 {name} joined!', 'pres.bye': '👋 {name} left',
+    'catchup.back': '👋 Welcome back! While you were away, +{n} landed on the table 🍺',
     'pres.agoMin': '{n}min', 'pres.agoH': '{n}h',
     'pres.away': ' (away from the table)', 'pres.aria': 'Who is at the table',
     'conn.alone': 'You’re alone at the table — tap TABLE to bring the crew in 🍻',
@@ -771,6 +773,7 @@ const DICT = {
     'add.share': '🍻 Es de la mesa (compartido — el valor se reparte en la cuenta)',
     // ---- presencia / conexión ----
     'pres.joined': '🍻 ¡{name} entró!', 'pres.bye': '👋 {name} se fue',
+    'catchup.back': '👋 ¡Bienvenido de vuelta! Mientras no estabas, cayeron +{n} en la mesa 🍺',
     'pres.agoMin': '{n}min', 'pres.agoH': '{n}h',
     'pres.away': ' (fuera de la mesa)', 'pres.aria': 'Quién está en la mesa',
     'conn.alone': 'Estás solo en la mesa — toca MESA para llamar a la banda 🍻',

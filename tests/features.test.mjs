@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, itemTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs, paidCount, coveredCount, roundTargetIds } from '../js/events.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, itemTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs, paidCount, coveredCount, roundTargetIds, cleanItemDef } from '../js/events.js';
 import { badgesFor, mvp, ceremonyAwards } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
@@ -316,6 +316,38 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.strictEqual(q[1].name, 'André');
   assert.strictEqual(applyEvent(s, { type: 'SONG', user: 'c', title: '', ts: 3, eventId: 's3' }), false); // sem título é ignorado
   ok('jukebox: fila acumula e ordena por pedido');
+}
+
+// ---------- Higiene P2P: ITEM com preço envenenado NÃO vaza pra conta (cleanItemDef) ----------
+{
+  // preço string/NaN/negativo/Infinity de um peer bugado → 0 (não "R$NaN"/negativo/∞ na conta de todos)
+  assert.strictEqual(cleanItemDef({ id: 'chopp', price: 'abc' }).price, 0);
+  assert.strictEqual(cleanItemDef({ id: 'chopp', price: NaN }).price, 0);
+  assert.strictEqual(cleanItemDef({ id: 'chopp', price: -1000 }).price, 0);
+  assert.strictEqual(cleanItemDef({ id: 'chopp', price: Infinity }).price, 0);
+  assert.strictEqual(cleanItemDef({ id: 'chopp', price: 6 }).price, 6); // legítimo passa intacto
+  assert.strictEqual(cleanItemDef({ id: 'x', name: 'y'.repeat(9999) }).name.length, 40); // name gigante ganha teto
+  assert.strictEqual(cleanItemDef(null), null);
+  assert.strictEqual(cleanItemDef({ price: 5 }), null); // sem id, não entra
+  // ponta a ponta no reducer + userMoney: item envenenado NÃO quebra a conta
+  const st = emptyState();
+  applyEvent(st, { type: 'ITEM', def: { id: 'chopp', name: 'Chopp', price: -999 }, ts: 1, eventId: 'i1' });
+  applyEvent(st, { type: 'ADD', user: 'a', name: 'Ana', item: 'chopp', ts: 2, eventId: 'a1' });
+  const money = userMoney(st, 'a', (id) => (st.items.get(id) ? st.items.get(id).def : null));
+  assert.strictEqual(money, 0); // preço -999 virou 0 → conta = 0, não -999
+  assert.ok(Number.isFinite(money));
+  ok('higiene P2P: item do fio com preço NaN/negativo/∞ vira 0 (conta não quebra)');
+}
+
+// ---------- Higiene P2P: jukebox tem teto de fila (flood não estoura memória) ----------
+{
+  const s = emptyState();
+  for (let i = 0; i < 600; i++) applyEvent(s, { type: 'SONG', user: 'z', title: 'm' + i, ts: i, eventId: 'f' + i });
+  assert.strictEqual(songs(s).length, 500); // teto de 500 (o resto do flood é ignorado)
+  const big = emptyState();
+  applyEvent(big, { type: 'SONG', user: 'z', title: 'T'.repeat(9999), ts: 1, eventId: 'b1' });
+  assert.strictEqual(songs(big)[0].title.length, 80); // title gigante ganha teto na ENTRADA
+  ok('higiene P2P: jukebox trava fila em 500 e corta title gigante');
 }
 
 console.log(`\n${passed} testes de features passaram ✅`);

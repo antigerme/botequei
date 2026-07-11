@@ -1,7 +1,11 @@
 // E2E do "polish de plataforma" (convenções de Android/iOS num PWA):
-//  1) VOLTAR do sistema (Android) / swipe de voltar (iOS) fecha o overlay aberto em vez de sair —
-//     testado com page.goBack() (= popstate).
-//  2) iOS não dispara beforeinstallprompt → num navegador iOS o botão "📲 Instalar" aparece mesmo
+//  1) criar a mesa NÃO engole o convite: atribuir location.hash é navegação (dispara popstate)
+//     e o "voltar fecha overlay" já engoliu o convite recém-aberto quando o hash era escrito
+//     DEPOIS dele (o bug do convite que piscava e fechava sozinho) — o assert espera o hash
+//     assentar em #/mesa e confere que o convite SEGUE aberto;
+//  2) VOLTAR do sistema (Android) / swipe de voltar (iOS) fecha o overlay aberto em vez de sair —
+//     testado com page.goBack() (= popstate) — e a URL da mesa SOBREVIVE ao fechamento;
+//  3) iOS não dispara beforeinstallprompt → num navegador iOS o botão "📲 Instalar" aparece mesmo
 //     assim (testado com User-Agent de iPhone).
 //
 //   node server/node.mjs &
@@ -40,7 +44,20 @@ async function main() {
   await page.waitForSelector('#screen-home.is-active', { timeout: T });
   await page.click('#btn-create');
   await page.waitForSelector('#screen-table.is-active', { timeout: T });
-  await page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true))); // fecha o convite
+
+  await step('criar a mesa: o convite abre e FICA (a URL #/mesa não o engole via popstate)', async () => {
+    // o fechamento-fantasma acontecia no MESMO task da escrita do hash — então "hash já é
+    // #/mesa E convite aberto" é assert determinístico de que ele sobreviveu
+    await page.waitForFunction(() => /#\/mesa\?room=/.test(location.hash) && !document.getElementById('overlay-invite').hidden, null, { timeout: T });
+  });
+
+  await step('voltar com o convite aberto: fecha SÓ o convite; mesa e URL #/mesa continuam', async () => {
+    await page.goBack();
+    await hidden('overlay-invite');
+    if (!(await onTable())) throw new Error('voltar saiu da mesa em vez de fechar o convite');
+    const h = await page.evaluate(() => location.hash);
+    if (!/#\/mesa\?room=/.test(h)) throw new Error('fechar o convite regrediu a URL da mesa: ' + h);
+  });
 
   await step('menu "…": voltar do sistema fecha o overlay (sem sair da mesa)', async () => {
     await page.click('#btn-menu');

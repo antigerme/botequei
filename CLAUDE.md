@@ -102,7 +102,16 @@ padrão Auto segue o navegador).
   consumidor é OUTRO, no `covered` dele (o `userMoney` desconta → bebeu, mas não paga — a "rodada
   paga" de item pessoal). O `PROFILE` também leva o **nível** (liga) e a **foto** (miniatura 128px, dataURL ≤20k chars,
   validada por `cleanPhoto` na entrada E na saída do fio — emoji é o fallback eterno). `SONG` (jukebox) **acumula**
-  (não é LWW) — a fila de músicas da mesa.
+  (não é LWW) — a fila de músicas da mesa (teto de 500 + `title`/`url` coados na ENTRADA do reducer).
+  ⚠️ **Higiene P2P no reducer** (irmã do `cleanPhoto`): todo dado do fio que vira dinheiro/render
+  é coado na ENTRADA — `cleanItemDef` no `ITEM` força `price`/`g` a número finito ≥0 com teto e
+  corta textos (peer bugado mandava `price` string/negativo/Infinity e a conta de TODOS virava
+  "R$NaN"/negativa/∞, e PERSISTIA no log; os sinks `(it.price||0)*n` da comanda/`sharePool` não
+  têm guarda-verdade). Coage, não rejeita — item legítimo passa intacto. O `receiveBye`/`receiveGone`
+  têm gate de identidade COMPLETO (só valem pelo canal do próprio dono — `fx.from === fromId`);
+  o `seenFx` (dedup de fx de jogo) tem TETO FIFO de 4000 (flood não incha memória). E a carta de
+  truco (`truCardHTML`) faz `esc()` no naipe do fio — sem isso a vira/mão eram XSS que exfiltrava
+  o localStorage.
 - **Efeitos efêmeros (não entram no log)** via `mesh.sendFx` → `onFx`. Os de **jogo** (dominó/
   purrinha) levam `mid` e são **repassados com dedup** (gossip via `gameFx`/`seenFx`) pra toda
   jogada chegar em todos mesmo se a malha não estiver completa (4 pessoas = 6 links); os demais
@@ -342,7 +351,11 @@ padrão Auto segue o navegador).
   `100dvh` (mata o bug do 100vh no Safari), metas `apple-mobile-web-app-*`, `prefers-color-scheme`,
   inputs ≥16px (sem zoom no iOS) e alvos de toque ≥44px (`.sheet-close`). **Voltar (Android) / swipe
   de voltar (iOS) fecha o overlay** em vez de sair: `syncOverlayHistory` no `ui.js` empurra um estado
-  ao abrir o 1º overlay e o `popstate` fecha (espelha o ESC; fechar por ✕/ESC desfaz o estado). **iOS
+  ao abrir o 1º overlay e o `popstate` fecha (espelha o ESC; fechar por ✕/ESC desfaz o estado).
+  ⚠️ **Atribuir `location.hash` é NAVEGAÇÃO** (dispara `popstate`) — o `enterTable` escreve o
+  `#/mesa?room=…` ANTES de abrir qualquer overlay; se escrever depois, o `popstate` da navegação
+  cai no handler do "voltar fecha overlay" e ENGOLE o convite recém-aberto (era o bug do convite
+  que piscava e fechava sozinho ao criar a mesa; o e2e-plataforma trava a regressão). **iOS
   não dispara `beforeinstallprompt`** → o `boot` mostra o "📲 Instalar" quando é iPhone e não está
   standalone; tocar cai no `toast.installHint` ("Compartilhar → Adicionar à Tela").
 - **TURN opcional** (rota `/turn`, nos dois adaptadores): credenciais efêmeras da Cloudflare,

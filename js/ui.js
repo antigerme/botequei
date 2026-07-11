@@ -1629,7 +1629,11 @@ export function renderDomino(vm) {
 function truCardHTML(cardStr, { small = false, back = false } = {}) {
   if (back) return `<span class="tru-card back${small ? ' sm' : ''}"></span>`;
   const [r, s] = String(cardStr).split(':');
-  const suit = { ouros: '♦', espadas: '♠', copas: '♥', paus: '♣', bastos: '🪵' }[s] || s;
+  // o naipe conhecido vira um glifo seguro; QUALQUER outra coisa é dado do fio (a vira é pública
+  // e a mão chega por thand — um peer trapaceiro manda "3:<img onerror=…>") e PRECISA de esc():
+  // sem isto o fallback `|| s` injetava HTML cru no innerHTML da vira/mão = XSS que exfiltra o
+  // localStorage (log + chave PIX), sem clique, mesmo com o overlay escondido.
+  const suit = { ouros: '♦', espadas: '♠', copas: '♥', paus: '♣', bastos: '🪵' }[s] || esc(s || '');
   const red = s === 'copas' || s === 'ouros';
   return `<span class="tru-card${red ? ' red' : ''}${small ? ' sm' : ''}"><b>${esc(r)}</b><i>${suit}</i></span>`;
 }

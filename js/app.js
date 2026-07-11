@@ -332,10 +332,17 @@ function onReact(emoji) { ui.floatReaction(emoji); if (mesh) mesh.sendFx({ kind:
 // das reações, essas fx levam um `mid` e são repassadas (gossip) com dedup — igual aos eventos.
 let fxSeq = 0;
 const seenFx = new Set();
+// Dedup dos fx de jogo com TETO: sem isto o Set crescia pra sempre e um peer floodando fx com
+// mid únicos inchava a memória. FIFO (Set guarda ordem de inserção): passou do teto, larga o
+// mais antigo — uma noite de jogo não chega perto de 4000 jogadas, então nada legítimo é re-visto.
+function markSeenFx(mid) {
+  seenFx.add(mid);
+  if (seenFx.size > 4000) seenFx.delete(seenFx.values().next().value);
+}
 function gameFx(fx) {
   if (!mesh) return;
   fx.mid = self + ':' + (fxSeq++);
-  seenFx.add(fx.mid);
+  markSeenFx(fx.mid);
   mesh.sendFx(fx);
 }
 function onFx(fx, fromId) {
@@ -343,7 +350,7 @@ function onFx(fx, fromId) {
   // gossip com dedup só pras fx de jogo (têm mid): ignora repetida, repassa a nova pros outros
   if (fx.mid && (fx.kind === 'domino' || fx.kind === 'purrinha' || fx.kind === 'truco')) {
     if (seenFx.has(fx.mid)) return;
-    seenFx.add(fx.mid);
+    markSeenFx(fx.mid);
     if (mesh) mesh.broadcast({ k: 'fx', fx }, fromId);
   }
   if (fx.kind === 'brinde') ui.brinde();
@@ -353,7 +360,7 @@ function onFx(fx, fromId) {
   else if (fx.kind === 'ceremony') { if (Array.isArray(fx.awards)) ui.openCeremony({ awards: fx.awards }); }
   else if (fx.kind === 'waiter') receiveWaiter(fx);
   else if (fx.kind === 'bye') receiveBye(fx, fromId);
-  else if (fx.kind === 'gone') receiveGone(fx);
+  else if (fx.kind === 'gone') receiveGone(fx, fromId);
   else if (fx.kind === 'purrinha') routePurrFx(fx);
   else if (fx.kind === 'truco') routeTrucoFx(fx);
   else if (fx.kind === 'domino') {
@@ -605,6 +612,12 @@ async function enterTable(code, { create = false, pin = '', joined = false } = {
   room = code; roomPin = pin; sessionStart = Date.now(); sessionMates = new Set();
   sessionJoined = joined; // entrei na mesa de alguém → o cardápio que sincronizar é "aprendido"
   store.setCurrent(room);
+  // A URL reflete a mesa JÁ AQUI, antes de abrir qualquer overlay: atribuir location.hash é
+  // NAVEGAÇÃO (dispara popstate), e o "voltar fecha o overlay" (ui.js) entendia esse popstate
+  // como VOLTAR do usuário — o convite recém-aberto era engolido no ato (piscava e fechava
+  // sozinho ao criar a mesa). Com o hash primeiro, o popstate acha zero overlays (no-op) e o
+  // marker do convite fica ACIMA da entrada #/mesa: fechar no ✕/voltar preserva a URL.
+  location.hash = '#/mesa?room=' + room;
   rebuildFrom(store.getEvents(room));
   ui.showScreen('table');
   render();
@@ -617,7 +630,6 @@ async function enterTable(code, { create = false, pin = '', joined = false } = {
   if (room !== code) return;
 
   startMesh(iceServers);
-  location.hash = '#/mesa?room=' + room;
 }
 
 // Entra numa mesa SEM depender de internet/signaling (fluxo do convite offline).
@@ -627,6 +639,7 @@ function enterTableOffline(code) {
   room = code; roomPin = ''; sessionStart = Date.now(); sessionMates = new Set();
   sessionJoined = true; // pareamento offline = você entrou na mesa de alguém (scaneou o QR)
   store.setCurrent(room);
+  location.hash = '#/mesa?room=' + room; // ANTES dos overlays — mesmo motivo do enterTable
   rebuildFrom(store.getEvents(room));
   ui.showScreen('table');
   render();
@@ -634,7 +647,6 @@ function enterTableOffline(code) {
   if (!presTick) presTick = setInterval(scheduleRender, 30000);
   maybeStartTour();
   startMesh([]);
-  location.hash = '#/mesa?room=' + room;
 }
 
 function onMeshChange() {
@@ -691,9 +703,12 @@ function diffPresence() {
 // 💤 fantasma. Higiene P2P: só derruba se o bye veio pelo canal do PRÓPRIO dono (fromId) —
 // bye forjado não desconecta os outros.
 function receiveBye(fx, fromId) {
-  if (!fx.from || fx.from === self) return;
+  // gate de identidade COMPLETO (o `bye` é direto do dono, nunca via gossip): sem ele, um bye
+  // forjado (`from` = outra pessoa) já toastava "👋 fulano saiu" (falso) e sumia a vítima da
+  // barra até o próximo diffPresence — o gate cobre TODO o efeito, não só o mesh.dropUser.
+  if (!fx.from || fx.from !== fromId || fx.from === self) return;
   saidBye.add(fx.from); everSeen.delete(fx.from); prevOnline.delete(fx.from); awaySince.delete(fx.from);
-  if (mesh && fx.from === fromId) mesh.dropUser(fx.from);
+  if (mesh) mesh.dropUser(fx.from);
   const name = (typeof fx.fromName === 'string' && fx.fromName.slice(0, 24)) || profOf(fx.from).name || t('common.someone');
   ui.toast(t('pres.bye', { name }));
   scheduleRender();
@@ -703,8 +718,10 @@ function receiveBye(fx, fromId) {
 // Se a pessoa não voltar na graça (reload/atualização de SW voltam em segundos), sai da barra
 // EM SILÊNCIO — e volta a valer o "entrou!" quando reaparecer. Quem morre SEM avisar
 // (bateria, app morto à força) não manda gone: a arrumação de 1h (AWAY_HIDE_MS) cobre.
-function receiveGone(fx) {
-  if (!fx.from || fx.from === self || goneAt.has(fx.from)) return;
+// Higiene P2P (mesmo gate do bye): só vale se veio pelo canal do PRÓPRIO dono — um gone
+// forjado removeria da barra, em 45s e em silêncio, qualquer um que estivesse de tela apagada.
+function receiveGone(fx, fromId) {
+  if (!fx.from || fx.from !== fromId || fx.from === self || goneAt.has(fx.from)) return;
   const u = fx.from;
   goneAt.set(u, { wentOff: false, tm: setTimeout(() => {
     goneAt.delete(u);

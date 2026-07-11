@@ -354,20 +354,25 @@ function focusables(root) {
     .filter((x) => !x.disabled && x.offsetParent !== null);
 }
 // Botão VOLTAR (Android) / swipe de voltar (iOS) fecha o overlay aberto, em vez de sair do app.
-// PILHA de overlays em ordem de abertura (o topo é o mais recente): empurra UM estado de histórico
-// por overlay aberto; o "voltar" fecha SÓ o topo (antes um marcador ÚNICO fazia o voltar fechar
-// TODOS de uma vez — recortar foto sobre o perfil e apertar voltar perdia o apelido não salvo).
-// Fechar por ✕/ESC/toque-fora desfaz os estados extras SEM disparar o nosso fechamento (guard).
+// Modelo de UM estado só (robusto): enquanto HÁ overlay aberto, mantemos UM estado empurrado no
+// histórico; o "voltar" fecha SÓ o topo e, se ainda sobra overlay, RE-EMPURRA um estado (aí o
+// próximo voltar fecha o de baixo — antes um marcador único fechava TODOS de uma vez, e recortar
+// foto sobre o perfil perdia o apelido não salvo). Quando o ÚLTIMO fecha, desfazemos o estado com
+// history.back() GUARDADO (só se estamos MESMO no nosso estado) — sem esse guard, fechar por
+// ✕/ESC/`hidden` direto (o que a suíte e o próprio app fazem) chamava history.go() e NAVEGAVA pra
+// FORA da mesa (derrubava a malha). A pilha guarda a ORDEM (topo) e o foco de origem de cada overlay.
 const overlayStack = []; // [{ ov, focus }] — foco = o que estava ativo quando aquele overlay abriu
-let overlayPushed = 0;   // quantos estados de overlay temos no histórico
-let overlayPopGuard = 0; // popstates que NÓS geramos (desfazendo estado) e o handler deve ignorar
+let overlayHistoryPushed = false; // temos UM estado empurrado enquanto ≥1 overlay está aberto?
 function syncOverlayHistory() {
-  const want = overlayStack.length;
-  while (overlayPushed < want) { overlayPushed++; try { history.pushState({ botequeiOverlay: overlayPushed }, ''); } catch { /* ignore */ } }
-  if (overlayPushed > want) {
-    const extra = overlayPushed - want; overlayPushed = want;
-    overlayPopGuard++;                            // history.go(-N) dispara UM popstate
-    try { history.go(-extra); } catch { /* ignore */ }
+  const open = openOverlayEls().length > 0;
+  if (open && !overlayHistoryPushed) {
+    overlayHistoryPushed = true;
+    try { history.pushState({ botequeiOverlay: 1 }, ''); } catch { /* ignore */ }
+  } else if (!open && overlayHistoryPushed) {
+    // último overlay fechou: desfaz NOSSO estado — mas só se ainda estamos nele (guard: um close
+    // por ✕/ESC/hidden não pode navegar pra fora do app se o estado já foi consumido por um voltar)
+    overlayHistoryPushed = false;
+    try { if (history.state && history.state.botequeiOverlay) history.back(); } catch { /* ignore */ }
   }
 }
 // remove um overlay da pilha e devolve o foco pro que ficou POR BAIXO (empilhado) ou pra origem
@@ -397,16 +402,19 @@ function setupA11y() {
       } else {
         popOverlayEntry(ov); // fechou: sai da pilha e devolve o foco (nunca cai no <body>)
       }
-      syncOverlayHistory(); // mantém a profundidade do histórico = tamanho da pilha
+      syncOverlayHistory(); // mantém UM estado no histórico enquanto houver overlay aberto
     }).observe(ov, { attributes: true, attributeFilter: ['hidden'] });
   });
-  // voltar (Android/iOS): fecha SÓ o overlay do topo (não a pilha toda)
+  // voltar (Android/iOS): fecha SÓ o overlay do topo; se sobra overlay, o syncOverlayHistory
+  // re-empurra um estado (o próximo voltar fecha o de baixo). Sem overlay nosso na pilha → deixa
+  // o app navegar normalmente. O history.back() que NÓS disparamos (quando o último fecha) chega
+  // aqui com a pilha JÁ vazia (o observer removeu antes) → cai no return, sem fechar nada por engano.
   window.addEventListener('popstate', () => {
-    if (overlayPopGuard > 0) { overlayPopGuard--; return; } // fomos nós desfazendo estado (✕/ESC)
     if (!overlayStack.length) return;
-    overlayPushed = Math.max(0, overlayPushed - 1); // o voltar já consumiu este estado
+    overlayHistoryPushed = false; // o voltar já consumiu o nosso estado
     const top = overlayStack[overlayStack.length - 1];
-    if (top) top.ov.hidden = true; // o observer tira da pilha, devolve o foco e re-sincroniza
+    top.ov.hidden = true;         // observer tira da pilha + devolve o foco
+    syncOverlayHistory();         // sobrou overlay embaixo? re-empurra um estado pro próximo voltar
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -1859,7 +1867,7 @@ export function closeOverlays() {
   // Fecha TUDO de uma vez (ESC / tour / arrastar-pra-fechar): captura a origem do 1º overlay da
   // pilha, ESVAZIA a pilha ANTES de esconder (assim os observers viram no-op e não brigam pelo
   // foco, cada um restaurando um elemento transitório) e devolve o foco à origem. O
-  // syncOverlayHistory desfaz de uma vez os N estados de histórico dos overlays fechados.
+  // syncOverlayHistory vê "nenhum overlay aberto" e desfaz o NOSSO único estado (back() guardado).
   const origin = overlayStack.length ? overlayStack[0].focus : null;
   overlayStack.length = 0;
   document.querySelectorAll('.overlay').forEach((o) => { o.hidden = true; });

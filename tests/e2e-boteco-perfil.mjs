@@ -51,8 +51,9 @@ async function main() {
   await pageA.waitForSelector('#screen-home.is-active', { timeout: T });
 
   await step('passaporte: o lugar com cardápio salvo mostra o selo 📓', async () => {
-    await visible(pageA, 'home-extras'); // features pessoais aparecem porque há histórico
-    await pageA.click('#btn-passport');
+    await pageA.click('#btn-me'); // avatar no canto da home → hub pessoal
+    await visible(pageA, 'overlay-me');
+    await pageA.click('#me-passport'); // passaporte sempre no hub (não gateado)
     await visible(pageA, 'overlay-passport');
     await pageA.waitForFunction(() => {
       const row = document.querySelector('#passport-list .pass-row');
@@ -102,7 +103,9 @@ async function main() {
   await pageC.waitForSelector('#screen-home.is-active', { timeout: T });
 
   await step('gerenciar: renomear o LUGAR → novo nome na ficha E no passaporte', async () => {
-    await pageC.click('#btn-passport');
+    await pageC.click('#btn-me');
+    await visible(pageC, 'overlay-me');
+    await pageC.click('#me-passport');
     await visible(pageC, 'overlay-passport');
     await pageC.click('#passport-list .pass-main');
     await visible(pageC, 'overlay-boteco');

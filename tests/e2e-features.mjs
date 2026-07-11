@@ -86,8 +86,9 @@ async function main() {
   });
 
   await step('foto de perfil: A recorta uma imagem e a fotinho aparece pra MESA toda', async () => {
-    await pageA.click('#btn-menu');
-    await pageA.click('#menu-profile');
+    await pageA.click('.pres-me'); // seu rosto na barra de presença abre o hub pessoal
+    await visible(pageA, 'overlay-me');
+    await pageA.click('#me-profile');
     await visible(pageA, 'overlay-profile');
     // PNG 1×1 basta: o caminho selfie/galeria é o MESMO input — só muda o atributo capture
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
@@ -102,8 +103,9 @@ async function main() {
   });
 
   await step('tocar num emoji VOLTA pro emoji (sem botão extra)', async () => {
-    await pageA.click('#btn-menu');
-    await pageA.click('#menu-profile');
+    await pageA.click('.pres-me'); // seu rosto na barra de presença abre o hub pessoal
+    await visible(pageA, 'overlay-me');
+    await pageA.click('#me-profile');
     await visible(pageA, 'overlay-profile');
     const comFoto = await pageA.evaluate(() => !document.getElementById('profile-photo-img').hidden);
     if (!comFoto) throw new Error('herói deveria mostrar a foto salva');
@@ -283,7 +285,9 @@ async function main() {
     await pageB.click('#btn-leave');
     await pageB.click('#toast .toast-action'); // sair pede confirmação (um toque errado não derruba da mesa)
     await pageB.waitForSelector('#screen-home.is-active', { timeout: T });
-    await pageB.click('#btn-stats');
+    await pageB.click('#btn-me'); // avatar no canto da home → hub pessoal
+    await visible(pageB, 'overlay-me');
+    await pageB.click('#me-stats'); // "Meus números" só aparece com histórico (B tem 1 noite)
     await visible(pageB, 'overlay-stats');
     const nights = await pageB.evaluate(() => {
       const cells = [...document.querySelectorAll('#stats-grid .stat-cell')];

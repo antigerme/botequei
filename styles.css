@@ -334,8 +334,16 @@ body.light .sheet-close { background: var(--card); }
    do tamanho que a pessoa escolheu no aparelho. */
 html.bigfont { font-size: 120%; }
 
-.gear { position: absolute; top: calc(16px + var(--safe-t)); right: 18px; background: transparent;
-  border: 0; font-size: 1.5rem; cursor: pointer; z-index: 5; }
+/* Avatar do "eu" no canto da home: toca e abre o hub pessoal (perfil/números/passaporte/config).
+   Reusa a pele .pres-av (círculo com a cor/foto); o padding garante alvo de toque ≥48px. */
+.home-me { position: absolute; top: calc(10px + var(--safe-t)); right: 14px; background: transparent;
+  border: 0; padding: 4px; cursor: pointer; z-index: 5; line-height: 0;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.home-me .pres-av { width: 40px; height: 40px; font-size: var(--fs-l); }
+/* Hub do "Você": cabeçalho (avatar grande + apelido); a grade de itens reusa .menu-grid/.menu-item */
+.me-head { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 2px 0 12px; }
+.me-head .pres-av { width: 64px; height: 64px; font-size: 2rem; }
+.me-name { font-size: var(--fs-l); font-weight: 700; margin: 0; text-align: center; word-break: break-word; }
 .seal { color: var(--muted); font-size: var(--fs-s); display: block; margin-top: 8px; }
 .btn-install { width: auto; margin-bottom: 6px; }
 
@@ -503,7 +511,6 @@ body.light .bill-pool { background: rgba(178, 108, 0, .06); }
 select { background: var(--card); border: 1.5px solid var(--line); color: var(--cream);
   border-radius: var(--r-s); padding: 10px; font-size: var(--fs-base); font-family: system-ui, sans-serif; }
 .field-inline select { width: 150px; }
-.btn-stats { font-size: var(--fs-ml); padding: 12px; }
 
 /* Botão de cutucar no placar */
 .peer-poke { background: rgba(255,255,255,.05); border: 2px dashed var(--chalk-line); color: var(--cream);
@@ -620,9 +627,6 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 
 /* ===================== Leva 3 (segurança, retrô, liga) ===================== */
 
-.home-row { display: flex; gap: 10px; }
-.home-row .btn { flex: 1; }
-.home-extras { display: grid; gap: 10px; } /* features pessoais (só com histórico) */
 
 /* Retrospectiva */
 .retro-slides { display: grid; gap: 10px; }

@@ -20,7 +20,7 @@
 
   <!-- ======================= HOME ======================= -->
   <section class="screen is-active" id="screen-home">
-    <button class="gear" id="btn-settings" title="Configurações" data-i18n-title="set.title">⚙️</button>
+    <button class="home-me" id="btn-me" title="Você" data-i18n-title="common.youCap" aria-label="Você: perfil, números, passaporte e configurações" data-i18n-aria="me.open">🍺</button>
     <div class="home-hero">
       <div class="logo">🍺</div>
       <h1 class="brand">Botequei</h1>
@@ -48,14 +48,7 @@
       </div>
 
       <button class="btn btn-ghost btn-offline" id="btn-offline-join" data-i18n="offline">📴 Entrar sem internet</button>
-      <!-- features pessoais: só aparecem quando já há histórico (primeiro uso fica limpo) -->
-      <div class="home-extras" id="home-extras" hidden>
-        <div class="home-row">
-          <button class="btn btn-ghost btn-stats" id="btn-stats" data-i18n="stats">📊 Meus números</button>
-          <button class="btn btn-ghost" id="btn-retro" data-i18n="retro">🎞️ Retrô</button>
-        </div>
-        <button class="btn btn-ghost" id="btn-passport" data-i18n="passport">🗺️ Passaporte</button>
-      </div>
+      <!-- Números, Retrô e Passaporte agora moram no hub do avatar (toque no seu rosto no canto ↗) -->
     </div>
 
     <div class="home-history" id="home-history" hidden>
@@ -204,15 +197,31 @@
       <button class="menu-item" id="menu-hh" data-i18n="hh.title">⏰ Happy hour</button>
       <button class="menu-item" id="menu-jukebox" data-i18n="menu.jukebox">🎵 Jukebox</button>
       <button class="menu-item" id="menu-ceremony" data-i18n="cer.title">🏅 Cerimônia da noite</button>
-      <p class="menu-sec" data-i18n="common.youCap">Você</p>
-      <button class="menu-item" id="menu-profile" data-i18n="menu.profile">🎨 Meu perfil</button>
-      <button class="menu-item" id="menu-stats" data-i18n="stats">📊 Meus números</button>
       <p class="menu-sec" data-i18n="menu.secExtra">A noite</p>
       <button class="menu-item" id="menu-photo" data-i18n="photo.title">📷 Foto da noite</button>
       <button class="menu-item" id="menu-share" data-i18n="menu.shareNight">📸 Compartilhar a noite</button>
       <p class="menu-sec" data-i18n="menu.secApp">App</p>
       <button class="menu-item" id="menu-tour" data-i18n="tour.replay">🎓 Tour do Botequei</button>
-      <button class="menu-item" id="menu-settings" data-i18n="menu.settings">⚙️ Configurações</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hub do "Você": o avatar no canto da home E o seu rosto na barra da mesa abrem aqui.
+     Junta o que é PESSOAL (perfil, números, retrô, passaporte, configurações) num lugar só —
+     o "…" fica só com a MESA. Cada item abre o overlay que já existe. -->
+<div class="overlay" id="overlay-me" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <div class="me-head">
+      <span class="pres-av" id="me-avatar">🍺</span>
+      <h2 class="me-name" id="me-name">Você</h2>
+    </div>
+    <div class="menu-list menu-grid">
+      <button class="menu-item" id="me-profile" data-i18n="menu.profile">🎨 Meu perfil</button>
+      <button class="menu-item" id="me-stats" data-i18n="stats">📊 Meus números</button>
+      <button class="menu-item" id="me-retro" data-i18n="retro">🎞️ Retrô</button>
+      <button class="menu-item" id="me-passport" data-i18n="passport">🗺️ Passaporte</button>
+      <button class="menu-item" id="me-settings" data-i18n="menu.settings">⚙️ Configurações</button>
     </div>
   </div>
 </div>

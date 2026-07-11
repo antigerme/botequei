@@ -106,6 +106,15 @@ let awaySince = new Map();   // user -> desde quando está 💤 (relógio na bar
 let presTick = null;         // re-render periódico com a mesa aberta (o relógio do 💤 anda sozinho)
 const GONE_GRACE_MS = 45000;  // fechou o app: só sai da barra se não voltar nisso
 const AWAY_HIDE_MS = 3600000; // 💤 por 1h+: a barra se arruma sozinha (quem morreu sem tchau — bateria)
+// Catch-up na volta: esconder o app / bloquear a tela CONGELA o WebRTC (regra do SO — não dá pra
+// receber em tempo real). Na volta o wake() reconecta e o anti-entropy re-sincroniza TUDO (CRDT,
+// nada se perde); aí um resumo curto conta o que rolou na mesa enquanto você esteve fora. 100%
+// local (lê o próprio estado, sem servidor) e só aparece se houve novidade (delta > 0).
+let awaySnap = null;             // { at, total } no instante que escondeu
+let catchupPending = null;       // { total, deadline } aguardando a re-sync assentar na volta
+let catchupTimer = null;         // debounce do "assentou" (re-arma a cada evento sincronizado)
+const CATCHUP_SETTLE_MS = 1800;  // 1,8s sem evento novo → a re-sync assentou, pode resumir
+const CATCHUP_MAX_MS = 15000;    // teto: não espera mais que isso pela re-sync (mesa movimentada)
 let sessionMates = new Set(); // nomes que apareceram na mesa (p/ "com quem você mais bebeu")
 let lastRetro = null;        // dados da última retrospectiva (p/ compartilhar)
 let shakeHandler = null, shakeLast = 0, shakePending = false; // mãos livres (chacoalhar pra +1)
@@ -437,7 +446,7 @@ function onRemoteEvent(ev, fromPeer, isSync) {
   if (!ingest(ev)) return;
   if (mesh) mesh.broadcast({ k: 'ev', ev }, fromPeer); // gossip
   if (ev.type === 'HAPPYHOUR' && Number(ev.until) <= Date.now()) hhEndedFor = Number(ev.until); // happy hour já vencido (veio no sync): não comemora
-  if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state) / 10); scheduleRender(); return; }
+  if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state) / 10); if (catchupPending) scheduleCatchup(); scheduleRender(); return; }
   if (ev.type === 'ADD') checkTableMilestone();
   if (ev.type === 'SONG') ui.renderJukebox(songs(state));
   if (ev.type === 'ADD' && ev.user !== self) {
@@ -620,6 +629,38 @@ async function acquireWakeLock() {
 function releaseWakeLock() {
   try { if (wakeLock) wakeLock.release(); } catch { /* ignore */ }
   wakeLock = null;
+}
+
+// ---- Catch-up na volta (ver comentário no topo, perto de AWAY_HIDE_MS) ----
+// Tira a foto do total da mesa quando o app some (esconder/bloquear a tela) — base do resumo.
+function snapshotAway() {
+  if (!room || awaySnap) return; // guarda a 1ª foto (esconder 2× sem voltar não sobrescreve)
+  awaySnap = { at: Date.now(), total: tableTotal(state) };
+}
+// Voltou: a re-sync chega ASSÍNCRONA (reconexão + anti-entropy), então debounça — dispara ~1,8s
+// depois do último evento sincronizado, com teto de 15s (mesa movimentada não segura o resumo).
+function returnFromAway() {
+  if (!room || !awaySnap) return;
+  catchupPending = { total: awaySnap.total, deadline: Date.now() + CATCHUP_MAX_MS };
+  awaySnap = null;
+  scheduleCatchup();
+}
+function scheduleCatchup() {
+  if (!catchupPending) return;
+  if (catchupTimer) clearTimeout(catchupTimer);
+  const wait = Math.max(0, Math.min(CATCHUP_SETTLE_MS, catchupPending.deadline - Date.now()));
+  catchupTimer = setTimeout(runCatchup, wait);
+}
+function runCatchup() {
+  catchupTimer = null;
+  const snap = catchupPending; catchupPending = null;
+  if (!snap || !room) return;
+  const d = tableTotal(state) - snap.total; // quanto a mesa andou enquanto você esteve fora
+  if (d > 0) ui.toast(t('catchup.back', { n: d })); // silêncio se nada mudou (não cutuca à toa)
+}
+function clearCatchup() { // ao sair da mesa: zera tudo (não vaza o resumo pra próxima mesa)
+  awaySnap = null; catchupPending = null;
+  if (catchupTimer) { clearTimeout(catchupTimer); catchupTimer = null; }
 }
 
 async function enterTable(code, { create = false, pin = '', joined = false } = {}) {
@@ -841,6 +882,7 @@ function leaveTable() {
   for (const g of goneAt.values()) clearTimeout(g.tm); goneAt = new Map();
   tourArmed = false; // re-arma o tour se voltar pra uma mesa (o flag tourSeen ainda barra o 2º)
   if (presTick) { clearInterval(presTick); presTick = null; }
+  clearCatchup(); // zera o resumo-da-volta (não vaza pra próxima mesa)
   purr = null; dom = null; dv = null; seenFx.clear(); purrPreFx = [];
   cancelTruco(false); trucoPreFx = [];
   domClearTimers(); gameMinned.clear(); ui.setGameMin('dom', false); ui.setGameMin('purr', false); ui.setGamePill(null);
@@ -3091,7 +3133,12 @@ function boot() {
     store.saveEvents(room, log);
     if (mesh) { try { mesh.sendFx({ kind: 'gone', from: self }); } catch { /* ignore */ } mesh.sig.leave(); }
   });
-  const wake = () => { if (document.hidden) return; if (mesh) mesh.wake(); acquireWakeLock(); };
+  const wake = () => {
+    if (document.hidden) { snapshotAway(); return; } // sumiu (bloqueou a tela / trocou de app): fotografa a mesa
+    if (mesh) mesh.wake();
+    acquireWakeLock();
+    returnFromAway(); // voltou: monta o resumo do que rolou enquanto esteve fora (após a re-sync assentar)
+  };
   document.addEventListener('visibilitychange', wake);
   window.addEventListener('focus', wake);
   window.addEventListener('online', wake);

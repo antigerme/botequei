@@ -129,10 +129,10 @@ async function main() {
       await page.click('#tour-trails [data-trail="conta"]');
       await vis(page, 'tour');
       const dots = await page.evaluate(() => document.querySelectorAll('#tour-count .tour-dot').length);
-      if (dots !== 4) throw new Error('trilha da conta devia ter 4 paradas, vi ' + dots);
-      await page.click('#btn-tour-next'); // parada 2 (💸 Pagar rodada) mora DENTRO do menu → o `pre` abre o menu de verdade
+      if (dots !== 3) throw new Error('trilha da conta devia ter 3 paradas, vi ' + dots); // 💸 Rodada (dock) + Fechar a conta + Preços (a parada do "Pagar rodada" fundiu na 💸 Rodada do dock)
+      await page.click('#btn-tour-next'); // parada 2 (💸 Fechar a conta) mora DENTRO do menu → o `pre` abre o menu de verdade
       await page.waitForFunction(() => !document.getElementById('overlay-menu').hidden && !document.getElementById('tour').hidden, null, { timeout: 8000 });
-      for (let i = 0; i < 3; i++) { await page.click('#btn-tour-next'); await page.waitForTimeout(400); }
+      for (let i = 0; i < 2; i++) { await page.click('#btn-tour-next'); await page.waitForTimeout(400); }
       await page.waitForFunction(() => document.getElementById('tour').hidden, null, { timeout: 5000 });
       const clean = await page.evaluate(() => document.getElementById('overlay-menu').hidden && document.getElementById('overlay-themepick').hidden);
       if (!clean) throw new Error('fim da trilha deveria FECHAR o menu e não re-perguntar o tema');

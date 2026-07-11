@@ -367,8 +367,30 @@ function focusables(root) {
 // FORA da mesa (derrubava a malha). A pilha guarda a ORDEM (topo) e o foco de origem de cada overlay.
 const overlayStack = []; // [{ ov, focus }] — foco = o que estava ativo quando aquele overlay abriu
 let overlayHistoryPushed = false; // temos UM estado empurrado enquanto ≥1 overlay está aberto?
+// Trava de scroll do FUNDO enquanto há overlay aberto (padrão modal M3/HIG). Sem isso o documento
+// de trás (.screen, min-height:100dvh) rolava ATRÁS do sheet — o "scroll fantasma" que deixava o
+// app com cara de solto. `position:fixed` no body é o único que segura no iOS (o `overflow:hidden`
+// ele ignora no toque); guardamos o Y pra devolver EXATO na volta. Idempotente: não re-grava o Y
+// ao empilhar um 2º overlay (recortar sobre o perfil), então só destrava quando o ÚLTIMO fecha —
+// ref-contado pela contagem real de overlays abertos (openOverlayEls), a mesma do histórico.
+let scrollLockY = 0, scrollLocked = false;
+function lockScroll(on) {
+  if (on === scrollLocked) return;
+  const b = document.body;
+  if (on) {
+    scrollLockY = window.scrollY || window.pageYOffset || 0;
+    b.style.top = `-${scrollLockY}px`;
+    b.classList.add('scroll-locked');
+  } else {
+    b.classList.remove('scroll-locked');
+    b.style.top = '';
+    window.scrollTo(0, scrollLockY);
+  }
+  scrollLocked = on;
+}
 function syncOverlayHistory() {
   const open = openOverlayEls().length > 0;
+  lockScroll(open); // trava/destrava o fundo junto do histórico — fim do scroll fantasma atrás do sheet
   if (open && !overlayHistoryPushed) {
     overlayHistoryPushed = true;
     try { history.pushState({ botequeiOverlay: 1 }, ''); } catch { /* ignore */ }

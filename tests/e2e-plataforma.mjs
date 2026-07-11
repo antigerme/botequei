@@ -79,8 +79,9 @@ async function main() {
     // O bug do André: recortar a foto sobre o perfil e apertar VOLTAR fechava TUDO (a pilha
     // inteira num marcador único) e perdia o apelido não salvo. Agora cada overlay empurra UM
     // estado; o voltar fecha só o TOPO. O recorte abre POR CIMA do perfil (não o fecha).
-    await page.click('#btn-menu');
-    await page.click('#menu-profile');
+    await page.click('.pres-me'); // seu rosto na barra de presença → hub pessoal
+    await visible('overlay-me');
+    await page.click('#me-profile');
     await visible('overlay-profile');
     await page.fill('#profile-name', 'Zé Não-Salvo'); // apelido em edição, ainda não salvo
     // PNG 1×1 abre o recorte por cima do perfil (mesmo caminho da selfie/galeria)

@@ -43,7 +43,7 @@ async function main() {
   const presDump = async (page) => {
     try {
       return await page.evaluate(() => JSON.stringify({
-        bar: [...document.querySelectorAll('.pres-av')].map((a) => (a.getAttribute('title') || '') + (a.classList.contains('zz') ? '💤' : '')),
+        bar: [...document.querySelectorAll('#presence-bar .pres-av')].map((a) => (a.getAttribute('title') || '') + (a.classList.contains('zz') ? '💤' : '')),
         dbg: window.__presDbg ? window.__presDbg() : null,
         toasts: window.__toasts || [],
       }));
@@ -134,16 +134,16 @@ async function main() {
       // fire-and-forget: o renderer morre no MEIO da resposta do CDP (await pendura pra sempre)
       const cdp = await ctxs[2].newCDPSession(pages[2]);
       cdp.send('Page.crash').catch(() => { /* esperado */ });
-      await waitPres(host, () => !!document.querySelector('.pres-av.zz'), 30000, 'Caio 💤 na barra');
+      await waitPres(host, () => !!document.querySelector('#presence-bar .pres-av.zz'), 30000, 'Caio 💤 na barra');
       await host.waitForTimeout(50000); // muito além de qualquer "graça" — 💤 não tem prazo
       const said = await toasts(host);
       if (said.some((t) => /saiu/.test(t))) throw new Error('queda de conexão virou toast de "saiu": ' + JSON.stringify(said));
-      const zz = await host.evaluate(() => !!document.querySelector('.pres-av.zz'));
+      const zz = await host.evaluate(() => !!document.querySelector('#presence-bar .pres-av.zz'));
       if (!zz) throw new Error('o 💤 sumiu da barra — quem caiu deveria seguir visível, esmaecido');
     });
 
     await step('o 💤 ganha RELÓGIO ("1min"+): a mesa conclui sozinha quem já foi embora', async () => {
-      await waitPres(host, () => /min|h/.test(document.querySelector('.pres-av.zz .zz-t')?.textContent || ''), 75000, 'relógio no 💤');
+      await waitPres(host, () => /min|h/.test(document.querySelector('#presence-bar .pres-av.zz .zz-t')?.textContent || ''), 75000, 'relógio no 💤');
     });
 
     await step('fechar o APP (pagehide → tchau educado): sai da barra em SILÊNCIO após a graça', async () => {
@@ -152,10 +152,10 @@ async function main() {
       await dani.evaluate(() => window.dispatchEvent(new Event('pagehide')));
       await ctxs[3].close();
       // graça de 45s (reload/atualização de SW voltam antes) + folga: Dani sai SEM toast
-      await waitPres(host, () => [...document.querySelectorAll('.pres-av')].length === 3, 75000, 'barra com 3 (Dani arrumada)');
+      await waitPres(host, () => [...document.querySelectorAll('#presence-bar .pres-av')].length === 3, 75000, 'barra com 3 (Dani arrumada)');
       const said = await toasts(host);
       if (said.some((t) => /Dani saiu/.test(t))) throw new Error('fechar o app virou toast de "saiu" — devia ser silencioso');
-      const zz = await host.evaluate(() => !!document.querySelector('.pres-av.zz'));
+      const zz = await host.evaluate(() => !!document.querySelector('#presence-bar .pres-av.zz'));
       if (!zz) throw new Error('a arrumação tirou a pessoa errada — Caio (💤) deveria seguir na barra');
     });
 
@@ -170,7 +170,7 @@ async function main() {
       await bia.click('#toast'); // confirma o actionToast de sair
       await waitPres(host, () => (window.__toasts || []).some((t) => /Bia saiu/.test(t)), 10000, 'toast "Bia saiu"');
       // Bia (tchau explícito) sai da barra; sobram eu + Caio (💤 com relógio)
-      await waitPres(host, () => [...document.querySelectorAll('.pres-av')].length === 2, 8000, 'barra com 2 (eu + Caio 💤)');
+      await waitPres(host, () => [...document.querySelectorAll('#presence-bar .pres-av')].length === 2, 8000, 'barra com 2 (eu + Caio 💤)');
     });
 
     await step('quem deu tchau NÃO ressuscita: alguém entra logo depois e a Bia segue fora', async () => {
@@ -183,14 +183,14 @@ async function main() {
       await eva.goto(BASE + '#/join?room=' + code);
       await eva.waitForSelector('#screen-table.is-active', { timeout: T });
       await waitPres(host, () => {
-        const av = [...document.querySelectorAll('.pres-av')];
+        const av = [...document.querySelectorAll('#presence-bar .pres-av')];
         return av.length === 3 && !av.some((a) => (a.getAttribute('title') || '').includes('Bia'));
       }, 20000, 'barra com 3 (eu + Caio 💤 + Eva, SEM Bia)');
       // atravessa a janela do stale (~12-15s), vigiando: a zumbi cai lá dentro e a Bia
       // NÃO pode reaparecer em nenhum instante (nem online, nem 💤)
       for (let i = 0; i < 16; i++) {
         await host.waitForTimeout(1000);
-        const av = await host.evaluate(() => [...document.querySelectorAll('.pres-av')].map((a) => a.getAttribute('title') || ''));
+        const av = await host.evaluate(() => [...document.querySelectorAll('#presence-bar .pres-av')].map((a) => a.getAttribute('title') || ''));
         if (av.some((s) => s.includes('Bia'))) throw new Error(`Bia ressuscitou na barra ${i + 1}s depois do tchau — raio-x: ${await presDump(host)}`);
         if (av.length !== 3) throw new Error(`barra deveria seguir com 3 (eu + Caio 💤 + Eva): ${JSON.stringify(av)} — raio-x: ${await presDump(host)}`);
       }

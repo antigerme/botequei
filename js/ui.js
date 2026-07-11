@@ -40,7 +40,8 @@ const el = {};
 
 const IDS = [
   'screen-home', 'screen-table', 'input-name', 'input-code', 'btn-create', 'btn-join-code',
-  'home-history', 'history-list', 'home-hint', 'home-extras', 'btn-install', 'btn-settings', 'btn-stats', 'btn-retro', 'btn-passport',
+  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-me',
+  'overlay-me', 'me-avatar', 'me-name', 'me-profile', 'me-stats', 'me-retro', 'me-passport', 'me-settings',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'menu-empty', 'btn-empty-custom', 'btn-empty-boteco',
@@ -49,9 +50,9 @@ const IDS = [
   'btn-copy-link', 'btn-share-invite', 'btn-nfc',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
-  'overlay-menu', 'menu-profile', 'menu-board',
+  'overlay-menu', 'menu-board',
   'menu-jukebox', 'menu-bill', 'menu-prices',
-  'menu-hh', 'menu-waiter', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-stats', 'menu-settings', 'menu-tour',
+  'menu-hh', 'menu-waiter', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-tour',
   'overlay-prices', 'price-list',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
   'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-selfie', 'btn-avatar-upload', 'avatar-file',
@@ -168,11 +169,14 @@ export function init(handlers) {
   el['btn-create'].addEventListener('click', () => H.onCreate());
   el['btn-join-code'].addEventListener('click', () => H.onJoinCode(el['input-code'].value));
   el['input-name'].addEventListener('change', () => H.onName(el['input-name'].value));
-  el['btn-settings'].addEventListener('click', () => openSettings());
+  el['btn-me'].addEventListener('click', () => H.onMe()); // avatar no canto da home → hub pessoal
   el['btn-install'].addEventListener('click', () => H.onInstall());
-  el['btn-stats'].addEventListener('click', () => H.onStats());
-  el['btn-retro'].addEventListener('click', () => H.onRetro());
-  el['btn-passport'].addEventListener('click', () => H.onPassport());
+  // hub do "Você": cada item abre o overlay que já existe (padrão de troca do menu — fecha o hub, abre o alvo)
+  el['me-profile'].addEventListener('click', () => { closeOverlays(); H.onProfile(); });
+  el['me-stats'].addEventListener('click', () => { closeOverlays(); H.onStats(); });
+  el['me-retro'].addEventListener('click', () => { closeOverlays(); H.onRetro(); });
+  el['me-passport'].addEventListener('click', () => { closeOverlays(); H.onPassport(); });
+  el['me-settings'].addEventListener('click', () => { closeOverlays(); openSettings(); });
 
   // sair da mesa pede confirmação (um toque errado no ‹ não te derruba da mesa)
   $('btn-leave').addEventListener('click', () => actionToast(t('menu.leaveQ'), t('menu.leaveDo'), () => H.onLeave()));
@@ -199,8 +203,7 @@ export function init(handlers) {
   el['table-emoji-btn'].addEventListener('click', () => el['table-emoji-row'].hidden = !el['table-emoji-row'].hidden);
   el['invite-pin'].addEventListener('change', () => H.onInvitePin(el['invite-pin'].value));
 
-  // menu
-  $('menu-profile').addEventListener('click', () => { closeOverlays(); H.onProfile(); });
+  // menu "…" (só coisa de MESA — perfil/números/config moram no hub do avatar agora)
   $('menu-board').addEventListener('click', () => { closeOverlays(); H.onPeers(); });
   $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
@@ -210,8 +213,6 @@ export function init(handlers) {
   $('menu-ceremony').addEventListener('click', () => { closeOverlays(); H.onCeremony(); });
   $('menu-photo').addEventListener('click', () => { closeOverlays(); el['photo-input'].click(); });
   $('menu-share').addEventListener('click', () => { closeOverlays(); H.onShareNight(); });
-  $('menu-stats').addEventListener('click', () => { closeOverlays(); H.onStats(); });
-  $('menu-settings').addEventListener('click', () => { closeOverlays(); openSettings(); });
   $('menu-tour').addEventListener('click', () => { closeOverlays(); H.onTourMenu(); });
   el['overlay-hh'].querySelectorAll('button[data-min]').forEach((b) => b.addEventListener('click', () => { H.onHappyHour(Number(b.dataset.min)); closeOverlays(); }));
 
@@ -317,7 +318,8 @@ export function init(handlers) {
     rd.onerror = () => { toast(t('toast.fileRead')); el['import-file'].value = ''; };
     rd.readAsText(f);
   });
-  el['presence-bar'].addEventListener('click', () => H.onPeers());
+  // barra de presença: tocar no SEU rosto (data-self) abre o hub pessoal; no resto da barra → placar
+  el['presence-bar'].addEventListener('click', (e) => { if (e.target.closest('[data-self]')) H.onMe(); else H.onPeers(); });
 
   // offline (pareamento por QR/código, sem servidor)
   el['btn-offline-join'].addEventListener('click', () => H.onOfflineJoin());
@@ -486,11 +488,12 @@ export function showScreen(name) {
 export function setNameInput(v) { el['input-name'].value = v || ''; }
 export function showInstall(v) { el['btn-install'].hidden = !v; }
 
-export function renderHome(history) {
+export function renderHome(history, me) {
   const box = el['home-history'], ul = el['history-list'];
   const empty = !history || !history.length;
   if (el['home-hint']) el['home-hint'].hidden = !empty;
-  if (el['home-extras']) el['home-extras'].hidden = empty; // features pessoais só aparecem quando já há histórico
+  // pinta o avatar do "eu" no canto (abre o hub) — mesma pele .pres-av da barra de presença
+  if (el['btn-me'] && me) el['btn-me'].innerHTML = `<span class="pres-av ${frameClass(me.level)}" style="background:${safeColor(me.color)}">${avInner(me.photo, me.emoji)}</span>`;
   if (empty) { box.hidden = true; ul.innerHTML = ''; return; }
   box.hidden = false;
   ul.innerHTML = history.slice(0, 6).map((h) => {
@@ -945,6 +948,21 @@ export function openPix(vm) {
 }
 export function pixCode() { return el['pix-code'].value; }
 
+// ---------- Hub do "Você" (avatar) ----------
+// Junta o que é PESSOAL num lugar só (perfil/números/retrô/passaporte/config). Cada item abre o
+// overlay que já existe (fiação no init). Números e Retrô só aparecem com histórico (espelha o
+// antigo gate do #home-extras); Perfil, Passaporte e Config sempre. vm: {color,emoji,photo,level,name,hasHistory}.
+export function openMe(vm) {
+  const v = vm || {};
+  el['me-avatar'].className = `pres-av ${frameClass(v.level)}`;
+  el['me-avatar'].style.background = safeColor(v.color);
+  el['me-avatar'].innerHTML = avInner(v.photo, v.emoji);
+  el['me-name'].textContent = v.name || t('common.you');
+  el['me-stats'].hidden = !v.hasHistory;
+  el['me-retro'].hidden = !v.hasHistory;
+  el['overlay-me'].hidden = false;
+}
+
 // ---------- Configuracoes ----------
 function openSettings() { H.onOpenSettings(); el['overlay-settings'].hidden = false; }
 // Fim do tour: pergunta o tema preferido (1 toque aplica; ✕ mantém o claro padrão).
@@ -1232,12 +1250,14 @@ function drawBars(canvas, items) {
 // ---------- Presença (avatares de quem está na mesa, no topo) ----------
 export function renderPresence(list) {
   const bar = el['presence-bar'];
-  const others = (list || []).filter((p) => !p.self);
-  if (!others.length) { bar.hidden = true; bar.innerHTML = ''; return; }
+  const all = list || [];
+  if (!all.length) { bar.hidden = true; bar.innerHTML = ''; return; } // fora da mesa
+  // SEMPRE mostra pelo menos VOCÊ (mesmo sozinho na mesa): seu rosto é a porta do hub pessoal
+  // aqui — antes a barra sumia sem outros peers e não dava pra tocar. `data-self` marca o seu.
   bar.hidden = false;
   // quem apagou a tela / caiu fica esmaecido com 💤 e, passado 1min, ganha o RELÓGIO de há
   // quanto tempo ("12min"/"1h") — a mesa CONCLUI quem já foi embora, sem o app anunciar nada
-  bar.innerHTML = (list || []).map((p) => `<span class="pres-av${p.online ? '' : ' zz'} ${frameClass(p.level)}" title="${esc(p.name || '')}${p.online ? '' : t('pres.away')}" style="background:${safeColor(p.color)}">${avInner(p.photo, p.emoji)}${p.online ? '' : '<i class="zz-b">💤</i>'}${!p.online && p.awayLabel ? `<i class="zz-t">${esc(p.awayLabel)}</i>` : ''}</span>`).join('');
+  bar.innerHTML = all.map((p) => `<span class="pres-av${p.online ? '' : ' zz'} ${frameClass(p.level)}${p.self ? ' pres-me' : ''}"${p.self ? ' data-self="1"' : ''} title="${esc(p.name || '')}${p.online ? '' : t('pres.away')}" style="background:${safeColor(p.color)}">${avInner(p.photo, p.emoji)}${p.online ? '' : '<i class="zz-b">💤</i>'}${!p.online && p.awayLabel ? `<i class="zz-t">${esc(p.awayLabel)}</i>` : ''}</span>`).join('');
 }
 
 // ---------- Comanda individual ----------

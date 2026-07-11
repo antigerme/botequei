@@ -168,6 +168,9 @@ function profOf(user) {
   const p = getProfile(state, user);
   return { name: p.name || (user === self ? getName() : ''), color: p.color || autoColor(user), emoji: p.emoji || autoAvatar(user), driver: p.driver, level: p.level || 0, photo: p.photo || '' };
 }
+// Identidade do "eu" pro avatar do canto da home / hub — a foto LOCAL (settings) tem prioridade
+// sobre a do fio (é a fonte da verdade do próprio usuário antes de o PROFILE propagar).
+function meAvatar() { const p = profOf(self); return { color: p.color, emoji: p.emoji, photo: settings.profPhoto || p.photo || '', level: p.level }; }
 
 // ---- Log / dedup ----
 function ingest(ev) {
@@ -836,7 +839,7 @@ function leaveTable() {
   domClearTimers(); gameMinned.clear(); ui.setGameMin('dom', false); ui.setGameMin('purr', false); ui.setGamePill(null);
   ui.setHappyHour(null);
   location.hash = '';
-  ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory());
+  ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory(), meAvatar());
 }
 
 // ---- Convite ----
@@ -1052,8 +1055,7 @@ function tourTrails() {
     { id: 'mesaviva', emoji: '📊', label: t('tour.trail.mesaviva'), steps: [
       { sel: '#presence-bar', title: t('tour.tv1'), text: t('tour.xv1') }, // só com gente na mesa (sozinho, pula)
       { sel: '#btn-peers', title: t('tour.tv2'), text: t('tour.xv2') },
-      { sel: '#menu-stats', pre: openMenuPre, title: t('tour.tv3'), text: t('tour.xv3') },
-      { sel: '#menu-profile', pre: openMenuPre, title: t('tour.tv4'), text: t('tour.xv4') },
+      { sel: '.pres-me', title: t('tour.tv3'), text: t('tour.xv3') }, // seu rosto na barra abre o hub (perfil/números/config)
     ] },
   ];
 }
@@ -2734,6 +2736,8 @@ const handlers = {
   onPayRound: () => openPayRound(), // 💸 Rodada do dock: você paga uma rodada pra mesa (picker → paga → chama o garçom)
   onPayPick: (id) => payRoundGo(id),
   onBrindeGo: () => sound.cheers(),
+  // hub do "Você": avatar no canto da home / seu rosto na barra da mesa → tudo que é pessoal num lugar só
+  onMe: () => ui.openMe({ ...meAvatar(), name: getName(), hasHistory: store.getHistory().length > 0 }),
   onProfile: () => { const p = profOf(self); ui.openProfile({ name: getName(), color: p.color, emoji: p.emoji, driver: myDriver, photo: settings.profPhoto || p.photo || '' }); },
   onProfileSave: ({ name, color, emoji, driver, photo }) => {
     if (name) { setName(name); ui.setNameInput(getName()); }
@@ -3052,7 +3056,7 @@ function boot() {
   sound.setEnabled(settings.sound);
   if (settings.shake) enableShake();
   ui.setNameInput(getName());
-  ui.renderHome(store.getHistory());
+  ui.renderHome(store.getHistory(), meAvatar());
 
   const inv = parseInvite();
   if (inv) {

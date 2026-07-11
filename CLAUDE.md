@@ -218,6 +218,15 @@ padrão Auto segue o navegador).
   purrinha/dominó. Setup: chip "🤖 Chamar a turma" (0–3) em cada jogo; sozinho já vem 1.
 - **Mãos livres (puro)**: `devicemotion` soma +1 ao chacoalhar o celular (settings `shake`,
   item mais consumido via `topItem`).
+- **Hub do "Você" (avatar)** (`ui.openMe`, overlay `#overlay-me`): junta o que é PESSOAL num lugar
+  só — 👤 perfil, 📊 números, 🎞️ retrô, 🗺️ passaporte, ⚙️ configurações (cada item abre o overlay
+  que JÁ existe; padrão de troca do menu). DUAS portas, o mesmo hub: o **avatar no canto da home**
+  (`#btn-me`, no lugar do antigo ⚙️) e **tocar no SEU rosto na barra de presença** (`.pres-me`/
+  `data-self`) — por isso a barra agora SEMPRE mostra você, mesmo sozinho na mesa (o clique no self
+  vai pro hub, no resto da barra vai pro placar). Números/Retrô só aparecem com histórico (espelha o
+  antigo `#home-extras`); Perfil/Passaporte/Config sempre. Regra da casa: **hub = EU, "…" = A MESA**
+  — perfil/números/config SAÍRAM do menu "…" (o e2e-me trava que não voltam). `renderHome`/
+  `renderPresence` pintam o avatar reusando a pele `.pres-av`; o tour "📊 A mesa viva" aponta pro `.pres-me`.
 - **Presença ao vivo (serena)**: `render()` desenha a barra de avatares (self + peers,
   `mesh.peers()`); queda de conexão **NUNCA vira toast** — quem cai fica 💤 esmaecido na barra pelo
   tempo que for (tela apagada/elevador não é "saiu") e a volta é silenciosa; **"👋 saiu" só existe

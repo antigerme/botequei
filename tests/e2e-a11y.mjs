@@ -97,8 +97,8 @@ async function main() {
   await step('tela acesa na mesa (wake lock): pede ao entrar, solta no switch, re-pede ao religar', async () => {
     const req1 = await p.evaluate(() => (window.__wakes || []).filter((x) => x === 'request').length);
     if (req1 < 1) throw new Error('não pediu wake lock ao entrar na mesa');
-    await p.click('#btn-menu'); await visible('overlay-menu');
-    await p.click('#menu-settings'); await visible('overlay-settings');
+    await p.click('.pres-me'); await visible('overlay-me'); // seu rosto na barra de presença → hub
+    await p.click('#me-settings'); await visible('overlay-settings');
     await p.uncheck('#set-keepawake');
     await p.waitForFunction(() => (window.__wakes || []).includes('release'), null, { timeout: 5000 });
     await p.check('#set-keepawake');
@@ -156,8 +156,8 @@ async function main() {
   });
 
   await step('tema claro pinta a plataforma: meta theme-color + color-scheme acompanham', async () => {
-    await p.click('#btn-menu'); await visible('overlay-menu');
-    await p.click('#menu-settings'); await visible('overlay-settings');
+    await p.click('.pres-me'); await visible('overlay-me'); // seu rosto na barra de presença → hub
+    await p.click('#me-settings'); await visible('overlay-settings');
     await p.selectOption('#set-theme', 'light');
     await p.waitForFunction(() => document.body.classList.contains('light'), null, { timeout: T });
     const chrome = await p.evaluate(() => ({

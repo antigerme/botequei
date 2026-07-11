@@ -139,9 +139,9 @@ async function main() {
     });
 
     await step('configurações mostram a VERSÃO (serial de zona legível) no rodapé', async () => {
-      await page.click('#btn-menu');
-      await page.waitForFunction(() => !document.getElementById('overlay-menu').hidden, null, { timeout: T });
-      await page.click('#menu-settings');
+      await page.click('.pres-me'); // seu rosto na barra de presença → hub pessoal
+      await page.waitForFunction(() => !document.getElementById('overlay-me').hidden, null, { timeout: T });
+      await page.click('#me-settings');
       await page.waitForFunction(() => !document.getElementById('overlay-settings').hidden, null, { timeout: T });
       const label = (await page.textContent('#btn-version')).trim();
       if (!/^🍺 Botequei 20\d{2}\.\d{2}\.\d{2}-\d{2}$/.test(label)) throw new Error('rodapé sem a versão no formato AAAA.MM.DD-nn: ' + label);

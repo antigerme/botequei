@@ -1866,12 +1866,16 @@ export function closeOverlays() {
   if (activeScan) { activeScan.stop(); activeScan = null; }
   // Fecha TUDO de uma vez (ESC / tour / arrastar-pra-fechar): captura a origem do 1º overlay da
   // pilha, ESVAZIA a pilha ANTES de esconder (assim os observers viram no-op e não brigam pelo
-  // foco, cada um restaurando um elemento transitório) e devolve o foco à origem. O
-  // syncOverlayHistory vê "nenhum overlay aberto" e desfaz o NOSSO único estado (back() guardado).
+  // foco) e devolve o foco à origem. ⚠️ NÃO chamamos syncOverlayHistory aqui: os menus fazem
+  // `closeOverlays(); abreOutro()` (troca síncrona), e um sync AQUI veria "nada aberto" (o novo
+  // overlay ainda não abriu) e dispararia um history.back() cujo popstate atrasado fecharia o
+  // overlay recém-aberto (era a regressão que o e2e-a11y/features pegou). Deixa o OBSERVER de
+  // cada overlay fechado chamar o sync: aí o próximo já abriu → ele vê "ainda tem overlay" e o
+  // ÚNICO estado atravessa a troca intacto; num fechamento de verdade (sem troca) o observer vê
+  // "nada aberto" e desfaz o estado (back() guardado). Idêntico ao mecanismo original comprovado.
   const origin = overlayStack.length ? overlayStack[0].focus : null;
   overlayStack.length = 0;
   document.querySelectorAll('.overlay').forEach((o) => { o.hidden = true; });
-  syncOverlayHistory();
   if (origin) { try { origin.focus({ preventScroll: true }); } catch { /* ignore */ } }
 }
 let toastTimer = null;

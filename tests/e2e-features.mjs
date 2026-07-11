@@ -90,7 +90,8 @@ async function main() {
     await visible(pageA, 'overlay-me');
     await pageA.click('#me-profile');
     await visible(pageA, 'overlay-profile');
-    // PNG 1×1 basta: o caminho selfie/galeria é o MESMO input — só muda o atributo capture
+    // PNG 1×1 basta: "📷 Trocar foto" abre o MESMO #avatar-file (sheet nativo no cel); aqui o
+    // setInputFiles simula a escolha do arquivo → cai no recorte igual à webcam do desktop
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
     await pageA.setInputFiles('#avatar-file', { name: 'selfie.png', mimeType: 'image/png', buffer: png });
     await visible(pageA, 'overlay-crop');

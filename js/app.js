@@ -2618,8 +2618,9 @@ function openComanda(user) {
   const p = profOf(user);
   const rows = [];
   for (const it of allItems()) {
-    const n = getCount(state, user, it.id);
-    if (n <= 0) continue;
+    if (isShare(it)) continue; // item DA MESA não é consumo PESSOAL: o dinheiro vive no bolo/rateio,
+    const n = getCount(state, user, it.id); // não na comanda de quem tocou (senão superconta e joga
+    if (n <= 0) continue;                   // a garrafa inteira no bolso dele — contradiz placar/conta)
     // unidades que OUTRO pagou (rodada paga): conta no ×N, mas o dinheiro é de quem pagou.
     const cov = coveredCount(state, user, it.id);
     const charged = Math.max(0, n - cov);
@@ -2630,7 +2631,7 @@ function openComanda(user) {
   // se a pessoa está 💤, a comanda diz DESDE QUANDO (ajuda a decidir se "foi embora de vez")
   const net = mesh ? mesh.peers().find((x) => x.user === user) : null;
   const since = net && !net.online ? awaySince.get(user) : 0;
-  ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user), money: userMoney(state, user, resolveItem),
+  ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user, resolveItem), money: userMoney(state, user, resolveItem),
     away: since ? t('comanda.away', { time: new Date(since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }) : '' });
 }
 

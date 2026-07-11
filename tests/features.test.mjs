@@ -339,6 +339,20 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   ok('higiene P2P: item do fio com preço NaN/negativo/∞ vira 0 (conta não quebra)');
 }
 
+// ---------- Comanda: item DA MESA (share) NÃO conta como consumo pessoal de quem tocou ----------
+{
+  const s = emptyState();
+  applyEvent(s, { type: 'ITEM', def: { id: 'garrafa', share: 1, price: 12 }, ts: 1, eventId: 'i1' });
+  applyEvent(s, { type: 'ADD', user: 'a', name: 'Ana', item: 'garrafa', ts: 2, eventId: 'a1' }); // Ana toca a garrafa DA MESA
+  const resolve = (id) => (s.items.get(id) ? s.items.get(id).def : null);
+  // com resolveItem, share sai do consumo/dinheiro pessoal (vai pro bolo/rateio) — é o que a
+  // comanda AGORA passa (antes chamava userTotal SEM resolveItem e listava a garrafa como pessoal)
+  assert.strictEqual(userTotal(s, 'a', resolve), 0);
+  assert.strictEqual(userMoney(s, 'a', resolve), 0);
+  assert.strictEqual(userTotal(s, 'a'), 1); // sem resolveItem, share entra — exatamente o bug que a comanda tinha
+  ok('comanda: item da mesa (share) fica fora do consumo pessoal de quem tocou');
+}
+
 // ---------- Higiene P2P: jukebox tem teto de fila (flood não estoura memória) ----------
 {
   const s = emptyState();

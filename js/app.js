@@ -35,7 +35,7 @@ import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar, catOf, isShare, i
 import {
   emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor, makeSong,
   getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver, happyHour,
-  paysFor, payerOf, songs, sharePool, shareSplit, paidCount, coveredCount, roundTargetIds,
+  paysFor, payerOf, songs, sharePool, shareSplit, paidCount, coveredCount, roundTargetIds, roundToCents,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
 import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro, botecoProfiles, nearestBoteco } from './lifestats.js';
@@ -107,7 +107,7 @@ const GONE_GRACE_MS = 45000;  // fechou o app: só sai da barra se não voltar n
 const AWAY_HIDE_MS = 3600000; // 💤 por 1h+: a barra se arruma sozinha (quem morreu sem tchau — bateria)
 let sessionMates = new Set(); // nomes que apareceram na mesa (p/ "com quem você mais bebeu")
 let lastRetro = null;        // dados da última retrospectiva (p/ compartilhar)
-let shakeHandler = null, shakeLast = 0; // mãos livres (chacoalhar pra +1)
+let shakeHandler = null, shakeLast = 0, shakePending = false; // mãos livres (chacoalhar pra +1)
 
 // Álcool INDIVIDUAL (trava do motorista + rodada). Recipientes da mesa (share) ficam de fora
 // de propósito: motorista PODE marcar "chegou mais uma garrafa" — ele não bebe.
@@ -357,7 +357,7 @@ function onFx(fx, fromId) {
   else if (fx.kind === 'react') ui.floatReaction(fx.emoji || '🍻');
   else if (fx.kind === 'poke') { if (fx.to === self) receivePoke(fx); }
   else if (fx.kind === 'challenge') { if (fx.to === self) receiveChallenge(fx); }
-  else if (fx.kind === 'ceremony') { if (Array.isArray(fx.awards)) ui.openCeremony({ awards: fx.awards }); }
+  else if (fx.kind === 'ceremony') receiveCeremony(fx);
   else if (fx.kind === 'waiter') receiveWaiter(fx);
   else if (fx.kind === 'bye') receiveBye(fx, fromId);
   else if (fx.kind === 'gone') receiveGone(fx, fromId);
@@ -388,8 +388,10 @@ function onFx(fx, fromId) {
 
 // Mãos livres: chacoalhar o celular soma +1 (do item mais consumido). Cooldown + guarda.
 function enableShake() {
-  if (shakeHandler) return;
-  const attach = () => {
+  if (shakeHandler || shakePending) return; // no iOS o handler só nasce após a permissão async —
+  const attach = () => {                      // `shakePending` impede um 2º listener nessa janela
+    shakePending = false;
+    if (shakeHandler) return;
     shakeHandler = (e) => {
       const a = e.accelerationIncludingGravity || e.acceleration;
       if (!a) return;
@@ -402,25 +404,38 @@ function enableShake() {
     window.addEventListener('devicemotion', shakeHandler);
   };
   if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-    DeviceMotionEvent.requestPermission().then((r) => { if (r === 'granted') attach(); else ui.toast(t('toast.motion')); }).catch(() => {});
+    shakePending = true;
+    DeviceMotionEvent.requestPermission().then((r) => { if (r === 'granted') attach(); else { shakePending = false; ui.toast(t('toast.motion')); } }).catch(() => { shakePending = false; });
   } else attach();
 }
-function disableShake() { if (shakeHandler) { window.removeEventListener('devicemotion', shakeHandler); shakeHandler = null; } }
+function disableShake() { shakePending = false; if (shakeHandler) { window.removeEventListener('devicemotion', shakeHandler); shakeHandler = null; } }
+// Throttle de fx SOCIAIS do fio (cerimônia/garçom/cutucada/desafio): um peer floodando não vira
+// alarme+confete+vibração em rajada. Guarda o último disparo por tipo; nome sempre com teto.
+const fxAt = new Map();
+function fxAllowed(kind, ms) { const now = Date.now(), last = fxAt.get(kind) || 0; if (now - last < ms) return false; fxAt.set(kind, now); return true; }
+const fromNameOf = (fx) => (typeof fx.fromName === 'string' && fx.fromName.slice(0, 24)) || t('common.someone');
+function receiveCeremony(fx) {
+  if (!Array.isArray(fx.awards) || !fxAllowed('ceremony', 3000)) return; // 1 a cada 3s + teto do
+  ui.openCeremony({ awards: fx.awards.slice(0, 20) }); // array (innerHTML gigante travaria a mesa)
+}
 function receiveWaiter(fx) {
-  const name = fx.fromName || t('common.someone');
+  if (!fxAllowed('waiter', 900)) return;
+  const name = fromNameOf(fx);
   const item = typeof fx.item === 'string' ? fx.item.slice(0, 40) : ''; // higiene P2P
   const n = Math.max(1, Math.min(99, Number(fx.n) || 1));
   ui.toast(item ? t('toast.waiterOrderFrom', { name, n, item }) : t('toast.waiterFrom', { name }));
   sound.alarm(); ui.vibrate([80, 40, 80]); ui.floatReaction('🔔');
 }
 function receivePoke(fx) {
-  ui.toast(t('toast.poked', { name: fx.fromName || t('common.someone') }));
+  if (!fxAllowed('poke', 900)) return;
+  ui.toast(t('toast.poked', { name: fromNameOf(fx) }));
   sound.poke(); ui.vibrate([30, 40, 30]); ui.floatReaction('👉');
 }
 function receiveChallenge(fx) {
+  if (!fxAllowed('challenge', 900)) return;
   const it = resolveItem(fx.item || 'dose');
   sound.challenge(); ui.vibrate([60, 40, 60, 40, 60]);
-  ui.actionToast(t('toast.challenged', { name: fx.fromName || t('common.someone'), emoji: it.emoji, item: it.name }), t('toast.challengeAccept'), () => act('ADD', fx.item || 'dose'), 7000);
+  ui.actionToast(t('toast.challenged', { name: fromNameOf(fx), emoji: it.emoji, item: it.name }), t('toast.challengeAccept'), () => act('ADD', fx.item || 'dose'), 7000);
 }
 
 // ---- Eventos remotos ----
@@ -595,13 +610,19 @@ function menuEditorItems() {
 // ligado de fábrica), seguramos a tela acesa: padrão dos apps de usar-na-mesa (mapas
 // navegando, receitas, placar). Sem suporte (Safari <16.4) → falha em silêncio, fica como era.
 // O sistema SOLTA o lock quando o app sai da frente — o visibilitychange re-adquire na volta.
-let wakeLock = null;
+let wakeLock = null, wakeReq = false;
 async function acquireWakeLock() {
-  if (!room || !settings.keepAwake || document.hidden || wakeLock) return;
+  // `wakeReq` fecha a corrida: voltar do background dispara visibilitychange E focus no mesmo
+  // tick — sem o flag, as duas chamadas passavam o guard (wakeLock null) e pediam 2 locks (o 1º
+  // vaza; o release dele depois zera o ref do 2º). Pós-await re-checa: saiu/escondeu na janela → solta.
+  if (!room || !settings.keepAwake || document.hidden || wakeLock || wakeReq) return;
+  wakeReq = true;
   try {
-    wakeLock = await navigator.wakeLock.request('screen');
+    const wl = await navigator.wakeLock.request('screen');
+    if (!room || document.hidden) { try { wl.release(); } catch { /* ignore */ } return; }
+    wakeLock = wl;
     wakeLock.addEventListener('release', () => { wakeLock = null; });
-  } catch { wakeLock = null; /* sem suporte / economia de energia do sistema: segue a vida */ }
+  } catch { /* sem suporte / economia de energia do sistema: segue a vida */ } finally { wakeReq = false; }
 }
 function releaseWakeLock() {
   try { if (wakeLock) wakeLock.release(); } catch { /* ignore */ }
@@ -747,6 +768,7 @@ window.__presDbg = () => ({
 });
 
 function startMesh(iceServers) {
+  if (mesh) { try { mesh.close(); } catch { /* ignore */ } mesh = null; } // nunca deixa malha órfã viva
   presenceSeeded = false; prevOnline = new Set();
   everSeen = new Set(); saidBye = new Set(); leftQuiet = new Set(); awaySince = new Map();
   for (const g of goneAt.values()) clearTimeout(g.tm); goneAt = new Map();
@@ -760,9 +782,14 @@ function startMesh(iceServers) {
   emitLocal(makeProfile({ color: settings.profColor || autoColor(self), emoji: settings.profEmoji || autoAvatar(self), driver: myDriver, level: myLevel(), photo: settings.profPhoto || '' }));
 }
 
+let meshGen = 0; // sobe a cada (re)start — a ICE que resolver TARDE de uma sessão antiga é descartada
 function restartMesh() {
   if (mesh) { mesh.close(); mesh = null; }
-  loadIce().then((ice) => { if (room) startMesh(ice); });
+  const myGen = ++meshGen, myRoom = room;
+  // sem o gate: editar o PIN 2× rápido disparava 2 restart; a 1ª tinha mesh=null quando a 2ª
+  // rodava (não fechava nada), e as DUAS resoluções de loadIce chamavam startMesh → 2 malhas
+  // vivas com o mesmo selfId na mesma sala (presença duplicada + socket vazado). Só a última vale.
+  loadIce().then((ice) => { if (room && room === myRoom && myGen === meshGen) startMesh(ice); });
 }
 
 async function loadIce() {
@@ -819,6 +846,7 @@ function leaveTable() {
   prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set();
   everSeen = new Set(); saidBye = new Set(); leftQuiet = new Set(); awaySince = new Map();
   for (const g of goneAt.values()) clearTimeout(g.tm); goneAt = new Map();
+  tourArmed = false; // re-arma o tour se voltar pra uma mesa (o flag tourSeen ainda barra o 2º)
   if (presTick) { clearInterval(presTick); presTick = null; }
   purr = null; dom = null; dv = null; seenFx.clear(); purrPreFx = [];
   cancelTruco(false); trucoPreFx = [];
@@ -933,12 +961,15 @@ function computeBill() {
     if (root !== r.user && final.has(root)) { final.set(root, final.get(root) + amount.get(r.user)); final.set(r.user, 0); }
   }
 
-  const out = rows.map((r) => {
+  // arredonda as partes pra centavos SEM perder centavo: a soma das partes fecha o total exato
+  // (antes R$10÷3 exibia 3,33×3 = 9,99 e o bar levava 1 centavo a menos)
+  const cents = roundToCents(rows.map((r) => Math.max(0, final.get(r.user) || 0)));
+  const out = rows.map((r, i) => {
     const p = profOf(r.user);
     const from = covers.get(r.user);
     return {
       user: r.user, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo,
-      amount: Math.max(0, final.get(r.user) || 0),
+      amount: cents[i],
       items: itemizeFor(r.user),
       coveredByName: from ? (profOf(from).name || t('common.someoneLow')) : '',
       iPayThem: paysFor(state, self, r.user),
@@ -1053,15 +1084,18 @@ function startTrail(id, { askTheme = false } = {}) {
     if (askTheme) ui.openThemePick();
   });
 }
+let tourArmed = false;
 function maybeStartTour() {
-  if (store.getFlag('tourSeen')) return;
+  if (store.getFlag('tourSeen') || tourArmed) return; // sem `tourArmed`, criar a mesa 2× rápido
+  tourArmed = true;                                    // armava 2 intervalos → tour/tema em dobro
   const tick = setInterval(() => {
-    if (!room) { clearInterval(tick); return; } // saiu antes do tour começar
+    if (!room) { clearInterval(tick); tourArmed = false; return; } // saiu antes do tour começar
     if (document.querySelector('.overlay:not([hidden])')) return; // convite/QR ainda aberto
     const hasCards = !!document.querySelector('.item-card');
     const emptyOpen = !!document.querySelector('#menu-empty:not([hidden])');
     if (!hasCards && !emptyOpen) return; // miolo ainda não renderizou
-    clearInterval(tick);
+    clearInterval(tick); tourArmed = false;
+    if (store.getFlag('tourSeen')) return; // outra chamada já mostrou nesse meio-tempo
     store.setFlag('tourSeen'); // marca ao MOSTRAR (pular também conta como visto)
     // 1ª mesa da vida = só a trilha básica (curta); o resto mora no "🎓 Tour do Botequei".
     // Fim do básico pergunta o tema preferido (quem PULOU quer usar logo — não pergunta).
@@ -1981,10 +2015,14 @@ async function tryAudit() {
     if (dv.seeds && dv.seeds[id] && dv.seeds[id] !== seeds[id]) return fail(t('dom.vSeedSwap', { name: domName(id) }));
   }
   for (const id of dom.order) { // cada um revelou a mesma mão que lacrou?
-    if ((await handCommit(dom.opens[id].hand, dom.opens[id].salt)) !== dom.vinfo.handCommits[id]) return fail(t('dom.vHandDiff', { name: domName(id) }));
+    const c = await handCommit(dom.opens[id].hand, dom.opens[id].salt);
+    if (!dom || !dom.opens[id]) return; // fechou o ✕ no meio da cripto (~ms): não estoura
+    if (c !== dom.vinfo.handCommits[id]) return fail(t('dom.vHandDiff', { name: domName(id) }));
   }
   const initialHands = dom.order.map((id) => dom.opens[id].hand);
-  dom.audit = await verifyDeal({ deck: dom.revealedDeck, salt: dom.revealedSalt, deckCommit: dom.vinfo.deckCommit, seeds, seedCommits, players: dom.order.length, initialHands });
+  const audit = await verifyDeal({ deck: dom.revealedDeck, salt: dom.revealedSalt, deckCommit: dom.vinfo.deckCommit, seeds, seedCommits, players: dom.order.length, initialHands });
+  if (!dom) return; // idem: jogo encerrado durante o await do verifyDeal
+  dom.audit = audit;
   renderDom();
   ui.toast(dom.audit.ok ? t('dom.vClean') : `🚫 ${dom.audit.reason}`);
 }

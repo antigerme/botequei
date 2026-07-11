@@ -211,6 +211,21 @@ export function tableTotal(state, resolveItem) {
   return t;
 }
 
+// Arredonda cada valor pra CENTAVOS sem perder/criar centavo no total: cada parte vira o piso
+// em centavos e o resto (largest-remainder) vai pros MAIORES restos fracionários — a soma das
+// partes fecha EXATO o total arredondado. Sem isto, R$10 ÷ 3 exibia 3,33×3 = 9,99 (o bar levava
+// 1 centavo a menos). Determinístico (desempate por índice) → todo peer arredonda igual.
+export function roundToCents(amounts) {
+  const arr = (amounts || []).map((a) => Math.max(0, Number(a) || 0));
+  const target = Math.round(arr.reduce((s, a) => s + a, 0) * 100);
+  const floors = arr.map((a) => Math.floor(a * 100 + 1e-6)); // 1e-6: mata o erro de float antes do piso
+  let rem = target - floors.reduce((s, c) => s + c, 0);
+  const order = arr.map((a, i) => [i, a * 100 - floors[i]]).sort((x, y) => y[1] - x[1] || x[0] - y[0]);
+  const out = floors.slice();
+  for (let k = 0; k < order.length && rem > 0; k++) { out[order[k][0]]++; rem--; }
+  return out.map((c) => c / 100);
+}
+
 // Gasto INDIVIDUAL de um usuario (preço × quantidade). Itens compartilhados ficam de fora:
 // o dinheiro deles vive no sharePool e é rateado na conta — EXCETO as unidades "com dono"
 // (payer), que caem inteiras aqui na conta de quem pagou (perdeu o jogo / bancou a rodada).
@@ -241,8 +256,13 @@ export function paidCount(state, user, item) {
 
 // Unidades DESTE consumidor que OUTRO pagou (rodada paga): contam no consumo dele,
 // mas não no dinheiro dele. Usado na comanda pra mostrar "×N (pago)" sem cobrar.
+// TETO no consumo real: um REMOVE comum (toque longo −1, sem payer) baixa o `counts` mas não o
+// `covered` — sem o cap, a comanda mostraria "na conta de quem pagou (2)" com só 1 na mesa.
+// (O resíduo — o `paid` do pagador não baixar nesse REMOVE sem payer — exige rastreio de payer
+// por-unidade; documentado. Aqui garantimos que o display do consumidor nunca mente.)
 export function coveredCount(state, user, item) {
-  return Math.max(0, state.covered.get(ckey(user, item)) || 0);
+  const cov = Math.max(0, state.covered.get(ckey(user, item)) || 0);
+  return Math.min(cov, Math.max(0, state.counts.get(ckey(user, item)) || 0));
 }
 
 // O "bolo" da mesa: tudo que foi pedido em itens COMPARTILHADOS (garrafa 600, litrão,

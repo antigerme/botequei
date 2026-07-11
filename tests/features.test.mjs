@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, itemTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs, paidCount, coveredCount, roundTargetIds, cleanItemDef } from '../js/events.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, itemTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs, paidCount, coveredCount, roundTargetIds, cleanItemDef, roundToCents } from '../js/events.js';
 import { badgesFor, mvp, ceremonyAwards } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
@@ -337,6 +337,28 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.strictEqual(money, 0); // preço -999 virou 0 → conta = 0, não -999
   assert.ok(Number.isFinite(money));
   ok('higiene P2P: item do fio com preço NaN/negativo/∞ vira 0 (conta não quebra)');
+}
+
+// ---------- Dinheiro: rateio arredonda pra centavos SEM perder o centavo (largest-remainder) ----------
+{
+  const p = roundToCents([10 / 3, 10 / 3, 10 / 3]);   // R$10 ÷ 3
+  assert.strictEqual(Math.round(p.reduce((a, b) => a + b, 0) * 100), 1000); // soma = R$10,00 exato
+  assert.deepStrictEqual(p, [3.34, 3.33, 3.33]);       // o centavo do resto vai pro 1º (determinístico)
+  const q = roundToCents([3.335, 3.335, 3.33]);        // total 10,00
+  assert.strictEqual(Math.round(q.reduce((a, b) => a + b, 0) * 100), 1000);
+  assert.deepStrictEqual(roundToCents([0, 0]), [0, 0]);
+  assert.deepStrictEqual(roundToCents([5, 5]), [5, 5]); // já-inteiros passam intactos
+  ok('dinheiro: rateio distribui o resto e a soma das partes fecha o total exato');
+}
+
+// ---------- Dinheiro: coveredCount nunca passa do consumo real (REMOVE comum não mente) ----------
+{
+  const s = emptyState();
+  applyEvent(s, { type: 'ADD', user: 'a', name: 'Ana', item: 'chopp', payer: 'a', ts: 1, eventId: 'a1' }); // Ana pagou a própria (count=1, covered=1)
+  assert.strictEqual(coveredCount(s, 'a', 'chopp'), 1);
+  applyEvent(s, { type: 'REMOVE', user: 'a', name: 'Ana', item: 'chopp', ts: 2, eventId: 'r1' }); // toque longo −1 (SEM payer)
+  assert.strictEqual(coveredCount(s, 'a', 'chopp'), 0); // capado no consumo (0), não os 1 do covered cru
+  ok('dinheiro: coveredCount não passa do consumo (REMOVE comum não infla "na conta de quem pagou")');
 }
 
 // ---------- Comanda: item DA MESA (share) NÃO conta como consumo pessoal de quem tocou ----------

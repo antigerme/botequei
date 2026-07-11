@@ -119,7 +119,11 @@ padrão Auto segue o navegador).
   pra mesa), **chamar o garçom** (`waiter`, opcionalmente com `item`+`n` da rodada paga) e
   **tchau** (`bye` — o botão sair anuncia a saída; é a ÚNICA fonte do toast "👋 saiu") e
   **fechou-o-app** (`gone` — pagehide, best-effort e SILENCIOSO: só arruma a barra após a
-  graça de 45s). Nada disso persiste. O **Brinde não tem chip próprio na barra**: o 🍻 dentro de "Reagir" (`openReact`)
+  graça de 45s). Nada disso persiste. ⚠️ **Higiene P2P nos fx que abrem UI** (`fxAllowed` no
+  `app.js`): cerimônia/garçom/cutucada/desafio passam por um **estrangulador por tipo** (janela
+  mínima entre disparos — 3s na cerimônia, 900ms nos demais) e o nome do autor é coado
+  (`fromNameOf`, ≤24 chars) — sem isto um peer malicioso floodava a mesa com overlays de troféu ou
+  toasts de garçom. O **Brinde não tem chip próprio na barra**: o 🍻 dentro de "Reagir" (`openReact`)
   dispara o brinde de verdade (3‑2‑1 na tela de todos) — ação óbvia > botão extra.
 - **Purrinha (jogo P2P honesto)** (`js/purrinha.js`, puro): sem "banca" central, cada um esconde a
   mão. **Três modos**, escolhidos por quem inicia (tela "como quer jogar?"): **por palitos (3-2-1)**
@@ -237,8 +241,14 @@ padrão Auto segue o navegador).
   Lock segura a tela
   enquanto a mesa está aberta (`settings.keepAwake`, ligado de fábrica; switch nas configs) —
   `acquireWakeLock` no entrar/`visibilitychange` (o sistema solta sozinho ao esconder a aba),
-  release no sair/switch; sem suporte, falha em silêncio. O placar mostra a qualidade da conexão
-  por pessoa (host/srflx/relay). Tocar num nome no placar abre a **comanda** daquela pessoa.
+  release no sair/switch; sem suporte, falha em silêncio. ⚠️ **Idempotência dos fluxos async**
+  (fechar corridas): a re-malha carrega um **selo de geração** (`meshGen`) — o `loadIce()` é async,
+  então só a ÚLTIMA `restartMesh` da sala vigente aplica (troca de sala no meio descarta o ICE que
+  chega tarde), e `startMesh` fecha a malha anterior antes de abrir a nova; `acquireWakeLock` tem
+  trava de "em voo" (+ solta o lock se a mesa já fechou enquanto o `await` corria); o `shake` e o
+  `tour` armam UMA vez (flag) pra não empilhar handler/timer; e o `tryAudit` re-checa `dom` após
+  cada `await` (a partida pode ter encerrado no meio da auditoria). O placar mostra a qualidade da
+  conexão por pessoa (host/srflx/relay). Tocar num nome no placar abre a **comanda** daquela pessoa.
 - **Cardápio por categoria**: `catalog.js` (`cat` + `CATEGORIES`/`catOf`); itens custom levam
   `cat`/`note` no def do evento `ITEM` (⚠️ ao editar preço, faça `makeItem({...it, price})` pra
   não perder `g`/`cat`/`note`/`share`). **Itens compartilhados** (`share:1` — garrafa 600
@@ -256,7 +266,10 @@ padrão Auto segue o navegador).
   mesa" nos share) e alvos em `roundTargets`. **Pagar item pessoal** = "cada um bebeu; você paga":
   cada online ganha +1 no CONSUMO, mas o dinheiro é TODO do pagador — o reducer guarda um mapa
   **`covered`** (`user\x00item` → unidades que OUTRO pagou) e o `userMoney` DESCONTA o covered do
-  consumidor (bebeu, não paga; `coveredCount` mostra "na conta de quem pagou" na comanda). `payer`
+  consumidor (bebeu, não paga; `coveredCount` mostra "na conta de quem pagou" na comanda — **com
+  TETO no consumo real**, pois um REMOVE comum (−1 do toque longo, sem `payer`) baixa o `counts` mas
+  não o `covered`, então sem o cap o display mentiria "×2 pago" com só 1 na mesa; o desfazer da
+  rodada paga carrega o `payer` e baixa os dois em par). `payer`
   entra no ADD de cada um (motorista pulado). Item da mesa segue como a garrafa com dono. **Escopo
   do jogo**: pagar rodada vindo de um JOGO paga só pros JOGADORES, não a mesa toda — `offerLoserPay`
   leva os ids do jogo (`purr.entrants`/`dom.order`/`truco.order`) e `roundTargets(def, scope)` os usa
@@ -350,8 +363,14 @@ padrão Auto segue o navegador).
   mas respeita o que importa — `viewport-fit=cover` + `env(safe-area-inset-*)` (notch/barra de gestos),
   `100dvh` (mata o bug do 100vh no Safari), metas `apple-mobile-web-app-*`, `prefers-color-scheme`,
   inputs ≥16px (sem zoom no iOS) e alvos de toque ≥44px (`.sheet-close`). **Voltar (Android) / swipe
-  de voltar (iOS) fecha o overlay** em vez de sair: `syncOverlayHistory` no `ui.js` empurra um estado
-  ao abrir o 1º overlay e o `popstate` fecha (espelha o ESC; fechar por ✕/ESC desfaz o estado).
+  de voltar (iOS) fecha o overlay** em vez de sair: uma **PILHA de overlays** (`overlayStack` no
+  `ui.js`) empurra UM estado de histórico por overlay aberto e o `popstate` fecha **só o TOPO** —
+  overlay empilhado (recortar a foto SOBRE o perfil) some sozinho e o de baixo fica (antes um
+  marcador ÚNICO fazia o voltar fechar TODOS de uma vez, perdendo o apelido não salvo). Fechar por
+  ✕/ESC/arrastar chama `closeOverlays` (fecha TUDO: esvazia a pilha e desfaz os N estados via
+  `history.go(-N)` com guard, sem re-disparar o nosso fechamento); o foco volta pro overlay de baixo
+  ao fechar o topo, ou pra origem quando fecha tudo. O e2e-plataforma trava as DUAS regressões
+  (comum: voltar fecha o menu; empilhado: voltar fecha o recorte e o perfil sobrevive).
   ⚠️ **Atribuir `location.hash` é NAVEGAÇÃO** (dispara `popstate`) — o `enterTable` escreve o
   `#/mesa?room=…` ANTES de abrir qualquer overlay; se escrever depois, o `popstate` da navegação
   cai no handler do "voltar fecha overlay" e ENGOLE o convite recém-aberto (era o bug do convite
@@ -370,7 +389,7 @@ padrão Auto segue o navegador).
 - `js/signaling.js` — cliente da rota `/signaling` (polling + promoção a WebSocket com fallback)
 - `js/handshake.js` — codec do offer/answer offline (deflate + base64url; puro/isomórfico)
 - `js/scan.js` — leitor de QR por câmera (BarcodeDetector + jsQR); só no fluxo offline
-- `js/events.js` — eventos + reducer (CRDT, inclui PAYFOR). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
+- `js/events.js` — eventos + reducer (CRDT, inclui PAYFOR) + `roundToCents` (rateio da conta em centavos por largest-remainder — a soma das partes fecha EXATO o total, sem sumir centavo no R$10÷3). **Mantém-se puro** (testável em Node, sem DOM/localStorage no topo)
 - `js/lifestats.js` — estatísticas de vida + streak + retrô (puro) · `js/league.js` — nível/XP/desafios/troféu (puro)
 - `js/achievements.js` — badges, MVP e **cerimônia de troféus** (puro) · `js/share.js` — cards canvas (recap/conta/cerimônia/retrô; recap e conta desenham a FOTO de perfil redonda quando tem)
 - `js/sound.js` — efeitos (WebAudio)

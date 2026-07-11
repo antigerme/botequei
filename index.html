@@ -122,7 +122,7 @@
 
     <div class="action-bar">
       <button class="chip" id="btn-games" data-i18n="games.title">🎮 Jogos</button>
-      <button class="chip" id="btn-rodada" title="+1 cerveja pra todo mundo online (menos motoristas)" data-i18n-title="chip.rodadaTitle" data-i18n="chip.rodada">🍻 Rodada</button>
+      <button class="chip" id="btn-rodada" title="Você paga uma rodada pra mesa: sai da sua conta e o garçom já é chamado" data-i18n-title="chip.rodadaTitle" data-i18n="chip.rodada">💸 Rodada</button>
       <button class="chip" id="btn-react" data-i18n="chip.react">😀 Reagir</button>
     </div>
   </section>
@@ -196,7 +196,6 @@
          escaneável por ícone. Ordem por frequência de uso NA MESA: conta → mesa → jogos → você. -->
     <div class="menu-list menu-grid">
       <p class="menu-sec" data-i18n="menu.secBill">Conta</p>
-      <button class="menu-item" id="menu-payround" data-i18n="menu.payround">💸 Pagar uma rodada</button>
       <button class="menu-item" id="menu-bill" data-i18n="menu.bill">💸 Fechar a conta</button>
       <button class="menu-item" id="menu-prices" data-i18n="menu.prices">💲 Preços do cardápio</button>
       <p class="menu-sec" data-i18n="menu.title">Mesa</p>
@@ -411,15 +410,6 @@
   </div>
 </div>
 
-<!-- Rodada: escolhe O QUE vai pra mesa toda (só itens individuais; garrafa da mesa já é coletiva no card) -->
-<div class="overlay" id="overlay-round" hidden>
-  <div class="sheet">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 data-i18n="round.title">🍻 Rodada pra mesa!</h2>
-    <p class="hint" data-i18n="round.hint">+1 pra cada um online. Motorista entra só se for sem álcool.</p>
-    <div class="round-grid" id="round-grid"></div>
-  </div>
-</div>
 
 <!-- Escolha de tema (1× no fim do tour guiado; sempre disponível nas Configurações) -->
 <div class="overlay" id="overlay-themepick" hidden>

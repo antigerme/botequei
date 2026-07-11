@@ -263,23 +263,6 @@ function roundTargets(def, scope) {
   const ids = roundTargetIds(scope, online, { alcoholic, isBot, isDriver: (id) => isDriver(state, id) });
   return ids.map((id) => ({ user: id, name: id === self ? getName() : profOf(id).name }));
 }
-function roundChoices() {
-  return drinkItems().map((it) => ({ id: it.id, emoji: it.emoji, name: itemLabel(it), share: isShare(it) ? 1 : 0 }));
-}
-function rodada(item) {
-  const def = resolveItem(item);
-  if (!def || isCup(def)) return; // rodada é de ITEM de verdade — não da dose pessoal (copo)
-  let n = 0;
-  for (const tg of roundTargets(def)) if (emitLocal(makeAdd(item, tg.user, tg.name))) n++;
-  settings = setSettings({ roundItem: item }); // lembra a escolha pra próxima
-  if (mesh) mesh.sendFx({ kind: 'react', emoji: def.emoji || '🍻' });
-  ui.floatReaction(def.emoji || '🍻'); ui.floatReaction('🍻'); sound.cheers();
-  ui.celebrate([def.emoji || '🍻', '🎉', '🥂']);
-  afterChange(item, 'add');
-  lastTableMilestone = Math.floor(tableTotal(state, resolveItem) / 10); // sincroniza o marco (evita confete duplo)
-  ui.toast(n ? t('toast.roundN', { n: n }) : t('toast.round0'));
-}
-
 // ---- 💸 Pagar uma rodada (perdeu o jogo ou resolveu bancar): você é o DONO. ----
 // Item pessoal → um pra cada online: cada um BEBE (conta no consumo dele), mas o DINHEIRO é
 // TODO seu (payer=você → o motor "cobre" o consumo dele e cobra só de você). Item da mesa →
@@ -1057,7 +1040,6 @@ function tourTrails() {
     ] },
     { id: 'conta', emoji: '💸', label: t('tour.trail.conta'), steps: [
       { sel: '#btn-rodada', title: t('tour.tc1'), text: t('tour.xc1') },
-      { sel: '#menu-payround', pre: openMenuPre, title: t('tour.tc2'), text: t('tour.xc2') },
       { sel: '#menu-bill', pre: openMenuPre, title: t('tour.tc3'), text: t('tour.xc3') },
       { sel: '#menu-prices', pre: openMenuPre, title: t('tour.tc4'), text: t('tour.xc4') },
     ] },
@@ -2749,14 +2731,7 @@ const handlers = {
   onInvite: openInvite,
   onPeers: () => { renderPeers(); renderLeagueInfo(); ui.openPeers(); },
   onBrinde, onReact,
-  // rodada é generosa demais pra sair num toque acidental: explica e confirma antes
-  onRodada: () => {
-    const choices = roundChoices();
-    if (!choices.length) { ui.toast(t('round.empty')); return; } // mesa sem nenhuma bebida no cardápio ainda
-    ui.openRound(choices, settings.roundItem || 'chopp');
-  },
-  onRoundPick: (id) => rodada(id),
-  onPayRound: () => openPayRound(),
+  onPayRound: () => openPayRound(), // 💸 Rodada do dock: você paga uma rodada pra mesa (picker → paga → chama o garçom)
   onPayPick: (id) => payRoundGo(id),
   onBrindeGo: () => sound.cheers(),
   onProfile: () => { const p = profOf(self); ui.openProfile({ name: getName(), color: p.color, emoji: p.emoji, driver: myDriver, photo: settings.profPhoto || p.photo || '' }); },

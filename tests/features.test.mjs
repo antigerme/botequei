@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, itemTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs, paidCount, coveredCount, roundTargetIds, cleanItemDef, roundToCents } from '../js/events.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs, roundTargetIds, cleanItemDef, roundToCents } from '../js/events.js';
 import { badgesFor, mvp, ceremonyAwards } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
@@ -82,23 +82,6 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.strictEqual(pool.lines[0].count, 3);
   ok('compartilhado: sharePool junta o bolo da mesa (3 garrafas, R$36)');
 
-  // ---- garrafa COM DONO (payer): perdeu o jogo / bancou → sai do bolo, cai na conta ----
-  applyEvent(s, { type: 'ADD', user: 'b', item: 'cerveja', payer: 'b', ts: 20, eventId: 'own1' });
-  assert.strictEqual(itemTotal(s, 'cerveja'), 4, 'a garrafa com dono AINDA conta pra mesa (card/herói)');
-  const pool2 = sharePool(s, resolve);
-  assert.strictEqual(pool2.total, 36, 'o bolo segue com as 3 SEM dono');
-  assert.strictEqual(pool2.lines[0].count, 3);
-  assert.strictEqual(userMoney(s, 'b', resolve), 12, 'a garrafa do B cai inteira na conta dele');
-  assert.strictEqual(paidCount(s, 'b', 'cerveja'), 1);
-  assert.strictEqual(userTotal(s, 'b', resolve), 0, 'pagar não vira consumo pessoal (share segue fora)');
-  ok('payer: garrafa com dono sai do racha e cai na conta de quem pagou');
-
-  applyEvent(s, { type: 'REMOVE', user: 'b', item: 'cerveja', payer: 'b', ts: 21, eventId: 'own2' });
-  assert.strictEqual(userMoney(s, 'b', resolve), 0, 'desfazer devolve tudo');
-  assert.strictEqual(paidCount(s, 'b', 'cerveja'), 0);
-  assert.strictEqual(sharePool(s, resolve).total, 36, 'o bolo não muda com o desfazer');
-  ok('payer: desfazer (REMOVE com payer) zera o dono e preserva o bolo');
-
   const rows = summary(s, resolve);
   const ra = rows.find((r) => r.user === 'a');
   assert.strictEqual(ra.total, 5);
@@ -111,61 +94,6 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.deepStrictEqual([...shareSplit(s, ['a', 'b', 'm'], { shareAll: true })].sort(), ['a', 'b', 'm'], 'toggle inclui todo mundo');
   assert.deepStrictEqual([...shareSplit(s, ['m'])], ['m'], 'só motorista na conta → racha entre quem tem');
   ok('compartilhado: shareSplit (motorista fora / toggle todos / fallback)');
-}
-
-// ---------- Rodada paga com item PESSOAL: "cada um bebeu; você paga" (covered) ----------
-{
-  const defs = { chopp: { id: 'chopp', price: 10 }, garrafa: { id: 'garrafa', price: 12, share: 1 } };
-  const resolve = (id) => defs[id];
-  const s = emptyState();
-  // 'a' perdeu e paga uma rodada de CHOPP (item pessoal) pra mesa toda online (a, b, c):
-  // um chopp pra cada, todos com payer='a'. Cada um BEBEU; só o dinheiro é do 'a'.
-  applyEvent(s, { type: 'ADD', user: 'a', item: 'chopp', payer: 'a', ts: 1, eventId: 'r1' });
-  applyEvent(s, { type: 'ADD', user: 'b', item: 'chopp', payer: 'a', ts: 2, eventId: 'r2' });
-  applyEvent(s, { type: 'ADD', user: 'c', item: 'chopp', payer: 'a', ts: 3, eventId: 'r3' });
-
-  assert.strictEqual(userTotal(s, 'a', resolve), 1, 'a bebeu o chopp dele');
-  assert.strictEqual(userTotal(s, 'b', resolve), 1, 'b bebeu (mesmo sem pagar)');
-  assert.strictEqual(userTotal(s, 'c', resolve), 1, 'c bebeu (mesmo sem pagar)');
-  assert.strictEqual(tableTotal(s, resolve), 3, 'a mesa pediu 3 chopps');
-  ok('rodada paga (pessoal): cada um online ganha +1 no consumo');
-
-  assert.strictEqual(userMoney(s, 'a', resolve), 30, 'a paga os 3 chopps da rodada');
-  assert.strictEqual(userMoney(s, 'b', resolve), 0, 'b bebeu de graça (a pagou)');
-  assert.strictEqual(userMoney(s, 'c', resolve), 0, 'c bebeu de graça (a pagou)');
-  assert.strictEqual(paidCount(s, 'a', 'chopp'), 3);
-  assert.strictEqual(coveredCount(s, 'b', 'chopp'), 1, 'o chopp do b foi coberto');
-  ok('rodada paga (pessoal): só o dinheiro cai na conta de quem pagou (sem cobrar de novo)');
-
-  // b pede MAIS um chopp por conta própria: paga só esse (o coberto continua de graça)
-  applyEvent(s, { type: 'ADD', user: 'b', item: 'chopp', ts: 4, eventId: 'r4' });
-  assert.strictEqual(userTotal(s, 'b', resolve), 2, 'b agora com 2 chopps no consumo');
-  assert.strictEqual(userMoney(s, 'b', resolve), 10, 'b paga só o que pediu sozinho (1×10)');
-  assert.strictEqual(coveredCount(s, 'b', 'chopp'), 1, 'só 1 dos 2 foi coberto');
-  ok('rodada paga: o consumidor ainda paga o que pede por conta própria');
-
-  // summary herda o modelo (consumo conta pra todos; dinheiro só no pagador)
-  const rows = summary(s, resolve);
-  const money = Object.fromEntries(rows.map((r) => [r.user, r.money]));
-  const tot = Object.fromEntries(rows.map((r) => [r.user, r.total]));
-  assert.strictEqual(money.a, 30); assert.strictEqual(money.b, 10); assert.strictEqual(money.c, 0);
-  assert.strictEqual(tot.a, 1); assert.strictEqual(tot.b, 2); assert.strictEqual(tot.c, 1);
-  ok('rodada paga: summary reflete consumo de todos + dinheiro só do pagador');
-
-  // desfazer (REMOVE com payer) devolve consumo, dinheiro e cobertura do c
-  applyEvent(s, { type: 'REMOVE', user: 'c', item: 'chopp', payer: 'a', ts: 5, eventId: 'r5' });
-  assert.strictEqual(userTotal(s, 'c', resolve), 0, 'desfazer tira o consumo do c');
-  assert.strictEqual(userMoney(s, 'a', resolve), 20, 'a agora paga só 2 chopps');
-  assert.strictEqual(coveredCount(s, 'c', 'chopp'), 0, 'cobertura do c zerada');
-  ok('rodada paga: desfazer (REMOVE com payer) devolve consumo + dinheiro + cobertura');
-
-  // item da MESA (share) pago segue como antes: covered é irrelevante (nunca esteve na conta pessoal)
-  const s2 = emptyState();
-  applyEvent(s2, { type: 'ADD', user: 'a', item: 'garrafa', payer: 'a', ts: 1, eventId: 'g1' });
-  assert.strictEqual(userMoney(s2, 'a', resolve), 12, 'garrafa com dono cai inteira na conta');
-  assert.strictEqual(userTotal(s2, 'a', resolve), 0, 'share não vira consumo pessoal');
-  assert.strictEqual(sharePool(s2, resolve).total, 0, 'com dono sai do bolo');
-  ok('rodada paga (mesa): item compartilhado pago não muda (covered não interfere)');
 }
 
 // ---------- Rodada: quem recebe (escopo do jogo × mesa; bot fora; motorista se alcoólico) ----------
@@ -349,16 +277,6 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.deepStrictEqual(roundToCents([0, 0]), [0, 0]);
   assert.deepStrictEqual(roundToCents([5, 5]), [5, 5]); // já-inteiros passam intactos
   ok('dinheiro: rateio distribui o resto e a soma das partes fecha o total exato');
-}
-
-// ---------- Dinheiro: coveredCount nunca passa do consumo real (REMOVE comum não mente) ----------
-{
-  const s = emptyState();
-  applyEvent(s, { type: 'ADD', user: 'a', name: 'Ana', item: 'chopp', payer: 'a', ts: 1, eventId: 'a1' }); // Ana pagou a própria (count=1, covered=1)
-  assert.strictEqual(coveredCount(s, 'a', 'chopp'), 1);
-  applyEvent(s, { type: 'REMOVE', user: 'a', name: 'Ana', item: 'chopp', ts: 2, eventId: 'r1' }); // toque longo −1 (SEM payer)
-  assert.strictEqual(coveredCount(s, 'a', 'chopp'), 0); // capado no consumo (0), não os 1 do covered cru
-  ok('dinheiro: coveredCount não passa do consumo (REMOVE comum não infla "na conta de quem pagou")');
 }
 
 // ---------- Comanda: item DA MESA (share) NÃO conta como consumo pessoal de quem tocou ----------

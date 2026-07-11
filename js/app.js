@@ -267,11 +267,10 @@ function roundTargets(def, scope) {
   const ids = roundTargetIds(scope, online, { alcoholic, isBot, isDriver: (id) => isDriver(state, id) });
   return ids.map((id) => ({ user: id, name: id === self ? getName() : profOf(id).name }));
 }
-// ---- 💸 Pagar uma rodada (perdeu o jogo ou resolveu bancar): você é o DONO. ----
-// Item pessoal → um pra cada online: cada um BEBE (conta no consumo dele), mas o DINHEIRO é
-// TODO seu (payer=você → o motor "cobre" o consumo dele e cobra só de você). Item da mesa →
-// UMA garrafa com dono: sai do racha (sharePool) e cai inteira na sua conta. `covered`/`paid`
-// no reducer garantem que ninguém é cobrado duas vezes.
+// ---- 💸 Pagar uma rodada (perdeu o jogo ou resolveu bancar): você BANCA (crédito pra mesa). ----
+// Item pessoal → um pra cada online: cada um BEBE (conta no consumo dele) e uma PROMESSA cobre 1
+// de cada. Item da mesa → +1 no bolo e a promessa banca N garrafas. O DINHEIRO é acertado no fim
+// (settle): cobre `min(1, consumido)` → o −1 do toque longo não deixa fantasma. Ver events.js.
 let lastPaid = null; // últimos ADDs do pagamento (p/ desfazer — pode ser vários numa rodada)
 let lastPledge = null; // id da PROMESSA (crédito) criada na rodada — p/ desfazer junto dos ADDs
 let payScope = null; // escopo do pagamento corrente: jogadores do jogo (do menu = null = mesa toda)

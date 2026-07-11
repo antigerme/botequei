@@ -103,10 +103,10 @@ padrão Auto segue o navegador).
   **1 de cada** no escopo com teto `min(1, consumido de verdade)`; garrafa da mesa reivindica
   `min(N prometido, bolo aberto)`. Assim "pago só o que foi bebido" e o −1 do toque longo NÃO deixa
   **dinheiro fantasma** (o "Dinheiro B": pré-marcar unidade não sobrevivia ao −1); determinístico
-  (promessas em ordem ts→eventId) → converge (regra de ouro). O caminho **LEGADO** (`payer` no
-  ADD/REMOVE → mapas `paid`/`covered` das mesas antigas) é reproduzido INTACTO dentro do `settle`
-  (compat); mesa nova só cria `PLEDGE`, sem `payer`. `userMoney`/`sharePool`/`coveredCount`/
-  `paidCount`/`summary` LEEM do `settle`; o fechar a conta ganha o quadro **🎁 quem bancou o quê**.
+  (promessas em ordem ts→eventId) → converge (regra de ouro). `userMoney`/`sharePool`/
+  `coveredCount`/`paidCount`/`summary` LEEM do `settle`; o fechar a conta ganha o quadro **🎁 quem
+  bancou o quê**. `PLEDGE`/`settle` é o **único** mecanismo de dinheiro-com-dono — o caminho antigo
+  `payer`/`covered`/`paid` foi REMOVIDO (o app ainda não está em produção; sem compat de versão).
   O `PROFILE` também leva o **nível** (liga) e a **foto** (miniatura 128px, dataURL ≤20k chars,
   validada por `cleanPhoto` na entrada E na saída do fio — emoji é o fallback eterno). `SONG` (jukebox) **acumula**
   (não é LWW) — a fila de músicas da mesa (teto de 500 + `title`/`url` coados na ENTRADA do reducer).

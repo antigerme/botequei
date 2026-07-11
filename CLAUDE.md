@@ -377,6 +377,12 @@ padrão Auto segue o navegador).
   `history.go(-N)` com guard, sem re-disparar o nosso fechamento); o foco volta pro overlay de baixo
   ao fechar o topo, ou pra origem quando fecha tudo. O e2e-plataforma trava as DUAS regressões
   (comum: voltar fecha o menu; empilhado: voltar fecha o recorte e o perfil sobrevive).
+  **Overlay aberto TRAVA o scroll do fundo** (`lockScroll` no `ui.js`, ref-contado pela mesma
+  contagem de overlays abertos do histórico — `position:fixed` no body, o único que segura a
+  rolagem de trás no iOS, guardando o Y pra devolver EXATO na volta): sem isso a `.screen` de trás
+  rolava atrás do sheet — o "scroll fantasma" que dava cara de app solto. Só destrava quando o
+  ÚLTIMO overlay fecha (empilhar recorte sobre o perfil NÃO destrava cedo); o e2e-plataforma trava
+  o lock/unlock + o ref-count.
   ⚠️ **Atribuir `location.hash` é NAVEGAÇÃO** (dispara `popstate`) — o `enterTable` escreve o
   `#/mesa?room=…` ANTES de abrir qualquer overlay; se escrever depois, o `popstate` da navegação
   cai no handler do "voltar fecha overlay" e ENGOLE o convite recém-aberto (era o bug do convite

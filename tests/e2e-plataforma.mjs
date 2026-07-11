@@ -59,12 +59,18 @@ async function main() {
     if (!/#\/mesa\?room=/.test(h)) throw new Error('fechar o convite regrediu a URL da mesa: ' + h);
   });
 
-  await step('menu "…": voltar do sistema fecha o overlay (sem sair da mesa)', async () => {
+  await step('menu "…": voltar do sistema fecha o overlay (sem sair da mesa) + trava o scroll do fundo', async () => {
     await page.click('#btn-menu');
     await visible('overlay-menu');
+    // overlay aberto congela o fundo (position:fixed no body) — fim do "scroll fantasma" atrás do sheet
+    if (!(await page.evaluate(() => getComputedStyle(document.body).position === 'fixed' && document.body.classList.contains('scroll-locked'))))
+      throw new Error('overlay aberto não travou o scroll do fundo');
     await page.goBack(); // = botão voltar (Android) / swipe de voltar (iOS)
     await hidden('overlay-menu');
     if (!(await onTable())) throw new Error('voltar saiu da mesa em vez de fechar o overlay');
+    // fechou o último overlay → destrava (e devolve o body ao fluxo normal)
+    if (!(await page.evaluate(() => getComputedStyle(document.body).position !== 'fixed' && !document.body.classList.contains('scroll-locked'))))
+      throw new Error('fechar o overlay não destravou o scroll do fundo');
   });
 
   await step('placar: mesmo com outro overlay, voltar fecha e a mesa continua', async () => {
@@ -91,13 +97,19 @@ async function main() {
     // os DOIS abertos ao mesmo tempo = empilhou (não foi close-then-open)
     const empilhou = await page.evaluate(() => !document.getElementById('overlay-profile').hidden && !document.getElementById('overlay-crop').hidden);
     if (!empilhou) throw new Error('recorte não empilhou sobre o perfil (perfil fechou)');
+    // ref-count da trava de scroll: com 2 overlays na pilha, o fundo está travado
+    if (!(await page.evaluate(() => document.body.classList.contains('scroll-locked')))) throw new Error('empilhado: o fundo devia estar travado');
     await page.goBack(); // voltar #1: fecha SÓ o recorte
     await hidden('overlay-crop');
     const perfilFicou = await page.evaluate(() => !document.getElementById('overlay-profile').hidden && document.getElementById('profile-name').value === 'Zé Não-Salvo');
     if (!perfilFicou) throw new Error('voltar fechou o perfil junto (perdeu o apelido não salvo) — regressão da pilha de overlays');
+    // ...e o fundo SEGUE travado enquanto o perfil (de baixo) continua aberto — ref-count não destrava no 1º fechar
+    if (!(await page.evaluate(() => document.body.classList.contains('scroll-locked')))) throw new Error('ref-count: destravou cedo (perfil ainda aberto)');
     await page.goBack(); // voltar #2: agora fecha o perfil
     await hidden('overlay-profile');
     if (!(await onTable())) throw new Error('voltar saiu da mesa em vez de fechar o perfil');
+    // fechou o ÚLTIMO overlay da pilha → destrava (o body volta ao fluxo, o Y volta exato)
+    if (await page.evaluate(() => document.body.classList.contains('scroll-locked'))) throw new Error('ref-count: fundo continuou travado após fechar o último overlay');
   });
 
   await A.close();

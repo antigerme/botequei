@@ -248,6 +248,11 @@ body::after {
 /* ---------- Overlays / sheets (cartão de giz) ---------- */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.62); backdrop-filter: blur(3px);
   display: flex; align-items: flex-end; justify-content: center; z-index: 40; animation: fade var(--t-fade) ease; }
+/* Fundo TRAVADO enquanto há overlay aberto (JS: lockScroll, ref-contado pelos overlays abertos).
+   position:fixed é o único que segura a rolagem de trás no iOS (overflow:hidden ele ignora no
+   toque); o `top` (o Y salvo) entra inline pra devolver a posição EXATA na volta. Sem isto o sheet
+   flutuava sobre uma .screen que ainda rolava — o "scroll fantasma" que dava cara de app solto. */
+body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: hidden; }
 .sheet { background: linear-gradient(180deg, #1c2314, #141a0f); border: 2px dashed var(--chalk-line); border-bottom: 0;
   border-radius: var(--r-2xl) var(--r-2xl) 0 0; width: 100%; max-width: 560px; padding: 22px 18px calc(26px + var(--safe-b));
   position: relative; animation: rise var(--t-rise) var(--ease-out); box-shadow: 0 -10px 40px rgba(0,0,0,.5);

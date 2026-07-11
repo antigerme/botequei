@@ -55,8 +55,9 @@ const IDS = [
   'menu-hh', 'menu-waiter', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-tour',
   'overlay-prices', 'price-list',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
-  'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-selfie', 'btn-avatar-upload', 'avatar-file',
+  'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-webcam', 'btn-avatar-upload', 'avatar-file',
   'overlay-crop', 'crop-canvas', 'crop-zoom', 'btn-crop-use',
+  'overlay-camera', 'cam-video', 'btn-cam-shoot',
   'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'add-share', 'btn-additem-confirm',
   'add-prev-emoji', 'add-prev-name', 'add-prev-sub',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
@@ -279,9 +280,12 @@ export function init(handlers) {
   }
 
   $('btn-profile-save').addEventListener('click', () => submitProfile());
-  // foto de perfil: selfie/galeria compartilham o MESMO input (só troca o capture)
-  el['btn-avatar-selfie'].addEventListener('click', () => openAvatarPicker(true));
-  el['btn-avatar-upload'].addEventListener('click', () => openAvatarPicker(false));
+  // foto de perfil: "Trocar foto" abre o sheet NATIVO do sistema (câmera OU galeria no celular;
+  // arquivo no desktop) — SEM `capture`, é o SO quem monta o menu. A "Webcam" (só no desktop,
+  // onde o seletor de arquivo não tem câmera) abre a câmera ao vivo, mesmo motor do leitor de QR.
+  el['btn-avatar-upload'].addEventListener('click', () => el['avatar-file'].click());
+  el['btn-avatar-webcam'].addEventListener('click', () => openCam());
+  el['btn-cam-shoot'].addEventListener('click', () => shootCam());
   el['avatar-file'].addEventListener('change', () => avatarFilePicked());
   el['btn-crop-use'].addEventListener('click', () => cropUse());
   bindCrop();
@@ -694,6 +698,8 @@ export function openProfile(cur) {
     paintProfileHero();
   }));
   paintProfileHero();
+  // webcam ao vivo só no desktop (no celular o sheet nativo do "Trocar foto" já traz a câmera)
+  el['btn-avatar-webcam'].hidden = !(scanSupported() && window.matchMedia('(min-width: 900px)').matches);
   el['overlay-profile'].hidden = false;
 }
 function submitProfile() {
@@ -707,21 +713,13 @@ function submitProfile() {
 const CROP_VIEW = 280, THUMB = 128;
 let crop = null; // { img, w, h, scale, min, x, y, pointers:Map, pinch:null }
 
-function openAvatarPicker(selfie) {
-  const inp = el['avatar-file'];
-  // selfie = câmera frontal do SISTEMA (padrão da "foto da noite"); galeria = sem capture
-  if (selfie) inp.setAttribute('capture', 'user');
-  else inp.removeAttribute('capture');
-  inp.click();
-}
-
 async function avatarFilePicked() {
   const f = el['avatar-file'].files && el['avatar-file'].files[0];
   el['avatar-file'].value = '';
   if (!f) return;
   let img;
   try {
-    // createImageBitmap respeita a orientação EXIF (selfie de celular vem rotacionada)
+    // createImageBitmap respeita a orientação EXIF (foto de celular vem rotacionada)
     img = await createImageBitmap(f, { imageOrientation: 'from-image' });
   } catch {
     img = await new Promise((res, rej) => {
@@ -730,12 +728,53 @@ async function avatarFilePicked() {
       r.onerror = rej; r.readAsDataURL(f);
     }).catch(() => null);
   }
+  startCrop(img);
+}
+
+// Abre o recorte com QUALQUER fonte desenhável — arquivo (ImageBitmap/Image) OU o frame da webcam
+// (um <canvas>): todos servem de `drawImage` source pro cropper. A foto original nunca sai do
+// aparelho; só a miniatura 128px (no cropUse) entra no perfil.
+function startCrop(img) {
   if (!img || !img.width || !img.height) return;
   const min = CROP_VIEW / Math.min(img.width, img.height); // cobre a janela inteira
   crop = { img, w: img.width, h: img.height, scale: min, min, x: img.width / 2, y: img.height / 2, pointers: new Map(), pinch: null };
   el['crop-zoom'].value = '100';
   el['overlay-crop'].hidden = false;
   drawCrop();
+}
+
+// ---------- Webcam do perfil (getUserMedia; só no desktop) ----------
+// No CELULAR o sheet nativo do "Trocar foto" já traz a câmera; no DESKTOP o seletor de arquivo
+// NÃO tem câmera, então aqui abrimos a webcam ao vivo (mesmo motor do leitor de QR) e o frame
+// capturado cai no MESMO recorte. A limpeza da stream é centralizada no closeOverlays (fecha por
+// ✕/ESC/voltar/arrastar), igualzinho ao scanner de QR — câmera nunca fica ligada zumbi.
+let camStream = null;
+function stopCam() {
+  if (camStream) { try { camStream.getTracks().forEach((tr) => tr.stop()); } catch { /* ignore */ } camStream = null; }
+  try { el['cam-video'].srcObject = null; } catch { /* ignore */ }
+}
+async function openCam() {
+  if (!scanSupported()) { toast(t('cam.fail')); return; }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+  } catch (e) {
+    toast(e && e.name === 'NotAllowedError' ? t('cam.perm') : t('cam.fail'));
+    return;
+  }
+  if (el['overlay-profile'].hidden) { stopCam(); return; } // fechou o perfil enquanto a permissão era pedida
+  const v = el['cam-video']; v.srcObject = camStream; v.setAttribute('playsinline', '');
+  try { await v.play(); } catch { /* alguns browsers só tocam após gesto — segue */ }
+  el['overlay-camera'].hidden = false;
+}
+function shootCam() {
+  const v = el['cam-video']; const w = v.videoWidth, h = v.videoHeight;
+  if (!w || !h) { toast(t('cam.fail')); return; }
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.translate(w, 0); g.scale(-1, 1); // espelha pra bater com a prévia (WYSIWYG)
+  g.drawImage(v, 0, 0, w, h);
+  stopCam();
+  el['overlay-camera'].hidden = true; // fecha só a câmera; o recorte abre por cima do perfil
+  startCrop(c);
 }
 
 // centro (x,y) em coordenadas DA IMAGEM; clamp mantém a janela sempre coberta
@@ -1874,6 +1913,7 @@ export function openTour(vm) {
 // ---------- Overlays / toast ----------
 export function closeOverlays() {
   if (activeScan) { activeScan.stop(); activeScan = null; }
+  if (camStream) stopCam(); // webcam do perfil aberta? desliga a stream (fechou por ✕/ESC/voltar/arrastar)
   // Fecha TUDO de uma vez (ESC / tour / arrastar-pra-fechar): captura a origem do 1º overlay da
   // pilha, ESVAZIA a pilha ANTES de esconder (assim os observers viram no-op e não brigam pelo
   // foco) e devolve o foco à origem. ⚠️ NÃO chamamos syncOverlayHistory aqui: os menus fazem

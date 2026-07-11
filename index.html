@@ -242,8 +242,8 @@
     <p class="lbl" data-i18n="prof.avatar">Avatar — um emoji ou sua foto</p>
     <div class="emoji-row" id="profile-avatars"></div>
     <div class="photo-row">
-      <button class="btn btn-ghost" id="btn-avatar-selfie" data-i18n="prof.selfie">🤳 Tirar selfie</button>
-      <button class="btn btn-ghost" id="btn-avatar-upload" data-i18n="prof.gallery">🖼️ Da galeria</button>
+      <button class="btn btn-ghost" id="btn-avatar-upload" data-i18n="prof.photo">📷 Trocar foto</button>
+      <button class="btn btn-ghost" id="btn-avatar-webcam" data-i18n="prof.webcam" hidden>📸 Webcam</button>
     </div>
     <p class="hint" data-i18n="prof.photoHint">A foto vira uma miniatura, fica no seu aparelho e só quem está na mesa vê. Tocar num emoji volta pro emoji.</p>
     <input id="avatar-file" type="file" accept="image/*" hidden />
@@ -266,6 +266,20 @@
     <div class="sheet-actions">
       <button class="btn btn-ghost" data-close data-i18n="crop.cancel">Cancelar</button>
       <button class="btn btn-primary" id="btn-crop-use" data-i18n="crop.use">Usar essa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Webcam do perfil (desktop: o seletor de arquivo não tem câmera) -->
+<div class="overlay" id="overlay-camera" hidden>
+  <div class="sheet">
+    <button class="sheet-close" data-close>✕</button>
+    <h2 data-i18n="cam.title">📸 Tire sua foto</h2>
+    <p class="hint" data-i18n="cam.hint">Sorria! A foto vira miniatura e fica só no seu aparelho.</p>
+    <div class="cam-wrap"><video id="cam-video" autoplay playsinline muted></video></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" data-close data-i18n="cam.cancel">Cancelar</button>
+      <button class="btn btn-primary" id="btn-cam-shoot" data-i18n="cam.shoot">📸 Capturar</button>
     </div>
   </div>
 </div>

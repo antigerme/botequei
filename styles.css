@@ -467,6 +467,9 @@ body.light .bill-pool { background: rgba(178, 108, 0, .06); }
 .crop-wrap { display: flex; justify-content: center; margin: 8px 0; }
 #crop-canvas { border-radius: var(--r-xl); background: #000; touch-action: none; max-width: 100%; }
 #crop-zoom { width: 100%; }
+/* webcam do perfil: prévia quadrada, espelhada como um espelho de verdade */
+.cam-wrap { display: flex; justify-content: center; margin: 8px 0; }
+#cam-video { width: 280px; max-width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: var(--r-xl); background: #000; transform: scaleX(-1); }
 
 /* Camada de efeitos */
 .fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 70; overflow: hidden; }

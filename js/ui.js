@@ -1030,7 +1030,7 @@ function prefersLight() { try { return window.matchMedia('(prefers-color-scheme:
 function resolveTheme(s) {
   const th = s.theme || 'light';
   if (th === 'auto') return prefersLight() ? 'light' : 'dark';
-  // temas aposentados (neon/retro) gravados em aparelho antigo caem no claro, sem drama
+  // valor desconhecido/corrompido cai no claro, sem drama
   return ['dark', 'light'].includes(th) ? th : 'light';
 }
 export function themeIsLight(s) { return resolveTheme(s) === 'light'; }

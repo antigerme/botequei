@@ -53,24 +53,21 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   const defs = {
     cerveja: { id: 'cerveja', price: 12, share: 1 }, // garrafa 600 da mesa
     chopp: { id: 'chopp', price: 9 },
-    copo: { id: 'copo', price: 0, g: 11, cup: 1 },
   };
   const resolve = (id) => defs[id];
   const s = emptyState();
   const add = (user, item, n) => { for (let i = 0; i < n; i++) applyEvent(s, { type: 'ADD', user, item, ts: i + 1, eventId: user + item + i }); };
   add('a', 'cerveja', 2); // "chegaram 2 garrafas" (a marcou pela mesa)
   add('a', 'chopp', 3);
-  add('a', 'copo', 2);
   add('b', 'cerveja', 1);
 
-  assert.strictEqual(userTotal(s, 'a'), 7, 'sem resolver: soma tudo (compat)');
-  assert.strictEqual(userTotal(s, 'a', resolve), 5, 'pessoal: garrafas da mesa ficam de fora');
+  assert.strictEqual(userTotal(s, 'a'), 5, 'sem resolver: soma tudo (2 garrafas + 3 chopps)');
+  assert.strictEqual(userTotal(s, 'a', resolve), 3, 'pessoal: garrafas da mesa ficam de fora → 3 chopps');
   ok('compartilhado: total pessoal não conta o recipiente da mesa');
 
-  // o número grande da mesa = o que foi PEDIDO: copo NÃO soma (a garrafa dele já contou)
-  assert.strictEqual(tableTotal(s), 8, 'sem resolver: soma tudo (compat)');
-  assert.strictEqual(tableTotal(s, resolve), 6, '3 garrafas + 3 chopps; os 2 copos ficam de fora');
-  ok('compartilhado: "a mesa mandou" não conta copo (senão a mesma cerveja contaria 2×)');
+  // o número grande da mesa = o que foi PEDIDO: soma de todas as contagens
+  assert.strictEqual(tableTotal(s), 6, '3 garrafas (2+1) + 3 chopps');
+  ok('compartilhado: total da mesa = tudo que foi pedido');
 
   assert.strictEqual(userMoney(s, 'a', resolve), 27, 'só os 3 chopps (copo é R$0; garrafa é do bolo)');
   assert.strictEqual(userMoney(s, 'b', resolve), 0, 'b só marcou garrafa da mesa');
@@ -84,7 +81,7 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
 
   const rows = summary(s, resolve);
   const ra = rows.find((r) => r.user === 'a');
-  assert.strictEqual(ra.total, 5);
+  assert.strictEqual(ra.total, 3);
   assert.strictEqual(ra.money, 27);
   ok('compartilhado: summary usa o total/dinheiro pessoais');
 

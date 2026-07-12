@@ -11,7 +11,9 @@ import { chromium } from 'playwright-core';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 const CHROME = process.env.CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const T = 25000;
+const T = 45000; // teto generoso: é o e2e mais PESADO (2 peers + foto + conta/comanda + rodada paga);
+                 // sob carga no CI a sincronia multi-peer estourava 25s (passa em segundos local).
+                 // Teto maior NÃO afrouxa assert — o waitForFunction resolve assim que o estado bate.
 
 async function main() {
   const browser = await chromium.launch({

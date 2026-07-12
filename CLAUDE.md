@@ -408,14 +408,20 @@ padrão Auto segue o navegador).
   que piscava e fechava sozinho ao criar a mesa; o e2e-plataforma trava a regressão). **iOS
   não dispara `beforeinstallprompt`** → o `boot` mostra o "📲 Instalar" quando é iPhone e não está
   standalone; tocar cai no `toast.installHint` ("Compartilhar → Adicionar à Tela").
-  **Foto de perfil = captura NATIVA do sistema**: "📷 Trocar foto" é um `<input type=file accept=image/*>`
-  SEM `capture` → o SO monta o sheet (câmera OU galeria no cel; arquivo no desktop). O `capture=user`
-  saiu — no cel ele PULAVA o sheet nativo e no desktop era ignorado (abria só o seletor de arquivo,
-  reclamação real do André no laptop). Como o seletor do DESKTOP não tem câmera, o perfil ganha um
-  "📸 Webcam" (só em `min-width:900px` + `getUserMedia`) que abre a câmera ao vivo (`openCam`/`shootCam`
-  no `ui.js`, MESMO motor do QR de `scan.js`); o frame cai no MESMO recorte (`startCrop`) e a stream é
-  desligada em TODO fechamento (`stopCam` no `closeOverlays`, ✕/ESC/voltar — câmera nunca fica zumbi).
-  QR **não** tem equivalente nativo na web → segue com o leitor ao vivo do `scan.js`.
+  **Foto de perfil = câmera OU galeria, botão POR fonte**: o perfil tem `📷 Câmera` + `🖼️ Galeria`
+  (+ `📸 Webcam` no desktop), os três caindo no MESMO `#avatar-file` → mesmo recorte. NÃO se confia
+  mais num único `<input accept=image/*>` SEM capture pra o SO oferecer câmera+galeria: o **Android
+  moderno (13+) manda `accept=image/*` sem capture DIRETO pro Photo Picker — só galeria, sem câmera**
+  (reclamação real do André: "vai direto pras imagens"). Então a escolha é EXPLÍCITA no app: `🖼️ Galeria`
+  = input sem capture (seletor/Photo Picker); `📷 Câmera` = `setAttribute('capture','user')` antes do
+  click → o SO abre o app de câmera nativo (selfie). Gate em `openProfile`: `📸 Webcam` só no desktop
+  (`min-width:900px` + `getUserMedia`); `📷 Câmera` só em touch (`maxTouchPoints>0`/`pointer:coarse`) e
+  quando a webcam não está ligada — assim o desktop nunca mostra um "Câmera" que (com capture ignorado)
+  abriria só o seletor de arquivo (a antiga reclamação do laptop). A **Webcam ao vivo** (`openCam`/
+  `shootCam` no `ui.js`, MESMO motor do QR de `scan.js`) segue no desktop, onde o seletor de arquivo não
+  tem câmera; o frame cai no MESMO recorte (`startCrop`) e a stream desliga em TODO fechamento (`stopCam`
+  no `closeOverlays`, ✕/ESC/voltar — câmera nunca fica zumbi). QR **não** tem equivalente nativo na web
+  → segue com o leitor ao vivo do `scan.js`.
 - **TURN opcional** (rota `/turn`, nos dois adaptadores): credenciais efêmeras da Cloudflare,
   lidas dos envs `CF_TURN_KEY_ID`/`CF_TURN_API_TOKEN`/`CF_TURN_TTL` (VM: `Environment=` do
   systemd; CF: Secrets do painel/`wrangler secret put`). Token **só no servidor**. Sem config →

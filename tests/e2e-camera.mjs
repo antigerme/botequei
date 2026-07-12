@@ -40,7 +40,6 @@ async function main() {
   const hid = (id) => p.waitForFunction((i) => { const e = document.getElementById(i); return e && e.hidden; }, id, { timeout: T });
   const camLive = () => p.waitForFunction(() => { const v = document.getElementById('cam-video'); return v && v.videoWidth > 0; }, null, { timeout: T });
   const camOff = () => p.evaluate(() => document.getElementById('cam-video').srcObject === null);
-  const closeAll = () => p.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
   const openProfile = async () => { await p.click('#btn-me'); await vis('overlay-me'); await p.click('#me-profile'); await vis('overlay-profile'); };
 
   await p.goto(BASE);
@@ -77,12 +76,34 @@ async function main() {
     if (!(await camOff())) throw new Error('o ✕ não desligou a stream da câmera');
   });
 
-  await step('CELULAR (viewport estreito): o botão "Webcam" NÃO aparece (sheet nativo cobre a câmera)', async () => {
-    await closeAll();
-    await p.setViewportSize({ width: 390, height: 800 });
-    await openProfile();
-    const shown = await p.evaluate(() => !document.getElementById('btn-avatar-webcam').hidden);
-    if (shown) throw new Error('o botão Webcam devia sumir no celular (lá o sheet nativo já traz a câmera)');
+  await step('CELULAR (touch): "📸 Webcam" some e entram "📷 Câmera" (nativa) + "🖼️ Galeria"', async () => {
+    // contexto TOUCH próprio (hasTouch → navigator.maxTouchPoints>0): no cel a câmera é o app NATIVO
+    // via capture, não a webcam ao vivo. Antes o app confiava no "sheet nativo" do <input> sem capture,
+    // mas o Android moderno manda isso direto pro Photo Picker (só galeria) — o André caiu nesse buraco.
+    const M = await browser.newContext({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true });
+    await M.addInitScript(SEED);
+    const pm = await M.newPage();
+    pm.on('filechooser', () => {}); // intercepta o seletor do SO (headless não abre dialog real; sem isso trava)
+    await pm.goto(BASE);
+    await pm.waitForSelector('#screen-home.is-active', { timeout: T });
+    await pm.click('#btn-me'); await pm.waitForFunction(() => { const e = document.getElementById('overlay-me'); return e && !e.hidden; }, null, { timeout: T });
+    await pm.click('#me-profile'); await pm.waitForFunction(() => { const e = document.getElementById('overlay-profile'); return e && !e.hidden; }, null, { timeout: T });
+    const st = await pm.evaluate(() => ({
+      webcam: !document.getElementById('btn-avatar-webcam').hidden,
+      camera: !document.getElementById('btn-avatar-camera').hidden,
+      gallery: !document.getElementById('btn-avatar-upload').hidden,
+    }));
+    if (st.webcam) throw new Error('no celular a Webcam ao vivo devia sumir (lá é a câmera nativa via capture)');
+    if (!st.camera) throw new Error('no celular o botão "📷 Câmera" (captura nativa) devia APARECER — era o buraco do André');
+    if (!st.gallery) throw new Error('o botão "🖼️ Galeria" devia continuar aparecendo');
+    // 📷 Câmera seta capture=user (o SO abre a câmera direto); 🖼️ Galeria TIRA o capture (vira seletor de imagens)
+    await pm.click('#btn-avatar-camera');
+    const cap = await pm.evaluate(() => document.getElementById('avatar-file').getAttribute('capture'));
+    if (cap !== 'user') throw new Error('"📷 Câmera" devia setar capture="user" no #avatar-file, veio: ' + cap);
+    await pm.click('#btn-avatar-upload');
+    const cap2 = await pm.evaluate(() => document.getElementById('avatar-file').getAttribute('capture'));
+    if (cap2 !== null) throw new Error('"🖼️ Galeria" devia TIRAR o capture (seletor de imagens), veio: ' + cap2);
+    await M.close();
   });
 
   await A.close();

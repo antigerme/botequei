@@ -11,8 +11,7 @@ import { chromium } from 'playwright-core';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 const CHROME = process.env.CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const T = 45000; // teto generoso: é o e2e mais PESADO (2 peers + foto + conta/comanda + rodada paga);
-                 // sob carga no CI a sincronia multi-peer estourava 25s (passa em segundos local).
+const T = 45000; // teto generoso: é o e2e mais PESADO (2 peers + foto + conta/comanda + rodada paga).
                  // Teto maior NÃO afrouxa assert — o waitForFunction resolve assim que o estado bate.
 
 async function main() {
@@ -241,6 +240,13 @@ async function main() {
     await pageA.fill('.price-row[data-id="x-chopp"] .pr-price', '10');
     await pageA.$eval('.price-row[data-id="x-chopp"] .pr-price', (e) => e.dispatchEvent(new Event('change')));
     await closeAll(pageA);
+    // ⚠️ item PESSOAL paga UM pra cada ONLINE (roundTargets filtra mesh.peers().online); a garrafa
+    // (share) acima só ia pro self, então não dependia da Bia. Sob carga no CI o heartbeat da Bia
+    // pode PISCAR (STALE_MS=12s, ou ICE 'disconnected' derruba rec.ready na hora) e A a marca offline
+    // → a rodada sairia SÓ pro André e o card do chopp TRAVA em 2 (nunca 3). Espera A ver a Bia online
+    // DE NOVO antes de pagar (peer-count = connectedCount+1, lê o MESMO rec.ready do roundTargets) —
+    // esperar ESTADO, não afrouxar assert (regressão real: e2e-features vermelho SÓ no alvo Node do CI).
+    await peers(pageA, 2);
     // Bia já tinha 1 chopp (clicou antes). A PAGA uma rodada de CHOPP (pessoal) → +1 pra A e +1 pra B.
     await pageA.click('#btn-rodada'); // 💸 Rodada no dock
     await visible(pageA, 'overlay-payround');

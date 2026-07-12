@@ -89,6 +89,22 @@ let deferredPrompt = null;
 
 const self = clientId();
 let settings = getSettings();
+
+// ---- 🐛 Diário técnico (modo desenvolvedor) ----
+// dlog é NO-OP com o switch desligado (custo zero no dia a dia). Ligado, grava eventos-chave
+// num anel local (store.addDevLog, teto 500) pra caçar bug em campo — o app é P2P/sem servidor,
+// então TODO log que existe mora no aparelho. Nada sai daqui sozinho: só no 📤 do relatório.
+function dlog(k, data) {
+  if (!settings.dev) return;
+  try { store.addDevLog({ t: Date.now(), k, ...(data || {}) }); } catch { /* quota: ignora */ }
+}
+// Erros globais entram no diário (mensagem curta; sem stack — o relatório não é pra vazar código)
+window.addEventListener('error', (e) => dlog('erro', { m: String((e && e.message) || '').slice(0, 200) }));
+window.addEventListener('unhandledrejection', (e) => {
+  const r = e && e.reason;
+  dlog('erro', { m: String((r && r.message) || r || '').slice(0, 200) });
+});
+let verTaps = 0, verTapAt = 0; // 7 toques na versão (à la Android) destravam a seção 🐛
 let offlineWaiting = false;   // convidado esperando o anfitrião ler a resposta (fecha sozinho ao conectar)
 let lastTableMilestone = 0;   // comemora a cada 10 rodadas da mesa (marco); sincronizado no sync
 let hhEndedFor = 0;           // 'until' do happy hour cujo fechamento já foi comemorado
@@ -484,6 +500,7 @@ const GEO_OPTS = { timeout: 8000, maximumAge: 300000 };
 // Recusou o NOSSO pedido de localização → desliga o switch (não insiste) e avisa. Só o "negou de
 // verdade" (code 1 = PERMISSION_DENIED); timeout/indisponível são passageiros e mantêm o switch on.
 function geoDeny(err) {
+  dlog('geo.erro', { code: (err && err.code) || 0 }); // 1=negou, 2=indisponível, 3=timeout
   if (!err || err.code !== 1) return;
   settings = setSettings({ geo: false });
   ui.fillSettings(settings);
@@ -495,9 +512,11 @@ function geoDeny(err) {
 // Tudo local; nada sai do aparelho.
 function maybeSuggestByGps() {
   if (!settings.geo || !navigator.geolocation) return;
+  dlog('gps.olhando', {});
   const go = () => navigator.geolocation.getCurrentPosition((pos) => {
     if (!room || state.items.size) return;
     const name = nearestBoteco(store.getCheckins(), pos.coords.latitude, pos.coords.longitude, GPS_RADIUS_M);
+    dlog('gps.resultado', { perto: name || '', cardapio: !!(name && store.hasBotecoMenu(name)) });
     if (name && store.hasBotecoMenu(name)) { gpsBoteco = name; render(); askLoadBoteco(name); }
   }, geoDeny, GEO_OPTS);
   if (navigator.permissions && navigator.permissions.query) {
@@ -524,7 +543,8 @@ function maybeAutoCheckin() {
   if (!title) return;          // mesa sem nome → sem check-in fantasma
   autoCheckedIn = true;        // marca ANTES do async (o render pode re-chamar antes de resolver)
   if (freshCheckinFor(title)) return; // já tem check-in fresco desse bar → não duplica
-  const save = (lat, lng) => { store.addCheckin({ name: title, at: Date.now(), lat, lng }); ui.toast(t('toast.autoCheckin', { name: title })); sound.pop(); };
+  dlog('checkin.auto', { nome: title });
+  const save = (lat, lng) => { dlog('checkin.salvo', { nome: title, gps: lat != null, auto: 1 }); store.addCheckin({ name: title, at: Date.now(), lat, lng }); ui.toast(t('toast.autoCheckin', { name: title })); sound.pop(); };
   if (settings.geo && navigator.geolocation) navigator.geolocation.getCurrentPosition((p) => save(p.coords.latitude, p.coords.longitude), () => save(null, null), GEO_OPTS);
   else save(null, null);
 }
@@ -701,6 +721,7 @@ function clearCatchup() { // ao sair da mesa: zera tudo (não vaza o resumo pra 
 }
 
 async function enterTable(code, { create = false, pin = '', joined = false } = {}) {
+  dlog('mesa.entrar', { sala: String(code || '').slice(0, 8), criei: !!create, entrei: !!joined });
   room = code; roomPin = pin; sessionStart = Date.now(); sessionMates = new Set();
   sessionJoined = joined; // entrei na mesa de alguém → o cardápio que sincronizar é "aprendido"
   autoCheckedIn = false; gpsBoteco = ''; // sessão nova: zera o check-in-automático e o boteco por GPS
@@ -881,6 +902,7 @@ function myItems() {
 }
 function leaveTable() {
   if (room) {
+    dlog('mesa.sair', { titulo: tableInfo(state).title || '' });
     store.saveEvents(room, log);
     const info = tableInfo(state);
     store.pushHistory({
@@ -902,6 +924,7 @@ function leaveTable() {
       const seed = info.title || (fresh && !store.hasBotecoMenu(fresh) ? fresh : '');
       if (defs.length && seed) {
         const knew = store.hasBotecoMenu(seed); // já conhecia esse cardápio antes de salvar agora?
+        dlog('boteco.salvo', { nome: seed, itens: defs.length });
         store.saveBotecoMenu(seed, defs);
         // Efeito de rede: entrei na mesa de ALGUÉM e aprendi um cardápio novo pela sincronização.
         ui.toast(sessionJoined && !knew ? t('toast.botecoLearned', { name: seed }) : t('toast.botecoSaved', { name: seed }));
@@ -2822,6 +2845,56 @@ function openBotecoFicha(name) {
 }
 
 // ---- Handlers ----
+// ---- 🐛 Relatório do modo dev: fotografia COMPLETA e local do app pra caçar bug em campo ----
+// O que entra: versão, aparelho, PERMISSÕES (localização/câmera — o estado 'prompt' pendurado é
+// exatamente o que come check-in), storage, settings, flags, check-ins, cardápios salvos, resumo
+// do histórico, mesa aberta e o diário. Redação: a foto de perfil NUNCA vai (só o tamanho).
+// Compartilhar é gesto SEU: Web Share (mesmo motor da foto da noite); sem suporte → baixa o .json.
+async function permState(name) {
+  try { const s = await navigator.permissions.query({ name }); return s.state; } catch { return 'n/d'; }
+}
+async function buildDevReport() {
+  const s = { ...settings };
+  if (s.profPhoto) s.profPhoto = `(foto: ${s.profPhoto.length} chars)`; // nunca a imagem em si
+  let est = null;
+  try { est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null; } catch { /* n/d */ }
+  const [geo, cam] = await Promise.all([permState('geolocation'), permState('camera')]);
+  return {
+    tipo: 'botequei-relatorio', versao: verLabel(VERSION), serial: VERSION, gerado: new Date().toISOString(),
+    navegador: navigator.userAgent, idioma: navigator.language, online: navigator.onLine,
+    instalado: window.matchMedia('(display-mode: standalone)').matches, toques: navigator.maxTouchPoints || 0,
+    permissoes: { localizacao: geo, camera: cam },
+    storage: est ? { usadoKB: Math.round((est.usage || 0) / 1024), tetoKB: Math.round((est.quota || 0) / 1024) } : null,
+    swAtivo: !!(navigator.serviceWorker && navigator.serviceWorker.controller),
+    settings: s, flags: store.getFlags(),
+    checkins: store.getCheckins(),
+    cardapios: store.listBotecoMenus().map((m) => ({ nome: m.name, itens: (m.defs || []).length, em: m.at })),
+    historicoTotal: store.getHistory().length,
+    historico: store.getHistory().slice(0, 10).map((h) => ({ titulo: h.title || '', em: h.at, gasto: h.myMoney || 0 })),
+    mesa: room ? { sala: room, titulo: tableInfo(state).title || '', eventos: log.length, itens: state.items.size } : null,
+    diario: store.getDevLog(),
+  };
+}
+async function shareDevReport() {
+  const rep = await buildDevReport();
+  window.__devReport = rep; // raio-x p/ e2e (padrão __presDbg)
+  const txt = JSON.stringify(rep, null, 2);
+  const d = new Date(); const p2 = (n) => String(n).padStart(2, '0');
+  const fname = `botequei-relatorio-${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}.json`;
+  try {
+    const file = new File([txt], fname, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Botequei — relatório' });
+      return; // o sheet do sistema já é o feedback
+    }
+  } catch (e) { if (e && e.name === 'AbortError') return; /* desistiu do share: não força o download */ }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' }));
+  a.download = fname; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  ui.toast(t('toast.reportSaved'));
+}
+
 const handlers = {
   onName: (v) => setName(v),
   onCreate: () => { if (!getName()) { ui.toast(t('toast.needName')); return; } enterTable(newRoomCode(), { create: true }); },
@@ -3007,13 +3080,18 @@ const handlers = {
     ui.closeOverlays();
     await enterTable(newRoomCode(), { create: true });
     setTable({ title: name });
+    dlog('boteco.carregado', { nome: name, itens: defs.length, de: 'ficha' });
     let n = 0;
     for (const d of defs) if (d && d.id && emitLocal(makeItem(d))) n++;
     if (n) { render(); botecoLoadedToast(defs, n); }
   },
   onCheckin: (name) => {
     const nm = ((name || '').trim() || (room ? tableInfo(state).title : '') || t('pass.fallback')).slice(0, 40);
+    // ⚠️ diagnóstico de campo: 'checkin.toque' SEM um 'checkin.salvo' logo depois = o GPS pendurou
+    // (prompt de permissão sem resposta não dispara callback NEM timeout — o comedor de check-in)
+    dlog('checkin.toque', { nome: nm, geo: !!(settings.geo && navigator.geolocation) });
     const save = (lat, lng) => {
+      dlog('checkin.salvo', { nome: nm, gps: lat != null });
       store.addCheckin({ name: nm, at: Date.now(), lat, lng });
       ui.openPassport({ checkins: store.getCheckins() });
       ui.toast(t('toast.checkin')); sound.pop();
@@ -3032,6 +3110,7 @@ const handlers = {
     const defs = store.getBotecoMenu(bn);
     if (!defs.length) return;
     if (!tableInfo(state).title && bn) setTable({ title: bn });
+    dlog('boteco.carregado', { nome: bn, itens: defs.length, de: 'mesa' });
     let n = 0;
     for (const d of defs) if (d && d.id && emitLocal(makeItem(d))) n++;
     if (n) { render(); botecoLoadedToast(defs, n); }
@@ -3075,6 +3154,13 @@ const handlers = {
     if (mesh && mesh.connectedCount() > 0) { mesh.sendFx({ kind: 'waiter', from: self, fromName: getName() || t('common.someoneLow') }); ui.toast(t('toast.waiterCalled')); }
     else ui.toast(t('toast.waiterAlone'));
   },
+  // 🐛 Modo dev: liga/desliga o diário técnico (o marco de ligar já entra no diário)
+  onDevToggle: (on) => {
+    settings = setSettings({ dev: !!on });
+    dlog('dev', { on: on ? 1 : 0 });
+    ui.toast(t(on ? 'toast.devOn' : 'toast.devOff'));
+  },
+  onDevReport: () => shareDevReport(),
   onExportData: () => {
     try {
       const data = JSON.stringify(store.exportAll(), null, 2);
@@ -3127,6 +3213,17 @@ const handlers = {
   // auto-update assume (toast "atualizando…" e aplica); não achou → "está na última";
   // sem rede → diz a versão sem prometer nada.
   onCheckUpdate: async () => {
+    // 🐛 Destravar o modo dev à la Android: 7 toques SEGUIDOS na versão (<1,6s entre eles).
+    // Rajada não re-confere atualização — só o 1º toque pergunta ao servidor; do 4º ao 6º um
+    // toast conta quantos faltam; no 7º a seção 🐛 aparece nas configs (e a flag fica pra sempre).
+    const now = Date.now();
+    verTaps = now - verTapAt < 1600 ? verTaps + 1 : 1; verTapAt = now;
+    if (verTaps >= 2) {
+      if (store.getFlag('devUnlocked')) return; // já destravado: rajada não faz nada
+      if (verTaps >= 7) { store.setFlag('devUnlocked'); ui.showDev(true); ui.toast(t('dev.unlocked')); sound.pop(); return; }
+      if (verTaps >= 4) ui.toast(t('dev.count', { n: 7 - verTaps }));
+      return;
+    }
     ui.toast(t('ver.checking'));
     try {
       const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
@@ -3179,6 +3276,8 @@ function boot() {
   if (settings.shake) enableShake();
   ui.setNameInput(getName());
   ui.renderHome(store.getHistory(), meAvatar());
+  ui.showDev(store.getFlag('devUnlocked')); // seção 🐛 já destravada uma vez? aparece desde o boot
+  dlog('boot', { v: VERSION, pwa: window.matchMedia('(display-mode: standalone)').matches });
 
   const inv = parseInvite();
   if (inv) {

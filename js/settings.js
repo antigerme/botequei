@@ -12,6 +12,7 @@ const DEFAULTS = {
   pixCity: '',       // cidade do recebedor (BR Code)
   tipPct: 10,        // gorjeta padrão na hora de fechar a conta
   lang: 'auto',      // idioma ('auto' segue o navegador; 'pt'|'en'|'es' = escolha manual)
+  dev: false,        // modo desenvolvedor (diário técnico local; destrava com 7 toques na versão)
 };
 
 export function getSettings() {

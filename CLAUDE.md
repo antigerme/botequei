@@ -225,6 +225,20 @@ padrão Auto segue o navegador).
   purrinha/dominó. Setup: chip "🤖 Chamar a turma" (0–3) em cada jogo; sozinho já vem 1.
 - **Mãos livres (puro)**: `devicemotion` soma +1 ao chacoalhar o celular (settings `shake`,
   item mais consumido via `topItem`).
+- **🐛 Modo desenvolvedor (caça-bug de campo)**: o app é P2P/sem servidor → TODO log que existe
+  mora no aparelho. Destrava à la Android: **7 toques na versão** nas ⚙️ (o `onCheckUpdate` conta a
+  rajada — toques <1,6s entre si NÃO re-conferem atualização, só o 1º; do 4º ao 6º um toast conta,
+  no 7º a flag `devUnlocked` fica pra sempre e a seção `#dev-section` aparece). O switch
+  (`settings.dev`, off de fábrica) liga o **diário técnico**: `dlog(k, data)` no `app.js` (NO-OP
+  desligado, custo zero) grava eventos-chave num **anel FIFO teto 500** (`store.addDevLog`, chave
+  `botequei.devlog`) — check-in (`checkin.toque` SEM `checkin.salvo` logo depois = GPS pendurou),
+  gps/geo, boteco salvo/carregado, mesa entrar/sair, boot e erros globais (onerror/unhandledrejection,
+  mensagem ≤200 chars). **📤 Compartilhar relatório** monta um JSON com versão, aparelho, PERMISSÕES
+  (localização/câmera via Permissions API — o estado 'prompt' é o comedor de check-in), storage,
+  settings (a foto de perfil é REDIGIDA: só o tamanho, nunca o dataURL), flags, check-ins, cardápios
+  salvos, resumo do histórico, mesa aberta e o diário — Web Share com arquivo (mesmo motor da foto da
+  noite) e fallback de download. `window.__devReport` é o raio-x pro e2e (padrão `__presDbg`); o
+  `e2e-dev` trava destravar/persistir/diário/redação da foto. Nada sai do aparelho sozinho.
 - **Hub do "Você" (avatar)** (`ui.openMe`, overlay `#overlay-me`): junta o que é PESSOAL num lugar
   só — 👤 perfil, 📊 números, 🎞️ retrô, 🗺️ passaporte, ⚙️ configurações (cada item abre o overlay
   que JÁ existe; padrão de troca do menu). DUAS portas, o mesmo hub: o **avatar no canto da home**

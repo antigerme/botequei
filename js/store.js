@@ -58,6 +58,15 @@ export function removeHistory(room) {
 const K_FLAGS = 'botequei.flags';
 export function getFlag(name) { const v = readJSON(K_FLAGS, {}); return !!(v && v[name]); }
 export function setFlag(name) { const v = readJSON(K_FLAGS, {}) || {}; v[name] = Date.now(); writeJSON(K_FLAGS, v); }
+export function getFlags() { return readJSON(K_FLAGS, {}) || {}; } // cru, pro relatório do modo dev
+
+// ---- Diário técnico (modo desenvolvedor) ----
+// Anel FIFO com teto: caça-bug não pode inchar o localStorage (a foto de perfil já come quota).
+// Só entra algo aqui com o switch dev LIGADO (o dlog do app.js é no-op desligado).
+const K_DEVLOG = 'botequei.devlog';
+const DEVLOG_MAX = 500;
+export function getDevLog() { const v = readJSON(K_DEVLOG, []); return Array.isArray(v) ? v : []; }
+export function addDevLog(entry) { const list = getDevLog(); list.push(entry); writeJSON(K_DEVLOG, list.slice(-DEVLOG_MAX)); }
 
 // ---- Passaporte de botecos (check-ins locais) ----
 const K_PASS = 'botequei.passport';

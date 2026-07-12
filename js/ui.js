@@ -64,6 +64,7 @@ const IDS = [
   'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall', 'bill-bankrolls',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
   'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-keepawake', 'set-geo', 'btn-version',
+  'dev-section', 'set-dev', 'btn-dev-report',
   'set-lang',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
@@ -312,6 +313,8 @@ export function init(handlers) {
   el['set-shake'].addEventListener('change', () => H.onShakeToggle(el['set-shake'].checked));
   el['set-keepawake'].addEventListener('change', () => H.onSetting({ keepAwake: el['set-keepawake'].checked }));
   el['set-geo'].addEventListener('change', () => H.onGeoToggle(el['set-geo'].checked)); // ligar pede a permissão; recusar volta pra off
+  el['set-dev'].addEventListener('change', () => H.onDevToggle(el['set-dev'].checked));
+  el['btn-dev-report'].addEventListener('click', () => H.onDevReport());
 
   // versão no rodapé das configs (serial de zona YYYYMMDDnn): tocar confere se há mais nova
   el['btn-version'].textContent = '🍺 Botequei ' + verLabel(VERSION);
@@ -1058,9 +1061,13 @@ export function fillSettings(s) {
   el['set-shake'].checked = !!s.shake;
   el['set-keepawake'].checked = s.keepAwake !== false; // default ligado
   el['set-geo'].checked = s.geo !== false;             // default ligado (o 1º uso pede a permissão)
+  el['set-dev'].checked = !!s.dev;                     // modo desenvolvedor (seção só aparece destravada)
   el['set-pixkey'].value = s.pixKey || '';
   el['set-pixcity'].value = s.pixCity || '';
 }
+// Seção 🐛 Desenvolvedor: escondida de fábrica; o app mostra depois dos 7 toques na versão
+// (e no boot, se a flag devUnlocked já existe — destravou uma vez, fica).
+export function showDev(show) { el['dev-section'].hidden = !show; }
 function prefersLight() { try { return window.matchMedia('(prefers-color-scheme: light)').matches; } catch { return false; } }
 // Padrão de fábrica: CLARO. 'auto' (escolha manual) segue o sistema; senão usa o tema escolhido.
 function resolveTheme(s) {

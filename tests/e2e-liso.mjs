@@ -118,14 +118,16 @@ async function main() {
       if (pickOpen) throw new Error('pergunta de tema apareceu de novo no reload');
     });
 
-    await step('"🎓 Tour do Botequei": índice com 4 trilhas; a 💸 ABRE o menu de verdade na parada 2', async () => {
+    await step('"🎓 Tour do Botequei": índice com 6 trilhas (inclui 🗺️ botecos + 👤 seu canto); a 💸 ABRE o menu de verdade na parada 2', async () => {
       await page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
       await page.click('#btn-menu');
       await page.waitForFunction(() => !document.getElementById('overlay-menu').hidden, null, { timeout: T });
       await page.click('#menu-tour');
       await page.waitForFunction(() => !document.getElementById('overlay-tour').hidden, null, { timeout: T });
       const trails = await page.evaluate(() => document.querySelectorAll('#tour-trails [data-trail]').length);
-      if (trails !== 4) throw new Error('esperava 4 trilhas no índice, vi ' + trails);
+      if (trails !== 6) throw new Error('esperava 6 trilhas no índice, vi ' + trails);
+      const novas = await page.evaluate(() => ['botecos', 'canto'].every((id) => !!document.querySelector(`#tour-trails [data-trail="${id}"]`)));
+      if (!novas) throw new Error('as trilhas novas (botecos, canto) não apareceram no índice');
       await page.click('#tour-trails [data-trail="conta"]');
       await vis(page, 'tour');
       const dots = await page.evaluate(() => document.querySelectorAll('#tour-count .tour-dot').length);
@@ -136,6 +138,22 @@ async function main() {
       await page.waitForFunction(() => document.getElementById('tour').hidden, null, { timeout: 5000 });
       const clean = await page.evaluate(() => document.getElementById('overlay-menu').hidden && document.getElementById('overlay-themepick').hidden);
       if (!clean) throw new Error('fim da trilha deveria FECHAR o menu e não re-perguntar o tema');
+    });
+
+    await step('trilha 🗺️ Botecos: a parada 1 ABRE o convite de verdade e aponta o campo do bar', async () => {
+      await page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+      await page.click('#btn-menu');
+      await page.waitForFunction(() => !document.getElementById('overlay-menu').hidden, null, { timeout: T });
+      await page.click('#menu-tour');
+      await page.waitForFunction(() => !document.getElementById('overlay-tour').hidden, null, { timeout: T });
+      await page.click('#tour-trails [data-trail="botecos"]');
+      // a 1ª parada tem `pre` (openInvitePre) → o convite abre DE VERDADE e o spotlight cai no campo do bar
+      await page.waitForFunction(() => !document.getElementById('overlay-invite').hidden && !document.getElementById('tour').hidden, null, { timeout: 8000 });
+      const spot = await page.evaluate(() => { const s = document.getElementById('tour-spot').getBoundingClientRect(); return s.width > 8 && s.height > 8; });
+      if (!spot) throw new Error('a parada 1 da trilha botecos não mostrou o spotlight');
+      await page.click('#btn-tour-skip'); // "pular" fecha o tour + overlays
+      await page.waitForFunction(() => document.getElementById('tour').hidden, null, { timeout: 5000 });
+      await page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
     });
 
     await step('configurações mostram a VERSÃO (serial de zona legível) no rodapé', async () => {

@@ -473,24 +473,60 @@ function afterChange(item, kind) {
 const CHECKIN_FRESH_MS = 6 * 3600e3; // ~6h: um rolê. Check-in velho não cola numa mesa nova.
 const GPS_RADIUS_M = 250;            // "estou nesse boteco" — folga pra imprecisão do GPS.
 let gpsBoteco = '';                  // boteco detectado por perto nesta sessão (some ao sair)
+let autoCheckedIn = false;           // já registrei o check-in automático desta sessão de join?
 function freshCheckin() {
   const c = store.getCheckins()[0];
   return (c && c.name && (Date.now() - (c.at || 0)) < CHECKIN_FRESH_MS) ? c.name : '';
 }
 function sessionBoteco() { return tableInfo(state).title || freshCheckin() || gpsBoteco; }
 
-// Sugere o boteco POR GPS (opt-in): só se você JÁ concedeu a localização (não pergunta agora) —
-// aí, ao criar a mesa, se estiver perto de um lugar onde já fez check-in com cardápio salvo,
-// o CTA "📓 Carregar cardápio do {nome}" aparece sozinho. Tudo local; nada sai do aparelho.
+const GEO_OPTS = { timeout: 8000, maximumAge: 300000 };
+// Recusou o NOSSO pedido de localização → desliga o switch (não insiste) e avisa. Só o "negou de
+// verdade" (code 1 = PERMISSION_DENIED); timeout/indisponível são passageiros e mantêm o switch on.
+function geoDeny(err) {
+  if (!err || err.code !== 1) return;
+  settings = setSettings({ geo: false });
+  ui.fillSettings(settings);
+  ui.toast(t('toast.geoDenied'));
+}
+// Sugere o boteco POR GPS: com o switch LIGADO (default), ao criar a mesa perto de um lugar onde
+// você já fez check-in COM cardápio salvo, PERGUNTA se quer carregar ("você está no {nome}?"). O
+// 'prompt' pede a permissão AGORA (o toque de criar a mesa é o gesto); 'denied' reflete no switch.
+// Tudo local; nada sai do aparelho.
 function maybeSuggestByGps() {
-  if (!navigator.geolocation || !navigator.permissions || !navigator.permissions.query) return;
-  navigator.permissions.query({ name: 'geolocation' }).then((st) => {
-    if (!st || st.state !== 'granted') return; // opt-in = permissão já dada (senão não incomoda)
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const name = nearestBoteco(store.getCheckins(), pos.coords.latitude, pos.coords.longitude, GPS_RADIUS_M);
-      if (name && store.hasBotecoMenu(name) && room && !state.items.size) { gpsBoteco = name; render(); }
-    }, () => {}, { timeout: 8000, maximumAge: 300000 });
-  }).catch(() => { /* sem permissions API: sem sugestão por GPS */ });
+  if (!settings.geo || !navigator.geolocation) return;
+  const go = () => navigator.geolocation.getCurrentPosition((pos) => {
+    if (!room || state.items.size) return;
+    const name = nearestBoteco(store.getCheckins(), pos.coords.latitude, pos.coords.longitude, GPS_RADIUS_M);
+    if (name && store.hasBotecoMenu(name)) { gpsBoteco = name; render(); askLoadBoteco(name); }
+  }, geoDeny, GEO_OPTS);
+  if (navigator.permissions && navigator.permissions.query) {
+    navigator.permissions.query({ name: 'geolocation' }).then((st) => {
+      if (st && st.state === 'denied') { settings = setSettings({ geo: false }); ui.fillSettings(settings); return; }
+      go(); // 'granted' usa; 'prompt' pede (o switch está ON = você topou)
+    }).catch(go);
+  } else go();
+}
+// A pergunta de verdade (não só o CTA mudo do empty-state): "Você está no {nome}? Carregar?"
+function askLoadBoteco(name) {
+  ui.actionToast(t('geo.hereQ', { name }), t('geo.hereGo'), () => handlers.onLoadBoteco(), 9000);
+}
+// Entrou na mesa de alguém (join por QR/código) e ela TEM nome de bar → check-in automático no
+// passaporte (ele se enche sozinho conforme você sai). Sem GPS obrigatório; deduplica por check-in
+// fresco do MESMO lugar. Só quem ENTRA (quem cria a mesa usa o atalho 📍 da home).
+function freshCheckinFor(name) {
+  const key = store.botecoKey(name);
+  return store.getCheckins().some((c) => c.name && store.botecoKey(c.name) === key && (Date.now() - (c.at || 0)) < CHECKIN_FRESH_MS);
+}
+function maybeAutoCheckin() {
+  if (autoCheckedIn || !sessionJoined || !room) return;
+  const title = tableInfo(state).title;
+  if (!title) return;          // mesa sem nome → sem check-in fantasma
+  autoCheckedIn = true;        // marca ANTES do async (o render pode re-chamar antes de resolver)
+  if (freshCheckinFor(title)) return; // já tem check-in fresco desse bar → não duplica
+  const save = (lat, lng) => { store.addCheckin({ name: title, at: Date.now(), lat, lng }); ui.toast(t('toast.autoCheckin', { name: title })); sound.pop(); };
+  if (settings.geo && navigator.geolocation) navigator.geolocation.getCurrentPosition((p) => save(p.coords.latitude, p.coords.longitude), () => save(null, null), GEO_OPTS);
+  else save(null, null);
 }
 
 // Toast pós-carregar o cardápio: se tem preço, vira ação "revisar preços" (podem ter mudado
@@ -504,6 +540,7 @@ function botecoLoadedToast(defs, n) {
 
 function render() {
   if (!room) return;
+  maybeAutoCheckin(); // entrei numa mesa nomeada? check-in automático no passaporte (uma vez)
   const list = allItems();
   // share mostra o contador DA MESA no número grande (sem contagem pessoal por copo)
   const items = list.filter((it) => !it.off).map((it) => ({
@@ -666,6 +703,7 @@ function clearCatchup() { // ao sair da mesa: zera tudo (não vaza o resumo pra 
 async function enterTable(code, { create = false, pin = '', joined = false } = {}) {
   room = code; roomPin = pin; sessionStart = Date.now(); sessionMates = new Set();
   sessionJoined = joined; // entrei na mesa de alguém → o cardápio que sincronizar é "aprendido"
+  autoCheckedIn = false; gpsBoteco = ''; // sessão nova: zera o check-in-automático e o boteco por GPS
   store.setCurrent(room);
   // A URL reflete a mesa JÁ AQUI, antes de abrir qualquer overlay: atribuir location.hash é
   // NAVEGAÇÃO (dispara popstate), e o "voltar fecha o overlay" (ui.js) entendia esse popstate
@@ -2965,10 +3003,10 @@ const handlers = {
       ui.openPassport({ checkins: store.getCheckins() });
       ui.toast(t('toast.checkin')); sound.pop();
     };
-    if (navigator.geolocation) {
+    if (settings.geo && navigator.geolocation) {
       ui.toast(t('toast.gettingPlace'));
-      navigator.geolocation.getCurrentPosition((pos) => save(pos.coords.latitude, pos.coords.longitude), () => save(null, null), { timeout: 8000 });
-    } else save(null, null);
+      navigator.geolocation.getCurrentPosition((pos) => save(pos.coords.latitude, pos.coords.longitude), (err) => { geoDeny(err); save(null, null); }, { timeout: 8000 });
+    } else save(null, null); // switch off → check-in só com o nome (sem tocar no GPS)
   },
   // Carrega o cardápio salvo do boteco (nome da mesa OU último check-in fresco): re-emite cada
   // item como evento ITEM — aparece na mesa E espalha pra turma pela malha (CRDT). Dá nome à
@@ -3001,6 +3039,17 @@ const handlers = {
     } catch { ui.toast(t('toast.shareError')); }
   },
   onShakeToggle: (on) => { settings = setSettings({ shake: !!on }); if (on) enableShake(); else disableShake(); ui.toast(on ? t('toast.shakeOn') : t('toast.shakeOff')); },
+  // Switch da localização: desligar = o app para de usar (limpa o boteco por GPS). Ligar = pede a
+  // permissão AGORA (o clique é o gesto); recusar cai no geoDeny (volta o switch pra off + aviso).
+  onGeoToggle: (on) => {
+    settings = setSettings({ geo: !!on });
+    if (!on) { gpsBoteco = ''; ui.toast(t('toast.geoOff')); return; }
+    if (!navigator.geolocation) { settings = setSettings({ geo: false }); ui.fillSettings(settings); ui.toast(t('toast.geoDenied')); return; }
+    ui.toast(t('toast.gettingPlace'));
+    navigator.geolocation.getCurrentPosition(
+      () => { ui.toast(t('toast.geoOn')); if (room && !state.items.size) maybeSuggestByGps(); },
+      geoDeny, GEO_OPTS);
+  },
   onRetroShare: async () => {
     if (!lastRetro) return;
     const res = await shareRetro(lastRetro).catch(() => 'error');

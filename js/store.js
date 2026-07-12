@@ -58,6 +58,31 @@ export function removeHistory(room) {
 const K_FLAGS = 'botequei.flags';
 export function getFlag(name) { const v = readJSON(K_FLAGS, {}); return !!(v && v[name]); }
 export function setFlag(name) { const v = readJSON(K_FLAGS, {}) || {}; v[name] = Date.now(); writeJSON(K_FLAGS, v); }
+export function getFlags() { return readJSON(K_FLAGS, {}) || {}; } // cru, pro relatório do modo dev
+
+// ---- Diário técnico (modo desenvolvedor) ----
+// Anel FIFO com teto: caça-bug não pode inchar o localStorage (a foto de perfil já come quota).
+// Só entra algo aqui com o switch dev LIGADO (o dlog do app.js é no-op desligado).
+// 1500 entradas curtas (~100B cada ≈ 150KB): aguenta o rabo de uma noite inteira com jogos.
+const K_DEVLOG = 'botequei.devlog';
+const DEVLOG_MAX = 1500;
+export function getDevLog() { const v = readJSON(K_DEVLOG, []); return Array.isArray(v) ? v : []; }
+export function addDevLog(entry) { const list = getDevLog(); list.push(entry); writeJSON(K_DEVLOG, list.slice(-DEVLOG_MAX)); }
+// Raio-x do localStorage pro relatório: tamanho de cada chave botequei.* (acha a inchada) +
+// quais NÃO parseiam como JSON (dado corrompido é bug INVISÍVEL — hoje o readJSON engole calado).
+export function storageScan() {
+  const sizes = {}; const corrompidos = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith('botequei.')) continue;
+      const raw = localStorage.getItem(k) || '';
+      sizes[k] = raw.length;
+      if (raw && raw[0] !== undefined && '{['.includes(raw[0])) { try { JSON.parse(raw); } catch { corrompidos.push(k); } }
+    }
+  } catch { /* storage indisponível: relatório segue sem isso */ }
+  return { sizes, corrompidos };
+}
 
 // ---- Passaporte de botecos (check-ins locais) ----
 const K_PASS = 'botequei.passport';

@@ -89,6 +89,111 @@ let deferredPrompt = null;
 
 const self = clientId();
 let settings = getSettings();
+
+// ---- 🐛 Diário técnico (modo desenvolvedor) ----
+// dlog é NO-OP com o switch desligado (custo zero no dia a dia). Ligado, enxerga o APP INTEIRO
+// pelos FUNIS (não por remendo em 200 lugares): toda AÇÃO sua (handlers embrulhados no boot),
+// todo EVENTO da mesa (emitLocal + chegada agregada), todo FX de jogo (sendFx/sendTo/onFx —
+// só kind/fase, NUNCA mão/carta), presença, toasts, jornada de telas/overlays e erros — num
+// anel local (store.addDevLog, teto 1500). O app é P2P/sem servidor: TODO log que existe mora
+// no aparelho, e nada sai daqui sozinho — só no 📤 do relatório.
+function dlog(k, data) {
+  if (!settings.dev) return;
+  try { store.addDevLog({ t: Date.now(), k, ...(data || {}) }); } catch { /* quota: ignora */ }
+}
+// contexto visual (o "print" que interessa pra depurar: ONDE a pessoa estava) — vai junto de erro/📸
+function telaCtx() {
+  try {
+    return {
+      tela: (document.querySelector('.screen.is-active') || {}).id || '',
+      abertos: [...document.querySelectorAll('.overlay:not([hidden])')].map((o) => o.id).join(','),
+    };
+  } catch { return {}; }
+}
+// eventos CHEGANDO agregados por rajada: o anti-entropy manda o log em lotes — 300 eventos de
+// um join viram UMA linha com contagem por tipo (senão o sync afogaria o anel do diário)
+let rxAgg = null;
+function dlogRx(tipo) {
+  if (!settings.dev) return;
+  if (!rxAgg) { rxAgg = {}; setTimeout(() => { const a = rxAgg; rxAgg = null; dlog('ev.rx', a); }, 400); }
+  rxAgg[tipo || '?'] = (rxAgg[tipo || '?'] || 0) + 1;
+}
+// estado PÚBLICO do jogo em curso (fase/rodada) — mão/carta privada NUNCA entra em log/relatório
+function gameSnapshot() {
+  const pick = (o, ks, r) => {
+    for (const k of ks) if (o && o[k] !== undefined && o[k] !== null && typeof o[k] !== 'object') r[k] = String(o[k]).slice(0, 12);
+    return r;
+  };
+  if (purr) return pick(purr, ['phase', 'rd', 'mode'], { j: 'purrinha' });
+  if (dom) return pick(dom, ['phase', 'over'], { j: 'domino' });
+  if (truco) return pick(truco, ['phase', 'over'], { j: 'truco' });
+  return null;
+}
+// Erros globais entram no diário COM o contexto de tela (snapshot automático do crash)
+window.addEventListener('error', (e) => dlog('erro', { m: String((e && e.message) || '').slice(0, 200), ...telaCtx() }));
+window.addEventListener('unhandledrejection', (e) => {
+  const r = e && e.reason;
+  dlog('erro', { m: String((r && r.message) || r || '').slice(0, 200), ...telaCtx() });
+});
+let verTaps = 0, verTapAt = 0; // 7 toques na versão (à la Android) destravam a seção 🐛
+let lastMalha = null;          // assinatura da última presença logada (loga só MUDANÇA)
+let lastHidden = null;         // última visibilidade logada (escondeu/voltou o app)
+let maxSkew = 0;               // maior desvio visto entre o ts de um evento AO VIVO e o relógio local
+let meshStartAt = 0, meshConnLogged = false; // t.conexao: início da malha e se já logou a 1ª formação
+let lastTransp = null;         // último transporte da sinalização logado (ws/poll — loga a virada)
+let lastLongAt = 0;            // throttle das long tasks (não afogar o diário numa rajada de travadas)
+let gameStallTimer = null;     // detector de jogo PARADO (30s sem progresso → snapshot público)
+const peerVersSeen = new Set();// versões de peer já logadas (uma linha por versão nova vista)
+// Watchdog de async: arma um alarme; se o `disarm()` não vier no prazo, a operação PENDUROU
+// (o clássico: prompt de permissão sem resposta não dispara callback NEM timeout). Vira `pendurada`.
+function armWatchdog(kind, ms) {
+  if (!settings.dev) return () => {};
+  let live = true;
+  const tm = setTimeout(() => { if (live) { live = false; dlog('pendurada', { o: kind }); } }, ms);
+  return () => { if (live) { live = false; clearTimeout(tm); } };
+}
+// Porta ÚNICA da geolocalização: centraliza os 4 pontos que pediam GPS + arma o watchdog (o
+// `getCurrentPosition` que pendura no prompt vira `pendurada {o:'geo:...'}` no diário).
+function geoGet(kind, ok, err, opts) {
+  if (!navigator.geolocation) { if (err) err({ code: 2 }); return; }
+  const dis = armWatchdog('geo:' + kind, ((opts && opts.timeout) || 8000) + 3000);
+  navigator.geolocation.getCurrentPosition((p) => { dis(); ok(p); }, (e) => { dis(); if (err) err(e); }, opts);
+}
+// console.error/warn no diário: o navegador cospe aviso de WebRTC/storage/SW aí e some — é onde
+// mora a pista de bug de conexão. dlog é no-op desligado, então o custo real é zero fora do modo dev.
+for (const lvl of ['error', 'warn']) {
+  const orig = console[lvl] ? console[lvl].bind(console) : () => {};
+  console[lvl] = (...a) => { try { dlog('console', { n: lvl, m: a.map((x) => (x && x.message) || String(x)).join(' ').slice(0, 200) }); } catch { /* ignore */ } orig(...a); };
+}
+// Travadinha do nada: long task (>200ms na main thread) com contexto de tela, com throttle de 800ms.
+try {
+  if (window.PerformanceObserver) {
+    new window.PerformanceObserver((list) => {
+      for (const e of list.getEntries()) {
+        if (e.duration <= 200) continue;
+        const now = Date.now(); if (now - lastLongAt < 800) continue; lastLongAt = now;
+        dlog('lenta', { ms: Math.round(e.duration), ...telaCtx() });
+      }
+    }).observe({ entryTypes: ['longtask'] });
+  }
+} catch { /* longtask não suportado: sem drama */ }
+// 📸 automática num momento ANORMAL (fim de jogo cancelado/noshow/trapaça pega): fotografa o
+// estado na hora, sem depender do André lembrar de apertar. Reusa o mesmo snapshot público.
+function devShotAuto(motivo) {
+  if (!settings.dev) return;
+  dlog('foto.auto', { motivo, ...telaCtx(), ...(gameSnapshot() ? { jogo: JSON.stringify(gameSnapshot()) } : {}) });
+}
+// Jogo PARADO: rearma um relógio de 30s a cada mexida na partida (jogada minha/dos outros,
+// mudança de presença); se estourar, o jogo congelou → snapshot público (fase/vez/online).
+function armGameStall() {
+  if (gameStallTimer) { clearTimeout(gameStallTimer); gameStallTimer = null; }
+  if (!settings.dev) return;
+  if (!(purr || dom || truco)) return; // sem jogo aberto: nada a vigiar
+  gameStallTimer = setTimeout(() => {
+    const on = mesh ? mesh.peers().filter((p) => p.online).length + 1 : 1;
+    dlog('jogo.parado', { ...(gameSnapshot() || {}), online: on });
+  }, 30000);
+}
 let offlineWaiting = false;   // convidado esperando o anfitrião ler a resposta (fecha sozinho ao conectar)
 let lastTableMilestone = 0;   // comemora a cada 10 rodadas da mesa (marco); sincronizado no sync
 let hhEndedFor = 0;           // 'until' do happy hour cujo fechamento já foi comemorado
@@ -194,6 +299,7 @@ function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => 
 // evento local: registra + propaga
 function emitLocal(ev) {
   if (!ingest(ev)) return false;
+  dlog('ev', { tipo: ev.type, item: ev.item || (ev.def && ev.def.id) || '' }); // só tipo+id — payload (foto/def) NÃO entra
   if (mesh) mesh.broadcast({ k: 'ev', ev });
   return true;
 }
@@ -346,6 +452,7 @@ function gameFx(fx) {
   if (!mesh) return;
   fx.mid = self + ':' + (fxSeq++);
   markSeenFx(fx.mid);
+  armGameStall(); // eu joguei → a partida progrediu, re-arma o vigia de "jogo parado"
   mesh.sendFx(fx);
 }
 function onFx(fx, fromId) {
@@ -355,6 +462,11 @@ function onFx(fx, fromId) {
     if (seenFx.has(fx.mid)) return;
     markSeenFx(fx.mid);
     if (mesh) mesh.broadcast({ k: 'fx', fx }, fromId);
+  }
+  dlog('fx.rx', { k: fx.kind || '?', ph: fx.ph || '', de: String(fromId || '').slice(0, 6) }); // pós-dedup: só o que APLICOU
+  if (fx.kind === 'domino' || fx.kind === 'purrinha' || fx.kind === 'truco') {
+    armGameStall(); // chegou jogada → a partida progrediu, re-arma o vigia de "jogo parado"
+    if (fx.ph === 'cancel' || fx.ph === 'noshow') devShotAuto('jogo:' + fx.ph); // fim anormal → 📸 automática
   }
   if (fx.kind === 'brinde') ui.brinde();
   else if (fx.kind === 'react') ui.floatReaction(fx.emoji || '🍻');
@@ -444,6 +556,14 @@ function receiveChallenge(fx) {
 // ---- Eventos remotos ----
 function onRemoteEvent(ev, fromPeer, isSync) {
   if (!ingest(ev)) return;
+  dlogRx(ev.type); // agregado por rajada (sync em lote vira UMA linha com contagens)
+  // Desvio de relógio: o LWW decide por ts — relógio adiantado de alguém faz nome/preço "voltar
+  // sozinho". Mede só evento AO VIVO (o do sync é histórico, ts velho de propósito).
+  if (settings.dev && !isSync && ev.ts) {
+    const sk = Date.now() - Number(ev.ts);
+    if (Math.abs(sk) > Math.abs(maxSkew)) maxSkew = sk;
+    if (Math.abs(sk) > 5000) dlog('relogio', { desvioMs: sk, de: String(fromPeer || '').slice(0, 6) });
+  }
   if (mesh) mesh.broadcast({ k: 'ev', ev }, fromPeer); // gossip
   if (ev.type === 'HAPPYHOUR' && Number(ev.until) <= Date.now()) hhEndedFor = Number(ev.until); // happy hour já vencido (veio no sync): não comemora
   if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state) / 10); if (catchupPending) scheduleCatchup(); scheduleRender(); return; }
@@ -484,6 +604,7 @@ const GEO_OPTS = { timeout: 8000, maximumAge: 300000 };
 // Recusou o NOSSO pedido de localização → desliga o switch (não insiste) e avisa. Só o "negou de
 // verdade" (code 1 = PERMISSION_DENIED); timeout/indisponível são passageiros e mantêm o switch on.
 function geoDeny(err) {
+  dlog('geo.erro', { code: (err && err.code) || 0 }); // 1=negou, 2=indisponível, 3=timeout
   if (!err || err.code !== 1) return;
   settings = setSettings({ geo: false });
   ui.fillSettings(settings);
@@ -495,9 +616,11 @@ function geoDeny(err) {
 // Tudo local; nada sai do aparelho.
 function maybeSuggestByGps() {
   if (!settings.geo || !navigator.geolocation) return;
-  const go = () => navigator.geolocation.getCurrentPosition((pos) => {
+  dlog('gps.olhando', {});
+  const go = () => geoGet('sugestao', (pos) => {
     if (!room || state.items.size) return;
     const name = nearestBoteco(store.getCheckins(), pos.coords.latitude, pos.coords.longitude, GPS_RADIUS_M);
+    dlog('gps.resultado', { perto: name || '', cardapio: !!(name && store.hasBotecoMenu(name)) });
     if (name && store.hasBotecoMenu(name)) { gpsBoteco = name; render(); askLoadBoteco(name); }
   }, geoDeny, GEO_OPTS);
   if (navigator.permissions && navigator.permissions.query) {
@@ -524,8 +647,9 @@ function maybeAutoCheckin() {
   if (!title) return;          // mesa sem nome → sem check-in fantasma
   autoCheckedIn = true;        // marca ANTES do async (o render pode re-chamar antes de resolver)
   if (freshCheckinFor(title)) return; // já tem check-in fresco desse bar → não duplica
-  const save = (lat, lng) => { store.addCheckin({ name: title, at: Date.now(), lat, lng }); ui.toast(t('toast.autoCheckin', { name: title })); sound.pop(); };
-  if (settings.geo && navigator.geolocation) navigator.geolocation.getCurrentPosition((p) => save(p.coords.latitude, p.coords.longitude), () => save(null, null), GEO_OPTS);
+  dlog('checkin.auto', { nome: title });
+  const save = (lat, lng) => { dlog('checkin.salvo', { nome: title, gps: lat != null, auto: 1 }); store.addCheckin({ name: title, at: Date.now(), lat, lng }); ui.toast(t('toast.autoCheckin', { name: title })); sound.pop(); };
+  if (settings.geo && navigator.geolocation) geoGet('autocheckin', (p) => save(p.coords.latitude, p.coords.longitude), () => save(null, null), GEO_OPTS);
   else save(null, null);
 }
 
@@ -678,7 +802,7 @@ function snapshotAway() {
 // depois do último evento sincronizado, com teto de 15s (mesa movimentada não segura o resumo).
 function returnFromAway() {
   if (!room || !awaySnap) return;
-  catchupPending = { total: awaySnap.total, deadline: Date.now() + CATCHUP_MAX_MS };
+  catchupPending = { total: awaySnap.total, deadline: Date.now() + CATCHUP_MAX_MS, startedAt: Date.now() };
   awaySnap = null;
   scheduleCatchup();
 }
@@ -693,6 +817,7 @@ function runCatchup() {
   const snap = catchupPending; catchupPending = null;
   if (!snap || !room) return;
   const d = tableTotal(state) - snap.total; // quanto a mesa andou enquanto você esteve fora
+  dlog('sync', { ms: Date.now() - (snap.startedAt || Date.now()), delta: d }); // t.sync: quanto a re-sync demorou pra assentar
   if (d > 0) ui.toast(t('catchup.back', { n: d })); // silêncio se nada mudou (não cutuca à toa)
 }
 function clearCatchup() { // ao sair da mesa: zera tudo (não vaza o resumo pra próxima mesa)
@@ -701,6 +826,7 @@ function clearCatchup() { // ao sair da mesa: zera tudo (não vaza o resumo pra 
 }
 
 async function enterTable(code, { create = false, pin = '', joined = false } = {}) {
+  dlog('mesa.entrar', { sala: String(code || '').slice(0, 8), criei: !!create, entrei: !!joined });
   room = code; roomPin = pin; sessionStart = Date.now(); sessionMates = new Set();
   sessionJoined = joined; // entrei na mesa de alguém → o cardápio que sincronizar é "aprendido"
   autoCheckedIn = false; gpsBoteco = ''; // sessão nova: zera o check-in-automático e o boteco por GPS
@@ -743,6 +869,18 @@ function enterTableOffline(code) {
 }
 
 function onMeshChange() {
+  if (settings.dev && mesh) {
+    const ps = mesh.peers();
+    const sig = ps.filter((p) => p.online).map((p) => String(p.user).slice(0, 6)).sort().join(','); // presença: só a mudança
+    if (sig !== lastMalha) { lastMalha = sig; dlog('malha', { on: sig || '(só eu)' }); }
+    const tp = window.__sigTransport; // transporte da sinalização (ws↔poll): loga a virada
+    if (tp && tp !== lastTransp) { lastTransp = tp; dlog('transporte', { t: tp }); }
+    if (!meshConnLogged && mesh.connectedCount() > 0) { meshConnLogged = true; dlog('conexao', { ms: Date.now() - meshStartAt }); } // t.conexao
+    for (const p of ps) { // versão de cada peer (mesa com versões diferentes = fonte real de bug)
+      const key = p.user + '@' + p.ver;
+      if (p.ver && !peerVersSeen.has(key)) { peerVersSeen.add(key); dlog('versao.peer', { de: String(p.user).slice(0, 6), v: p.ver, igual: p.ver === VERSION }); }
+    }
+  }
   diffPresence();
   render();
   if (purr && mesh) for (const p of mesh.peers()) if (p.online) purrSeenAt.set(p.user, Date.now()); // presença fresca p/ a graça da rodada
@@ -844,11 +982,18 @@ function startMesh(iceServers) {
   presenceSeeded = false; prevOnline = new Set();
   everSeen = new Set(); saidBye = new Set(); leftQuiet = new Set(); awaySince = new Map();
   for (const g of goneAt.values()) clearTimeout(g.tm); goneAt = new Map();
+  meshStartAt = Date.now(); meshConnLogged = false; // 🐛 t.conexao: quanto a malha demora pra formar
   mesh = new Mesh({
-    room: sigRoom(room, roomPin), code: room, selfId: self, name: getName(), iceServers,
+    room: sigRoom(room, roomPin), code: room, selfId: self, name: getName(), ver: VERSION, iceServers,
     onEvent: onRemoteEvent, onFx, onPeersChange: onMeshChange, onStatus: onMeshChange,
     getSyncPayload: () => log,
   });
+  // 🐛 espião do diário nos DOIS canos de fx (broadcast e canal direto): loga só kind/fase —
+  // NUNCA o payload (a mão privada do dominó/truco viaja pelo sendTo; carta não entra em log)
+  const rawSendFx = mesh.sendFx.bind(mesh);
+  mesh.sendFx = (fx) => { dlog('fx.tx', { k: (fx && fx.kind) || '?', ph: (fx && fx.ph) || '' }); return rawSendFx(fx); };
+  const rawSendTo = mesh.sendTo.bind(mesh);
+  mesh.sendTo = (id, obj) => { if (obj && obj.k === 'fx' && obj.fx) dlog('fx.tx1', { k: obj.fx.kind || '?', ph: obj.fx.ph || '', p: String(id).slice(0, 6) }); return rawSendTo(id, obj); };
   mesh.start();
   // publica meu perfil (cor/avatar/foto) pra galera
   emitLocal(makeProfile({ color: settings.profColor || autoColor(self), emoji: settings.profEmoji || autoAvatar(self), driver: myDriver, level: myLevel(), photo: settings.profPhoto || '' }));
@@ -866,12 +1011,14 @@ function restartMesh() {
 
 async function loadIce() {
   const fallback = [{ urls: 'stun:stun.l.google.com:19302' }];
+  const dis = armWatchdog('turn', 9000); // /turn pendurado (proxy lento) vira `pendurada {o:'turn'}`
   try {
     const r = await fetch('turn', { cache: 'no-store' });
+    dis();
     if (r.status !== 200) return fallback;
     const d = await r.json();
     return Array.isArray(d.iceServers) && d.iceServers.length ? d.iceServers : fallback;
-  } catch { return fallback; }
+  } catch { dis(); return fallback; }
 }
 
 function myItems() {
@@ -881,6 +1028,7 @@ function myItems() {
 }
 function leaveTable() {
   if (room) {
+    dlog('mesa.sair', { titulo: tableInfo(state).title || '' });
     store.saveEvents(room, log);
     const info = tableInfo(state);
     store.pushHistory({
@@ -902,6 +1050,7 @@ function leaveTable() {
       const seed = info.title || (fresh && !store.hasBotecoMenu(fresh) ? fresh : '');
       if (defs.length && seed) {
         const knew = store.hasBotecoMenu(seed); // já conhecia esse cardápio antes de salvar agora?
+        dlog('boteco.salvo', { nome: seed, itens: defs.length });
         store.saveBotecoMenu(seed, defs);
         // Efeito de rede: entrei na mesa de ALGUÉM e aprendi um cardápio novo pela sincronização.
         ui.toast(sessionJoined && !knew ? t('toast.botecoLearned', { name: seed }) : t('toast.botecoSaved', { name: seed }));
@@ -1100,6 +1249,7 @@ function updateGamePill() {
     parts.push({ kind: 'truco', urgent: myTurn, label: myTurn ? t('game.pillTruTurn') : t('game.pillTru') });
   }
   ui.setGamePill(parts);
+  armGameStall(); // 🐛 estado de jogo mudou (jogada/presença) → re-arma o vigia de "jogo parado"
 }
 
 // ---- Atualização automática do app (service worker) ----
@@ -1113,6 +1263,7 @@ function swBusy() {
 function trySwUpdate() {
   if (!swPending || swBusy()) return;
   const w = swPending; swPending = null;
+  dlog('sw.update', { v: VERSION }); // versão nova aplicando (o "meu app tá velho" vira diagnóstico)
   ui.toast(t('sw.updating'));
   setTimeout(() => { try { w.postMessage('SKIP_WAITING'); } catch { /* já ativou */ } }, 1200);
 }
@@ -2100,7 +2251,7 @@ function onVopenhand(fx) { if (!dom || dom.gameId !== fx.gameId) return; dom.ope
 async function tryAudit() {
   if (!dom || !dom.verified || (dom.audit && dom.audit.ok !== null) || !dom.revealedDeck) return; // 'incompleta' ainda upgrada
   if (!dom.order.every((id) => dom.opens[id])) return; // espera o baralho + todas as mãos reveladas
-  const fail = (reason) => { dom.audit = { ok: false, reason }; renderDom(); ui.toast('🚫 ' + reason); };
+  const fail = (reason) => { dom.audit = { ok: false, reason }; devShotAuto('trapaca:domino'); renderDom(); ui.toast('🚫 ' + reason); };
   const seeds = dom.vinfo.seeds || {}, seedCommits = dom.vinfo.seedCommits || {};
   // cross-check (best-effort): os seeds/lacres do vdeal batem com os que EU coletei direto no handshake?
   if (dv) for (const id of dom.order) {
@@ -2116,6 +2267,7 @@ async function tryAudit() {
   const audit = await verifyDeal({ deck: dom.revealedDeck, salt: dom.revealedSalt, deckCommit: dom.vinfo.deckCommit, seeds, seedCommits, players: dom.order.length, initialHands });
   if (!dom) return; // idem: jogo encerrado durante o await do verifyDeal
   dom.audit = audit;
+  if (!audit.ok) devShotAuto('trapaca:domino'); // embaralho adulterado pego → 📸 automática
   renderDom();
   ui.toast(dom.audit.ok ? t('dom.vClean') : `🚫 ${dom.audit.reason}`);
 }
@@ -2822,6 +2974,94 @@ function openBotecoFicha(name) {
 }
 
 // ---- Handlers ----
+// ---- 🐛 Relatório do modo dev: fotografia COMPLETA e local do app pra caçar bug em campo ----
+// O que entra: versão, aparelho, PERMISSÕES (localização/câmera — o estado 'prompt' pendurado é
+// exatamente o que come check-in), storage, settings, flags, check-ins, cardápios salvos, resumo
+// do histórico, mesa aberta e o diário. Redação: a foto de perfil NUNCA vai (só o tamanho).
+// Compartilhar é gesto SEU: Web Share (mesmo motor da foto da noite); sem suporte → baixa o .json.
+async function permState(name) {
+  try { const s = await navigator.permissions.query({ name }); return s.state; } catch { return 'n/d'; }
+}
+const REPORT_LOG_CAP = 5000; // teto de segurança do log completo no relatório (uma noite cabe folgado)
+// Evento redigido: a única coisa pesada/privada num evento é a FOTO do PROFILE — sai; o resto
+// (tipo/user/ts/eventId/def de preço) fica pra eu REPLAYAR o reducer aqui e reproduzir o bug.
+function redactEv(ev) { const o = { ...ev }; delete o.photo; if (o.def && o.def.photo) o.def = { ...o.def, photo: `(${String(o.def.photo).length})` }; return o; }
+// Impressão digital do estado: quando DOIS celulares divergem ("meu diz 12, o dela 10"), cada um
+// manda isto e eu acho o ponto exato da divergência (total + contagem por tipo + último eventId).
+function stateFingerprint() {
+  const porTipo = {};
+  for (const e of log) porTipo[e.type] = (porTipo[e.type] || 0) + 1;
+  const last = log[log.length - 1];
+  return { meuId: self.slice(0, 6), totalMesa: room ? tableTotal(state) : 0, eventos: log.length, porTipo,
+    ultimoEventId: last && last.eventId ? String(last.eventId).slice(-10) : '', desvioRelogioMs: maxSkew };
+}
+// Resumo pra triagem num olhar (contado do próprio diário): erros/penduradas/console/jogo parado…
+function diarySummary(d) {
+  const c = (k) => d.reduce((n, e) => n + (e.k === k ? 1 : 0), 0);
+  return { linhas: d.length, erros: c('erro'), penduradas: c('pendurada'),
+    consoleErros: d.reduce((n, e) => n + (e.k === 'console' && e.n === 'error' ? 1 : 0), 0),
+    jogoParado: c('jogo.parado'), lentas: c('lenta'), relogioSuspeito: c('relogio') > 0 };
+}
+async function buildDevReport() {
+  const s = { ...settings };
+  if (s.profPhoto) s.profPhoto = `(foto: ${s.profPhoto.length} chars)`; // nunca a imagem em si
+  if (s.pixKey) s.pixKey = s.pixKey.slice(0, 3) + `…(${s.pixKey.length})`; // PII: mascarada
+  let est = null;
+  try { est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null; } catch { /* n/d */ }
+  const [geo, cam] = await Promise.all([permState('geolocation'), permState('camera')]);
+  let reg = null;
+  try { reg = navigator.serviceWorker ? await navigator.serviceWorker.getRegistration() : null; } catch { /* n/d */ }
+  const diario = store.getDevLog();
+  const scan = store.storageScan();
+  const evLog = log.slice(-REPORT_LOG_CAP).map(redactEv); // log da mesa REDIGIDO — dá pra replayar aqui
+  return {
+    tipo: 'botequei-relatorio', formatoV: 3, versao: verLabel(VERSION), serial: VERSION, gerado: new Date().toISOString(),
+    resumo: diarySummary(diario), // ← triagem no topo
+    navegador: navigator.userAgent, idioma: navigator.language, online: navigator.onLine,
+    instalado: window.matchMedia('(display-mode: standalone)').matches, toques: navigator.maxTouchPoints || 0,
+    permissoes: { localizacao: geo, camera: cam },
+    storage: est ? { usadoKB: Math.round((est.usage || 0) / 1024), tetoKB: Math.round((est.quota || 0) / 1024) } : null,
+    storageChaves: scan.sizes, storageCorrompido: scan.corrompidos, // tamanho por chave + JSON podre
+    sw: reg ? { controlando: !!navigator.serviceWorker.controller, esperando: !!reg.waiting, instalando: !!reg.installing } : { controlando: !!(navigator.serviceWorker && navigator.serviceWorker.controller) },
+    settings: s, flags: store.getFlags(),
+    checkins: store.getCheckins(),
+    cardapios: store.listBotecoMenus().map((m) => ({ nome: m.name, itens: (m.defs || []).length, em: m.at })),
+    historicoTotal: store.getHistory().length,
+    historico: store.getHistory().slice(0, 10).map((h) => ({ titulo: h.title || '', em: h.at, gasto: h.myMoney || 0 })),
+    mesa: room ? { sala: room, titulo: tableInfo(state).title || '', eventos: log.length, itens: state.items.size } : null,
+    impressaoDigital: stateFingerprint(), // total + porTipo + últimoEventId → casa divergência entre 2 aparelhos
+    // raio-x ao vivo: transporte, peers (com VERSÃO e tipo de conexão), presença (sonda __presDbg do CI),
+    // onde a pessoa está na UI e o jogo em curso (público)
+    transporte: typeof window.__sigTransport === 'string' ? window.__sigTransport : 'n/d',
+    peers: mesh ? mesh.peers().map((p) => ({ de: String(p.user).slice(0, 6), online: p.online, conn: p.conn || '', v: p.ver || '' })) : [],
+    presenca: (() => { try { return window.__presDbg ? window.__presDbg() : null; } catch { return null; } })(),
+    tela: telaCtx(),
+    jogo: gameSnapshot(),
+    logMesa: evLog, // log COMPLETO (redigido) — replay do reducer reproduz bug de conta/consumo
+    logTruncado: log.length > REPORT_LOG_CAP,
+    diario,
+  };
+}
+async function shareDevReport() {
+  const rep = await buildDevReport();
+  window.__devReport = rep; // raio-x p/ e2e (padrão __presDbg)
+  const txt = JSON.stringify(rep, null, 2);
+  const d = new Date(); const p2 = (n) => String(n).padStart(2, '0');
+  const fname = `botequei-relatorio-${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}.json`;
+  try {
+    const file = new File([txt], fname, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Botequei — relatório' });
+      return; // o sheet do sistema já é o feedback
+    }
+  } catch (e) { if (e && e.name === 'AbortError') return; /* desistiu do share: não força o download */ }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' }));
+  a.download = fname; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  ui.toast(t('toast.reportSaved'));
+}
+
 const handlers = {
   onName: (v) => setName(v),
   onCreate: () => { if (!getName()) { ui.toast(t('toast.needName')); return; } enterTable(newRoomCode(), { create: true }); },
@@ -3007,20 +3247,25 @@ const handlers = {
     ui.closeOverlays();
     await enterTable(newRoomCode(), { create: true });
     setTable({ title: name });
+    dlog('boteco.carregado', { nome: name, itens: defs.length, de: 'ficha' });
     let n = 0;
     for (const d of defs) if (d && d.id && emitLocal(makeItem(d))) n++;
     if (n) { render(); botecoLoadedToast(defs, n); }
   },
   onCheckin: (name) => {
     const nm = ((name || '').trim() || (room ? tableInfo(state).title : '') || t('pass.fallback')).slice(0, 40);
+    // ⚠️ diagnóstico de campo: 'checkin.toque' SEM um 'checkin.salvo' logo depois = o GPS pendurou
+    // (prompt de permissão sem resposta não dispara callback NEM timeout — o comedor de check-in)
+    dlog('checkin.toque', { nome: nm, geo: !!(settings.geo && navigator.geolocation) });
     const save = (lat, lng) => {
+      dlog('checkin.salvo', { nome: nm, gps: lat != null });
       store.addCheckin({ name: nm, at: Date.now(), lat, lng });
       ui.openPassport({ checkins: store.getCheckins() });
       ui.toast(t('toast.checkin')); sound.pop();
     };
     if (settings.geo && navigator.geolocation) {
       ui.toast(t('toast.gettingPlace'));
-      navigator.geolocation.getCurrentPosition((pos) => save(pos.coords.latitude, pos.coords.longitude), (err) => { geoDeny(err); save(null, null); }, { timeout: 8000 });
+      geoGet('checkin', (pos) => save(pos.coords.latitude, pos.coords.longitude), (err) => { geoDeny(err); save(null, null); }, { timeout: 8000 });
     } else save(null, null); // switch off → check-in só com o nome (sem tocar no GPS)
   },
   // Carrega o cardápio salvo do boteco (nome da mesa OU último check-in fresco): re-emite cada
@@ -3032,6 +3277,7 @@ const handlers = {
     const defs = store.getBotecoMenu(bn);
     if (!defs.length) return;
     if (!tableInfo(state).title && bn) setTable({ title: bn });
+    dlog('boteco.carregado', { nome: bn, itens: defs.length, de: 'mesa' });
     let n = 0;
     for (const d of defs) if (d && d.id && emitLocal(makeItem(d))) n++;
     if (n) { render(); botecoLoadedToast(defs, n); }
@@ -3061,7 +3307,7 @@ const handlers = {
     if (!on) { gpsBoteco = ''; ui.toast(t('toast.geoOff')); return; }
     if (!navigator.geolocation) { settings = setSettings({ geo: false }); ui.fillSettings(settings); ui.toast(t('toast.geoDenied')); return; }
     ui.toast(t('toast.gettingPlace'));
-    navigator.geolocation.getCurrentPosition(
+    geoGet('toggle',
       () => { ui.toast(t('toast.geoOn')); if (room && !state.items.size) maybeSuggestByGps(); },
       geoDeny, GEO_OPTS);
   },
@@ -3074,6 +3320,31 @@ const handlers = {
     sound.alarm(); ui.floatReaction('🔔');
     if (mesh && mesh.connectedCount() > 0) { mesh.sendFx({ kind: 'waiter', from: self, fromName: getName() || t('common.someoneLow') }); ui.toast(t('toast.waiterCalled')); }
     else ui.toast(t('toast.waiterAlone'));
+  },
+  // 🐛 Modo dev: liga/desliga o diário técnico (o marco de ligar já entra no diário)
+  onDevToggle: (on) => {
+    settings = setSettings({ dev: !!on });
+    ui.setDevHook(on ? (k, d) => dlog(k, d) : null); // liga/desliga o espião da ui junto
+    dlog('dev', { on: on ? 1 : 0 });
+    ui.toast(t(on ? 'toast.devOn' : 'toast.devOff'));
+  },
+  onDevReport: () => shareDevReport(),
+  // 3º caminho além de share/baixar: copia o relatório pra área de transferência (colar direto na conversa)
+  onDevCopy: async () => {
+    const rep = await buildDevReport(); window.__devReport = rep;
+    try { await navigator.clipboard.writeText(JSON.stringify(rep, null, 2)); ui.toast(t('toast.devCopied')); }
+    catch { ui.toast(t('toast.devCopyFail')); }
+  },
+  // Visor do diário DENTRO do app (últimas 50 linhas): espia na hora, sem exportar nada
+  onDevView: () => ui.renderDevLog(store.getDevLog().slice(-50)),
+  // 📸 "print" TEXTUAL da tela agora: onde estou + o que o sheet mostra + fase do jogo.
+  // (Página web não tira screenshot de pixels de si mesma no Android — a API de captura não
+  // existe no Chrome mobile; pro depurar, o ESTADO vale mais que o pixel.)
+  onDevShot: () => {
+    const alvo = document.querySelector('.overlay:not([hidden]) .sheet') || document.querySelector('.screen.is-active');
+    const jogo = gameSnapshot();
+    dlog('foto.tela', { ...telaCtx(), ...(jogo ? { jogo: JSON.stringify(jogo) } : {}), texto: alvo ? alvo.innerText.replace(/\s+/g, ' ').slice(0, 400) : '' });
+    ui.toast(t('toast.devShot'));
   },
   onExportData: () => {
     try {
@@ -3127,6 +3398,17 @@ const handlers = {
   // auto-update assume (toast "atualizando…" e aplica); não achou → "está na última";
   // sem rede → diz a versão sem prometer nada.
   onCheckUpdate: async () => {
+    // 🐛 Destravar o modo dev à la Android: 7 toques SEGUIDOS na versão (<1,6s entre eles).
+    // Rajada não re-confere atualização — só o 1º toque pergunta ao servidor; do 4º ao 6º um
+    // toast conta quantos faltam; no 7º a seção 🐛 aparece nas configs (e a flag fica pra sempre).
+    const now = Date.now();
+    verTaps = now - verTapAt < 1600 ? verTaps + 1 : 1; verTapAt = now;
+    if (verTaps >= 2) {
+      if (store.getFlag('devUnlocked')) return; // já destravado: rajada não faz nada
+      if (verTaps >= 7) { store.setFlag('devUnlocked'); ui.showDev(true); ui.toast(t('dev.unlocked')); sound.pop(); return; }
+      if (verTaps >= 4) ui.toast(t('dev.count', { n: 7 - verTaps }));
+      return;
+    }
     ui.toast(t('ver.checking'));
     try {
       const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
@@ -3172,6 +3454,23 @@ function parseInvite() {
 }
 
 function boot() {
+  // 🐛 migalhas de AÇÃO: embrulha todo handler UMA vez — cada toque seu vira linha no diário
+  // (no-op com o modo dev desligado). O argumento entra truncado, MENOS onde é pessoal
+  // (PIN, importação de backup); digitação de nome nem entra (uma linha por tecla é ruído).
+  const SEM_ARG = /^on(ImportData|\w*Pin\w*)$/;
+  const SEM_LOG = new Set(['onName']);
+  for (const k of Object.keys(handlers)) {
+    const f = handlers[k];
+    if (typeof f !== 'function' || SEM_LOG.has(k)) continue;
+    handlers[k] = (...a) => {
+      const v = a[0];
+      dlog('acao', !SEM_ARG.test(k) && (typeof v === 'string' || typeof v === 'number') ? { h: k, a: String(v).slice(0, 24) } : { h: k });
+      return f(...a);
+    };
+  }
+  // toasts + jornada de telas/overlays (o "print" textual) — hook instalado SÓ com o modo dev
+  // ligado (custo zero desligado; o onDevToggle liga/desliga junto do switch)
+  ui.setDevHook(settings.dev ? (k, d) => dlog(k, d) : null);
   ui.init(handlers);
   ui.applyTheme(settings);
   ui.applyLang(settings.lang);
@@ -3179,6 +3478,8 @@ function boot() {
   if (settings.shake) enableShake();
   ui.setNameInput(getName());
   ui.renderHome(store.getHistory(), meAvatar());
+  ui.showDev(store.getFlag('devUnlocked')); // seção 🐛 já destravada uma vez? aparece desde o boot
+  dlog('boot', { v: VERSION, pwa: window.matchMedia('(display-mode: standalone)').matches });
 
   const inv = parseInvite();
   if (inv) {
@@ -3198,6 +3499,7 @@ function boot() {
     if (mesh) { try { mesh.sendFx({ kind: 'gone', from: self }); } catch { /* ignore */ } mesh.sig.leave(); }
   });
   const wake = () => {
+    if (document.hidden !== lastHidden) { lastHidden = document.hidden; dlog('tela', { oculta: document.hidden }); }
     if (document.hidden) { snapshotAway(); return; } // sumiu (bloqueou a tela / trocou de app): fotografa a mesa
     if (mesh) mesh.wake();
     acquireWakeLock();

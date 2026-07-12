@@ -350,6 +350,8 @@ html.bigfont { font-size: 120%; }
 .me-head .pres-av { width: 64px; height: 64px; font-size: 2rem; }
 .me-name { font-size: var(--fs-l); font-weight: 700; margin: 0; text-align: center; word-break: break-word; }
 .seal { color: var(--muted); font-size: var(--fs-s); display: block; margin-top: 8px; }
+/* 🐛 visor do diário técnico (modo dev): monoespaçado, rola, não estoura a largura do sheet */
+.dev-log { max-height: 40vh; overflow: auto; background: rgba(0,0,0,.06); border-radius: var(--r-s); padding: 8px 10px; margin: 8px 0 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--fs-xs); line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .btn-install { width: auto; margin-bottom: 6px; }
 
 /* Nome/emoji da mesa */

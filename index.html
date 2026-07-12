@@ -416,6 +416,21 @@
       <button class="btn btn-ghost" id="btn-clear-data" data-i18n="set.clear">🗑️ Apagar dados locais</button>
     </div>
     <p class="seal" data-i18n="set.privacy">🔒 Nada disso é enviado a servidor. Tudo vive no seu navegador.</p>
+    <!-- 🐛 Desenvolvedor: escondido de fábrica; 7 toques na versão (à la Android) destravam -->
+    <div id="dev-section" hidden>
+      <p class="menu-sec" data-i18n="set.secDev">🐛 Desenvolvedor</p>
+      <label class="check"><input type="checkbox" role="switch" id="set-dev" /><span data-i18n="set.dev">🐛 Modo desenvolvedor (diário técnico local)</span></label>
+      <p class="sheet-sub" data-i18n="set.devHelp">Grava um diário técnico do app NESTE aparelho (check-ins, cardápios, erros) pra caçar bugs. Nada é enviado sozinho — só sai daqui se você tocar em compartilhar.</p>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" id="btn-dev-report" data-i18n="set.devReport">📤 Compartilhar relatório</button>
+        <button class="btn btn-ghost" id="btn-dev-shot" data-i18n="set.devShot">📸 Registrar a tela</button>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" id="btn-dev-copy" data-i18n="set.devCopy">📋 Copiar relatório</button>
+        <button class="btn btn-ghost" id="btn-dev-view" data-i18n="set.devView">👁️ Ver o diário</button>
+      </div>
+      <pre id="dev-log-view" class="dev-log" hidden></pre>
+    </div>
     <!-- RODAPÉ de verdade: o ÚLTIMO elemento do sheet — versão discreta; tocar confere atualização -->
     <button class="set-version" id="btn-version" title="Conferir se há versão nova" data-i18n-title="ver.checkT" aria-label="Conferir se há versão nova" data-i18n-aria="ver.checkT">🍺 Botequei</button>
   </div>

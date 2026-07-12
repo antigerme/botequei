@@ -24,6 +24,7 @@ export class Mesh {
     this.code = opts.code || opts.room; // codigo de exibicao da mesa (p/ o convite offline)
     this.self = opts.selfId;
     this.name = opts.name || '';
+    this.ver = opts.ver || ''; // versão do app (viaja no 'hello' — mesa com versões diferentes = fonte de bug)
     this.ice = opts.iceServers || DEFAULT_ICE;
     this.onEvent = opts.onEvent || (() => {});
     this.onPeersChange = opts.onPeersChange || (() => {});
@@ -256,7 +257,7 @@ export class Mesh {
       rec.everReady = true;
       rec.lastSeen = Date.now();
       this._retryAt.delete(rec.id);
-      this._raw(rec.id, { k: 'hello', name: this.name });
+      this._raw(rec.id, { k: 'hello', name: this.name, ver: this.ver });
       // anti-entropy em LOTES: o log cresce a noite toda (e PROFILE pode levar miniatura de
       // foto) — numa mensagem única ele esbarraria no teto de mensagem do DataChannel. O
       // receptor já aplica evento a evento, então N mensagens 'sync' menores = mesma coisa.
@@ -272,7 +273,7 @@ export class Mesh {
       try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.k === 'ev') this.onEvent(msg.ev, rec.id);
       else if (msg.k === 'sync' && Array.isArray(msg.events)) { for (const ev of msg.events) this.onEvent(ev, rec.id, true); }
-      else if (msg.k === 'hello') { rec.name = msg.name || rec.name; this.onPeersChange(); }
+      else if (msg.k === 'hello') { rec.name = msg.name || rec.name; if (msg.ver) rec.ver = msg.ver; this.onPeersChange(); }
       else if (msg.k === 'fx') this.onFx(msg.fx, rec.id);
       // 'ping' so serve pra atualizar lastSeen (feito acima)
     };
@@ -318,7 +319,7 @@ export class Mesh {
     const out = [];
     for (const [id, rec] of this.conns) {
       out.push({
-        user: id, name: rec.name, online: rec.ready, conn: rec.connType,
+        user: id, name: rec.name, online: rec.ready, conn: rec.connType, ver: rec.ver || '',
         state: rec.pc ? rec.pc.connectionState : 'closed',
       });
     }

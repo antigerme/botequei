@@ -64,7 +64,7 @@ const IDS = [
   'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall', 'bill-bankrolls',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
   'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-keepawake', 'set-geo', 'btn-version',
-  'dev-section', 'set-dev', 'btn-dev-report', 'btn-dev-shot',
+  'dev-section', 'set-dev', 'btn-dev-report', 'btn-dev-shot', 'btn-dev-copy', 'btn-dev-view', 'dev-log-view',
   'set-lang',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
   'overlay-react', 'react-row', 'overlay-hh',
@@ -316,6 +316,8 @@ export function init(handlers) {
   el['set-dev'].addEventListener('change', () => H.onDevToggle(el['set-dev'].checked));
   el['btn-dev-report'].addEventListener('click', () => H.onDevReport());
   el['btn-dev-shot'].addEventListener('click', () => H.onDevShot());
+  el['btn-dev-copy'].addEventListener('click', () => H.onDevCopy());
+  el['btn-dev-view'].addEventListener('click', () => H.onDevView());
 
   // versão no rodapé das configs (serial de zona YYYYMMDDnn): tocar confere se há mais nova
   el['btn-version'].textContent = '🍺 Botequei ' + verLabel(VERSION);
@@ -1074,6 +1076,12 @@ export function fillSettings(s) {
 // Seção 🐛 Desenvolvedor: escondida de fábrica; o app mostra depois dos 7 toques na versão
 // (e no boot, se a flag devUnlocked já existe — destravou uma vez, fica).
 export function showDev(show) { el['dev-section'].hidden = !show; }
+// Visor do diário dentro do app: as últimas linhas cruas, mais recentes embaixo (mão rola até o fim)
+export function renderDevLog(entries) {
+  const fmt = (e) => { const { t: ts, k, ...r } = e; const hh = new Date(ts || 0).toTimeString().slice(0, 8); return `${hh} ${k}  ${JSON.stringify(r)}`; };
+  el['dev-log-view'].textContent = (entries || []).map(fmt).join('\n') || '(diário vazio)';
+  el['dev-log-view'].hidden = false;
+}
 // Espião do diário técnico (modo dev): o app injeta o dlog SÓ com o switch ligado (desligado o
 // hook é null = custo zero); a ui reporta o que o USUÁRIO vê — toasts (o que o app disse) e a
 // jornada de telas/overlays (o "print" textual).

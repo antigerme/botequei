@@ -138,6 +138,62 @@ window.addEventListener('unhandledrejection', (e) => {
 let verTaps = 0, verTapAt = 0; // 7 toques na versão (à la Android) destravam a seção 🐛
 let lastMalha = null;          // assinatura da última presença logada (loga só MUDANÇA)
 let lastHidden = null;         // última visibilidade logada (escondeu/voltou o app)
+let maxSkew = 0;               // maior desvio visto entre o ts de um evento AO VIVO e o relógio local
+let meshStartAt = 0, meshConnLogged = false; // t.conexao: início da malha e se já logou a 1ª formação
+let lastTransp = null;         // último transporte da sinalização logado (ws/poll — loga a virada)
+let lastLongAt = 0;            // throttle das long tasks (não afogar o diário numa rajada de travadas)
+let gameStallTimer = null;     // detector de jogo PARADO (30s sem progresso → snapshot público)
+const peerVersSeen = new Set();// versões de peer já logadas (uma linha por versão nova vista)
+// Watchdog de async: arma um alarme; se o `disarm()` não vier no prazo, a operação PENDUROU
+// (o clássico: prompt de permissão sem resposta não dispara callback NEM timeout). Vira `pendurada`.
+function armWatchdog(kind, ms) {
+  if (!settings.dev) return () => {};
+  let live = true;
+  const tm = setTimeout(() => { if (live) { live = false; dlog('pendurada', { o: kind }); } }, ms);
+  return () => { if (live) { live = false; clearTimeout(tm); } };
+}
+// Porta ÚNICA da geolocalização: centraliza os 4 pontos que pediam GPS + arma o watchdog (o
+// `getCurrentPosition` que pendura no prompt vira `pendurada {o:'geo:...'}` no diário).
+function geoGet(kind, ok, err, opts) {
+  if (!navigator.geolocation) { if (err) err({ code: 2 }); return; }
+  const dis = armWatchdog('geo:' + kind, ((opts && opts.timeout) || 8000) + 3000);
+  navigator.geolocation.getCurrentPosition((p) => { dis(); ok(p); }, (e) => { dis(); if (err) err(e); }, opts);
+}
+// console.error/warn no diário: o navegador cospe aviso de WebRTC/storage/SW aí e some — é onde
+// mora a pista de bug de conexão. dlog é no-op desligado, então o custo real é zero fora do modo dev.
+for (const lvl of ['error', 'warn']) {
+  const orig = console[lvl] ? console[lvl].bind(console) : () => {};
+  console[lvl] = (...a) => { try { dlog('console', { n: lvl, m: a.map((x) => (x && x.message) || String(x)).join(' ').slice(0, 200) }); } catch { /* ignore */ } orig(...a); };
+}
+// Travadinha do nada: long task (>200ms na main thread) com contexto de tela, com throttle de 800ms.
+try {
+  if (window.PerformanceObserver) {
+    new window.PerformanceObserver((list) => {
+      for (const e of list.getEntries()) {
+        if (e.duration <= 200) continue;
+        const now = Date.now(); if (now - lastLongAt < 800) continue; lastLongAt = now;
+        dlog('lenta', { ms: Math.round(e.duration), ...telaCtx() });
+      }
+    }).observe({ entryTypes: ['longtask'] });
+  }
+} catch { /* longtask não suportado: sem drama */ }
+// 📸 automática num momento ANORMAL (fim de jogo cancelado/noshow/trapaça pega): fotografa o
+// estado na hora, sem depender do André lembrar de apertar. Reusa o mesmo snapshot público.
+function devShotAuto(motivo) {
+  if (!settings.dev) return;
+  dlog('foto.auto', { motivo, ...telaCtx(), ...(gameSnapshot() ? { jogo: JSON.stringify(gameSnapshot()) } : {}) });
+}
+// Jogo PARADO: rearma um relógio de 30s a cada mexida na partida (jogada minha/dos outros,
+// mudança de presença); se estourar, o jogo congelou → snapshot público (fase/vez/online).
+function armGameStall() {
+  if (gameStallTimer) { clearTimeout(gameStallTimer); gameStallTimer = null; }
+  if (!settings.dev) return;
+  if (!(purr || dom || truco)) return; // sem jogo aberto: nada a vigiar
+  gameStallTimer = setTimeout(() => {
+    const on = mesh ? mesh.peers().filter((p) => p.online).length + 1 : 1;
+    dlog('jogo.parado', { ...(gameSnapshot() || {}), online: on });
+  }, 30000);
+}
 let offlineWaiting = false;   // convidado esperando o anfitrião ler a resposta (fecha sozinho ao conectar)
 let lastTableMilestone = 0;   // comemora a cada 10 rodadas da mesa (marco); sincronizado no sync
 let hhEndedFor = 0;           // 'until' do happy hour cujo fechamento já foi comemorado
@@ -396,6 +452,7 @@ function gameFx(fx) {
   if (!mesh) return;
   fx.mid = self + ':' + (fxSeq++);
   markSeenFx(fx.mid);
+  armGameStall(); // eu joguei → a partida progrediu, re-arma o vigia de "jogo parado"
   mesh.sendFx(fx);
 }
 function onFx(fx, fromId) {
@@ -407,6 +464,10 @@ function onFx(fx, fromId) {
     if (mesh) mesh.broadcast({ k: 'fx', fx }, fromId);
   }
   dlog('fx.rx', { k: fx.kind || '?', ph: fx.ph || '', de: String(fromId || '').slice(0, 6) }); // pós-dedup: só o que APLICOU
+  if (fx.kind === 'domino' || fx.kind === 'purrinha' || fx.kind === 'truco') {
+    armGameStall(); // chegou jogada → a partida progrediu, re-arma o vigia de "jogo parado"
+    if (fx.ph === 'cancel' || fx.ph === 'noshow') devShotAuto('jogo:' + fx.ph); // fim anormal → 📸 automática
+  }
   if (fx.kind === 'brinde') ui.brinde();
   else if (fx.kind === 'react') ui.floatReaction(fx.emoji || '🍻');
   else if (fx.kind === 'poke') { if (fx.to === self) receivePoke(fx); }
@@ -496,6 +557,13 @@ function receiveChallenge(fx) {
 function onRemoteEvent(ev, fromPeer, isSync) {
   if (!ingest(ev)) return;
   dlogRx(ev.type); // agregado por rajada (sync em lote vira UMA linha com contagens)
+  // Desvio de relógio: o LWW decide por ts — relógio adiantado de alguém faz nome/preço "voltar
+  // sozinho". Mede só evento AO VIVO (o do sync é histórico, ts velho de propósito).
+  if (settings.dev && !isSync && ev.ts) {
+    const sk = Date.now() - Number(ev.ts);
+    if (Math.abs(sk) > Math.abs(maxSkew)) maxSkew = sk;
+    if (Math.abs(sk) > 5000) dlog('relogio', { desvioMs: sk, de: String(fromPeer || '').slice(0, 6) });
+  }
   if (mesh) mesh.broadcast({ k: 'ev', ev }, fromPeer); // gossip
   if (ev.type === 'HAPPYHOUR' && Number(ev.until) <= Date.now()) hhEndedFor = Number(ev.until); // happy hour já vencido (veio no sync): não comemora
   if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state) / 10); if (catchupPending) scheduleCatchup(); scheduleRender(); return; }
@@ -549,7 +617,7 @@ function geoDeny(err) {
 function maybeSuggestByGps() {
   if (!settings.geo || !navigator.geolocation) return;
   dlog('gps.olhando', {});
-  const go = () => navigator.geolocation.getCurrentPosition((pos) => {
+  const go = () => geoGet('sugestao', (pos) => {
     if (!room || state.items.size) return;
     const name = nearestBoteco(store.getCheckins(), pos.coords.latitude, pos.coords.longitude, GPS_RADIUS_M);
     dlog('gps.resultado', { perto: name || '', cardapio: !!(name && store.hasBotecoMenu(name)) });
@@ -581,7 +649,7 @@ function maybeAutoCheckin() {
   if (freshCheckinFor(title)) return; // já tem check-in fresco desse bar → não duplica
   dlog('checkin.auto', { nome: title });
   const save = (lat, lng) => { dlog('checkin.salvo', { nome: title, gps: lat != null, auto: 1 }); store.addCheckin({ name: title, at: Date.now(), lat, lng }); ui.toast(t('toast.autoCheckin', { name: title })); sound.pop(); };
-  if (settings.geo && navigator.geolocation) navigator.geolocation.getCurrentPosition((p) => save(p.coords.latitude, p.coords.longitude), () => save(null, null), GEO_OPTS);
+  if (settings.geo && navigator.geolocation) geoGet('autocheckin', (p) => save(p.coords.latitude, p.coords.longitude), () => save(null, null), GEO_OPTS);
   else save(null, null);
 }
 
@@ -734,7 +802,7 @@ function snapshotAway() {
 // depois do último evento sincronizado, com teto de 15s (mesa movimentada não segura o resumo).
 function returnFromAway() {
   if (!room || !awaySnap) return;
-  catchupPending = { total: awaySnap.total, deadline: Date.now() + CATCHUP_MAX_MS };
+  catchupPending = { total: awaySnap.total, deadline: Date.now() + CATCHUP_MAX_MS, startedAt: Date.now() };
   awaySnap = null;
   scheduleCatchup();
 }
@@ -749,6 +817,7 @@ function runCatchup() {
   const snap = catchupPending; catchupPending = null;
   if (!snap || !room) return;
   const d = tableTotal(state) - snap.total; // quanto a mesa andou enquanto você esteve fora
+  dlog('sync', { ms: Date.now() - (snap.startedAt || Date.now()), delta: d }); // t.sync: quanto a re-sync demorou pra assentar
   if (d > 0) ui.toast(t('catchup.back', { n: d })); // silêncio se nada mudou (não cutuca à toa)
 }
 function clearCatchup() { // ao sair da mesa: zera tudo (não vaza o resumo pra próxima mesa)
@@ -800,9 +869,17 @@ function enterTableOffline(code) {
 }
 
 function onMeshChange() {
-  if (settings.dev && mesh) { // presença no diário: só quando a MALHA muda (quem está online)
-    const sig = mesh.peers().filter((p) => p.online).map((p) => String(p.user).slice(0, 6)).sort().join(',');
+  if (settings.dev && mesh) {
+    const ps = mesh.peers();
+    const sig = ps.filter((p) => p.online).map((p) => String(p.user).slice(0, 6)).sort().join(','); // presença: só a mudança
     if (sig !== lastMalha) { lastMalha = sig; dlog('malha', { on: sig || '(só eu)' }); }
+    const tp = window.__sigTransport; // transporte da sinalização (ws↔poll): loga a virada
+    if (tp && tp !== lastTransp) { lastTransp = tp; dlog('transporte', { t: tp }); }
+    if (!meshConnLogged && mesh.connectedCount() > 0) { meshConnLogged = true; dlog('conexao', { ms: Date.now() - meshStartAt }); } // t.conexao
+    for (const p of ps) { // versão de cada peer (mesa com versões diferentes = fonte real de bug)
+      const key = p.user + '@' + p.ver;
+      if (p.ver && !peerVersSeen.has(key)) { peerVersSeen.add(key); dlog('versao.peer', { de: String(p.user).slice(0, 6), v: p.ver, igual: p.ver === VERSION }); }
+    }
   }
   diffPresence();
   render();
@@ -905,8 +982,9 @@ function startMesh(iceServers) {
   presenceSeeded = false; prevOnline = new Set();
   everSeen = new Set(); saidBye = new Set(); leftQuiet = new Set(); awaySince = new Map();
   for (const g of goneAt.values()) clearTimeout(g.tm); goneAt = new Map();
+  meshStartAt = Date.now(); meshConnLogged = false; // 🐛 t.conexao: quanto a malha demora pra formar
   mesh = new Mesh({
-    room: sigRoom(room, roomPin), code: room, selfId: self, name: getName(), iceServers,
+    room: sigRoom(room, roomPin), code: room, selfId: self, name: getName(), ver: VERSION, iceServers,
     onEvent: onRemoteEvent, onFx, onPeersChange: onMeshChange, onStatus: onMeshChange,
     getSyncPayload: () => log,
   });
@@ -933,12 +1011,14 @@ function restartMesh() {
 
 async function loadIce() {
   const fallback = [{ urls: 'stun:stun.l.google.com:19302' }];
+  const dis = armWatchdog('turn', 9000); // /turn pendurado (proxy lento) vira `pendurada {o:'turn'}`
   try {
     const r = await fetch('turn', { cache: 'no-store' });
+    dis();
     if (r.status !== 200) return fallback;
     const d = await r.json();
     return Array.isArray(d.iceServers) && d.iceServers.length ? d.iceServers : fallback;
-  } catch { return fallback; }
+  } catch { dis(); return fallback; }
 }
 
 function myItems() {
@@ -1169,6 +1249,7 @@ function updateGamePill() {
     parts.push({ kind: 'truco', urgent: myTurn, label: myTurn ? t('game.pillTruTurn') : t('game.pillTru') });
   }
   ui.setGamePill(parts);
+  armGameStall(); // 🐛 estado de jogo mudou (jogada/presença) → re-arma o vigia de "jogo parado"
 }
 
 // ---- Atualização automática do app (service worker) ----
@@ -1182,6 +1263,7 @@ function swBusy() {
 function trySwUpdate() {
   if (!swPending || swBusy()) return;
   const w = swPending; swPending = null;
+  dlog('sw.update', { v: VERSION }); // versão nova aplicando (o "meu app tá velho" vira diagnóstico)
   ui.toast(t('sw.updating'));
   setTimeout(() => { try { w.postMessage('SKIP_WAITING'); } catch { /* já ativou */ } }, 1200);
 }
@@ -2169,7 +2251,7 @@ function onVopenhand(fx) { if (!dom || dom.gameId !== fx.gameId) return; dom.ope
 async function tryAudit() {
   if (!dom || !dom.verified || (dom.audit && dom.audit.ok !== null) || !dom.revealedDeck) return; // 'incompleta' ainda upgrada
   if (!dom.order.every((id) => dom.opens[id])) return; // espera o baralho + todas as mãos reveladas
-  const fail = (reason) => { dom.audit = { ok: false, reason }; renderDom(); ui.toast('🚫 ' + reason); };
+  const fail = (reason) => { dom.audit = { ok: false, reason }; devShotAuto('trapaca:domino'); renderDom(); ui.toast('🚫 ' + reason); };
   const seeds = dom.vinfo.seeds || {}, seedCommits = dom.vinfo.seedCommits || {};
   // cross-check (best-effort): os seeds/lacres do vdeal batem com os que EU coletei direto no handshake?
   if (dv) for (const id of dom.order) {
@@ -2185,6 +2267,7 @@ async function tryAudit() {
   const audit = await verifyDeal({ deck: dom.revealedDeck, salt: dom.revealedSalt, deckCommit: dom.vinfo.deckCommit, seeds, seedCommits, players: dom.order.length, initialHands });
   if (!dom) return; // idem: jogo encerrado durante o await do verifyDeal
   dom.audit = audit;
+  if (!audit.ok) devShotAuto('trapaca:domino'); // embaralho adulterado pego → 📸 automática
   renderDom();
   ui.toast(dom.audit.ok ? t('dom.vClean') : `🚫 ${dom.audit.reason}`);
 }
@@ -2899,6 +2982,26 @@ function openBotecoFicha(name) {
 async function permState(name) {
   try { const s = await navigator.permissions.query({ name }); return s.state; } catch { return 'n/d'; }
 }
+const REPORT_LOG_CAP = 5000; // teto de segurança do log completo no relatório (uma noite cabe folgado)
+// Evento redigido: a única coisa pesada/privada num evento é a FOTO do PROFILE — sai; o resto
+// (tipo/user/ts/eventId/def de preço) fica pra eu REPLAYAR o reducer aqui e reproduzir o bug.
+function redactEv(ev) { const o = { ...ev }; delete o.photo; if (o.def && o.def.photo) o.def = { ...o.def, photo: `(${String(o.def.photo).length})` }; return o; }
+// Impressão digital do estado: quando DOIS celulares divergem ("meu diz 12, o dela 10"), cada um
+// manda isto e eu acho o ponto exato da divergência (total + contagem por tipo + último eventId).
+function stateFingerprint() {
+  const porTipo = {};
+  for (const e of log) porTipo[e.type] = (porTipo[e.type] || 0) + 1;
+  const last = log[log.length - 1];
+  return { meuId: self.slice(0, 6), totalMesa: room ? tableTotal(state) : 0, eventos: log.length, porTipo,
+    ultimoEventId: last && last.eventId ? String(last.eventId).slice(-10) : '', desvioRelogioMs: maxSkew };
+}
+// Resumo pra triagem num olhar (contado do próprio diário): erros/penduradas/console/jogo parado…
+function diarySummary(d) {
+  const c = (k) => d.reduce((n, e) => n + (e.k === k ? 1 : 0), 0);
+  return { linhas: d.length, erros: c('erro'), penduradas: c('pendurada'),
+    consoleErros: d.reduce((n, e) => n + (e.k === 'console' && e.n === 'error' ? 1 : 0), 0),
+    jogoParado: c('jogo.parado'), lentas: c('lenta'), relogioSuspeito: c('relogio') > 0 };
+}
 async function buildDevReport() {
   const s = { ...settings };
   if (s.profPhoto) s.profPhoto = `(foto: ${s.profPhoto.length} chars)`; // nunca a imagem em si
@@ -2906,28 +3009,37 @@ async function buildDevReport() {
   let est = null;
   try { est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null; } catch { /* n/d */ }
   const [geo, cam] = await Promise.all([permState('geolocation'), permState('camera')]);
+  let reg = null;
+  try { reg = navigator.serviceWorker ? await navigator.serviceWorker.getRegistration() : null; } catch { /* n/d */ }
+  const diario = store.getDevLog();
+  const scan = store.storageScan();
+  const evLog = log.slice(-REPORT_LOG_CAP).map(redactEv); // log da mesa REDIGIDO — dá pra replayar aqui
   return {
-    tipo: 'botequei-relatorio', versao: verLabel(VERSION), serial: VERSION, gerado: new Date().toISOString(),
+    tipo: 'botequei-relatorio', formatoV: 3, versao: verLabel(VERSION), serial: VERSION, gerado: new Date().toISOString(),
+    resumo: diarySummary(diario), // ← triagem no topo
     navegador: navigator.userAgent, idioma: navigator.language, online: navigator.onLine,
     instalado: window.matchMedia('(display-mode: standalone)').matches, toques: navigator.maxTouchPoints || 0,
     permissoes: { localizacao: geo, camera: cam },
     storage: est ? { usadoKB: Math.round((est.usage || 0) / 1024), tetoKB: Math.round((est.quota || 0) / 1024) } : null,
-    swAtivo: !!(navigator.serviceWorker && navigator.serviceWorker.controller),
+    storageChaves: scan.sizes, storageCorrompido: scan.corrompidos, // tamanho por chave + JSON podre
+    sw: reg ? { controlando: !!navigator.serviceWorker.controller, esperando: !!reg.waiting, instalando: !!reg.installing } : { controlando: !!(navigator.serviceWorker && navigator.serviceWorker.controller) },
     settings: s, flags: store.getFlags(),
     checkins: store.getCheckins(),
     cardapios: store.listBotecoMenus().map((m) => ({ nome: m.name, itens: (m.defs || []).length, em: m.at })),
     historicoTotal: store.getHistory().length,
     historico: store.getHistory().slice(0, 10).map((h) => ({ titulo: h.title || '', em: h.at, gasto: h.myMoney || 0 })),
     mesa: room ? { sala: room, titulo: tableInfo(state).title || '', eventos: log.length, itens: state.items.size } : null,
-    // raio-x ao vivo: transporte da sinalização, presença (mesma sonda __presDbg do CI),
-    // onde a pessoa está na UI, jogo em curso (público) e o RABO do log da mesa (30 últimos —
-    // tipo/item/autor curto; payload como foto de PROFILE nunca entra)
+    impressaoDigital: stateFingerprint(), // total + porTipo + últimoEventId → casa divergência entre 2 aparelhos
+    // raio-x ao vivo: transporte, peers (com VERSÃO e tipo de conexão), presença (sonda __presDbg do CI),
+    // onde a pessoa está na UI e o jogo em curso (público)
     transporte: typeof window.__sigTransport === 'string' ? window.__sigTransport : 'n/d',
+    peers: mesh ? mesh.peers().map((p) => ({ de: String(p.user).slice(0, 6), online: p.online, conn: p.conn || '', v: p.ver || '' })) : [],
     presenca: (() => { try { return window.__presDbg ? window.__presDbg() : null; } catch { return null; } })(),
     tela: telaCtx(),
     jogo: gameSnapshot(),
-    eventosRecentes: log.slice(-30).map((e) => ({ t: e.ts, tipo: e.type, item: e.item || '', de: String(e.user || '').slice(0, 6) })),
-    diario: store.getDevLog(),
+    logMesa: evLog, // log COMPLETO (redigido) — replay do reducer reproduz bug de conta/consumo
+    logTruncado: log.length > REPORT_LOG_CAP,
+    diario,
   };
 }
 async function shareDevReport() {
@@ -3153,7 +3265,7 @@ const handlers = {
     };
     if (settings.geo && navigator.geolocation) {
       ui.toast(t('toast.gettingPlace'));
-      navigator.geolocation.getCurrentPosition((pos) => save(pos.coords.latitude, pos.coords.longitude), (err) => { geoDeny(err); save(null, null); }, { timeout: 8000 });
+      geoGet('checkin', (pos) => save(pos.coords.latitude, pos.coords.longitude), (err) => { geoDeny(err); save(null, null); }, { timeout: 8000 });
     } else save(null, null); // switch off → check-in só com o nome (sem tocar no GPS)
   },
   // Carrega o cardápio salvo do boteco (nome da mesa OU último check-in fresco): re-emite cada
@@ -3195,7 +3307,7 @@ const handlers = {
     if (!on) { gpsBoteco = ''; ui.toast(t('toast.geoOff')); return; }
     if (!navigator.geolocation) { settings = setSettings({ geo: false }); ui.fillSettings(settings); ui.toast(t('toast.geoDenied')); return; }
     ui.toast(t('toast.gettingPlace'));
-    navigator.geolocation.getCurrentPosition(
+    geoGet('toggle',
       () => { ui.toast(t('toast.geoOn')); if (room && !state.items.size) maybeSuggestByGps(); },
       geoDeny, GEO_OPTS);
   },
@@ -3217,6 +3329,14 @@ const handlers = {
     ui.toast(t(on ? 'toast.devOn' : 'toast.devOff'));
   },
   onDevReport: () => shareDevReport(),
+  // 3º caminho além de share/baixar: copia o relatório pra área de transferência (colar direto na conversa)
+  onDevCopy: async () => {
+    const rep = await buildDevReport(); window.__devReport = rep;
+    try { await navigator.clipboard.writeText(JSON.stringify(rep, null, 2)); ui.toast(t('toast.devCopied')); }
+    catch { ui.toast(t('toast.devCopyFail')); }
+  },
+  // Visor do diário DENTRO do app (últimas 50 linhas): espia na hora, sem exportar nada
+  onDevView: () => ui.renderDevLog(store.getDevLog().slice(-50)),
   // 📸 "print" TEXTUAL da tela agora: onde estou + o que o sheet mostra + fase do jogo.
   // (Página web não tira screenshot de pixels de si mesma no Android — a API de captura não
   // existe no Chrome mobile; pro depurar, o ESTADO vale mais que o pixel.)

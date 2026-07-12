@@ -68,6 +68,21 @@ const K_DEVLOG = 'botequei.devlog';
 const DEVLOG_MAX = 1500;
 export function getDevLog() { const v = readJSON(K_DEVLOG, []); return Array.isArray(v) ? v : []; }
 export function addDevLog(entry) { const list = getDevLog(); list.push(entry); writeJSON(K_DEVLOG, list.slice(-DEVLOG_MAX)); }
+// Raio-x do localStorage pro relatório: tamanho de cada chave botequei.* (acha a inchada) +
+// quais NÃO parseiam como JSON (dado corrompido é bug INVISÍVEL — hoje o readJSON engole calado).
+export function storageScan() {
+  const sizes = {}; const corrompidos = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith('botequei.')) continue;
+      const raw = localStorage.getItem(k) || '';
+      sizes[k] = raw.length;
+      if (raw && raw[0] !== undefined && '{['.includes(raw[0])) { try { JSON.parse(raw); } catch { corrompidos.push(k); } }
+    }
+  } catch { /* storage indisponível: relatório segue sem isso */ }
+  return { sizes, corrompidos };
+}
 
 // ---- Passaporte de botecos (check-ins locais) ----
 const K_PASS = 'botequei.passport';

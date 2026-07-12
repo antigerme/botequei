@@ -239,14 +239,26 @@ padrão Auto segue o navegador).
   entra**); presença (`malha` só quando o conjunto online muda), visibilidade (`tela {oculta}`),
   toasts e jornada de telas/overlays (hook `ui.setDevHook` → `toast`/`tela.overlay`/`tela.screen` —
   o "print" textual), check-in/gps/boteco (`checkin.toque` SEM `checkin.salvo` = GPS pendurou) e
-  erros globais **com contexto de tela** (`telaCtx`). **📸 Registrar a tela** = snapshot manual do
-  ESTADO (tela + overlays + texto do sheet ≤400 + `gameSnapshot` público) — página web não tira
-  print de pixels de si no Android; o estado vale mais. **📤 Compartilhar relatório** = JSON com
-  versão, aparelho, PERMISSÕES (o 'prompt' pendurado é o comedor de check-in), storage, settings
-  (foto REDIGIDA: só tamanho; **pixKey MASCARADA**), flags, check-ins, cardápios, histórico-resumo,
-  mesa aberta, **transporte + presença (`__presDbg`) + tela + jogo + últimos 30 eventos** e o
-  diário — Web Share com arquivo, fallback download. `window.__devReport` é o raio-x pro e2e; o
-  `e2e-dev` trava destravar/persistir/funis/📸/redações. Nada sai do aparelho sozinho.
+  erros globais **com contexto de tela** (`telaCtx`). **Watchdogs de async** (`armWatchdog` +
+  a porta única `geoGet` dos 4 pontos de GPS + o `loadIce`): o que NÃO volta no prazo vira
+  `pendurada {o}` — o `getCurrentPosition` preso no prompt (comedor de check-in) FLAGRADO. Ainda:
+  `console.error`/`warn` no diário (pista de WebRTC/storage some no console), `long task >200ms`
+  (`lenta` com throttle), **desvio de relógio** (`relogio`/`maxSkew` — LWW quebra com relógio
+  adiantado), **rede** (`conexao` = tempo de formar a malha · `transporte` ws↔poll · `versao.peer`
+  = mesa com versões diferentes é bug real, viaja no `hello` do `mesh.js`), **jogo PARADO** (30s sem
+  progresso → snapshot público) e **📸 automática** em fim anormal de jogo (cancel/noshow/trapaça).
+  **📸 Registrar a tela** = snapshot manual do ESTADO (tela + overlays + texto do sheet ≤400 +
+  `gameSnapshot` público) — página web não tira print de pixels de si no Android; o estado vale mais.
+  **📤 Compartilhar relatório** (`formatoV:3`) = JSON com **resumo no topo** (erros/penduradas/…),
+  versão, aparelho, PERMISSÕES (o 'prompt' pendurado é o comedor de check-in), storage + **tamanho
+  por chave `botequei.*` e JSON corrompido**, SW, settings (foto REDIGIDA: só tamanho; **pixKey
+  MASCARADA**), flags, check-ins, cardápios, histórico-resumo, mesa, **impressão digital do estado**
+  (total + contagem por tipo + últimoEventId → casa divergência entre 2 aparelhos), **peers com
+  versão/conn**, presença (`__presDbg`), tela, jogo e o **log COMPLETO da mesa REDIGIDO** (foto de
+  PROFILE fora; replay do reducer reproduz bug de conta) + o diário. **📋 Copiar** (3º caminho) e
+  **👁️ Ver o diário** (visor no app). Web Share/fallback download. `window.__devReport` é o raio-x
+  pro e2e; o `e2e-dev` (14 asserts) trava destravar/persistir/funis/rede 2-peer/📸/watchdog/redações.
+  Nada sai do aparelho sozinho.
 - **Hub do "Você" (avatar)** (`ui.openMe`, overlay `#overlay-me`): junta o que é PESSOAL num lugar
   só — 👤 perfil, 📊 números, 🎞️ retrô, 🗺️ passaporte, ⚙️ configurações (cada item abre o overlay
   que JÁ existe; padrão de troca do menu). DUAS portas, o mesmo hub: o **avatar no canto da home**

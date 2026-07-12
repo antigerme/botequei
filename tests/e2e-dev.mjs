@@ -16,7 +16,7 @@ const T = 20000;
 async function main() {
   const browser = await chromium.launch({
     executablePath: CHROME, headless: true,
-    args: ['--no-sandbox', '--disable-dev-shm-usage'],
+    args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-features=WebRtcHideLocalIpsWithMdns'], // WebRTC real p/ o teste de rede
   });
   // geolocation CONCEDIDA: o check-in do teste resolve na hora (permissão pendente pendura
   // o getCurrentPosition em headless — esse buraco é assunto do fix do check-in, não daqui)
@@ -110,6 +110,21 @@ async function main() {
     }, null, { timeout: T });
   });
 
+  await step('rede: 2º peer entra → malha/conexão/versão do peer (igual) caem no diário', async () => {
+    const code = (await p.textContent('#mesa-code')).trim();
+    const B = await browser.newContext();
+    await B.addInitScript(() => { localStorage.setItem('botequei.name', 'Bia'); localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 })); localStorage.setItem('botequei.settings', JSON.stringify({ lang: 'pt' })); });
+    const pb = await B.newPage();
+    await pb.goto(BASE + '#/join?room=' + code);
+    await pb.waitForSelector('#screen-table.is-active', { timeout: T });
+    await p.waitForFunction(() => document.getElementById('peer-count')?.textContent === '2', null, { timeout: T });
+    await p.waitForFunction(() => {
+      const d = JSON.parse(localStorage.getItem('botequei.devlog') || '[]');
+      return d.some((e) => e.k === 'malha') && d.some((e) => e.k === 'conexao') && d.some((e) => e.k === 'versao.peer' && e.igual === true);
+    }, null, { timeout: T });
+    await B.close();
+  });
+
   await step('📸 Registrar a tela: o "print" TEXTUAL (tela + overlays + texto) cai no diário', async () => {
     await openSettings();
     await p.click('#btn-dev-shot');
@@ -134,8 +149,42 @@ async function main() {
     if (String(rep.settings.pixKey).includes('exemplo.com')) throw new Error('a chave PIX vazou inteira — tinha que sair mascarada');
     if (!/^meu…\(\d+\)$/.test(String(rep.settings.pixKey))) throw new Error('máscara do PIX fora do padrão: ' + rep.settings.pixKey);
     if (typeof rep.transporte !== 'string') throw new Error('transporte devia estar no relatório');
-    if (!Array.isArray(rep.eventosRecentes) || !rep.eventosRecentes.some((e) => e.tipo === 'ADD')) throw new Error('eventosRecentes devia trazer o rabo do log da mesa (com o ADD)');
     if (!rep.mesa || rep.mesa.itens !== 1) throw new Error('a mesa aberta (1 item) devia estar no relatório');
+    // v3: formato, log COMPLETO (replay), impressão digital, resumo, storage por chave, peers, SW
+    if (rep.formatoV !== 3) throw new Error('formatoV devia ser 3, veio: ' + rep.formatoV);
+    if (!Array.isArray(rep.logMesa) || !rep.logMesa.some((e) => e.type === 'ADD')) throw new Error('logMesa (log completo redigido) devia trazer o ADD pro replay');
+    if (rep.logMesa.some((e) => e.photo)) throw new Error('o log completo NÃO pode carregar foto de PROFILE');
+    if (!rep.impressaoDigital || !rep.impressaoDigital.porTipo || !rep.impressaoDigital.porTipo.ADD) throw new Error('impressaoDigital devia contar os eventos por tipo (ADD)');
+    if (!rep.resumo || typeof rep.resumo.erros !== 'number' || typeof rep.resumo.linhas !== 'number') throw new Error('resumo (triagem no topo) faltando');
+    if (!rep.storageChaves || !rep.storageChaves['botequei.devlog']) throw new Error('storageChaves devia listar o tamanho do diário');
+    if (!Array.isArray(rep.storageCorrompido)) throw new Error('storageCorrompido devia ser uma lista (vazia = tudo ok)');
+    if (!Array.isArray(rep.peers)) throw new Error('peers devia ser uma lista (com versão/conn por peer)');
+    if (!rep.sw || typeof rep.sw.controlando !== 'boolean') throw new Error('sw (estado do service worker) faltando');
+  });
+
+  await step('console.error entra no diário (pista de bug de WebRTC/storage some no console)', async () => {
+    await p.evaluate(() => console.error('teste-dev-console'));
+    await p.waitForFunction(() => (JSON.parse(localStorage.getItem('botequei.devlog') || '[]')).some((e) => e.k === 'console' && e.n === 'error' && /teste-dev-console/.test(e.m || '')), null, { timeout: T });
+  });
+
+  await step('📋 Copiar relatório: expõe o relatório v3 (o 3º caminho, colar direto na conversa)', async () => {
+    await p.evaluate(() => { window.__devReport = null; });
+    await p.click('#btn-dev-copy');
+    await p.waitForFunction(() => window.__devReport && window.__devReport.formatoV === 3, null, { timeout: T });
+  });
+
+  await step('👁️ Ver o diário: as últimas linhas aparecem DENTRO do app (sem exportar)', async () => {
+    await p.click('#btn-dev-view');
+    await p.waitForFunction(() => { const e = document.getElementById('dev-log-view'); return e && !e.hidden && (e.textContent || '').length > 20; }, null, { timeout: T });
+  });
+
+  await step('watchdog: GPS que PENDURA vira "pendurada" no diário (o comedor de check-in flagrado)', async () => {
+    // trava o getCurrentPosition (nunca chama callback) e liga o switch de geo → geoGet arma o
+    // watchdog; sem disarm no prazo (8s+3s), a operação vira `pendurada {o:'geo:toggle'}`
+    await p.evaluate(() => { navigator.geolocation.getCurrentPosition = () => {}; });
+    await openSettings();
+    await p.uncheck('#set-geo'); await p.check('#set-geo'); // off→on: dispara o pedido de localização
+    await p.waitForFunction(() => (JSON.parse(localStorage.getItem('botequei.devlog') || '[]')).some((e) => e.k === 'pendurada' && /geo/.test(e.o || '')), null, { timeout: 15000 });
   });
 
   await A.close();

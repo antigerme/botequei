@@ -91,20 +91,53 @@ const self = clientId();
 let settings = getSettings();
 
 // ---- 🐛 Diário técnico (modo desenvolvedor) ----
-// dlog é NO-OP com o switch desligado (custo zero no dia a dia). Ligado, grava eventos-chave
-// num anel local (store.addDevLog, teto 500) pra caçar bug em campo — o app é P2P/sem servidor,
-// então TODO log que existe mora no aparelho. Nada sai daqui sozinho: só no 📤 do relatório.
+// dlog é NO-OP com o switch desligado (custo zero no dia a dia). Ligado, enxerga o APP INTEIRO
+// pelos FUNIS (não por remendo em 200 lugares): toda AÇÃO sua (handlers embrulhados no boot),
+// todo EVENTO da mesa (emitLocal + chegada agregada), todo FX de jogo (sendFx/sendTo/onFx —
+// só kind/fase, NUNCA mão/carta), presença, toasts, jornada de telas/overlays e erros — num
+// anel local (store.addDevLog, teto 1500). O app é P2P/sem servidor: TODO log que existe mora
+// no aparelho, e nada sai daqui sozinho — só no 📤 do relatório.
 function dlog(k, data) {
   if (!settings.dev) return;
   try { store.addDevLog({ t: Date.now(), k, ...(data || {}) }); } catch { /* quota: ignora */ }
 }
-// Erros globais entram no diário (mensagem curta; sem stack — o relatório não é pra vazar código)
-window.addEventListener('error', (e) => dlog('erro', { m: String((e && e.message) || '').slice(0, 200) }));
+// contexto visual (o "print" que interessa pra depurar: ONDE a pessoa estava) — vai junto de erro/📸
+function telaCtx() {
+  try {
+    return {
+      tela: (document.querySelector('.screen.is-active') || {}).id || '',
+      abertos: [...document.querySelectorAll('.overlay:not([hidden])')].map((o) => o.id).join(','),
+    };
+  } catch { return {}; }
+}
+// eventos CHEGANDO agregados por rajada: o anti-entropy manda o log em lotes — 300 eventos de
+// um join viram UMA linha com contagem por tipo (senão o sync afogaria o anel do diário)
+let rxAgg = null;
+function dlogRx(tipo) {
+  if (!settings.dev) return;
+  if (!rxAgg) { rxAgg = {}; setTimeout(() => { const a = rxAgg; rxAgg = null; dlog('ev.rx', a); }, 400); }
+  rxAgg[tipo || '?'] = (rxAgg[tipo || '?'] || 0) + 1;
+}
+// estado PÚBLICO do jogo em curso (fase/rodada) — mão/carta privada NUNCA entra em log/relatório
+function gameSnapshot() {
+  const pick = (o, ks, r) => {
+    for (const k of ks) if (o && o[k] !== undefined && o[k] !== null && typeof o[k] !== 'object') r[k] = String(o[k]).slice(0, 12);
+    return r;
+  };
+  if (purr) return pick(purr, ['phase', 'rd', 'mode'], { j: 'purrinha' });
+  if (dom) return pick(dom, ['phase', 'over'], { j: 'domino' });
+  if (truco) return pick(truco, ['phase', 'over'], { j: 'truco' });
+  return null;
+}
+// Erros globais entram no diário COM o contexto de tela (snapshot automático do crash)
+window.addEventListener('error', (e) => dlog('erro', { m: String((e && e.message) || '').slice(0, 200), ...telaCtx() }));
 window.addEventListener('unhandledrejection', (e) => {
   const r = e && e.reason;
-  dlog('erro', { m: String((r && r.message) || r || '').slice(0, 200) });
+  dlog('erro', { m: String((r && r.message) || r || '').slice(0, 200), ...telaCtx() });
 });
 let verTaps = 0, verTapAt = 0; // 7 toques na versão (à la Android) destravam a seção 🐛
+let lastMalha = null;          // assinatura da última presença logada (loga só MUDANÇA)
+let lastHidden = null;         // última visibilidade logada (escondeu/voltou o app)
 let offlineWaiting = false;   // convidado esperando o anfitrião ler a resposta (fecha sozinho ao conectar)
 let lastTableMilestone = 0;   // comemora a cada 10 rodadas da mesa (marco); sincronizado no sync
 let hhEndedFor = 0;           // 'until' do happy hour cujo fechamento já foi comemorado
@@ -210,6 +243,7 @@ function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => 
 // evento local: registra + propaga
 function emitLocal(ev) {
   if (!ingest(ev)) return false;
+  dlog('ev', { tipo: ev.type, item: ev.item || (ev.def && ev.def.id) || '' }); // só tipo+id — payload (foto/def) NÃO entra
   if (mesh) mesh.broadcast({ k: 'ev', ev });
   return true;
 }
@@ -372,6 +406,7 @@ function onFx(fx, fromId) {
     markSeenFx(fx.mid);
     if (mesh) mesh.broadcast({ k: 'fx', fx }, fromId);
   }
+  dlog('fx.rx', { k: fx.kind || '?', ph: fx.ph || '', de: String(fromId || '').slice(0, 6) }); // pós-dedup: só o que APLICOU
   if (fx.kind === 'brinde') ui.brinde();
   else if (fx.kind === 'react') ui.floatReaction(fx.emoji || '🍻');
   else if (fx.kind === 'poke') { if (fx.to === self) receivePoke(fx); }
@@ -460,6 +495,7 @@ function receiveChallenge(fx) {
 // ---- Eventos remotos ----
 function onRemoteEvent(ev, fromPeer, isSync) {
   if (!ingest(ev)) return;
+  dlogRx(ev.type); // agregado por rajada (sync em lote vira UMA linha com contagens)
   if (mesh) mesh.broadcast({ k: 'ev', ev }, fromPeer); // gossip
   if (ev.type === 'HAPPYHOUR' && Number(ev.until) <= Date.now()) hhEndedFor = Number(ev.until); // happy hour já vencido (veio no sync): não comemora
   if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state) / 10); if (catchupPending) scheduleCatchup(); scheduleRender(); return; }
@@ -764,6 +800,10 @@ function enterTableOffline(code) {
 }
 
 function onMeshChange() {
+  if (settings.dev && mesh) { // presença no diário: só quando a MALHA muda (quem está online)
+    const sig = mesh.peers().filter((p) => p.online).map((p) => String(p.user).slice(0, 6)).sort().join(',');
+    if (sig !== lastMalha) { lastMalha = sig; dlog('malha', { on: sig || '(só eu)' }); }
+  }
   diffPresence();
   render();
   if (purr && mesh) for (const p of mesh.peers()) if (p.online) purrSeenAt.set(p.user, Date.now()); // presença fresca p/ a graça da rodada
@@ -870,6 +910,12 @@ function startMesh(iceServers) {
     onEvent: onRemoteEvent, onFx, onPeersChange: onMeshChange, onStatus: onMeshChange,
     getSyncPayload: () => log,
   });
+  // 🐛 espião do diário nos DOIS canos de fx (broadcast e canal direto): loga só kind/fase —
+  // NUNCA o payload (a mão privada do dominó/truco viaja pelo sendTo; carta não entra em log)
+  const rawSendFx = mesh.sendFx.bind(mesh);
+  mesh.sendFx = (fx) => { dlog('fx.tx', { k: (fx && fx.kind) || '?', ph: (fx && fx.ph) || '' }); return rawSendFx(fx); };
+  const rawSendTo = mesh.sendTo.bind(mesh);
+  mesh.sendTo = (id, obj) => { if (obj && obj.k === 'fx' && obj.fx) dlog('fx.tx1', { k: obj.fx.kind || '?', ph: obj.fx.ph || '', p: String(id).slice(0, 6) }); return rawSendTo(id, obj); };
   mesh.start();
   // publica meu perfil (cor/avatar/foto) pra galera
   emitLocal(makeProfile({ color: settings.profColor || autoColor(self), emoji: settings.profEmoji || autoAvatar(self), driver: myDriver, level: myLevel(), photo: settings.profPhoto || '' }));
@@ -2856,6 +2902,7 @@ async function permState(name) {
 async function buildDevReport() {
   const s = { ...settings };
   if (s.profPhoto) s.profPhoto = `(foto: ${s.profPhoto.length} chars)`; // nunca a imagem em si
+  if (s.pixKey) s.pixKey = s.pixKey.slice(0, 3) + `…(${s.pixKey.length})`; // PII: mascarada
   let est = null;
   try { est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null; } catch { /* n/d */ }
   const [geo, cam] = await Promise.all([permState('geolocation'), permState('camera')]);
@@ -2872,6 +2919,14 @@ async function buildDevReport() {
     historicoTotal: store.getHistory().length,
     historico: store.getHistory().slice(0, 10).map((h) => ({ titulo: h.title || '', em: h.at, gasto: h.myMoney || 0 })),
     mesa: room ? { sala: room, titulo: tableInfo(state).title || '', eventos: log.length, itens: state.items.size } : null,
+    // raio-x ao vivo: transporte da sinalização, presença (mesma sonda __presDbg do CI),
+    // onde a pessoa está na UI, jogo em curso (público) e o RABO do log da mesa (30 últimos —
+    // tipo/item/autor curto; payload como foto de PROFILE nunca entra)
+    transporte: typeof window.__sigTransport === 'string' ? window.__sigTransport : 'n/d',
+    presenca: (() => { try { return window.__presDbg ? window.__presDbg() : null; } catch { return null; } })(),
+    tela: telaCtx(),
+    jogo: gameSnapshot(),
+    eventosRecentes: log.slice(-30).map((e) => ({ t: e.ts, tipo: e.type, item: e.item || '', de: String(e.user || '').slice(0, 6) })),
     diario: store.getDevLog(),
   };
 }
@@ -3157,10 +3212,20 @@ const handlers = {
   // 🐛 Modo dev: liga/desliga o diário técnico (o marco de ligar já entra no diário)
   onDevToggle: (on) => {
     settings = setSettings({ dev: !!on });
+    ui.setDevHook(on ? (k, d) => dlog(k, d) : null); // liga/desliga o espião da ui junto
     dlog('dev', { on: on ? 1 : 0 });
     ui.toast(t(on ? 'toast.devOn' : 'toast.devOff'));
   },
   onDevReport: () => shareDevReport(),
+  // 📸 "print" TEXTUAL da tela agora: onde estou + o que o sheet mostra + fase do jogo.
+  // (Página web não tira screenshot de pixels de si mesma no Android — a API de captura não
+  // existe no Chrome mobile; pro depurar, o ESTADO vale mais que o pixel.)
+  onDevShot: () => {
+    const alvo = document.querySelector('.overlay:not([hidden]) .sheet') || document.querySelector('.screen.is-active');
+    const jogo = gameSnapshot();
+    dlog('foto.tela', { ...telaCtx(), ...(jogo ? { jogo: JSON.stringify(jogo) } : {}), texto: alvo ? alvo.innerText.replace(/\s+/g, ' ').slice(0, 400) : '' });
+    ui.toast(t('toast.devShot'));
+  },
   onExportData: () => {
     try {
       const data = JSON.stringify(store.exportAll(), null, 2);
@@ -3269,6 +3334,23 @@ function parseInvite() {
 }
 
 function boot() {
+  // 🐛 migalhas de AÇÃO: embrulha todo handler UMA vez — cada toque seu vira linha no diário
+  // (no-op com o modo dev desligado). O argumento entra truncado, MENOS onde é pessoal
+  // (PIN, importação de backup); digitação de nome nem entra (uma linha por tecla é ruído).
+  const SEM_ARG = /^on(ImportData|\w*Pin\w*)$/;
+  const SEM_LOG = new Set(['onName']);
+  for (const k of Object.keys(handlers)) {
+    const f = handlers[k];
+    if (typeof f !== 'function' || SEM_LOG.has(k)) continue;
+    handlers[k] = (...a) => {
+      const v = a[0];
+      dlog('acao', !SEM_ARG.test(k) && (typeof v === 'string' || typeof v === 'number') ? { h: k, a: String(v).slice(0, 24) } : { h: k });
+      return f(...a);
+    };
+  }
+  // toasts + jornada de telas/overlays (o "print" textual) — hook instalado SÓ com o modo dev
+  // ligado (custo zero desligado; o onDevToggle liga/desliga junto do switch)
+  ui.setDevHook(settings.dev ? (k, d) => dlog(k, d) : null);
   ui.init(handlers);
   ui.applyTheme(settings);
   ui.applyLang(settings.lang);
@@ -3297,6 +3379,7 @@ function boot() {
     if (mesh) { try { mesh.sendFx({ kind: 'gone', from: self }); } catch { /* ignore */ } mesh.sig.leave(); }
   });
   const wake = () => {
+    if (document.hidden !== lastHidden) { lastHidden = document.hidden; dlog('tela', { oculta: document.hidden }); }
     if (document.hidden) { snapshotAway(); return; } // sumiu (bloqueou a tela / trocou de app): fotografa a mesa
     if (mesh) mesh.wake();
     acquireWakeLock();

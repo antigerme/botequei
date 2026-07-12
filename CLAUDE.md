@@ -230,15 +230,23 @@ padrão Auto segue o navegador).
   rajada — toques <1,6s entre si NÃO re-conferem atualização, só o 1º; do 4º ao 6º um toast conta,
   no 7º a flag `devUnlocked` fica pra sempre e a seção `#dev-section` aparece). O switch
   (`settings.dev`, off de fábrica) liga o **diário técnico**: `dlog(k, data)` no `app.js` (NO-OP
-  desligado, custo zero) grava eventos-chave num **anel FIFO teto 500** (`store.addDevLog`, chave
-  `botequei.devlog`) — check-in (`checkin.toque` SEM `checkin.salvo` logo depois = GPS pendurou),
-  gps/geo, boteco salvo/carregado, mesa entrar/sair, boot e erros globais (onerror/unhandledrejection,
-  mensagem ≤200 chars). **📤 Compartilhar relatório** monta um JSON com versão, aparelho, PERMISSÕES
-  (localização/câmera via Permissions API — o estado 'prompt' é o comedor de check-in), storage,
-  settings (a foto de perfil é REDIGIDA: só o tamanho, nunca o dataURL), flags, check-ins, cardápios
-  salvos, resumo do histórico, mesa aberta e o diário — Web Share com arquivo (mesmo motor da foto da
-  noite) e fallback de download. `window.__devReport` é o raio-x pro e2e (padrão `__presDbg`); o
-  `e2e-dev` trava destravar/persistir/diário/redação da foto. Nada sai do aparelho sozinho.
+  desligado, custo zero) grava num **anel FIFO teto 1500** (`store.addDevLog`, `botequei.devlog`).
+  **Cobertura por FUNIS** (não remendo em 200 lugares): toda AÇÃO do usuário (o boot **embrulha o
+  objeto `handlers` inteiro** → `acao {h, a≤24}`; digitação de nome fora, PIN/import sem valor);
+  todo EVENTO da mesa (`emitLocal` → `ev {tipo,item}`; chegada via `dlogRx` **agregada por rajada
+  de 400ms** — sync de um join vira UMA linha com contagens); todo FX (wrap no `mesh.sendFx`/
+  `sendTo` + `onFx` pós-dedup → `fx.tx/tx1/rx {k,ph}` — **NUNCA payload: mão/carta privada não
+  entra**); presença (`malha` só quando o conjunto online muda), visibilidade (`tela {oculta}`),
+  toasts e jornada de telas/overlays (hook `ui.setDevHook` → `toast`/`tela.overlay`/`tela.screen` —
+  o "print" textual), check-in/gps/boteco (`checkin.toque` SEM `checkin.salvo` = GPS pendurou) e
+  erros globais **com contexto de tela** (`telaCtx`). **📸 Registrar a tela** = snapshot manual do
+  ESTADO (tela + overlays + texto do sheet ≤400 + `gameSnapshot` público) — página web não tira
+  print de pixels de si no Android; o estado vale mais. **📤 Compartilhar relatório** = JSON com
+  versão, aparelho, PERMISSÕES (o 'prompt' pendurado é o comedor de check-in), storage, settings
+  (foto REDIGIDA: só tamanho; **pixKey MASCARADA**), flags, check-ins, cardápios, histórico-resumo,
+  mesa aberta, **transporte + presença (`__presDbg`) + tela + jogo + últimos 30 eventos** e o
+  diário — Web Share com arquivo, fallback download. `window.__devReport` é o raio-x pro e2e; o
+  `e2e-dev` trava destravar/persistir/funis/📸/redações. Nada sai do aparelho sozinho.
 - **Hub do "Você" (avatar)** (`ui.openMe`, overlay `#overlay-me`): junta o que é PESSOAL num lugar
   só — 👤 perfil, 📊 números, 🎞️ retrô, 🗺️ passaporte, ⚙️ configurações (cada item abre o overlay
   que JÁ existe; padrão de troca do menu). DUAS portas, o mesmo hub: o **avatar no canto da home**

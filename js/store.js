@@ -63,8 +63,9 @@ export function getFlags() { return readJSON(K_FLAGS, {}) || {}; } // cru, pro r
 // ---- Diário técnico (modo desenvolvedor) ----
 // Anel FIFO com teto: caça-bug não pode inchar o localStorage (a foto de perfil já come quota).
 // Só entra algo aqui com o switch dev LIGADO (o dlog do app.js é no-op desligado).
+// 1500 entradas curtas (~100B cada ≈ 150KB): aguenta o rabo de uma noite inteira com jogos.
 const K_DEVLOG = 'botequei.devlog';
-const DEVLOG_MAX = 500;
+const DEVLOG_MAX = 1500;
 export function getDevLog() { const v = readJSON(K_DEVLOG, []); return Array.isArray(v) ? v : []; }
 export function addDevLog(entry) { const list = getDevLog(); list.push(entry); writeJSON(K_DEVLOG, list.slice(-DEVLOG_MAX)); }
 

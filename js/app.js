@@ -1122,6 +1122,9 @@ function trySwUpdate() {
 // (ui.js) parte da mesa limpa a cada parada e fecha tudo no fim. Trilha concluída ganha ✓
 // no índice (flag local `tourDone_*`) — dá pra rever quantas vezes quiser.
 const openMenuPre = () => document.getElementById('btn-menu').click();
+const openInvitePre = () => document.getElementById('btn-invite').click();      // → convite (nome da mesa)
+const openMePre = () => { const m = document.querySelector('.pres-me'); if (m) m.click(); }; // seu rosto na barra → hub
+const openSetPre = () => { openMePre(); const s = document.getElementById('me-settings'); if (s) s.click(); }; // hub → configs
 function tourTrails() {
   // mesa nova nasce LIMPA → a 1ª parada do básico aponta o botão que abre o catálogo; se já
   // tem cards (entrou numa mesa rodando), ensina o toque no card
@@ -1150,6 +1153,18 @@ function tourTrails() {
       { sel: '#presence-bar', title: t('tour.tv1'), text: t('tour.xv1') }, // só com gente na mesa (sozinho, pula)
       { sel: '#btn-peers', title: t('tour.tv2'), text: t('tour.xv2') },
       { sel: '.pres-me', title: t('tour.tv3'), text: t('tour.xv3') }, // seu rosto na barra abre o hub (perfil/números/config)
+    ] },
+    { id: 'botecos', emoji: '🗺️', label: t('tour.trail.botecos'), steps: [
+      { sel: '#table-name-input', pre: openInvitePre, title: t('tour.tb1'), text: t('tour.xb1') }, // nomear a mesa = o bar
+      { sel: '#me-passport', pre: openMePre, title: t('tour.tb2'), text: t('tour.xb2') },
+      { sel: '#menu-prices', pre: openMenuPre, title: t('tour.tb3'), text: t('tour.xb3') },
+      { sel: '#set-geo', pre: openSetPre, title: t('tour.tb4'), text: t('tour.xb4') },
+    ] },
+    { id: 'canto', emoji: '👤', label: t('tour.trail.canto'), steps: [
+      { sel: '#me-profile', pre: openMePre, title: t('tour.tk1'), text: t('tour.xk1') },
+      { sel: '#me-stats', pre: openMePre, title: t('tour.tk2'), text: t('tour.xk2') }, // só com histórico (senão pula)
+      { sel: '#me-retro', pre: openMePre, title: t('tour.tk3'), text: t('tour.xk3') }, // idem
+      { sel: '#me-settings', pre: openMePre, title: t('tour.tk4'), text: t('tour.xk4') },
     ] },
   ];
 }

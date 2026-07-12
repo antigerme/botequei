@@ -336,7 +336,9 @@ padrão Auto segue o navegador).
   (apelido/criar mesa moram SÓ lá — o funil que engolia a tela inicial morreu); e **Tour do
   Botequei** por TRILHAS (`tourTrails` no `app.js`, motor em `ui.startTour`): 🍺 O básico
   (roda sozinho na 1ª mesa — flag `tourSeen`; no fim pergunta o tema) · 💸 A conta · 🎮 A
-  diversão · 📊 A mesa viva — 4 paradas cada; parada com `pre` ABRE a tela de verdade (clique
+  diversão · 📊 A mesa viva · 🗺️ Botecos & passaporte (nomear a mesa = o bar, check-in, cardápio
+  salvo, GPS) · 👤 O seu canto (perfil/números/retrô/config) — 3–4 paradas cada; parada com `pre`
+  ABRE a tela de verdade (clique
   real no menu/jogos), o motor parte da mesa LIMPA a cada parada (`closeOverlays`) e espera a
   âncora ficar visível (ausente = pula); **"🎓 Tour do Botequei"** no menu "…" abre o índice
   de trilhas com ✓ nas concluídas (flags `tourDone_*`); spotlight + balão, bolinhas de

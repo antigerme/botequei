@@ -55,7 +55,7 @@ const IDS = [
   'menu-hh', 'menu-waiter', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-tour',
   'overlay-prices', 'price-list',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
-  'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-webcam', 'btn-avatar-upload', 'avatar-file',
+  'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-webcam', 'btn-avatar-camera', 'btn-avatar-upload', 'avatar-file',
   'overlay-crop', 'crop-canvas', 'crop-zoom', 'btn-crop-use',
   'overlay-camera', 'cam-video', 'btn-cam-shoot',
   'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'add-share', 'btn-additem-confirm',
@@ -284,7 +284,11 @@ export function init(handlers) {
   // foto de perfil: "Trocar foto" abre o sheet NATIVO do sistema (câmera OU galeria no celular;
   // arquivo no desktop) — SEM `capture`, é o SO quem monta o menu. A "Webcam" (só no desktop,
   // onde o seletor de arquivo não tem câmera) abre a câmera ao vivo, mesmo motor do leitor de QR.
-  el['btn-avatar-upload'].addEventListener('click', () => el['avatar-file'].click());
+  // Câmera nativa: seta capture (o SO abre o app de câmera direto — selfie do perfil). Galeria:
+  // TIRA o capture (input volta a ser seletor de imagens). Os dois caem no MESMO #avatar-file →
+  // mesmo recorte. Sem isso, no Android moderno o "Trocar foto" ia direto pro Photo Picker (só galeria).
+  el['btn-avatar-camera'].addEventListener('click', () => { el['avatar-file'].setAttribute('capture', 'user'); el['avatar-file'].click(); });
+  el['btn-avatar-upload'].addEventListener('click', () => { el['avatar-file'].removeAttribute('capture'); el['avatar-file'].click(); });
   el['btn-avatar-webcam'].addEventListener('click', () => openCam());
   el['btn-cam-shoot'].addEventListener('click', () => shootCam());
   el['avatar-file'].addEventListener('change', () => avatarFilePicked());
@@ -723,8 +727,14 @@ export function openProfile(cur) {
     paintProfileHero();
   }));
   paintProfileHero();
-  // webcam ao vivo só no desktop (no celular o sheet nativo do "Trocar foto" já traz a câmera)
-  el['btn-avatar-webcam'].hidden = !(scanSupported() && window.matchMedia('(min-width: 900px)').matches);
+  // Câmera vs galeria por plataforma: no DESKTOP a webcam ao vivo (getUserMedia); no CELULAR o app
+  // de câmera nativo via capture — porque o Android moderno manda <input accept=image/*> SEM capture
+  // direto pro Photo Picker (só galeria, sem câmera), então não dá mais pra confiar no "sheet nativo".
+  const wideScreen = window.matchMedia('(min-width: 900px)').matches;
+  const touchDev = (navigator.maxTouchPoints || 0) > 0 || window.matchMedia('(pointer: coarse)').matches;
+  const webcamOn = scanSupported() && wideScreen;
+  el['btn-avatar-webcam'].hidden = !webcamOn;              // webcam ao vivo: desktop
+  el['btn-avatar-camera'].hidden = webcamOn || !touchDev; // câmera nativa (capture): celular/touch
   el['overlay-profile'].hidden = false;
 }
 function submitProfile() {

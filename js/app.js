@@ -1071,7 +1071,7 @@ function leaveTable() {
   cancelTruco(false); trucoPreFx = [];
   domClearTimers(); gameMinned.clear(); ui.setGameMin('dom', false); ui.setGameMin('purr', false); ui.setGamePill(null);
   location.hash = '';
-  ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory(), meAvatar());
+  ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory(), meAvatar(), !!store.getFlag('tourSeen') || store.getHistory().length > 0);
 }
 
 // ---- Convite ----
@@ -1345,9 +1345,10 @@ function maybeStartTour() {
   const tick = setInterval(() => {
     if (!room) { clearInterval(tick); tourArmed = false; return; } // saiu antes do tour começar
     if (document.querySelector('.overlay:not([hidden])')) return; // convite/QR ainda aberto
-    const hasCards = !!document.querySelector('.item-card');
-    const emptyOpen = !!document.querySelector('#menu-empty:not([hidden])');
-    if (!hasCards && !emptyOpen) return; // miolo ainda não renderizou
+    // VALOR ANTES DE GUIA: espera o 1º +1 (a mesa "andou"). O empty-state + o hint "👆 toque = +1"
+    // ensinam o primeiro toque sozinhos; aí o tour entra pra mostrar o RESTO (a trilha já troca o
+    // passo 1 pro card real quando há card). Sem +1, sem tour automático (dá pra abrir no "🎓" à mão).
+    if (tableTotal(state) <= 0) return;
     clearInterval(tick); tourArmed = false;
     if (store.getFlag('tourSeen')) return; // outra chamada já mostrou nesse meio-tempo
     store.setFlag('tourSeen'); // marca ao MOSTRAR (pular também conta como visto)
@@ -3459,7 +3460,7 @@ function boot() {
   sound.setEnabled(settings.sound);
   if (settings.shake) enableShake();
   ui.setNameInput(getName());
-  ui.renderHome(store.getHistory(), meAvatar());
+  ui.renderHome(store.getHistory(), meAvatar(), !!store.getFlag('tourSeen') || store.getHistory().length > 0);
   ui.showDev(store.getFlag('devUnlocked')); // seção 🐛 já destravada uma vez? aparece desde o boot
   ui.setDevFab(settings.dev); // 📸 flutuante já no boot se o modo dev estiver ligado
   dlog('boot', { v: VERSION, pwa: window.matchMedia('(display-mode: standalone)').matches });

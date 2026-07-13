@@ -326,6 +326,7 @@ export function init(handlers) {
 
   // offline (pareamento por QR/código, sem servidor)
   el['btn-offline-join'].addEventListener('click', () => H.onOfflineJoin());
+  ['online', 'offline'].forEach((ev) => window.addEventListener(ev, syncOfflineEntry)); // conectou/caiu → mostra/esconde o 📴
   el['btn-offline-host'].addEventListener('click', () => { closeOverlays(); H.onOfflineHost(); });
   el['btn-off-copy-offer'].addEventListener('click', () => copyBox('off-offer-code', t('off.copyOfferOk')));
   el['btn-off-copy-answer'].addEventListener('click', () => copyBox('off-answer-code', t('off.copyAnswerOk')));
@@ -530,7 +531,13 @@ export function focusNameSoft() {
 }
 export function showInstall(v) { el['btn-install'].hidden = !v; }
 
-export function renderHome(history, me) {
+let homeReturning = false; // "já usou o app antes?" — pra revelar o 📴 sem internet (setado no renderHome)
+// "📴 Entrar sem internet" só na 1ª tela quando FAZ SENTIDO: sem internet (o navegador avisa) OU
+// pra quem já é de casa. Estreante ONLINE não vê o conceito de nicho (home fica Criar + Entrar);
+// offline de verdade OU recorrente vê. (e2e-offline seta tourSeen → o botão aparece pro teste.)
+function syncOfflineEntry() { if (el['btn-offline-join']) el['btn-offline-join'].hidden = navigator.onLine && !homeReturning; }
+export function renderHome(history, me, returning = false) {
+  homeReturning = !!returning; syncOfflineEntry();
   const box = el['home-history'], ul = el['history-list'];
   const empty = !history || !history.length;
   if (el['home-hint']) el['home-hint'].hidden = !empty;

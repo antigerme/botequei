@@ -393,7 +393,7 @@ padrão Auto segue o navegador).
   TRAVA (disabled) até ter apelido** — `syncCreateBtn` liga/desliga no `input`; sem beco de toast — e
   a home dá **foco suave** no campo ao ficar ativa sem overlay, `focusNameSoft`); e **Tour do
   Botequei** por TRILHAS (`tourTrails` no `app.js`, motor em `ui.startTour`): 🍺 O básico
-  (roda sozinho na 1ª mesa — flag `tourSeen`; sem pergunta de tema no fim — o padrão 'auto' segue o sistema; **a 1ª mesa da vida POUSA sem auto-abrir o convite** — `enterTable` só o abre pra quem já tem `tourSeen`; estreante é guiado pelo empty-state + tour, o convite fica a 1 toque no `#btn-invite`) · 💸 A conta · 🎮 A
+  (roda sozinho na 1ª mesa **DEPOIS do 1º +1** — valor antes de guia: `maybeStartTour` espera `tableTotal>0`, o empty-state + o hint "👆 toque = +1" ensinam o 1º toque e aí o tour mostra o resto (a trilha troca o passo 1 pro card real); flag `tourSeen`; sem pergunta de tema no fim — o padrão 'auto' segue o sistema; **a 1ª mesa da vida POUSA sem auto-abrir o convite** — `enterTable` só o abre pra quem já tem `tourSeen`; estreante é guiado pelo empty-state + tour, o convite fica a 1 toque no `#btn-invite`; e o **"📴 Entrar sem internet" só aparece na home quando FAZ SENTIDO** — sem internet (`navigator.onLine`) OU pra quem já é de casa (`renderHome(…, returning)`); estreante online não vê o conceito de nicho) · 💸 A conta · 🎮 A
   diversão · 📊 A mesa viva · 🗺️ Botecos & passaporte (nomear a mesa = o bar, check-in, cardápio
   salvo, GPS) · 👤 O seu canto (perfil/números/retrô/config) — 3–4 paradas cada; parada com `pre`
   ABRE a tela de verdade (clique

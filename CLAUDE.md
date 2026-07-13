@@ -180,10 +180,18 @@ padrão Auto segue o navegador).
   na largura cheia, buchas em pé, âncora no meio) **+ ESTABILIDADE** (crescer a corrente numa ponta não
   move nenhuma pedra já posta — regressão do André) e o e2e confere serpentina + **não-encolhe** (scale
   1) + re-fluxo ao girar.
-  Efêmero, não entra no log — e **fechar (✕) só minimiza**: o jogo segue, um pill na mesa traz de
-  volta; encerrar pra todos é botão explícito com confirmação (o `cancel` leva `from` → toast diz
-  quem encerrou). Consumo/conta de quem saiu não mudam: eventos são CRDT permanentes (a pessoa
-  segue na conta; PAYFOR cobre; voltando no mesmo aparelho, reassume a identidade).
+  Efêmero, não entra no log. **Entrar/voltar/repetir**: tocar no grid "🎮 Jogos" num jogo que JÁ
+  está rolando **VOLTA pra ele** (`reopenGame`, não destrói a partida — mesma regra do pill);
+  **dominó com ≥2 humanos começa DIRETO** (a "tela de espera" É o handshake — o picker de bots só
+  aparece no solo, que precisa de bot); e **"🫲 Jogar de novo" REPETE a última config**
+  (`lastPurr`/`lastDom`/`lastTruco`: mesmo modo/variante + mesmos bots; os HUMANOS são re-lidos
+  frescos — a escolha de modo mora SÓ no grid). **Fechar (✕)**: jogo **SOLO** (só eu + bots) encerra
+  DIRETO (sem cerimônia — não há mesa pra avisar); **com mesa, o ✕ minimiza** (o jogo segue, um pill
+  traz de volta; encerrar pra todos é botão explícito com confirmação — o `cancel` leva `from` →
+  toast diz quem encerrou). `soloGame(kind)` = nenhum HUMANO no jogo além de mim (filtra `isBot` de
+  `purr.entrants`/`dom.order`↔`dv.order`/`truco.order`). Consumo/conta de quem saiu não mudam:
+  eventos são CRDT permanentes (a pessoa segue na conta; PAYFOR cobre; voltando no mesmo aparelho,
+  reassume a identidade).
 - **Mesa verificada** (sempre ativa — o dominó abre direto nela; as regras do jogo não mudam,
   só o embaralho é auditável): endurece o embaralho do dominó com
   **commit-to-deck + corte coletivo** (`verifyDeal` em `domino.js`, puro/testado). Handshake antes
@@ -202,7 +210,9 @@ padrão Auto segue o navegador).
   `traise`/`tresp`/`trespclose` (o PROPONENTE fecha após graça de 1,2s no 2v2 — resposta da
   dupla é CRDT max: fold<accept<raise). Mão de onze/dez via `tonze` (só o time da regra).
   Fim de partida: `topen` abre master+baralho de cada mão e todos auditam (badge 🔒✅/🚫).
-  `tcancel` com `from`; ✕ minimiza (pill, padrão dos outros jogos). Estado da mão =
+  `tcancel` com `from`; ✕ minimiza/encerra-solo (padrão dos outros jogos). **Setup: 3 humanos →
+  default 2v2 + 1 bot** (todos jogam; antes o 3º era fatiado fora, calado); 4+ → 2v2; 2 → 1v1;
+  sozinho → 1 bot (só o DEFAULT sugerido — o picker ajusta). Estado da mão =
   reducer determinístico do motor (`reduceT`) — evento fora de hora morre igual em todos.
   Gaúcha completa: ENVIDO/REAL ENVIDO/FLOR na 1ª vaza (`tenvido`/`trealenvido`/`tenvresp`/
   `tflor`); aceite → cada um AUTO-DECLARA os pontos (`tenvpoints`, sem input) e o placar anda;
@@ -379,9 +389,11 @@ padrão Auto segue o navegador).
   de botecos (`store.getCheckins`/`addCheckin` — check-in local, GPS opcional, só no aparelho);
   **guia de boas-vindas** no 1º uso (1× só — flag `welcomeSeen` no `store.getFlag`/`setFlag`): SAUDAÇÃO
   leve — card de DEMONSTRAÇÃO tocável (treina toque=+1/segurar=−1) e "Bora!" que SOLTA na home
-  (apelido/criar mesa moram SÓ lá — o funil que engolia a tela inicial morreu); e **Tour do
+  (apelido/criar mesa moram SÓ lá — o funil que engolia a tela inicial morreu; o **"Criar mesa"
+  TRAVA (disabled) até ter apelido** — `syncCreateBtn` liga/desliga no `input`; sem beco de toast — e
+  a home dá **foco suave** no campo ao ficar ativa sem overlay, `focusNameSoft`); e **Tour do
   Botequei** por TRILHAS (`tourTrails` no `app.js`, motor em `ui.startTour`): 🍺 O básico
-  (roda sozinho na 1ª mesa — flag `tourSeen`; sem pergunta de tema no fim — o padrão 'auto' segue o sistema) · 💸 A conta · 🎮 A
+  (roda sozinho na 1ª mesa **DEPOIS do 1º +1** — valor antes de guia: `maybeStartTour` espera `tableTotal>0`, o empty-state + o hint "👆 toque = +1" ensinam o 1º toque e aí o tour mostra o resto (a trilha troca o passo 1 pro card real); flag `tourSeen`; sem pergunta de tema no fim — o padrão 'auto' segue o sistema; **a 1ª mesa da vida POUSA sem auto-abrir o convite** — `enterTable` só o abre pra quem já tem `tourSeen`; estreante é guiado pelo empty-state + tour, o convite fica a 1 toque no `#btn-invite`; e o **"📴 Entrar sem internet" só aparece na home quando FAZ SENTIDO** — sem internet (`navigator.onLine`) OU pra quem já é de casa (`renderHome(…, returning)`); estreante online não vê o conceito de nicho) · 💸 A conta · 🎮 A
   diversão · 📊 A mesa viva · 🗺️ Botecos & passaporte (nomear a mesa = o bar, check-in, cardápio
   salvo, GPS) · 👤 O seu canto (perfil/números/retrô/config) — 3–4 paradas cada; parada com `pre`
   ABRE a tela de verdade (clique

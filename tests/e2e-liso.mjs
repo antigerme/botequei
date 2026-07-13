@@ -76,7 +76,14 @@ async function main() {
     await page.waitForSelector('#screen-table.is-active', { timeout: T });
     await page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true))); // fecha o convite
 
-    await step('tour abre sozinho na 1ª mesa (passo 1/4 com spotlight)', async () => {
+    // o tour agora só dispara DEPOIS do 1º +1 (valor antes de guia): monta um item e conta 1
+    await page.click('#btn-empty-custom');
+    await page.fill('#add-name', 'Chopp');
+    await page.click('#btn-additem-confirm');
+    await page.waitForFunction(() => document.getElementById('overlay-additem').hidden, null, { timeout: T });
+    await page.click('.item-card'); // 1º +1 → agora sim o tour destrava
+
+    await step('tour abre sozinho DEPOIS do 1º +1 (passo 1/4 com spotlight)', async () => {
       await vis(page, 'tour');
       const count = (await page.textContent('#tour-count')).trim();
       if (count !== '1/4') throw new Error('esperava 1/4, vi ' + count);

@@ -63,9 +63,23 @@ async function main() {
     if (!names.some((n) => /Zé|Bigode/.test(n))) throw new Error('bots sem nome de elenco: ' + names.join(', '));
   });
 
+  // ---------- "de novo" REPETE a última config (não re-abre a escolha de modo) ----------
+  await step('"de novo" repete a RÁPIDA na hora (cai direto no pick, sem re-perguntar o modo)', async () => {
+    await A.click('#btn-purr-again'); // repete a última config (rápida + 2 bots)
+    await A.waitForFunction(() => {
+      const pick = document.getElementById('purr-pick'), setup = document.getElementById('purr-setup');
+      return pick && !pick.hidden && (!setup || setup.hidden);
+    }, null, { timeout: T });
+    await A.click('#btn-purr-close'); // solo: ✕ encerra direto (sem pill) — libera pra escolher outro modo
+    await A.waitForFunction(() => document.getElementById('overlay-purrinha').hidden, null, { timeout: T });
+  });
+
   // ---------- PURRINHA clássica: bots selam a mão E palpitam em turno (falado, sem repetir) ----------
   await step('CLÁSSICA solo + 2 bots: bots selam a mão, palpitam em turno e a rodada apura', async () => {
-    await A.click('#btn-purr-again');                 // "de novo" volta pra escolha de modo
+    // pra ESCOLHER outro modo, reabre pelo grid 🎮 (o "de novo" repete; a escolha mora só no grid)
+    await A.click('#btn-games');
+    await A.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+    await A.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Purrinha/.test(b.textContent)).click(); });
     await A.waitForFunction(() => document.getElementById('purr-setup') && !document.getElementById('purr-setup').hidden, null, { timeout: T });
     await A.click('.bot-chip[data-n="2"]');
     await A.click('#btn-purr-classic');

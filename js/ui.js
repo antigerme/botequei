@@ -169,6 +169,7 @@ export function init(handlers) {
   el['btn-create'].addEventListener('click', () => H.onCreate());
   el['btn-join-code'].addEventListener('click', () => H.onJoinCode(el['input-code'].value));
   el['input-name'].addEventListener('change', () => H.onName(el['input-name'].value));
+  el['input-name'].addEventListener('input', syncCreateBtn); // o "Criar mesa" só liga quando há apelido
   el['btn-me'].addEventListener('click', () => H.onMe()); // avatar no canto da home → hub pessoal
   el['btn-install'].addEventListener('click', () => H.onInstall());
   // hub do "Você": cada item abre o overlay que já existe (padrão de troca do menu — fecha o hub, abre o alvo)
@@ -221,10 +222,10 @@ export function init(handlers) {
     H.onPurrSeal(purrPick.hand, purrPick.guess);
   });
   el['btn-purr-say'].addEventListener('click', () => { if (purrSaid != null) H.onPurrGuess(purrSaid); });
-  el['btn-purr-again'].addEventListener('click', () => H.onPurrinha());
+  el['btn-purr-again'].addEventListener('click', () => H.onPurrAgain()); // "de novo" REPETE a última config (setup só no grid 🎮)
   el['btn-purr-close'].addEventListener('click', () => H.onPurrClose()); // ✕ minimiza (jogo segue); encerrar é o ✕ da pill
   el['btn-dom-pass'].addEventListener('click', () => H.onDomPass());
-  el['btn-dom-again'].addEventListener('click', () => H.onDomino());
+  el['btn-dom-again'].addEventListener('click', () => H.onDomAgain()); // "de novo" REPETE a última config (setup só no grid 🎮)
   el['btn-dom-close'].addEventListener('click', () => H.onDomClose());
   // pill de "jogo rolando": no chip, tocar no rótulo VOLTA pro jogo; o ✕ vermelho ENCERRA pra mesa toda
   el['game-pill'].addEventListener('click', (e) => {
@@ -253,7 +254,7 @@ export function init(handlers) {
   el['btn-boteco-rename-go'].addEventListener('click', doRename);
   el['boteco-rename'].addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doRename(); } });
   el['btn-boteco-del'].addEventListener('click', () => H.onBotecoDelMenu(el['overlay-boteco'].dataset.place || ''));
-  el['btn-welcome-go'].addEventListener('click', () => closeOverlays()); // solta na HOME (apelido/criar moram lá)
+  el['btn-welcome-go'].addEventListener('click', () => { closeOverlays(); focusNameSoft(); }); // solta na HOME (apelido/criar moram lá) e foca o apelido
   { // demo do bem-vindo: o GESTO do app pra treinar antes da 1ª mesa (toque = +1, segurar = −1)
     let n = 0, tm = null, held = false;
     const card = el['welcome-demo'];
@@ -325,6 +326,7 @@ export function init(handlers) {
 
   // offline (pareamento por QR/código, sem servidor)
   el['btn-offline-join'].addEventListener('click', () => H.onOfflineJoin());
+  ['online', 'offline'].forEach((ev) => window.addEventListener(ev, syncOfflineEntry)); // conectou/caiu → mostra/esconde o 📴
   el['btn-offline-host'].addEventListener('click', () => { closeOverlays(); H.onOfflineHost(); });
   el['btn-off-copy-offer'].addEventListener('click', () => copyBox('off-offer-code', t('off.copyOfferOk')));
   el['btn-off-copy-answer'].addEventListener('click', () => copyBox('off-answer-code', t('off.copyAnswerOk')));
@@ -514,10 +516,28 @@ export function showScreen(name) {
 }
 
 // ---------- Home ----------
-export function setNameInput(v) { el['input-name'].value = v || ''; }
+export function setNameInput(v) { el['input-name'].value = v || ''; syncCreateBtn(); }
+// o "Criar mesa" parece clicável mas falhava com toast quando o apelido estava vazio: agora TRAVA
+// (disabled) até ter texto — evita o beco. Setar o valor por JS não dispara 'input', então quem
+// chama setNameInput/o listener de 'input' sincroniza na mão.
+function syncCreateBtn() { if (el['btn-create'] && el['input-name']) el['btn-create'].disabled = !el['input-name'].value.trim(); }
+// foco SUAVE no apelido — só quando a home está ativa, SEM overlay aberto e o campo vazio (não briga
+// com o welcome nem rouba foco de um overlay). Chamado no boot e ao fechar a saudação.
+export function focusNameSoft() {
+  if (!el['screen-home'] || !el['screen-home'].classList.contains('is-active')) return;
+  if (document.querySelector('.overlay:not([hidden])')) return;
+  if (!el['input-name'] || el['input-name'].value.trim()) return;
+  try { el['input-name'].focus({ preventScroll: true }); } catch { el['input-name'].focus(); }
+}
 export function showInstall(v) { el['btn-install'].hidden = !v; }
 
-export function renderHome(history, me) {
+let homeReturning = false; // "já usou o app antes?" — pra revelar o 📴 sem internet (setado no renderHome)
+// "📴 Entrar sem internet" só na 1ª tela quando FAZ SENTIDO: sem internet (o navegador avisa) OU
+// pra quem já é de casa. Estreante ONLINE não vê o conceito de nicho (home fica Criar + Entrar);
+// offline de verdade OU recorrente vê. (e2e-offline seta tourSeen → o botão aparece pro teste.)
+function syncOfflineEntry() { if (el['btn-offline-join']) el['btn-offline-join'].hidden = navigator.onLine && !homeReturning; }
+export function renderHome(history, me, returning = false) {
+  homeReturning = !!returning; syncOfflineEntry();
   const box = el['home-history'], ul = el['history-list'];
   const empty = !history || !history.length;
   if (el['home-hint']) el['home-hint'].hidden = !empty;

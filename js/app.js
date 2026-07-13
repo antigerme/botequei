@@ -837,7 +837,9 @@ async function enterTable(code, { create = false, pin = '', joined = false } = {
   render();
   acquireWakeLock(); // tela acesa na mesa (se o usuário quer)
   if (!presTick) presTick = setInterval(scheduleRender, 30000); // relógio do 💤 anda mesmo com a mesa parada
-  if (create) { openInvite(); maybeSuggestByGps(); } // GPS: perto de um boteco conhecido? oferece dar o NOME dele à mesa
+  // estreante (1ª mesa da vida, ainda sem `tourSeen`) POUSA na mesa: o empty-state já guia e o tour
+  // "O básico" roda sozinho — o convite fica a 1 toque no #btn-invite. Recorrente vê o convite na hora.
+  if (create) { if (store.getFlag('tourSeen')) openInvite(); maybeSuggestByGps(); } // GPS: perto de um boteco conhecido? oferece o NOME dele
   maybeStartTour(); // 1ª mesa da vida: mostra o caminho das pedras (espera fechar o convite)
 
   const iceServers = await loadIce();
@@ -1069,7 +1071,7 @@ function leaveTable() {
   cancelTruco(false); trucoPreFx = [];
   domClearTimers(); gameMinned.clear(); ui.setGameMin('dom', false); ui.setGameMin('purr', false); ui.setGamePill(null);
   location.hash = '';
-  ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory(), meAvatar());
+  ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory(), meAvatar(), !!store.getFlag('tourSeen') || store.getHistory().length > 0);
 }
 
 // ---- Convite ----
@@ -1224,7 +1226,22 @@ function renderBill() {
 // (fx continuam aplicando/renderizando) e o pill na mesa traz de volta num toque. "Encerrar"
 // pede confirmação e avisa a mesa com o nome de quem encerrou.
 const gameMinned = new Set(); // 'dom' | 'purr'
+// última config de cada jogo, pro "🫲 Jogar de novo" REPETIR na hora (mesmo modo/mesmos bots) sem
+// re-abrir o setup — a tela de escolha fica SÓ pro caminho do grid "🎮 Jogos". Os HUMANOS são
+// re-lidos frescos (quem está online AGORA); só o número de bots (botN) é preservado.
+let lastPurr = null;  // { mode, botN }
+let lastDom = null;   // { botN }
+let lastTruco = null; // { variant, botN }
 function purrActive() { return !!purr && purr.phase !== 'revealed' && purr.phase !== 'done'; }
+// "jogo SOLO" = não há outro HUMANO no jogo além de mim (só eu + bots). Solo fecha no ✕ SEM
+// cerimônia: nada de minimizar/pill/confirmação "pra mesa toda" (não há mesa pra avisar).
+function soloGame(kind) {
+  let ids = [];
+  if (kind === 'purr') ids = purr ? purr.entrants.map((e) => e.id) : [];
+  else if (kind === 'dom') ids = (dom && dom.order) || (dv && dv.order) || [];
+  else if (kind === 'truco') ids = truco ? truco.order : [];
+  return ids.filter((id) => !isBot(id)).length <= 1;
+}
 function minimizeGame(kind) { gameMinned.add(kind); ui.setGameMin(kind, true); ui.closeOverlays(); updateGamePill(); }
 function reopenGame(kind) { gameMinned.delete(kind); ui.showGame(kind); updateGamePill(); }
 function clearGameMin(kind) { gameMinned.delete(kind); ui.setGameMin(kind, false); updateGamePill(); }
@@ -1328,9 +1345,10 @@ function maybeStartTour() {
   const tick = setInterval(() => {
     if (!room) { clearInterval(tick); tourArmed = false; return; } // saiu antes do tour começar
     if (document.querySelector('.overlay:not([hidden])')) return; // convite/QR ainda aberto
-    const hasCards = !!document.querySelector('.item-card');
-    const emptyOpen = !!document.querySelector('#menu-empty:not([hidden])');
-    if (!hasCards && !emptyOpen) return; // miolo ainda não renderizou
+    // VALOR ANTES DE GUIA: espera o 1º +1 (a mesa "andou"). O empty-state + o hint "👆 toque = +1"
+    // ensinam o primeiro toque sozinhos; aí o tour entra pra mostrar o RESTO (a trilha já troca o
+    // passo 1 pro card real quando há card). Sem +1, sem tour automático (dá pra abrir no "🎓" à mão).
+    if (tableTotal(state) <= 0) return;
     clearInterval(tick); tourArmed = false;
     if (store.getFlag('tourSeen')) return; // outra chamada já mostrou nesse meio-tempo
     store.setFlag('tourSeen'); // marca ao MOSTRAR (pular também conta como visto)
@@ -1421,6 +1439,7 @@ function startPurrinha() { // abre a escolha do modo (quem inicia decide)
 }
 function startPurrinhaMode(mode, botN = 0) {
   if (!room) return;
+  lastPurr = { mode, botN }; // guarda a config pro "jogar de novo" repetir sem re-perguntar
   const entrants = purrEntrants();
   for (const id of pickBots(botN)) { const b = botProfile(id); entrants.push({ id, name: b.name, avatar: b.emoji, photo: '', color: b.color }); }
   if (entrants.length < 2) { ui.toast(t('purr.need2')); return; }
@@ -2099,6 +2118,7 @@ function botDomPlay(id) {
 let dv = null;
 async function startDominoVerified(botN = 0) {
   if (!room) { ui.toast(t('toast.needTable')); return; }
+  lastDom = { botN }; // guarda a config pro "jogar de novo" repetir sem re-perguntar
   let order = domEntrants();
   for (const id of pickBots(botN)) if (order.length < 4) order.push(id); // a turma virtual pega assento
   if (order.length < 2 || order.length > 4) { ui.toast(t('dom.players')); return; }
@@ -2288,11 +2308,13 @@ function truMySeat() { return truco ? truco.order.indexOf(self) : -1; }
 function startTruco() {
   if (!room) { ui.toast(t('toast.needTable')); return; }
   const n = domEntrants().length;
-  // solo: a turma virtual completa (1 bot = 1v1). Com 4+ humanos, 2v2 sem bots.
-  ui.trucoStartChoice({ mode: n >= 4 ? '2v2' : '1v1', botsDefault: n < 2 ? 1 : 0 });
+  // 3 HUMANOS → 2v2 + 1 bot (todos jogam; antes o 3º era fatiado fora, calado). 4+ → 2v2 sem bot.
+  // 2 → 1v1. Sozinho → 1 bot pra ter com quem jogar. (Só o DEFAULT sugerido; o picker ainda ajusta.)
+  ui.trucoStartChoice({ mode: n >= 3 ? '2v2' : '1v1', botsDefault: n < 2 ? 1 : (n === 3 ? 1 : 0) });
 }
 function startTrucoVariant(variant, botN = 0) {
   if (!TRU_VARIANTS[variant]) return;
+  lastTruco = { variant, botN }; // guarda a config pro "jogar de novo" repetir sem re-perguntar
   let order = domEntrants();
   for (const id of pickBots(botN)) if (order.length < 4) order.push(id); // a turma virtual completa a dupla/mesa
   if (order.length >= 4) order = order.slice(0, 4); else order = order.slice(0, 2);
@@ -3152,19 +3174,32 @@ const handlers = {
     const res = await shareRecap(state, resolveItem).catch(() => 'error');
     if (res === 'download') ui.toast(t('toast.imgSaved')); else if (res === 'error') ui.toast(t('toast.imgError'));
   },
-  onPurrinha: startPurrinha,
+  // tocar no jogo no grid: JÁ rolando → VOLTA pra ele (não destrói a partida); senão abre a escolha de modo
+  onPurrinha: () => { if (purrActive()) { reopenGame('purr'); return; } startPurrinha(); },
   onPurrStart: (mode, botN) => startPurrinhaMode(mode, botN),
+  onPurrAgain: () => { if (lastPurr) startPurrinhaMode(lastPurr.mode, lastPurr.botN); else startPurrinha(); }, // "de novo" REPETE a última config
   onPurrSeal: (hand, guess) => (purr && purr.mode !== 'fast' ? purrSealHand(hand) : purrSeal(hand, guess)),
   onPurrGuess: (n) => myPurrGuess(n),
-  // ✕ = minimizar (a partida segue; pill traz de volta). Encerrar pra mesa toda = confirmação.
+  // ✕: SOLO (só eu + bots) encerra direto (sem cerimônia — não há mesa pra avisar); com mesa, minimiza (a partida segue; pill traz de volta).
   onPurrClose: () => {
-    if (purrActive()) { minimizeGame('purr'); return; }
+    if (purrActive()) {
+      if (soloGame('purr')) { cancelPurrinha(false); clearGameMin('purr'); ui.closeOverlays(); return; }
+      minimizeGame('purr'); return;
+    }
     purr = null; clearGameMin('purr'); ui.closeOverlays();
   },
-  onDomino: () => ui.dominoStartChoice({ botsDefault: domEntrants().length < 2 ? 1 : 0 }),
+  // dominó: JÁ rolando → VOLTA; ≥2 humanos → começa DIRETO (a "tela de espera" É o handshake); solo → picker (precisa de bot)
+  onDomino: () => {
+    if ((dom && !dom.over) || (dv && !dv.began && !dom)) { reopenGame('dom'); return; }
+    if (domEntrants().length >= 2) { startDominoVerified(0); return; }
+    ui.dominoStartChoice({ botsDefault: 1 });
+  },
   onDomStart: (botN) => startDominoVerified(botN), // sempre mesa verificada (regras iguais; só o embaralho é auditável)
-  onTruco: startTruco,
+  onDomAgain: () => startDominoVerified(lastDom ? lastDom.botN : (domEntrants().length < 2 ? 1 : 0)), // "de novo" REPETE a última config
+  onTruco: () => { if (truco && !truco.over) { reopenGame('truco'); return; } startTruco(); }, // JÁ rolando → VOLTA; senão abre a escolha
   onTrucoStart: (variant, botN) => startTrucoVariant(variant, botN),
+  // "de novo" REPETE a última config. (O truco não tem botão "de novo" na tela hoje — ✕/grid re-entram; o handler existe pra paridade com purr/dom.)
+  onTruAgain: () => { if (lastTruco) startTrucoVariant(lastTruco.variant, lastTruco.botN); else startTruco(); },
   onTrucoPlay: (card) => myTruPlay(card),
   onTrucoRaise: myTruRaise,
   onTrucoResp: (r) => myTruResp(r),
@@ -3172,14 +3207,21 @@ const handlers = {
   onTrucoEnv: (k) => myTruEnv(k),
   onTrucoEnvResp: (r) => myTruEnvResp(r),
   onTrucoFlor: () => myTruFlor(),
+  // ✕: SOLO encerra direto (sem cerimônia); com mesa, minimiza (a partida segue; pill traz de volta).
   onTrucoClose: () => {
-    if (truco && !truco.over) { minimizeGame('truco'); return; }
+    if (truco && !truco.over) {
+      if (soloGame('truco')) { cancelTruco(false); clearGameMin('truco'); ui.closeOverlays(); return; }
+      minimizeGame('truco'); return;
+    }
     cancelTruco(false); clearGameMin('truco'); ui.closeOverlays();
   },
   onDomPlay: (key, side) => myDomPlay(key, side),
   onDomPass: myDomPass,
+  // ✕: SOLO encerra direto (sem cerimônia); com mesa, minimiza (a partida segue no outro; pill traz de volta).
   onDomClose: () => {
-    if ((dom && !dom.over) || (dv && !dv.began && !dom)) { minimizeGame('dom'); return; }
+    const active = (dom && !dom.over) || (dv && !dv.began && !dom);
+    if (active && soloGame('dom')) { dom = null; dv = null; domClearTimers(); clearGameMin('dom'); ui.closeOverlays(); return; }
+    if (active) { minimizeGame('dom'); return; }
     dom = null; domClearTimers(); clearGameMin('dom'); ui.closeOverlays();
   },
   // pill de "jogo rolando": tocar no rótulo VOLTA pro jogo; o ✕ vermelho ENCERRA pra mesa toda (com confirmação)
@@ -3418,7 +3460,7 @@ function boot() {
   sound.setEnabled(settings.sound);
   if (settings.shake) enableShake();
   ui.setNameInput(getName());
-  ui.renderHome(store.getHistory(), meAvatar());
+  ui.renderHome(store.getHistory(), meAvatar(), !!store.getFlag('tourSeen') || store.getHistory().length > 0);
   ui.showDev(store.getFlag('devUnlocked')); // seção 🐛 já destravada uma vez? aparece desde o boot
   ui.setDevFab(settings.dev); // 📸 flutuante já no boot se o modo dev estiver ligado
   dlog('boot', { v: VERSION, pwa: window.matchMedia('(display-mode: standalone)').matches });
@@ -3432,6 +3474,7 @@ function boot() {
     store.setFlag('welcomeSeen'); // marca AO MOSTRAR: reload (ex.: troca de SW) não repete o guia
     ui.openWelcome(); // primeiro uso: guia rápido (sem convite pendente)
   }
+  ui.focusNameSoft(); // foco suave no apelido: só se a home está ativa, SEM overlay e o campo vazio (self-guarded)
 
   // fechar o app/aba manda o tchau EDUCADO ('gone', best-effort): a mesa NÃO toasta, só tira
   // da barra se a pessoa não voltar na graça (reload/atualização de SW voltam em segundos)

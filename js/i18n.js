@@ -143,7 +143,7 @@ const DICT = {
     'game.pillDomTurn': '🁫 SUA VEZ no dominó', 'game.pillDom': '🁫 Dominó rolando',
     'game.pillPurr': '🫲 Purrinha rolando', 'game.pillBack': ' — voltar',
     'game.end': 'Encerrar', 'game.pillEndAria': 'Encerrar a partida pra mesa toda', 'game.how': 'Como quer jogar?',
-    'bots.call': '🤖 Chamar a turma:', 'bots.none': 'Só eu', 'bots.solo': 'jogando com a turma virtual',
+    'bots.call': '🤖 Chamar a turma:', 'bots.none': 'Sem robôs', 'bots.solo': 'jogando com a turma virtual',
     // ---- dominó ----
     'dom.title': '🁫 Dominó',
     'dom.handLbl': 'Sua mão — toque pra jogar', 'dom.sidePick': 'Jogar em qual ponta?',
@@ -501,7 +501,7 @@ const DICT = {
     'game.pillDomTurn': '🁫 YOUR TURN at dominoes', 'game.pillDom': 'Dominoes in play 🁫',
     'game.pillPurr': '🫲 Purrinha in play', 'game.pillBack': ' — back',
     'game.end': 'End it', 'game.pillEndAria': 'End the game for the whole table', 'game.how': 'How do you want to play?',
-    'bots.call': '🤖 Call the crew:', 'bots.none': 'Just me', 'bots.solo': 'playing with the virtual crew',
+    'bots.call': '🤖 Call the crew:', 'bots.none': 'No bots', 'bots.solo': 'playing with the virtual crew',
     // ---- dominoes ----
     'dom.title': '🁫 Dominoes',
     'dom.handLbl': 'Your hand — tap to play', 'dom.sidePick': 'Play on which end?',
@@ -859,7 +859,7 @@ const DICT = {
     'game.pillDomTurn': '🁫 TU TURNO en el dominó', 'game.pillDom': '🁫 Dominó en juego',
     'game.pillPurr': '🫲 Purrinha en juego', 'game.pillBack': ' — volver',
     'game.end': 'Terminar', 'game.pillEndAria': 'Terminar la partida para toda la mesa', 'game.how': '¿Cómo quieres jugar?',
-    'bots.call': '🤖 Llamar a la banda:', 'bots.none': 'Solo yo', 'bots.solo': 'jugando con la banda virtual',
+    'bots.call': '🤖 Llamar a la banda:', 'bots.none': 'Sin bots', 'bots.solo': 'jugando con la banda virtual',
     // ---- dominó ----
     'dom.title': '🁫 Dominó',
     'dom.handLbl': 'Tu mano — toca para jugar', 'dom.sidePick': '¿En qué punta juegas?',

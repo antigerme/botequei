@@ -2,7 +2,7 @@
 
 const K = 'botequei.settings';
 const DEFAULTS = {
-  theme: 'light',    // padrão de fábrica: claro (kraft). 'auto' segue o sistema; o resto é escolha manual — o fim do tour pergunta a preferência
+  theme: 'auto',     // padrão de fábrica: AUTO (segue o prefers-color-scheme do sistema, igual ao lang); 'dark'/'light' = escolha manual nas ⚙️
   bigFont: false,    // acessibilidade
   sound: true,       // efeitos sonoros
   keepAwake: true,   // na mesa, segura a tela acesa (Wake Lock) — celular apagando = presença "piscando"

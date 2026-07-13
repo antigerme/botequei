@@ -31,9 +31,9 @@ async function main() {
     await step('1º uso: guia de boas-vindas abre sozinho', async () => {
       await vis(page, 'overlay-welcome');
     });
-    await step('padrão de fábrica: tema CLARO já no primeiro uso', async () => {
+    await step('padrão de fábrica AUTO segue o sistema: no headless (prefers light) abre CLARO', async () => {
       const light = await page.evaluate(() => document.body.classList.contains('light'));
-      if (!light) throw new Error('primeiro uso deveria abrir no tema claro');
+      if (!light) throw new Error('com tema AUTO e sistema claro, o primeiro uso deveria abrir no claro');
     });
     await step('demo do gesto DENTRO do guia: toque no card de treino = +1, segurar = −1', async () => {
       await page.click('#welcome-demo');
@@ -93,29 +93,25 @@ async function main() {
       if (open) throw new Error('tour não fechou depois do último passo');
     });
 
-    await step('fim do tour: pergunta o tema (e o padrão em uso é o CLARO)', async () => {
-      await vis(page, 'overlay-themepick');
-      const light = await page.evaluate(() => document.body.classList.contains('light'));
-      if (!light) throw new Error('antes de escolher, o tema deveria ser o claro padrão');
+    await step('fim do tour NÃO pergunta mais o tema (a pergunta saiu do app)', async () => {
+      await page.waitForTimeout(700); // folga: se fosse re-perguntar o tema, o overlay já teria aparecido
+      const pickGone = await page.evaluate(() => !document.getElementById('overlay-themepick'));
+      if (!pickGone) throw new Error('a pergunta de tema deveria ter sido REMOVIDA do app (sem #overlay-themepick)');
     });
 
-    await step('escolhe "Escuro" → aplica na hora e fecha a pergunta', async () => {
-      await page.click('#themepick-row [data-th="dark"]');
-      await page.waitForFunction(() => document.getElementById('overlay-themepick').hidden, null, { timeout: 5000 });
-      const dark = await page.evaluate(() => !document.body.classList.contains('light'));
-      if (!dark) throw new Error('tema escuro não aplicou');
-    });
-
-    await step('reload (volta pra mesa via hash) NÃO repete o tour e o tema escolhido PERSISTE', async () => {
+    await step('reload NÃO repete o tour NEM a pergunta de tema; e o tema de fábrica é AUTO (segue o sistema)', async () => {
+      // sem escolha manual de tema salva, o padrão 'auto' deve seguir o sistema: emula ESCURO e recarrega
+      await page.emulateMedia({ colorScheme: 'dark' });
       await page.reload();
       await page.waitForSelector('#screen-table.is-active', { timeout: T });
       await page.waitForTimeout(1600); // > intervalo do gatilho (600ms)
       const open = await page.evaluate(() => !document.getElementById('tour').hidden);
       if (open) throw new Error('tour apareceu de novo');
-      const stillDark = await page.evaluate(() => !document.body.classList.contains('light'));
-      if (!stillDark) throw new Error('escolha de tema não persistiu no reload');
-      const pickOpen = await page.evaluate(() => !document.getElementById('overlay-themepick').hidden);
-      if (pickOpen) throw new Error('pergunta de tema apareceu de novo no reload');
+      const pickBack = await page.evaluate(() => !!document.getElementById('overlay-themepick'));
+      if (pickBack) throw new Error('a pergunta de tema não deveria existir mais no app');
+      const dark = await page.evaluate(() => !document.body.classList.contains('light'));
+      if (!dark) throw new Error('tema de fábrica deveria ser AUTO e seguir o sistema (escuro), mas ficou claro');
+      await page.emulateMedia({ colorScheme: 'light' }); // devolve o padrão claro pros passos seguintes
     });
 
     await step('"🎓 Tour do Botequei": índice com 6 trilhas (inclui 🗺️ botecos + 👤 seu canto); a 💸 ABRE o menu de verdade na parada 2', async () => {
@@ -136,7 +132,7 @@ async function main() {
       await page.waitForFunction(() => !document.getElementById('overlay-menu').hidden && !document.getElementById('tour').hidden, null, { timeout: 8000 });
       for (let i = 0; i < 2; i++) { await page.click('#btn-tour-next'); await page.waitForTimeout(400); }
       await page.waitForFunction(() => document.getElementById('tour').hidden, null, { timeout: 5000 });
-      const clean = await page.evaluate(() => document.getElementById('overlay-menu').hidden && document.getElementById('overlay-themepick').hidden);
+      const clean = await page.evaluate(() => document.getElementById('overlay-menu').hidden && !document.getElementById('overlay-themepick'));
       if (!clean) throw new Error('fim da trilha deveria FECHAR o menu e não re-perguntar o tema');
     });
 

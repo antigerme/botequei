@@ -162,6 +162,22 @@ export function renameBoteco(oldName, newName) {
   return true;
 }
 
+// ---- Couvert por boteco (varia por bar; lembra o último valor digitado, igual à gorjeta) ----
+// Chaveado pelo NOME do boteco normalizado (mesma chave do cardápio/passaporte). Local; entra no
+// backup botequei.* de graça. Mesa anônima (sem nome) não salva nem prefila (o app passa 0).
+const K_COUVERT = 'botequei.botecocouvert';
+export function saveBotecoCouvert(name, v) {
+  const key = botecoKey(name);
+  if (!key) return;
+  const all = readJSON(K_COUVERT, {}) || {};
+  all[key] = Number(v) || 0;
+  writeJSON(K_COUVERT, all);
+}
+export function getBotecoCouvert(name) {
+  const all = readJSON(K_COUVERT, {}) || {};
+  return Number(all[botecoKey(name)]) || 0;
+}
+
 // ---- Backup (exportar/importar tudo que é local do Botequei) ----
 export function exportAll() {
   const data = {};

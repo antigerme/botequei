@@ -25,7 +25,7 @@
 //   Carta da mesa · Purrinha · Jogo minimizado · Dominó · Truco ·
 //   Passaporte de botecos · Guia de boas-vindas ·
 //   Overlays/toast (tema e idioma vivem na seção Configurações: resolveTheme/
-//   applyTheme/applyLang; a escolha de tema do fim do tour idem: openThemePick)
+//   applyTheme/applyLang)
 // ============================================================================
 
 import { EMOJIS, COLORS, AVATARS, CATEGORIES } from './catalog.js';
@@ -62,6 +62,7 @@ const IDS = [
   'add-prev-emoji', 'add-prev-name', 'add-prev-sub',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall', 'bill-bankrolls',
+  'bill-pix-setup', 'bill-pixkey', 'btn-bill-pixkey',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
   'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-keepawake', 'set-geo', 'btn-version',
   'dev-section', 'set-dev', 'btn-dev-report', 'btn-dev-copy', 'btn-dev-view', 'dev-log-view', 'dev-fab',
@@ -85,7 +86,6 @@ const IDS = [
   'btn-dom-pass', 'btn-dom-again', 'game-pill',
   'tour', 'tour-spot', 'tour-balloon', 'tour-count', 'tour-title', 'tour-text', 'btn-tour-skip', 'btn-tour-next',
   'overlay-tour', 'tour-trails',
-  'overlay-themepick', 'themepick-row',
   'overlay-truco', 'btn-tru-close', 'tru-setup', 'tru-game', 'tru-status', 'tru-score', 'tru-vira', 'tru-table',
   'tru-hand', 'tru-actions', 'tru-result', 'tru-audit',
   'overlay-passport', 'passport-count', 'passport-list',
@@ -240,9 +240,6 @@ export function init(handlers) {
   el['tour'].addEventListener('click', () => { if (tourSteps) tourNext(); }); // toque em qualquer lugar avança (padrão stories)
   window.addEventListener('resize', () => { if (tourSteps) renderTourStep(); }); // girou o aparelho no meio? recorte segue o alvo
 
-  // escolha de tema (fim do tour): um toque aplica e fecha
-  el['themepick-row'].querySelectorAll('button[data-th]').forEach((b) =>
-    b.addEventListener('click', () => { H.onThemePick(b.dataset.th); closeOverlays(); }));
   el['btn-dom-L'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'L'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-dom-R'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'R'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-boteco-load'].addEventListener('click', () => H.onBotecoLoadNew(el['btn-boteco-load'].dataset.place || ''));
@@ -290,6 +287,8 @@ export function init(handlers) {
   });
   el['bill-tips'].querySelectorAll('button[data-tip]').forEach((b) => b.addEventListener('click', () => { billTip = Number(b.dataset.tip) || 0; markTip(); H.onBillChange(); }));
   el['btn-bill-share'].addEventListener('click', () => H.onBillShare());
+  // captura a chave PIX no momento da conta (aparece só quando não há chave e há dinheiro a receber)
+  el['btn-bill-pixkey'].addEventListener('click', () => { const v = el['bill-pixkey'].value.trim(); if (v) H.onBillSetPix(v); });
 
   // configuracoes: aplicar ao mudar
   el['set-theme'].addEventListener('change', () => H.onSetting({ theme: el['set-theme'].value }));
@@ -956,6 +955,9 @@ function markTip() {
 export function openBill(vm) {
   billExcluded = new Set();
   el['bill-shareall'].checked = false; // cada fechamento começa no padrão: motorista fora do bolo
+  // default ao ABRIR (o usuário ainda troca): sem preço → já "rachar igual"; couvert lembrado por boteco.
+  el['bill-equal'].checked = !!(vm && vm.equalDefault);
+  el['bill-couvert'].value = (vm && vm.couvert) ? String(vm.couvert) : '';
   if (vm && Number.isFinite(vm.tipPct)) billTip = vm.tipPct;
   markTip();
   el['overlay-bill'].hidden = false;
@@ -1014,6 +1016,10 @@ export function renderBill(vm) {
     const payb = li.querySelector('.b-pay'); if (payb) payb.addEventListener('click', () => H.onPayFor(u, !payb.classList.contains('on')));
     const selb = li.querySelector('.b-sel'); if (selb) selb.addEventListener('change', () => { if (selb.checked) billExcluded.delete(u); else billExcluded.add(u); H.onBillChange(); });
   });
+  // sem chave PIX configurada MAS há dinheiro a receber (linha de outro, com valor, sem cobertura):
+  // captura a chave AQUI, no fechar a conta — senão não havia caminho pra receber (toast inalcançável).
+  const hasReceivable = vm.rows.some((r) => r.amount > 0 && !r.isSelf && !r.coveredByName);
+  el['bill-pix-setup'].hidden = !(!vm.canPix && hasReceivable);
   el['bill-total'].textContent = t('bill.total', { v: fmtMoney(vm.total) });
 }
 
@@ -1043,8 +1049,6 @@ export function openMe(vm) {
 
 // ---------- Configuracoes ----------
 function openSettings() { H.onOpenSettings(); el['overlay-settings'].hidden = false; }
-// Fim do tour: pergunta o tema preferido (1 toque aplica; ✕ mantém o claro padrão).
-export function openThemePick() { el['overlay-themepick'].hidden = false; }
 export function fillSettings(s) {
   el['set-theme'].value = s.theme || 'light';
   el['set-lang'].value = s.lang || 'pt';
@@ -1258,8 +1262,15 @@ function roundRectPath(g, x, y, w, h, r) {
 
 // ---------- 💸 Pagar uma rodada (item da mesa com dono) ----------
 export function openPayRound(vm) {
-  el['payround-list'].innerHTML = (vm.items || []).map((it) =>
-    `<button class="btn btn-primary pay-btn" data-id="${esc(it.id)}">${esc(it.emoji)} ${esc(it.name)}${it.price ? ' · ' + fmtMoney(it.price) : ''}${it.share ? ` <small class="opt-tag">${t('round.tableTag')}</small>` : ''}</button>`).join('');
+  el['payround-list'].innerHTML = (vm.items || []).map((it) => {
+    const n = it.n || 1;
+    // item DA MESA (share): unidade coletiva → só o selo "da mesa" (+ preço unitário se houver), SEM ×N.
+    // item PESSOAL: um pra cada online → mostra ×N e ANTECIPA o total (preço × N) já no botão.
+    const tail = it.share
+      ? ` · <small class="opt-tag">${t('round.tableTag')}</small>${it.price ? ' · ' + fmtMoney(it.price) : ''}`
+      : ` ×${n}${it.price ? ' · ' + fmtMoney(it.price * n) : ''}`;
+    return `<button class="btn btn-primary pay-btn" data-id="${esc(it.id)}">${esc(it.emoji)} ${esc(it.name)}${tail}</button>`;
+  }).join('');
   el['payround-list'].querySelectorAll('.pay-btn').forEach((b) => b.addEventListener('click', () => { closeOverlays(); H.onPayPick(b.dataset.id); }));
   el['overlay-payround'].hidden = false;
 }

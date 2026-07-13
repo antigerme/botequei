@@ -22,8 +22,8 @@
 //   Reações · Efeitos · Jogos (grid) · Offline (QR) · Scanner ·
 //   Meu ritmo · Roleta · Cutucar · Cerimônia · Meus números · Presença ·
 //   Comanda · Tour · Tô de boa? · Retrospectiva · Liga · Torneio ·
-//   Carta da mesa · Purrinha · Jogo minimizado · Dominó · Truco · Jukebox ·
-//   Passaporte de botecos · Foto da noite · Guia de boas-vindas ·
+//   Carta da mesa · Purrinha · Jogo minimizado · Dominó · Truco ·
+//   Passaporte de botecos · Guia de boas-vindas ·
 //   Overlays/toast (tema e idioma vivem na seção Configurações: resolveTheme/
 //   applyTheme/applyLang; a escolha de tema do fim do tour idem: openThemePick)
 // ============================================================================
@@ -43,16 +43,16 @@ const IDS = [
   'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-me',
   'overlay-me', 'me-avatar', 'me-name', 'me-profile', 'me-stats', 'me-retro', 'me-passport', 'me-settings',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
-  'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
+  'conn-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'menu-empty', 'btn-empty-custom', 'btn-empty-boteco',
   'btn-react', 'btn-rodada', 'btn-games', 'overlay-games', 'games-grid',
   'overlay-invite', 'qr-wrap', 'big-code', 'table-name-input', 'table-emoji-btn', 'table-emoji-row', 'invite-pin',
-  'btn-copy-link', 'btn-share-invite', 'btn-nfc',
+  'btn-copy-link', 'btn-share-invite',
   'overlay-join', 'join-code-label', 'join-name', 'join-pin-field', 'join-pin', 'btn-join-confirm',
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
-  'overlay-menu', 'menu-board',
-  'menu-jukebox', 'menu-bill', 'menu-prices',
-  'menu-hh', 'menu-waiter', 'menu-ceremony', 'menu-photo', 'menu-share', 'menu-tour',
+  'overlay-menu',
+  'menu-bill', 'menu-prices',
+  'menu-waiter', 'menu-ceremony', 'menu-share', 'menu-tour',
   'overlay-prices', 'price-list',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
   'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-webcam', 'btn-avatar-camera', 'btn-avatar-upload', 'avatar-file',
@@ -67,13 +67,12 @@ const IDS = [
   'dev-section', 'set-dev', 'btn-dev-report', 'btn-dev-copy', 'btn-dev-view', 'dev-log-view', 'dev-fab',
   'set-lang',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
-  'overlay-react', 'react-row', 'overlay-hh',
+  'overlay-react', 'react-row',
   'overlay-poke', 'poke-title', 'poke-actions',
   'overlay-payround', 'payround-list',
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
   'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
   'overlay-comanda', 'comanda-title', 'comanda-away', 'comanda-list', 'comanda-total',
-  'overlay-jukebox', 'jukebox-input', 'btn-jukebox-add', 'jukebox-list',
   'set-shake',
   'overlay-purrinha', 'purr-sub', 'purr-setup', 'purr-pick', 'purr-pstatus', 'purr-hands', 'purr-guess-wrap', 'purr-guesses', 'btn-purr-seal',
   'purr-wait', 'purr-waitcount', 'purr-waitsub', 'purr-seals',
@@ -92,7 +91,6 @@ const IDS = [
   'overlay-passport', 'passport-count', 'passport-list',
   'overlay-boteco', 'boteco-title', 'boteco-stats', 'boteco-menu', 'btn-boteco-load',
   'btn-boteco-rename', 'btn-boteco-del', 'boteco-rename-box', 'boteco-rename', 'btn-boteco-rename-go',
-  'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
   'overlay-welcome', 'btn-welcome-go', 'welcome-demo', 'welcome-demo-n',
   'overlay-retro', 'retro-slides', 'btn-retro-share',
   'league-level', 'league-challenges', 'league-season',
@@ -200,23 +198,17 @@ export function init(handlers) {
   $('btn-join-confirm').addEventListener('click', () => H.onJoinConfirm(el['join-name'].value, el['join-pin'].value));
   $('btn-copy-link').addEventListener('click', () => H.onCopyLink());
   $('btn-share-invite').addEventListener('click', () => H.onShareInvite());
-  $('btn-nfc').addEventListener('click', () => H.onNfc());
   el['table-name-input'].addEventListener('change', () => H.onTableName(el['table-name-input'].value));
   el['table-emoji-btn'].addEventListener('click', () => el['table-emoji-row'].hidden = !el['table-emoji-row'].hidden);
   el['invite-pin'].addEventListener('change', () => H.onInvitePin(el['invite-pin'].value));
 
   // menu "…" (só coisa de MESA — perfil/números/config moram no hub do avatar agora)
-  $('menu-board').addEventListener('click', () => { closeOverlays(); H.onPeers(); });
-  $('menu-jukebox').addEventListener('click', () => { closeOverlays(); H.onJukebox(); });
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
-  $('menu-hh').addEventListener('click', () => { closeOverlays(); el['overlay-hh'].hidden = false; });
   $('menu-waiter').addEventListener('click', () => { closeOverlays(); H.onWaiter(); });
   $('menu-ceremony').addEventListener('click', () => { closeOverlays(); H.onCeremony(); });
-  $('menu-photo').addEventListener('click', () => { closeOverlays(); el['photo-input'].click(); });
   $('menu-share').addEventListener('click', () => { closeOverlays(); H.onShareNight(); });
   $('menu-tour').addEventListener('click', () => { closeOverlays(); H.onTourMenu(); });
-  el['overlay-hh'].querySelectorAll('button[data-min]').forEach((b) => b.addEventListener('click', () => { H.onHappyHour(Number(b.dataset.min)); closeOverlays(); }));
 
   // cerimônia
   el['btn-ceremony-share'].addEventListener('click', () => H.onCeremonyShare());
@@ -224,7 +216,6 @@ export function init(handlers) {
 
   // retrô / liga
   el['btn-retro-share'].addEventListener('click', () => H.onRetroShare());
-  el['btn-jukebox-add'].addEventListener('click', () => submitSong());
   el['btn-purr-seal'].addEventListener('click', () => {
     if (purrPick.hand == null || (!purrClassic && purrPick.guess == null)) return;
     H.onPurrSeal(purrPick.hand, purrPick.guess);
@@ -265,9 +256,6 @@ export function init(handlers) {
   el['btn-boteco-rename-go'].addEventListener('click', doRename);
   el['boteco-rename'].addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doRename(); } });
   el['btn-boteco-del'].addEventListener('click', () => H.onBotecoDelMenu(el['overlay-boteco'].dataset.place || ''));
-  el['photo-input'].addEventListener('change', () => showPhoto());
-  el['btn-photo-retake'].addEventListener('click', () => el['photo-input'].click());
-  el['btn-photo-share'].addEventListener('click', () => H.onPhotoShare());
   el['btn-welcome-go'].addEventListener('click', () => closeOverlays()); // solta na HOME (apelido/criar moram lá)
   { // demo do bem-vindo: o GESTO do app pra treinar antes da 1ª mesa (toque = +1, segurar = −1)
     let n = 0, tm = null, held = false;
@@ -639,7 +627,6 @@ export function pulse(itemId, kind) {
   if (card) { const cls = kind === 'remove' ? 'pop-remove' : 'pop'; card.classList.remove(cls); void card.offsetWidth; card.classList.add(cls); }
 }
 export function setConn(msg) { const b = el['conn-banner']; if (!msg) { b.hidden = true; return; } b.hidden = false; b.textContent = msg; }
-export function setHappyHour(msg) { const b = el['hh-banner']; if (!msg) { b.hidden = true; return; } b.hidden = false; b.textContent = msg; }
 
 // ---------- Placar / participantes ----------
 export function renderPeers({ rows, selfId, mvp, myBadges }) {
@@ -697,7 +684,6 @@ export function openInvite(vm) {
     el['table-emoji-btn'].textContent = b.dataset.e; el['table-emoji-row'].hidden = true; H.onTableEmoji(b.dataset.e);
   }));
   el['btn-share-invite'].hidden = !navigator.share;
-  el['btn-nfc'].hidden = !('NDEFReader' in window);
   el['overlay-invite'].hidden = false;
 }
 export function openJoin(code, needPin) {
@@ -1281,7 +1267,7 @@ export function openPayRound(vm) {
 // ---------- Cutucar / desafiar ----------
 export function openPoke(vm) {
   el['poke-title'].textContent = t('poke.title', { name: vm.name || t('common.someoneLow') });
-  const btns = [`<button class="btn btn-primary poke-btn" data-kind="poke">${t('poke.poke')}</button>`];
+  const btns = [];
   for (const it of (vm.items || [])) {
     btns.push(`<button class="btn btn-ghost poke-btn" data-kind="challenge" data-item="${esc(it.id)}">${esc(it.emoji)} ${t('poke.dare', { item: esc(it.name) })}</button>`);
   }
@@ -1877,27 +1863,6 @@ export function renderTruco(vm) {
   if (!gameMin.truco) el['overlay-truco'].hidden = false;
 }
 
-// ---------- Jukebox ----------
-export function openJukebox(vm) {
-  renderJukebox((vm && vm.songs) || []);
-  el['jukebox-input'].value = '';
-  el['overlay-jukebox'].hidden = false;
-}
-export function renderJukebox(list) {
-  el['jukebox-list'].innerHTML = (list || []).map((s, i) => `<li class="jbx-row">
-    <span class="jbx-n">${i + 1}</span>
-    <div class="jbx-main"><span class="jbx-title">${esc(s.title)}</span>
-      <span class="jbx-by">pedida por ${esc(s.name || t('common.someoneLow'))}</span></div>
-    <button class="jbx-play" data-i="${i}" aria-label="${t('jbx.play')}">▶️</button></li>`).join('') || `<li class="jbx-row">${t('jbx.empty')}</li>`;
-  el['jukebox-list'].querySelectorAll('.jbx-play').forEach((b) => b.addEventListener('click', () => H.onSongPlay(list[Number(b.dataset.i)])));
-}
-function submitSong() {
-  const t = el['jukebox-input'].value.trim();
-  if (!t) { el['jukebox-input'].focus(); return; }
-  H.onSongAdd(t);
-  el['jukebox-input'].value = '';
-}
-
 // ---------- Passaporte de botecos (check-ins locais) ----------
 export function openPassport(vm) {
   const list = (vm && vm.checkins) || [];
@@ -1952,23 +1917,6 @@ export function openBoteco(vm) {
   el['boteco-rename'].value = vm.name || '';
   el['overlay-boteco'].hidden = false;
 }
-
-// ---------- Foto da noite (álbum local) ----------
-let lastPhoto = null;
-function showPhoto() {
-  const f = el['photo-input'].files && el['photo-input'].files[0];
-  if (!f) return;
-  const rd = new FileReader();
-  rd.onload = () => {
-    lastPhoto = { url: String(rd.result), name: f.name || 'boteco.jpg', type: f.type || 'image/jpeg' };
-    el['photo-wrap'].innerHTML = `<img src="${lastPhoto.url}" alt="foto da noite" />`;
-    el['overlay-photo'].hidden = false;
-    el['photo-input'].value = '';
-  };
-  rd.onerror = () => { toast(t('toast.photoOpen')); el['photo-input'].value = ''; };
-  rd.readAsDataURL(f);
-}
-export function currentPhoto() { return lastPhoto; }
 
 // ---------- Guia de boas-vindas (primeira vez) ----------
 export function openWelcome() { el['overlay-welcome'].hidden = false; }

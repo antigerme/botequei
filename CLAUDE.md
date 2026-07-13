@@ -102,7 +102,7 @@ padrão Auto segue o navegador).
   `{type,user,item,ts,eventId}`. Total = soma (comutativa → converge). Dedup por `eventId`.
   Anti-entropy no join (troca o log completo, em **lotes de 64 eventos** — mensagem única
   estouraria o teto do DataChannel com o log grande) + gossip (repassa eventos novos). LWW (ts→eventId)
-  p/ ITEM/PROFILE/TABLE/HAPPYHOUR/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
+  p/ ITEM/PROFILE/TABLE/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
   **Crédito/promessa** (evento `PLEDGE` — "banco uma rodada / N garrafas") é como se banca a mesa:
   o `settle(state)` (FONTE ÚNICA da conta) acerta no ESTADO FINAL — rodada de item pessoal cobre
   **1 de cada** no escopo com teto `min(1, consumido de verdade)`; garrafa da mesa reivindica
@@ -113,8 +113,7 @@ padrão Auto segue o navegador).
   bancou o quê**. `PLEDGE`/`settle` é o **único** mecanismo de dinheiro-com-dono — o caminho antigo
   `payer`/`covered`/`paid` foi REMOVIDO (o app ainda não está em produção; sem compat de versão).
   O `PROFILE` também leva o **nível** (liga) e a **foto** (miniatura 128px, dataURL ≤20k chars,
-  validada por `cleanPhoto` na entrada E na saída do fio — emoji é o fallback eterno). `SONG` (jukebox) **acumula**
-  (não é LWW) — a fila de músicas da mesa (teto de 500 + `title`/`url` coados na ENTRADA do reducer).
+  validada por `cleanPhoto` na entrada E na saída do fio — emoji é o fallback eterno).
   ⚠️ **Higiene P2P no reducer** (irmã do `cleanPhoto`): todo dado do fio que vira dinheiro/render
   é coado na ENTRADA — `cleanItemDef` no `ITEM` força `price`/`g` a número finito ≥0 com teto e
   corta textos (peer bugado mandava `price` string/negativo/Infinity e a conta de TODOS virava
@@ -132,7 +131,7 @@ padrão Auto segue o navegador).
   **tchau** (`bye` — o botão sair anuncia a saída; é a ÚNICA fonte do toast "👋 saiu") e
   **fechou-o-app** (`gone` — pagehide, best-effort e SILENCIOSO: só arruma a barra após a
   graça de 45s). Nada disso persiste. ⚠️ **Higiene P2P nos fx que abrem UI** (`fxAllowed` no
-  `app.js`): cerimônia/garçom/cutucada/desafio passam por um **estrangulador por tipo** (janela
+  `app.js`): cerimônia/garçom/desafio passam por um **estrangulador por tipo** (janela
   mínima entre disparos — 3s na cerimônia, 900ms nos demais) e o nome do autor é coado
   (`fromNameOf`, ≤24 chars) — sem isto um peer malicioso floodava a mesa com overlays de troféu ou
   toasts de garçom. O **Brinde não tem chip próprio na barra**: o 🍻 dentro de "Reagir" (`openReact`)
@@ -373,8 +372,7 @@ padrão Auto segue o navegador).
   (`resolveTheme`/`applyTheme` em `ui.js`; valor desconhecido cai no claro);
   **molduras** de avatar por nível da liga (`frameClass` → `.fr-silver`/`.fr-gold`); **passaporte**
   de botecos (`store.getCheckins`/`addCheckin` — check-in local, GPS opcional, só no aparelho);
-  **foto da noite** (só preview/compartilhar via Web Share — nada é salvo/enviado); **guia de
-  boas-vindas** no 1º uso (1× só — flag `welcomeSeen` no `store.getFlag`/`setFlag`): SAUDAÇÃO
+  **guia de boas-vindas** no 1º uso (1× só — flag `welcomeSeen` no `store.getFlag`/`setFlag`): SAUDAÇÃO
   leve — card de DEMONSTRAÇÃO tocável (treina toque=+1/segurar=−1) e "Bora!" que SOLTA na home
   (apelido/criar mesa moram SÓ lá — o funil que engolia a tela inicial morreu); e **Tour do
   Botequei** por TRILHAS (`tourTrails` no `app.js`, motor em `ui.startTour`): 🍺 O básico

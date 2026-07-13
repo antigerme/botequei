@@ -78,7 +78,6 @@
     </header>
 
     <div class="conn-banner" id="conn-banner" hidden></div>
-    <div class="hh-banner" id="hh-banner" hidden></div>
     <div class="presence-bar" id="presence-bar" hidden aria-label="Quem está na mesa" data-i18n-aria="pres.aria"></div>
 
     <div class="totals">
@@ -143,7 +142,6 @@
     <div class="sheet-actions">
       <button class="btn btn-primary" id="btn-copy-link" data-i18n="inv.copy">Copiar link</button>
       <button class="btn btn-ghost" id="btn-share-invite" hidden data-i18n="inv.share">Compartilhar</button>
-      <button class="btn btn-ghost" id="btn-nfc" hidden>📡 NFC</button>
     </div>
     <button class="btn btn-ghost btn-offline" id="btn-offline-host" data-i18n="inv.offline">📴 Sem internet? Parear por QR</button>
   </div>
@@ -167,7 +165,7 @@
 <div class="overlay" id="overlay-peers" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
-    <h2>🏆 Placar &amp; conquistas</h2>
+    <h2 data-i18n="peers.title">🏆 Placar &amp; conquistas</h2>
     <div class="league-level" id="league-level"></div>
     <h3 class="stats-h3" data-i18n="peers.now">Mesa agora</h3>
     <div class="mvp" id="mvp-banner" hidden></div>
@@ -184,22 +182,14 @@
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="menu.title">Mesa</h2>
-    <!-- GRADE de tiles (2 colunas, padrão share-sheet M3/HIG): metade da altura da lista antiga,
-         escaneável por ícone. Ordem por frequência de uso NA MESA: conta → mesa → jogos → você. -->
+    <!-- GRADE de tiles (2 colunas, padrão share-sheet M3/HIG): escaneável por ícone, grade
+         CONTÍNUA (sem cabeçalhos de seção). Só coisa da MESA — o "Você" mora no hub do avatar. -->
     <div class="menu-list menu-grid">
-      <p class="menu-sec" data-i18n="menu.secBill">Conta</p>
       <button class="menu-item" id="menu-bill" data-i18n="menu.bill">💸 Fechar a conta</button>
       <button class="menu-item" id="menu-prices" data-i18n="menu.prices">💲 Preços do cardápio</button>
-      <p class="menu-sec" data-i18n="menu.title">Mesa</p>
-      <button class="menu-item" id="menu-board">🏆 Placar &amp; conquistas</button>
       <button class="menu-item" id="menu-waiter" data-i18n="menu.waiter">🔔 Chamar o garçom</button>
-      <button class="menu-item" id="menu-hh" data-i18n="hh.title">⏰ Happy hour</button>
-      <button class="menu-item" id="menu-jukebox" data-i18n="menu.jukebox">🎵 Jukebox</button>
       <button class="menu-item" id="menu-ceremony" data-i18n="cer.title">🏅 Cerimônia da noite</button>
-      <p class="menu-sec" data-i18n="menu.secExtra">A noite</p>
-      <button class="menu-item" id="menu-photo" data-i18n="photo.title">📷 Foto da noite</button>
       <button class="menu-item" id="menu-share" data-i18n="menu.shareNight">📸 Compartilhar a noite</button>
-      <p class="menu-sec" data-i18n="menu.secApp">App</p>
       <button class="menu-item" id="menu-tour" data-i18n="tour.replay">🎓 Tour do Botequei</button>
     </div>
   </div>
@@ -466,20 +456,6 @@
   </div>
 </div>
 
-<!-- Happy hour -->
-<div class="overlay" id="overlay-hh" hidden>
-  <div class="sheet">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 data-i18n="hh.title">⏰ Happy hour</h2>
-    <p class="sheet-sub" data-i18n="hh.sub">Uma janela pra mesa mandar ver — todo mundo vê o cronômetro e quantas rodadas rolaram.</p>
-    <div class="sheet-actions">
-      <button class="btn btn-ghost" data-min="15">15 min</button>
-      <button class="btn btn-ghost" data-min="30">30 min</button>
-      <button class="btn btn-primary" data-min="60">60 min</button>
-    </div>
-  </div>
-</div>
-
 <!-- Parear sem internet: handshake WebRTC por QR/código, 100% serverless -->
 <div class="overlay" id="overlay-offline" hidden>
   <div class="sheet sheet-tall">
@@ -541,11 +517,11 @@
   </div>
 </div>
 
-<!-- Cutucar / desafiar alguém -->
+<!-- Desafiar alguém -->
 <div class="overlay" id="overlay-poke" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
-    <h2 id="poke-title">Cutucar</h2>
+    <h2 id="poke-title">Desafiar</h2>
     <div class="poke-actions" id="poke-actions"></div>
   </div>
 </div>
@@ -603,23 +579,6 @@
 </div>
 
 
-
-<!-- Jukebox da mesa (fila de músicas, sincronizada) -->
-<div class="overlay" id="overlay-jukebox" hidden>
-  <div class="sheet sheet-tall">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 data-i18n="jbx.title">🎵 Jukebox da mesa</h2>
-    <p class="sheet-sub" data-i18n="jbx.sub">Peça a próxima — a fila aparece pra todo mundo. Toca abrindo no seu app de música.</p>
-    <div class="field">
-      <label for="jukebox-input" data-i18n="jbx.label">Música ou artista</label>
-      <div class="join-row">
-        <input id="jukebox-input" type="text" maxlength="60" placeholder="ex: Evidências" data-i18n-ph="jbx.ph" class="code-input" />
-        <button class="btn btn-primary" id="btn-jukebox-add" data-i18n="jbx.add">Pedir</button>
-      </div>
-    </div>
-    <ul class="jukebox-list" id="jukebox-list"></ul>
-  </div>
-</div>
 
 <!-- Purrinha (P2P honesta via commit-reveal) -->
 <div class="overlay" id="overlay-purrinha" hidden>
@@ -731,20 +690,6 @@
     </div>
   </div>
 </div>
-
-<!-- Foto da noite -->
-<div class="overlay" id="overlay-photo" hidden>
-  <div class="sheet">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 data-i18n="photo.title">📷 Foto da noite</h2>
-    <div class="photo-wrap" id="photo-wrap"></div>
-    <div class="sheet-actions">
-      <button class="btn btn-ghost" id="btn-photo-retake" data-i18n="photo.retake">🔄 Outra</button>
-      <button class="btn btn-primary" id="btn-photo-share" data-i18n="common.shareImg">📸 Compartilhar</button>
-    </div>
-  </div>
-</div>
-<input id="photo-input" type="file" accept="image/*" capture="environment" hidden />
 
 <!-- Guia de boas-vindas (primeiro uso): SAUDAÇÃO leve — treina o gesto no card de demonstração
      e SOLTA na home (apelido e criar mesa moram lá; quem apresenta os recursos é o TOUR) -->

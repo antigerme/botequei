@@ -172,15 +172,15 @@ async function main() {
     }, null, { timeout: T })));
   });
 
-  await step('cutucada chega no alvo (B)', async () => {
+  await step('desafio chega no alvo (B)', async () => {
     await closeAll(pageA);
     await pageA.click('#btn-peers'); await visible(pageA, 'overlay-peers');
     await pageA.click('.peer-poke');                 // único não-eu na lista = Bia
     await visible(pageA, 'overlay-poke');
-    await pageA.click('.poke-btn[data-kind="poke"]');
+    await pageA.click('.poke-btn[data-kind="challenge"]'); // 1º item de desafio (só há botão de desafio agora)
     await pageB.waitForFunction(() => {
       const t = document.getElementById('toast');
-      return t && !t.hidden && /cutucou/i.test(t.textContent);
+      return t && !t.hidden && /desafiou/i.test(t.textContent);
     }, null, { timeout: T });
   });
 

@@ -198,10 +198,9 @@ async function main() {
     await A.waitForSelector('#screen-table.is-active', { timeout: T });
     const code = (await A.textContent('#mesa-code')).trim();
     await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
-    // mesa nasce limpa: cria o item pelo formulário do ➕ (cat cerveja → entra na Rodada)
+    // mesa nasce limpa: cria o item pelo formulário do ➕ (padrão 🍺 → cerveja, entra na Rodada)
     await A.click('#btn-empty-custom');
     await A.fill('#add-name', 'Chopp');
-    await A.selectOption('#add-cat', 'cerveja');
     await A.click('#btn-additem-confirm');
     await A.waitForFunction(() => document.getElementById('overlay-additem').hidden, null, { timeout: T });
     await B.goto(BASE + '#/join?room=' + code);

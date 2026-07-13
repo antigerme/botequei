@@ -41,7 +41,7 @@ const el = {};
 const IDS = [
   'screen-home', 'screen-table', 'input-name', 'input-code', 'btn-create', 'btn-join-code',
   'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-me',
-  'overlay-me', 'me-avatar', 'me-name', 'me-profile', 'me-stats', 'me-retro', 'me-passport', 'me-settings',
+  'overlay-me', 'me-avatar', 'me-name', 'me-profile', 'me-stats', 'me-passport', 'me-settings',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
   'menu-empty', 'btn-empty-custom', 'btn-empty-boteco',
@@ -58,13 +58,13 @@ const IDS = [
   'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-webcam', 'btn-avatar-camera', 'btn-avatar-upload', 'avatar-file',
   'overlay-crop', 'crop-canvas', 'crop-zoom', 'btn-crop-use',
   'overlay-camera', 'cam-video', 'btn-cam-shoot',
-  'overlay-additem', 'emoji-row', 'add-name', 'add-cat', 'add-price', 'add-note', 'add-share', 'btn-additem-confirm',
+  'overlay-additem', 'emoji-row', 'add-name', 'add-price', 'add-note', 'add-share', 'btn-additem-confirm',
   'add-prev-emoji', 'add-prev-name', 'add-prev-sub',
   'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
   'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall', 'bill-bankrolls',
   'bill-pix-setup', 'bill-pixkey', 'btn-bill-pixkey',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
-  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-keepawake', 'set-geo', 'btn-version',
+  'overlay-settings', 'set-theme', 'set-bigfont', 'set-sound', 'set-geo', 'btn-version',
   'dev-section', 'set-dev', 'btn-dev-report', 'btn-dev-copy', 'btn-dev-view', 'dev-log-view', 'dev-fab',
   'set-lang',
   'set-pixkey', 'set-pixcity', 'btn-export-data', 'btn-import-data', 'import-file', 'btn-clear-data',
@@ -72,8 +72,8 @@ const IDS = [
   'overlay-poke', 'poke-title', 'poke-actions',
   'overlay-payround', 'payround-list',
   'overlay-ceremony', 'ceremony-list', 'btn-ceremony-share', 'btn-ceremony-broadcast',
-  'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history',
-  'overlay-comanda', 'comanda-title', 'comanda-away', 'comanda-list', 'comanda-total',
+  'overlay-stats', 'stats-grid', 'stats-badges', 'stats-chart', 'stats-chart-h', 'stats-insight', 'stats-history', 'btn-stats-share',
+  'overlay-comanda', 'comanda-title', 'comanda-away', 'comanda-list', 'comanda-total', 'comanda-actions',
   'set-shake',
   'overlay-purrinha', 'purr-sub', 'purr-setup', 'purr-pick', 'purr-pstatus', 'purr-hands', 'purr-guess-wrap', 'purr-guesses', 'btn-purr-seal',
   'purr-wait', 'purr-waitcount', 'purr-waitsub', 'purr-seals',
@@ -92,7 +92,6 @@ const IDS = [
   'overlay-boteco', 'boteco-title', 'boteco-stats', 'boteco-menu', 'btn-boteco-load',
   'btn-boteco-rename', 'btn-boteco-del', 'boteco-rename-box', 'boteco-rename', 'btn-boteco-rename-go',
   'overlay-welcome', 'btn-welcome-go', 'welcome-demo', 'welcome-demo-n',
-  'overlay-retro', 'retro-slides', 'btn-retro-share',
   'league-level', 'league-challenges', 'league-season',
   'btn-offline-join', 'btn-offline-host',
   'overlay-offline', 'off-host', 'off-guest',
@@ -175,9 +174,10 @@ export function init(handlers) {
   // hub do "Você": cada item abre o overlay que já existe (padrão de troca do menu — fecha o hub, abre o alvo)
   el['me-profile'].addEventListener('click', () => { closeOverlays(); H.onProfile(); });
   el['me-stats'].addEventListener('click', () => { closeOverlays(); H.onStats(); });
-  el['me-retro'].addEventListener('click', () => { closeOverlays(); H.onRetro(); });
   el['me-passport'].addEventListener('click', () => { closeOverlays(); H.onPassport(); });
   el['me-settings'].addEventListener('click', () => { closeOverlays(); openSettings(); });
+  // teu rosto grande no hub é a porta do perfil (ação óbvia > botão extra — igual tocar no emoji volta pro emoji)
+  el['me-avatar'].addEventListener('click', () => { closeOverlays(); H.onProfile(); });
 
   // sair da mesa pede confirmação (um toque errado no ‹ não te derruba da mesa)
   $('btn-leave').addEventListener('click', () => actionToast(t('menu.leaveQ'), t('menu.leaveDo'), () => H.onLeave()));
@@ -215,8 +215,8 @@ export function init(handlers) {
   el['btn-ceremony-share'].addEventListener('click', () => H.onCeremonyShare());
   el['btn-ceremony-broadcast'].addEventListener('click', () => H.onCeremonyBroadcast());
 
-  // retrô / liga
-  el['btn-retro-share'].addEventListener('click', () => H.onRetroShare());
+  // "📸 Compartilhar meu rolê" nos Meus Números (o Retrô fundiu aqui): reusa o card do rolê (onRetroShare)
+  el['btn-stats-share'].addEventListener('click', () => H.onRetroShare());
   el['btn-purr-seal'].addEventListener('click', () => {
     if (purrPick.hand == null || (!purrClassic && purrPick.guess == null)) return;
     H.onPurrSeal(purrPick.hand, purrPick.guess);
@@ -297,7 +297,6 @@ export function init(handlers) {
   el['set-bigfont'].addEventListener('change', () => H.onSetting({ bigFont: el['set-bigfont'].checked }));
   el['set-sound'].addEventListener('change', () => H.onSetting({ sound: el['set-sound'].checked }));
   el['set-shake'].addEventListener('change', () => H.onShakeToggle(el['set-shake'].checked));
-  el['set-keepawake'].addEventListener('change', () => H.onSetting({ keepAwake: el['set-keepawake'].checked }));
   el['set-geo'].addEventListener('change', () => H.onGeoToggle(el['set-geo'].checked)); // ligar pede a permissão; recusar volta pra off
   el['set-dev'].addEventListener('change', () => H.onDevToggle(el['set-dev'].checked));
   el['btn-dev-report'].addEventListener('click', () => H.onDevReport());
@@ -928,12 +927,8 @@ function openAddItem() {
   el['emoji-row'].innerHTML = EMOJIS.map((e, i) => `<button class="emoji-pick ${i === 0 ? 'sel' : ''}" type="button" data-e="${e}" aria-label="${e}">${e}</button>`).join('');
   el['emoji-row'].querySelectorAll('.emoji-pick').forEach((b) => b.addEventListener('click', () => {
     pickedEmoji = b.dataset.e; el['emoji-row'].querySelectorAll('.emoji-pick').forEach((x) => x.classList.remove('sel')); b.classList.add('sel');
-    const guessed = EMOJI_CAT[pickedEmoji];
-    if (guessed) el['add-cat'].value = guessed; // categoria segue o ícone (ainda editável)
-    renderAddPreview();
+    renderAddPreview(); // a categoria deriva do ícone no confirm (EMOJI_CAT) — sem campo pra escolher
   }));
-  el['add-cat'].innerHTML = CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  el['add-cat'].value = EMOJI_CAT[pickedEmoji] || 'outros'; // categoria já ABRE seguindo o ícone (🍺 → Cervejas)
   el['add-name'].value = ''; el['add-price'].value = ''; el['add-note'].value = ''; el['add-share'].checked = false;
   renderAddPreview();
   el['overlay-additem'].hidden = false;
@@ -944,7 +939,8 @@ function submitAddItem() {
   const name = el['add-name'].value.trim();
   if (!name) { toast(t('toast.itemName')); return; }
   const price = parseFloat(String(el['add-price'].value).replace(',', '.')) || 0;
-  H.onAddItemConfirm({ emoji: pickedEmoji, name, price, cat: el['add-cat'].value, note: el['add-note'].value.trim(), share: el['add-share'].checked });
+  // categoria = derivada do ÍCONE (o campo Categoria saiu do formulário — menos trabalho manual)
+  H.onAddItemConfirm({ emoji: pickedEmoji, name, price, cat: EMOJI_CAT[pickedEmoji] || 'outros', note: el['add-note'].value.trim(), share: el['add-share'].checked });
   closeOverlays();
 }
 
@@ -1053,17 +1049,17 @@ export function openPix(vm) {
 export function pixCode() { return el['pix-code'].value; }
 
 // ---------- Hub do "Você" (avatar) ----------
-// Junta o que é PESSOAL num lugar só (perfil/números/retrô/passaporte/config). Cada item abre o
-// overlay que já existe (fiação no init). Números e Retrô só aparecem com histórico (espelha o
-// antigo gate do #home-extras); Perfil, Passaporte e Config sempre. vm: {color,emoji,photo,level,name,hasHistory}.
+// Junta o que é PESSOAL num lugar só (perfil/números/passaporte/config). Cada item abre o overlay
+// que já existe (fiação no init); o Retrô/rolê e a Liga fundiram DENTRO de Números. Números só
+// aparece com histórico (espelha o antigo gate do #home-extras); Perfil, Passaporte e Config
+// sempre. O rosto grande (#me-avatar) também abre o perfil. vm: {color,emoji,photo,level,name,hasHistory}.
 export function openMe(vm) {
   const v = vm || {};
   el['me-avatar'].className = `pres-av ${frameClass(v.level)}`;
   el['me-avatar'].style.background = safeColor(v.color);
   el['me-avatar'].innerHTML = avInner(v.photo, v.emoji);
   el['me-name'].textContent = v.name || t('common.you');
-  el['me-stats'].hidden = !v.hasHistory;
-  el['me-retro'].hidden = !v.hasHistory;
+  el['me-stats'].hidden = !v.hasHistory; // Números (com o rolê/liga dentro) só com histórico
   el['overlay-me'].hidden = false;
 }
 
@@ -1075,7 +1071,6 @@ export function fillSettings(s) {
   el['set-bigfont'].checked = !!s.bigFont;
   el['set-sound'].checked = !!s.sound;
   el['set-shake'].checked = !!s.shake;
-  el['set-keepawake'].checked = s.keepAwake !== false; // default ligado
   el['set-geo'].checked = s.geo !== false;             // default ligado (o 1º uso pede a permissão)
   el['set-dev'].checked = !!s.dev;                     // modo desenvolvedor (seção só aparece destravada)
   el['set-pixkey'].value = s.pixKey || '';
@@ -1333,6 +1328,7 @@ export function openStats(vm) {
     + cell(s.record ? s.record.total : 0, t('stats.record'))
     + cell('🔥' + (s.streakWeeks || 0), t('stats.weeks'));
   if (s.favDrink) html += cell(vm.favEmoji || '🍺', t('stats.fav', { name: vm.favName || s.favDrink }), true);
+  if (vm.topMate) html += cell(esc(vm.topMate.name), t('stats.topMate'), true); // 🤝 com quem mais bebeu (veio do Retrô)
   if (s.totalSpent > 0) html += cell(fmtMoney(s.totalSpent), t('stats.spent'), true);
   el['stats-grid'].innerHTML = html;
   el['stats-badges'].innerHTML = (vm.badges || []).map((b) => `<span class="badge">${b.emoji} ${esc(t('lbadge.' + b.id, b.n != null ? { n: b.n } : undefined))}</span>`).join('') || `<span class="seal">${t('stats.badgesEmpty')}</span>`;
@@ -1400,6 +1396,19 @@ export function openComanda(vm) {
     ${r.money ? `<span class="c-money">${fmtMoney(r.money)}</span>` : ''}</li>`).join('')
     || `<li class="comanda-row">${t('comanda.empty')}</li>`;
   el['comanda-total'].textContent = t('comanda.total', { n: vm.total }) + (vm.money ? ' · ' + fmtMoney(vm.money) : '');
+  // AÇÕES na própria comanda (cobrar dali, sem fechar e ir na conta): só de OUTRA pessoa com dívida.
+  // "🙌 eu pago" (PAYFOR, liga/desliga por vm.iPayThem — highlight = ativo) + PIX (se tenho chave).
+  const acts = el['comanda-actions'];
+  if (!vm.isSelf && vm.money > 0) {
+    const btns = [`<button class="btn ${vm.iPayThem ? 'btn-primary' : 'btn-ghost'}" id="comanda-pay">${t('comanda.pay')}</button>`];
+    if (vm.canPix) btns.push(`<button class="btn btn-ghost" id="comanda-pix">${t('comanda.pix')}</button>`);
+    acts.innerHTML = btns.join('');
+    acts.hidden = false;
+    const pay = acts.querySelector('#comanda-pay');
+    if (pay) pay.addEventListener('click', () => { H.onPayFor(vm.user, !vm.iPayThem); H.onComanda(vm.user); }); // re-abre pra o botão refletir
+    const pix = acts.querySelector('#comanda-pix');
+    if (pix) pix.addEventListener('click', () => H.onPix(vm.user));
+  } else { acts.hidden = true; acts.innerHTML = ''; }
   el['overlay-comanda'].hidden = false;
 }
 
@@ -1480,16 +1489,7 @@ function positionTourStep(st, target) {
   try { el['btn-tour-next'].focus({ preventScroll: true }); } catch { /* ignore */ } // teclado/leitor avança sem caçar o botão
 }
 
-// ---------- Retrospectiva "Seu rolê" ----------
-export function openRetro(vm) {
-  el['retro-slides'].innerHTML = (vm.slides || []).map((s) => `<div class="retro-slide">
-    <span class="rs-emoji">${esc(s.emoji || '🍺')}</span>
-    <span class="rs-big">${esc(String(s.big))}</span>
-    <span class="rs-sub">${esc(s.sub || '')}</span></div>`).join('') || '<div class="retro-slide">Sem noites ainda — bora criar a primeira? 🍻</div>';
-  el['overlay-retro'].hidden = false;
-}
-
-// ---------- Liga & desafios (renderizada DENTRO do Placar; sem overlay próprio) ----------
+// ---------- Liga & desafios (renderizada DENTRO de Meus Números; sem overlay próprio) ----------
 export function renderLeague(vm) {
   const L = vm.level;
   const pct = L.xpForNext > 0 ? Math.min(100, (L.xpInLevel / L.xpForNext) * 100) : 100;
@@ -1901,7 +1901,7 @@ export function openPassport(vm) {
   const menuSet = new Set((vm && vm.menuKeys) || []); // chaves normalizadas com cardápio salvo
   const places = new Set(list.map((c) => c.name || t('pass.fallback'))).size;
   el['passport-count'].textContent = list.length
-    ? `${list.length} check-in${list.length === 1 ? '' : 's'} · ${places} lugar${places === 1 ? '' : 'es'}`
+    ? `${list.length} ${list.length === 1 ? t('pass.checkin1') : t('pass.checkinN')} · ${places} ${places === 1 ? t('pass.place1') : t('pass.placeN')}`
     : t('pass.empty');
   el['passport-list'].innerHTML = list.map((c) => {
     const d = new Date(c.at);

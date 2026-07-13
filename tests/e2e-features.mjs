@@ -39,12 +39,12 @@ async function main() {
   await closeAll(pageA);
   // mesa nasce limpa: monta o cardápio da noite pelo formulário do ➕
   // (Garrafa 600 é "da mesa" = share; ids viram x-garrafa-600 / x-chopp / x-lata)
-  const novoItem = async (name, share, cat = 'cerveja') => {
+  const novoItem = async (name, share) => {
     const vazio = await pageA.evaluate(() => !document.getElementById('menu-empty').hidden);
     await pageA.click(vazio ? '#btn-empty-custom' : '#btn-additem');
     await pageA.fill('#add-name', name);
     if (share) await pageA.check('#add-share');
-    await pageA.selectOption('#add-cat', cat); // sem emoji escolhido a categoria cairia em "outros"; a rodada só lista bebidas
+    // sem tocar em emoji, o padrão 🍺 deriva "cerveja" (EMOJI_CAT) → item entra na Rodada
     await pageA.click('#btn-additem-confirm');
     await pageA.waitForFunction(() => document.getElementById('overlay-additem').hidden, null, { timeout: T });
   };

@@ -278,14 +278,21 @@ padrão Auto segue o navegador).
   pro e2e; o `e2e-dev` (14 asserts) trava destravar/persistir/funis/rede 2-peer/📸/watchdog/redações.
   Nada sai do aparelho sozinho.
 - **Hub do "Você" (avatar)** (`ui.openMe`, overlay `#overlay-me`): junta o que é PESSOAL num lugar
-  só — 👤 perfil, 📊 números, 🎞️ retrô, 🗺️ passaporte, ⚙️ configurações (cada item abre o overlay
-  que JÁ existe; padrão de troca do menu). DUAS portas, o mesmo hub: o **avatar no canto da home**
+  só — 👤 perfil, 📊 números, 🗺️ passaporte, ⚙️ configurações (cada item abre o overlay
+  que JÁ existe; padrão de troca do menu). O **Retrô/rolê fundiu DENTRO de Números** (o dado era ~85%
+  o mesmo): o exclusivo dele — `topMate` (com quem mais bebeu, célula 🤝) e o botão **📸 Compartilhar
+  meu rolê** (`btn-stats-share` → `onRetroShare`, mesmo card `shareRetro`) — mora nos Meus Números; o
+  tile Retrô e o `#overlay-retro` saíram. DUAS portas, o mesmo hub: o **avatar no canto da home**
   (`#btn-me`, no lugar do antigo ⚙️) e **tocar no SEU rosto na barra de presença** (`.pres-me`/
   `data-self`) — por isso a barra agora SEMPRE mostra você, mesmo sozinho na mesa (o clique no self
-  vai pro hub, no resto da barra vai pro placar). Números/Retrô só aparecem com histórico (espelha o
-  antigo `#home-extras`); Perfil/Passaporte/Config sempre. Regra da casa: **hub = EU, "…" = A MESA**
-  — perfil/números/config SAÍRAM do menu "…" (o e2e-me trava que não voltam). `renderHome`/
-  `renderPresence` pintam o avatar reusando a pele `.pres-av`; o tour "📊 A mesa viva" aponta pro `.pres-me`.
+  vai pro hub, no resto da barra vai pro placar). O **rosto grande do hub (`#me-avatar`) também abre o
+  perfil** (ação óbvia > botão extra — igual tocar no emoji volta pro emoji). Números só aparece com
+  histórico (espelha o antigo `#home-extras`); Perfil/Passaporte/Config sempre. Regra da casa: **hub =
+  EU, "…" = A MESA** — perfil/números/config SAÍRAM do menu "…" (o e2e-me trava que não voltam) e o
+  **placar (👥) ficou 100% A MESA**: a LIGA (nível/desafios/troféu do mês) é progresso PESSOAL
+  cross-noite, então MOROU pro hub → 📊 Meus Números (`renderLeagueInfo` roda no `openStats`, não mais
+  no `onPeers`; os ids `league-level`/`league-challenges`/`league-season` só mudaram de overlay).
+  `renderHome`/`renderPresence` pintam o avatar reusando a pele `.pres-av`; o tour "📊 A mesa viva" aponta pro `.pres-me`.
 - **Presença ao vivo (serena)**: `render()` desenha a barra de avatares (self + peers,
   `mesh.peers()`); queda de conexão **NUNCA vira toast** — quem cai fica 💤 esmaecido na barra pelo
   tempo que for (tela apagada/elevador não é "saiu") e a volta é silenciosa; **"👋 saiu" só existe
@@ -307,9 +314,11 @@ padrão Auto segue o navegador).
   sumiu do signaling com conexão ruim (GC no `mesh.js`) — o `renderPresence` completa a barra
   pelo `awaySince` pra o 💤 não evaporar antes da hora. **Tela acesa na mesa**: Screen Wake
   Lock segura a tela
-  enquanto a mesa está aberta (`settings.keepAwake`, ligado de fábrica; switch nas configs) —
-  `acquireWakeLock` no entrar/`visibilitychange` (o sistema solta sozinho ao esconder a aba),
-  release no sair/switch; sem suporte, falha em silêncio. **Catch-up na volta**: esconder o app /
+  enquanto a mesa está aberta (`settings.keepAwake`, **DEFAULT invisível — sem switch**: contar copo
+  na mesa não pede toggle, o app profissional SUBTRAI) — `acquireWakeLock` no entrar/`visibilitychange`
+  (o sistema solta sozinho ao esconder a aba e o app re-adquire na volta), release no sair; sem
+  suporte, falha em silêncio (o e2e-a11y asserta adquire-ao-entrar + solta-ao-esconder, sem tocar em
+  switch). **Catch-up na volta**: esconder o app /
   bloquear a tela CONGELA o WebRTC (regra do SO — sem receber em tempo real). No `visibilitychange`
   o app fotografa o total da mesa (`awaySnap`) ao SUMIR e, na VOLTA, resume o que rolou enquanto você
   esteve fora (`catchup.back` — um toast "+N na mesa"), lido do próprio estado depois do anti-entropy
@@ -323,10 +332,16 @@ padrão Auto segue o navegador).
   trava de "em voo" (+ solta o lock se a mesa já fechou enquanto o `await` corria); o `shake` e o
   `tour` armam UMA vez (flag) pra não empilhar handler/timer; e o `tryAudit` re-checa `dom` após
   cada `await` (a partida pode ter encerrado no meio da auditoria). O placar mostra a qualidade da
-  conexão por pessoa (host/srflx/relay). Tocar num nome no placar abre a **comanda** daquela pessoa.
+  conexão por pessoa (host/srflx/relay). Tocar num nome no placar abre a **comanda** daquela pessoa —
+  e ela **COBRA dali** (rodapé `#comanda-actions`): **🙌 eu pago** (PAYFOR, liga/desliga por
+  `paysFor(state,self,user)` → `onPayFor` + re-abre a comanda) e **PIX** (`onPix`, que garante o
+  cálculo com `if(!lastBill) renderBill()`); só aparece pra OUTRA pessoa com dívida — não precisa
+  fechar a conta pra cobrar.
 - **Cardápio por categoria**: `catalog.js` (`cat` + `CATEGORIES`/`catOf`); itens custom levam
   `cat`/`note` no def do evento `ITEM` (⚠️ ao editar preço, faça `makeItem({...it, price})` pra
-  não perder `g`/`cat`/`note`/`share`). **Itens compartilhados** (`share:1` — garrafa 600
+  não perder `g`/`cat`/`note`/`share`). **A categoria DERIVA do ícone** (`EMOJI_CAT[emoji]` no
+  confirm do ➕) — o campo Categoria SAIU do formulário de montar item (menos trabalho manual: o
+  app adivinha do emoji; 🍺→cerveja, 🍕→comida). **Itens compartilhados** (`share:1` — garrafa 600
   (id `cerveja`), litrão, torre): pedido é DA MESA — g=0 (não entra nas
   estatísticas de quem tocou), dinheiro vai pro bolo (`sharePool`) e racheia na conta via `shareSplit`
   (puro: motorista fora por padrão, toggle "todos", fallback se só tem motorista; a caixinha
@@ -395,7 +410,7 @@ padrão Auto segue o navegador).
   Botequei** por TRILHAS (`tourTrails` no `app.js`, motor em `ui.startTour`): 🍺 O básico
   (roda sozinho na 1ª mesa **DEPOIS do 1º +1** — valor antes de guia: `maybeStartTour` espera `tableTotal>0`, o empty-state + o hint "👆 toque = +1" ensinam o 1º toque e aí o tour mostra o resto (a trilha troca o passo 1 pro card real); flag `tourSeen`; sem pergunta de tema no fim — o padrão 'auto' segue o sistema; **a 1ª mesa da vida POUSA sem auto-abrir o convite** — `enterTable` só o abre pra quem já tem `tourSeen`; estreante é guiado pelo empty-state + tour, o convite fica a 1 toque no `#btn-invite`; e o **"📴 Entrar sem internet" só aparece na home quando FAZ SENTIDO** — sem internet (`navigator.onLine`) OU pra quem já é de casa (`renderHome(…, returning)`); estreante online não vê o conceito de nicho) · 💸 A conta · 🎮 A
   diversão · 📊 A mesa viva · 🗺️ Botecos & passaporte (nomear a mesa = o bar, check-in, cardápio
-  salvo, GPS) · 👤 O seu canto (perfil/números/retrô/config) — 3–4 paradas cada; parada com `pre`
+  salvo, GPS) · 👤 O seu canto (perfil/números — com rolê/liga dentro —/config) — 3–4 paradas cada; parada com `pre`
   ABRE a tela de verdade (clique
   real no menu/jogos), o motor parte da mesa LIMPA a cada parada (`closeOverlays`) e espera a
   âncora ficar visível (ausente = pula); **"🎓 Tour do Botequei"** no menu "…" abre o índice

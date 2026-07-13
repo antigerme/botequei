@@ -106,7 +106,7 @@
       <button class="btn btn-ghost" id="btn-empty-boteco" hidden>📓</button>
     </div>
 
-    <button class="btn btn-ghost btn-additem" id="btn-additem" data-i18n="table.addItem">+ item personalizado</button>
+    <button class="btn btn-ghost btn-additem" id="btn-additem" data-i18n="table.addItem">➕ item</button>
 
     <!-- jogo minimizado (✕ não cancela mais): toque pra voltar pra partida rolando -->
     <div class="game-pill" id="game-pill" hidden></div><!-- fileira de chips: voltar + ✕ encerrar (setGamePill) -->
@@ -161,19 +161,16 @@
   </div>
 </div>
 
-<!-- Placar & conquistas (mesa agora + seu nível/desafios/troféu do mês) -->
+<!-- Placar: 100% A MESA (quem está agora + MVP + badges). A LIGA (nível/desafios/troféu do mês)
+     é progresso PESSOAL cross-noite → mora no hub "Você" → 📊 Meus números. -->
 <div class="overlay" id="overlay-peers" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="peers.title">🏆 Placar &amp; conquistas</h2>
-    <div class="league-level" id="league-level"></div>
     <h3 class="stats-h3" data-i18n="peers.now">Mesa agora</h3>
     <div class="mvp" id="mvp-banner" hidden></div>
     <ul class="peers-list" id="peers-list"></ul>
     <div class="my-badges" id="my-badges"></div>
-    <h3 class="stats-h3" data-i18n="peers.week">Desafios da semana</h3>
-    <ul class="league-challenges" id="league-challenges"></ul>
-    <div class="league-season" id="league-season"></div>
   </div>
 </div>
 
@@ -196,8 +193,8 @@
 </div>
 
 <!-- Hub do "Você": o avatar no canto da home E o seu rosto na barra da mesa abrem aqui.
-     Junta o que é PESSOAL (perfil, números, retrô, passaporte, configurações) num lugar só —
-     o "…" fica só com a MESA. Cada item abre o overlay que já existe. -->
+     Junta o que é PESSOAL (perfil, números — com o retrô/rolê e a liga dentro —, passaporte,
+     configurações) num lugar só — o "…" fica só com a MESA. Cada item abre o overlay que já existe. -->
 <div class="overlay" id="overlay-me" hidden>
   <div class="sheet">
     <button class="sheet-close" data-close>✕</button>
@@ -208,7 +205,6 @@
     <div class="menu-list menu-grid">
       <button class="menu-item" id="me-profile" data-i18n="menu.profile">🎨 Meu perfil</button>
       <button class="menu-item" id="me-stats" data-i18n="stats">📊 Meus números</button>
-      <button class="menu-item" id="me-retro" data-i18n="retro">🎞️ Retrô</button>
       <button class="menu-item" id="me-passport" data-i18n="passport">🗺️ Passaporte</button>
       <button class="menu-item" id="me-settings" data-i18n="menu.settings">⚙️ Configurações</button>
     </div>
@@ -291,9 +287,8 @@
     <label class="field"><span data-i18n="add.name">Nome</span>
       <input id="add-name" type="text" maxlength="24" placeholder="ex: Caipirinha" data-i18n-ph="add.namePh" /></label>
     <p class="field-lbl" data-i18n="add.icon">Ícone</p>
+    <!-- SEM campo Categoria: ela deriva do ÍCONE (EMOJI_CAT) no confirm — menos trabalho manual -->
     <div class="emoji-row" id="emoji-row"></div>
-    <label class="field"><span data-i18n="add.cat">Categoria</span>
-      <select id="add-cat"></select></label>
     <label class="field"><span data-i18n="add.price">Preço (opcional)</span>
       <input id="add-price" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0,00" data-i18n-ph="add.pricePh" /></label>
     <label class="field"><span data-i18n="add.note">Descrição (opcional)</span>
@@ -392,7 +387,8 @@
     <p class="menu-sec">🔊 Som &amp; vibração</p>
     <label class="check"><input type="checkbox" role="switch" id="set-sound" /><span data-i18n="set.sound">🔊 Sons</span></label>
     <label class="check"><input type="checkbox" role="switch" id="set-shake" /><span data-i18n="set.shake">📳 Chacoalhar o celular pra +1 (mãos livres)</span></label>
-    <label class="check"><input type="checkbox" role="switch" id="set-keepawake" /><span data-i18n="set.keepawake">📱 Manter a tela acesa na mesa</span></label>
+    <!-- "Manter a tela acesa na mesa" virou DEFAULT invisível (settings.keepAwake, sem switch):
+         o wake lock segue segurando a tela na mesa e o sistema solta ao esconder a aba. -->
     <p class="menu-sec" data-i18n="set.secGeo">📍 Localização</p>
     <label class="check"><input type="checkbox" role="switch" id="set-geo" /><span data-i18n="set.geo">📍 Reconhecer meus botecos (passaporte + sugerir o cardápio)</span></label>
     <p class="sheet-sub" data-i18n="set.geoHelp">Fica tudo no seu aparelho — nada sai daqui. Desligar aqui só faz o app parar de usar; pra revogar de vez, use as configurações do navegador.</p>
@@ -546,10 +542,19 @@
     <p class="stats-insight" id="stats-insight"></p>
     <h3 class="stats-h3" data-i18n="stats.nightsH">Suas noites</h3>
     <ul class="stats-history" id="stats-history"></ul>
+    <div class="sheet-actions">
+      <button class="btn btn-primary" id="btn-stats-share" data-i18n="stats.share">📸 Compartilhar meu rolê</button>
+    </div>
+    <!-- Liga & desafios (progresso PESSOAL, cross-noite): moraram do Placar pra cá — casa do "Você" -->
+    <h3 class="stats-h3" data-i18n="stats.leagueH">🏆 Sua liga</h3>
+    <div class="league-level" id="league-level"></div>
+    <h3 class="stats-h3" data-i18n="peers.week">Desafios da semana</h3>
+    <ul class="league-challenges" id="league-challenges"></ul>
+    <div class="league-season" id="league-season"></div>
   </div>
 </div>
 
-<!-- Comanda individual (o que a pessoa pediu) -->
+<!-- Comanda individual (o que a pessoa pediu) + AÇÕES (cobrar dali: 🙌 eu pago / PIX) -->
 <div class="overlay" id="overlay-comanda" hidden>
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
@@ -557,21 +562,10 @@
     <p class="comanda-away" id="comanda-away" hidden></p>
     <ul class="comanda-list" id="comanda-list"></ul>
     <div class="bill-total" id="comanda-total"></div>
+    <!-- cobrar dali: 🙌 eu pago (PAYFOR) + PIX — populado no ui.openComanda quando há o que cobrar -->
+    <div class="sheet-actions comanda-actions" id="comanda-actions" hidden></div>
   </div>
 </div>
-
-<!-- Retrospectiva "Seu rolê" (slides estilo Wrapped) -->
-<div class="overlay" id="overlay-retro" hidden>
-  <div class="sheet sheet-tall">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 data-i18n="retro.title">🎞️ Seu rolê</h2>
-    <div class="retro-slides" id="retro-slides"></div>
-    <div class="sheet-actions">
-      <button class="btn btn-primary" id="btn-retro-share" data-i18n="common.shareImg">📸 Compartilhar</button>
-    </div>
-  </div>
-</div>
-
 
 
 <!-- Purrinha (P2P honesta via commit-reveal) -->

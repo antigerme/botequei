@@ -46,10 +46,12 @@ async function main() {
   await p.goto(BASE);
   await p.waitForSelector('#screen-home.is-active', { timeout: T });
 
-  await step('a seção 🐛 nasce ESCONDIDA nas configurações', async () => {
+  await step('a seção 🐛 e o 📸 flutuante nascem ESCONDIDOS', async () => {
     await openSettings();
     const hidden = await p.evaluate(() => document.getElementById('dev-section').hidden);
     if (!hidden) throw new Error('a seção dev devia nascer escondida');
+    const fabHidden = await p.evaluate(() => document.getElementById('dev-fab').hidden);
+    if (!fabHidden) throw new Error('o 📸 flutuante devia nascer escondido (dev desligado)');
   });
 
   await step('7 toques na versão destravam a seção (à la Android, com contagem)', async () => {
@@ -65,10 +67,12 @@ async function main() {
     if (hidden) throw new Error('a flag devUnlocked devia persistir o destrave');
   });
 
-  await step('liga o switch → settings.dev = true (e o marco entra no diário)', async () => {
+  await step('liga o switch → settings.dev = true + o 📸 flutuante aparece (e o marco no diário)', async () => {
     await p.check('#set-dev');
     await p.waitForFunction(() => JSON.parse(localStorage.getItem('botequei.settings') || '{}').dev === true, null, { timeout: T });
     await p.waitForFunction(() => (JSON.parse(localStorage.getItem('botequei.devlog') || '[]')).some((e) => e.k === 'dev'), null, { timeout: T });
+    // o FAB 📸 passa a aparecer junto com o modo dev ligado
+    await p.waitForFunction(() => { const f = document.getElementById('dev-fab'); return f && !f.hidden; }, null, { timeout: T });
   });
 
   await step('funis: criar+nomear mesa + item → eventos, ações, tela E a VISITA (B1+) no diário', async () => {
@@ -114,17 +118,24 @@ async function main() {
     await B.close();
   });
 
-  await step('📸 Registrar a tela: o "print" TEXTUAL (tela + overlays + texto) cai no diário', async () => {
-    await openSettings();
-    await p.click('#btn-dev-shot');
+  await step('📸 flutuante captura a tela ATUAL em contexto — o overlay que você vê, NÃO as Configurações', async () => {
+    // fecha tudo, abre um overlay REAL (o convite) na mesa e toca o FAB POR CIMA dele (z 55).
+    // A regressão que o André pegou: antes o botão morava nas Configs → ir lá fechava seus overlays
+    // e o snapshot pegava a tela das Configs. Agora tem que pegar o convite, e NÃO o overlay-settings.
+    await p.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+    await p.click('#btn-invite');
+    await p.waitForFunction(() => { const e = document.getElementById('overlay-invite'); return e && !e.hidden; }, null, { timeout: T });
+    await p.click('#dev-fab');
     await p.waitForFunction(() => {
       const d = JSON.parse(localStorage.getItem('botequei.devlog') || '[]');
       const f = d.filter((e) => e.k === 'foto.tela').pop();
-      return f && f.tela === 'screen-table' && /overlay-settings/.test(f.abertos || '') && (f.texto || '').length > 10;
+      return f && f.tela === 'screen-table' && /overlay-invite/.test(f.abertos || '')
+        && !/overlay-settings/.test(f.abertos || '') && (f.texto || '').length > 10;
     }, null, { timeout: T });
   });
 
   await step('📤 relatório: completo (permissões/transporte/eventos), foto REDIGIDA e PIX mascarado', async () => {
+    await openSettings(); // o 📸 agora é o FAB (não mais nas Configs) → reabre as Configs pro 📤
     await p.click('#btn-dev-report');
     await p.waitForFunction(() => !!window.__devReport, null, { timeout: T });
     const rep = await p.evaluate(() => window.__devReport);

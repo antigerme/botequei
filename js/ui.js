@@ -40,7 +40,7 @@ const el = {};
 
 const IDS = [
   'screen-home', 'screen-table', 'input-name', 'input-code', 'btn-create', 'btn-join-code',
-  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-me', 'btn-home-checkin',
+  'home-history', 'history-list', 'home-hint', 'btn-install', 'btn-me',
   'overlay-me', 'me-avatar', 'me-name', 'me-profile', 'me-stats', 'me-retro', 'me-passport', 'me-settings',
   'table-title', 'mesa-code', 'my-total', 'table-total', 'money-block', 'my-money', 'peer-count', 'table-hint', 'hero-fill',
   'conn-banner', 'hh-banner', 'presence-bar', 'items-grid', 'btn-additem', 'btn-invite', 'btn-leave', 'btn-peers', 'btn-menu',
@@ -89,7 +89,7 @@ const IDS = [
   'overlay-themepick', 'themepick-row',
   'overlay-truco', 'btn-tru-close', 'tru-setup', 'tru-game', 'tru-status', 'tru-score', 'tru-vira', 'tru-table',
   'tru-hand', 'tru-actions', 'tru-result', 'tru-audit',
-  'overlay-passport', 'passport-count', 'passport-name', 'btn-passport-checkin', 'passport-list',
+  'overlay-passport', 'passport-count', 'passport-list',
   'overlay-boteco', 'boteco-title', 'boteco-stats', 'boteco-menu', 'btn-boteco-load',
   'btn-boteco-rename', 'btn-boteco-del', 'boteco-rename-box', 'boteco-rename', 'btn-boteco-rename-go',
   'overlay-photo', 'photo-wrap', 'btn-photo-retake', 'btn-photo-share', 'photo-input',
@@ -254,8 +254,6 @@ export function init(handlers) {
     b.addEventListener('click', () => { H.onThemePick(b.dataset.th); closeOverlays(); }));
   el['btn-dom-L'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'L'); domArmed = null; el['dom-side-pick'].hidden = true; });
   el['btn-dom-R'].addEventListener('click', () => { if (domArmed) H.onDomPlay(domArmed, 'R'); domArmed = null; el['dom-side-pick'].hidden = true; });
-  el['btn-passport-checkin'].addEventListener('click', () => H.onCheckin(el['passport-name'].value));
-  el['btn-home-checkin'].addEventListener('click', () => H.onPassport()); // atalho da home → passaporte (check-in à mão)
   el['btn-boteco-load'].addEventListener('click', () => H.onBotecoLoadNew(el['btn-boteco-load'].dataset.place || ''));
   // gerenciar cardápio salvo (na ficha do boteco): renomear o lugar / apagar o cardápio
   el['btn-boteco-rename'].addEventListener('click', () => {
@@ -1925,10 +1923,7 @@ export function openPassport(vm) {
     b.addEventListener('click', open);
     b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
   });
-  el['passport-name'].value = (vm && vm.suggestName) || '';
   el['overlay-passport'].hidden = false;
-  // só rouba o foco se o passaporte for o topo — refresh POR BAIXO da ficha (renomear/apagar) não mexe
-  if (el['overlay-boteco'].hidden) setTimeout(() => { try { el['passport-name'].focus(); } catch { /* ignore */ } }, 60);
 }
 
 // Ficha de um boteco: visitas · gasto · bebida favorita + o cardápio salvo, com "carregar numa

@@ -51,11 +51,13 @@ async function main() {
     await A.waitForFunction(() => !!document.querySelector('#btn-tru-env'), null, { timeout: T });
   });
 
-  await step('minimizar o truco (✕) mostra a pill "voltar" e reabre — antes o jogo sumia sem volta', async () => {
-    await A.click('#btn-tru-close'); // ✕ = minimiza (o jogo segue rolando)
-    await A.waitForFunction(() => { const p = document.getElementById('game-pill'); return p && !p.hidden && /Truco|🂠/i.test(p.textContent || ''); }, null, { timeout: T });
-    await A.click('#game-pill .game-chip-open'); // toca o rótulo do chip pra voltar
-    await vis('tru-game');
+  await step('re-tocar o truco ATIVO no grid VOLTA pro jogo (não reinicia no setup)', async () => {
+    await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true))); // "saí" do jogo (a partida segue rolando)
+    await A.click('#btn-games');
+    await A.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+    await A.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Truco/.test(b.textContent)).click(); });
+    // voltou pra MESMA mão (tru-game), NÃO pra a escolha de variante
+    await A.waitForFunction(() => { const g = document.getElementById('tru-game'), s = document.getElementById('tru-setup'); return g && !g.hidden && (!s || s.hidden); }, null, { timeout: T });
   });
 
   await step('chamo ENVIDO: o time dos bots fecha (AS DUAS respostas) e a mão NÃO trava', async () => {
@@ -83,6 +85,12 @@ async function main() {
       if ((await scoreTotal()) > before) break;
     }
     if ((await scoreTotal()) <= before && before === 0) throw new Error('a mão não progrediu após o envido');
+  });
+
+  await step('SOLO: o ✕ encerra o truco DIRETO (sem pill, sem confirmação "pra mesa toda")', async () => {
+    await A.click('#btn-tru-close');
+    await A.waitForFunction(() => document.getElementById('overlay-truco').hidden, null, { timeout: T });
+    if (await A.evaluate(() => { const p = document.getElementById('game-pill'); return !!p && !p.hidden; })) throw new Error('solo não devia minimizar — a pill "jogo rolando" apareceu');
   });
 
   await ctx.close();

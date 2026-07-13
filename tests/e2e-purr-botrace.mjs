@@ -55,6 +55,17 @@ async function main() {
 
   // ---------- 3-2-1 (palitos): o cenário EXATO do relato ----------
   await openMode('#btn-purr-sticks');
+  await step('re-tocar a purrinha ATIVA no grid VOLTA pro jogo (não reinicia no setup)', async () => {
+    await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true))); // "saí" do jogo (fechei o overlay)
+    await A.click('#btn-games');
+    await A.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
+    await A.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Purrinha/.test(b.textContent)).click(); });
+    // voltou pro jogo em andamento (pick de pé), NÃO pra a tela de escolher modo
+    await A.waitForFunction(() => {
+      const pick = document.getElementById('purr-pick'), setup = document.getElementById('purr-setup');
+      return pick && !pick.hidden && (!setup || setup.hidden);
+    }, null, { timeout: T });
+  });
   await step('3-2-1: o bot lacra primeiro e a tela de escolher os palitos CONTINUA de pé', async () => {
     await waitBotSeals();
     const st = await pickStillThere();
@@ -72,8 +83,9 @@ async function main() {
     }, null, { timeout: 12000 });
   });
 
-  // fecha e reabre no modo RÁPIDO pra provar que lá também não some
-  await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
+  // encerra a solo (✕ fecha DIRETO — não minimiza) e reabre no RÁPIDO pra provar que lá também não some
+  await A.click('#btn-purr-close');
+  await A.waitForFunction(() => document.getElementById('overlay-purrinha').hidden, null, { timeout: T });
 
   // ---------- rápida: mesma garantia ----------
   await openMode('#btn-purr-fast');

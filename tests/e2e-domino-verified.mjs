@@ -54,7 +54,7 @@ async function main() {
     await pageA.click('#btn-games'); // dominó é SEMPRE mesa verificada
     await pageA.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
     await pageA.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Dominó/.test(b.textContent)).click(); });
-    await pageA.waitForSelector('#btn-dom-go', { timeout: T }); await pageA.click('#btn-dom-go'); // tela de início (0 bots)
+    // ≥2 humanos: o dominó começa DIRETO (sem tela de bots) — a "espera" É o handshake da mesa verificada
     // dom-game só aparece DEPOIS do handshake (seed commit-reveal + deal com lacre)
     await Promise.all(pages.map((p) => vis(p, 'dom-game')));
     await Promise.all(pages.map((p) => p.waitForFunction(() => document.querySelectorAll('#dom-board .dom-tile').length >= 1, null, { timeout: T })));

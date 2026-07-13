@@ -95,7 +95,7 @@ async function main() {
       await host.click('#btn-games');
       await host.waitForFunction(() => document.querySelectorAll('#games-grid .game-pick').length >= 3, null, { timeout: T });
       await host.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Dominó/.test(b.textContent)).click(); });
-      await host.waitForSelector('#btn-dom-go', { timeout: T }); await host.click('#btn-dom-go'); // tela de início (0 bots no multiplayer)
+      // ≥2 humanos: o dominó começa DIRETO (sem tela de bots) — a "espera" É o handshake da mesa verificada
       // sempre mesa verificada: o handshake (lacres + corte coletivo) roda primeiro, aí o jogo abre
       await Promise.all(pages.map((p) => vis(p, 'dom-game')));
       await Promise.all(pages.map((p) => p.waitForFunction(() => document.querySelectorAll('#dom-board .dom-tile').length >= 1, null, { timeout: T })));

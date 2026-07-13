@@ -104,8 +104,10 @@ export function place(chain, ends, tile, side) {
 // só girar o aparelho (muda a largura) re-arruma. Regras da mesa (dominó de bloco/dobra-seis):
 //   • pedra normal: DEITADA, encostada na anterior (o pip casa); indo pra ESQUERDA vai `flip` (b|a).
 //   • BUCHA (a===b): ATRAVESSADA (em pé) quando cabe numa corrida reta — a linha passa RETO por ela.
-//   • vira a QUINA com 2 pedras EM PÉ; a corrida NUNCA termina numa BUCHA (a bucha deitada é alta e
-//     encaixaria TORTA na quina) — a bucha da fronteira vira a 1ª pedra EM PÉ da quina (aí ALINHA).
+//   • vira a QUINA com pedras EM PÉ (≥2); a pedra do CANTO (de onde a próxima corrida sai de lado) é
+//     sempre COMUM — BUCHA no canto encaixaria TORTA (a linha sairia pelo LADO dela). A bucha da
+//     fronteira/coluna fica ATRAVESSADA em pé (a linha passa RETO por ela); se calharia no canto,
+//     empilha +1 pedra até uma comum fechar a dobra (o "3/3 torto" do André).
 //   • serpenteia pra caber na LARGURA em tamanho cheio (nunca encolhe a pedra) e cresce em ALTURA.
 // Devolve { tiles:[{a,b,x,y,w,h,vert,flip,idx,open,bucha}], width, height, anchor }.
 //
@@ -139,9 +141,19 @@ function layArm(items, out, { startX, startYc, dir0, vdir, L, S, loX, hiX }) {
     if (i >= N) break;
     const colX = dir > 0 ? x : x - S;                      // coluna da quina, encostada na última da corrida
     const y0 = vdir > 0 ? yc - S / 2 : yc + S / 2 - L;
-    stand(items[i], colX, y0); i++; if (i >= N) break;     // 1ª em pé (alinha topo↓/base↑ com a corrida)
-    stand(items[i], colX, vdir > 0 ? y0 + L : y0 - L); i++; // 2ª em pé (desce/sobe)
-    yc = vdir > 0 ? yc + 2 * L - S : yc - 2 * L + S;        // nova corrida; x fica na coluna (não reseta) e vira
+    // Empilha em pé descendo/subindo a coluna. A pedra do CANTO (a última, de onde a próxima corrida
+    // sai DE LADO) TEM que ser COMUM: BUCHA no canto encaixa TORTO (a linha sairia pelo LADO dela, não
+    // pela ponta — foi o "3/3 torto" do André). Então só vira DEPOIS de uma comum (≥2 em pé pra fechar a
+    // dobra) E havendo pedra a seguir; a bucha da fronteira segue ATRAVESSADA na coluna (a linha passa
+    // RETO por ela) — vira a 1ª/interior em pé, nunca o canto.
+    let m = 0, turned = false;
+    while (i < N) {
+      stand(items[i], colX, vdir > 0 ? y0 + m * L : y0 - m * L);
+      const wasDbl = items[i].dbl; i++; m++;
+      if (m >= 2 && !wasDbl && i < N) { turned = true; break; }
+    }
+    if (!turned) break;                                    // braço acabou dentro da coluna → rabo RETO
+    yc = vdir > 0 ? yc + m * L - S : yc - m * L + S;        // nova corrida: desloca pela ALTURA real da coluna
     dir = -dir;
   }
 }

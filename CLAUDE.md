@@ -329,7 +329,7 @@ padrão Auto segue o navegador).
   uma rodada"** (`btn-rodada` → `onPayRound`): item PESSOAL (chopp/dose/refri) = UM pra cada pessoa
   online (motorista fora se alcoólico) + uma promessa cobrindo o escopo; item DA MESA (share) = +1 no
   bolo + promessa de N unidades. Escolha em `payChoices` (= `drinkItems`, com selo "da mesa" nos
-  share) e alvos em `roundTargets`. **Escopo do jogo**: pagar rodada vindo de um JOGO paga só pros
+  share; o botão ANTECIPA o **×N** (quantos recebem) e o **total** (preço×N) do item pessoal) e alvos em `roundTargets`. **Escopo do jogo**: pagar rodada vindo de um JOGO paga só pros
   JOGADORES, não a mesa toda — `offerLoserPay` leva os ids do jogo (`purr.entrants`/`dom.order`/
   `truco.order`) e `roundTargets(def, scope)` os usa (bot fora, que não bebe; motorista fora se
   alcoólico). O núcleo é `roundTargetIds` (puro no `events.js`, irmão do `shareSplit`, testado). Do
@@ -338,6 +338,11 @@ padrão Auto segue o navegador).
   `receiveWaiter`). **SEM contagem de copo** — contar copo é mesquinharia (decisão de produto): o card
   compartilhado é só o contador DA MESA; consumo pessoal vem só de item individual.
   `userTotal`/`userMoney`/`summary` aceitam `resolveItem` e excluem share do pessoal.
+  **Fechar a conta** (`openBill`/`renderBill`) abre no default ÚTIL: **sem NENHUM preço → já em "rachar
+  igual"** (por-consumo daria tudo R$0); **couvert LEMBRADO por boteco** (`store.saveBotecoCouvert`/
+  `getBotecoCouvert`, chave `botequei.botecocouvert` — igual à gorjeta; mesa anônima não salva nem prefila);
+  e **sem chave PIX mas com dinheiro a receber, a própria conta CAPTURA a chave** (bloco `#bill-pix-setup`
+  → `onBillSetPix` grava → os botões PIX por linha aparecem; antes o caminho de receber era inalcançável).
   **Cardápio da mesa** (ex-"Preços", `menu-prices`): cada item aceita **marca/apelido**
   (`brand` no def, LWW — `itemLabel` prioriza), **descrição** (`note` no def, LWW — nasce
   no ➕ como "Descrição (opcional)" e é editável aqui; o card mostra como legenda — caso
@@ -368,15 +373,15 @@ padrão Auto segue o navegador).
 - **Alcance & cara**: `js/i18n.js` (dicionário pt/en/es COMPLETO — shell, toasts e templates —
   com `t(chave, vars)` interpolando `{name}`/`{n}` e `applyI18n` sobre `[data-i18n]`/
   `[data-i18n-ph]`/`[data-i18n-aria]`/`[data-i18n-title]`/`[data-i18n-html]`; idioma padrão
-  **auto** pelo navegador); temas **auto/dark/light**
-  (`resolveTheme`/`applyTheme` em `ui.js`; valor desconhecido cai no claro);
+  **auto** pelo navegador); temas **auto/dark/light** (padrão de fábrica **auto**, igual ao idioma —
+  segue o `prefers-color-scheme` do sistema; `resolveTheme`/`applyTheme` em `ui.js`; valor desconhecido cai no claro);
   **molduras** de avatar por nível da liga (`frameClass` → `.fr-silver`/`.fr-gold`); **passaporte**
   de botecos (`store.getCheckins`/`addCheckin` — check-in local, GPS opcional, só no aparelho);
   **guia de boas-vindas** no 1º uso (1× só — flag `welcomeSeen` no `store.getFlag`/`setFlag`): SAUDAÇÃO
   leve — card de DEMONSTRAÇÃO tocável (treina toque=+1/segurar=−1) e "Bora!" que SOLTA na home
   (apelido/criar mesa moram SÓ lá — o funil que engolia a tela inicial morreu); e **Tour do
   Botequei** por TRILHAS (`tourTrails` no `app.js`, motor em `ui.startTour`): 🍺 O básico
-  (roda sozinho na 1ª mesa — flag `tourSeen`; no fim pergunta o tema) · 💸 A conta · 🎮 A
+  (roda sozinho na 1ª mesa — flag `tourSeen`; sem pergunta de tema no fim — o padrão 'auto' segue o sistema) · 💸 A conta · 🎮 A
   diversão · 📊 A mesa viva · 🗺️ Botecos & passaporte (nomear a mesa = o bar, check-in, cardápio
   salvo, GPS) · 👤 O seu canto (perfil/números/retrô/config) — 3–4 paradas cada; parada com `pre`
   ABRE a tela de verdade (clique

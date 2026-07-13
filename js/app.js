@@ -382,7 +382,9 @@ function payChoices() {
 }
 function openPayRound(scope) {
   payScope = Array.isArray(scope) && scope.length ? scope : null; // do jogo: só os jogadores; do menu: mesa
-  const items = payChoices();
+  // enriquece cada item com quantos vão RECEBER (n): item pessoal = um pra cada online no escopo;
+  // item da mesa (share) = 1 unidade coletiva. O botão antecipa o ×N e o total (ver ui.openPayRound).
+  const items = payChoices().map((it) => ({ ...it, n: roundTargets(resolveItem(it.id), payScope).length }));
   if (!items.length) { ui.toast(t('pay.noItem')); return; }
   ui.openPayRound({ items });
 }
@@ -1144,6 +1146,7 @@ function computeBill() {
   const included = (u) => !excluded.has(u);
   const tipMult = 1 + (Math.max(0, o.tipPct) || 0) / 100;
   if (o.tipPct !== settings.tipPct) settings = setSettings({ tipPct: o.tipPct }); // lembra a gorjeta escolhida
+  const bn = sessionBoteco(); if (bn) store.saveBotecoCouvert(bn, o.couvert); // couvert varia por bar → lembra por boteco (mesa anônima não salva)
 
   // o bolo da mesa (garrafas/litrões/torres não têm dono): divide entre os incluídos
   // que não são motoristas — o toggle "shareAll" chama todo mundo pro rateio
@@ -1310,13 +1313,12 @@ function tourTrails() {
     ] },
   ];
 }
-function startTrail(id, { askTheme = false } = {}) {
+function startTrail(id) {
   const tr = tourTrails().find((x) => x.id === id);
   if (!tr) return;
   ui.startTour(tr.steps, (completed) => {
-    if (!completed) return; // pulou: sem ✓, sem pergunta
+    if (!completed) return; // pulou: sem ✓
     store.setFlag('tourDone_' + id);
-    if (askTheme) ui.openThemePick();
   });
 }
 let tourArmed = false;
@@ -1333,8 +1335,8 @@ function maybeStartTour() {
     if (store.getFlag('tourSeen')) return; // outra chamada já mostrou nesse meio-tempo
     store.setFlag('tourSeen'); // marca ao MOSTRAR (pular também conta como visto)
     // 1ª mesa da vida = só a trilha básica (curta); o resto mora no "🎓 Tour do Botequei".
-    // Fim do básico pergunta o tema preferido (quem PULOU quer usar logo — não pergunta).
-    startTrail('basico', { askTheme: true });
+    // (o tema segue o sistema por padrão — 'auto', igual ao idioma — então o fim do tour NÃO pergunta mais nada)
+    startTrail('basico');
   }, 600);
 }
 
@@ -3093,7 +3095,13 @@ const handlers = {
     roomPin = pin; restartMesh(); openInvite();
     ui.toast(pin ? t('toast.pinOn') : t('toast.pinOff'));
   },
-  onBill: () => { ui.openBill({ tipPct: settings.tipPct }); renderBill(); },
+  onBill: () => {
+    // sem NENHUM preço no cardápio, por-consumo dá tudo R$0 → abre JÁ no "rachar igual" (default útil).
+    const noPrices = !allItems().some((i) => i.price > 0);
+    const bn = sessionBoteco();
+    ui.openBill({ tipPct: settings.tipPct, equalDefault: noPrices, couvert: bn ? store.getBotecoCouvert(bn) : 0 });
+    renderBill();
+  },
   onBillChange: renderBill,
   onBillShare: async () => {
     if (!lastBill) renderBill();
@@ -3102,6 +3110,9 @@ const handlers = {
     if (res === 'download') ui.toast(t('toast.imgSaved')); else if (res === 'error') ui.toast(t('toast.imgError'));
   },
   onPayFor: (user, on) => { emitLocal(makePayFor({ to: user, on })); renderBill(); },
+  // captura a chave PIX no fechar a conta (quando não estava configurada): grava e re-renderiza →
+  // agora canPix é true → os botões PIX por linha aparecem e o bloco de captura some.
+  onBillSetPix: (key) => { if (!key) return; settings = setSettings({ pixKey: key }); renderBill(); ui.toast(t('bill.pixSaved')); },
   onPrices: () => ui.openPrices(menuEditorItems()),
   onItemToggle: (id) => {
     const it = resolveItem(id);
@@ -3355,11 +3366,6 @@ const handlers = {
     } catch {
       ui.toast(t('ver.offline', { v: verLabel(VERSION) }));
     }
-  },
-  onThemePick: (theme) => {
-    settings = setSettings({ theme });
-    ui.applyTheme(settings);
-    ui.toast(t('themePick.applied'));
   },
   onClearData: () => {
     for (const k of Object.keys(localStorage)) if (k.startsWith('botequei.')) localStorage.removeItem(k);

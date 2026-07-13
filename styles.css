@@ -425,6 +425,12 @@ html.bigfont { font-size: 120%; }
 .bill-row .b-name { flex: 1; font-size: var(--fs-l); }
 .bill-row .b-amt { font-family: var(--num); font-size: var(--fs-title); color: var(--gold); }
 .bill-row .b-pix { background: var(--gold); color: var(--on-gold); border: 0; border-radius: var(--r-s); padding: 8px 12px; font-family: var(--hand); font-size: var(--fs-base); cursor: pointer; }
+/* captura da chave PIX no fechar a conta (só aparece sem chave + com dinheiro a receber) */
+.bill-pix-setup { display: grid; gap: 6px; margin: 8px 0; }
+.bill-pix-setup label { font-size: var(--fs-m); color: var(--muted); }
+.bill-pix-setup .row { display: flex; gap: 8px; }
+.bill-pix-setup input { flex: 1; min-width: 0; background: var(--card); border: 1.5px solid var(--line); color: var(--cream); border-radius: var(--r-s); padding: 10px; font-size: var(--fs-base); font-family: system-ui, sans-serif; }
+.bill-pix-setup .btn { white-space: nowrap; }
 .bill-total { text-align: right; font-family: var(--num); font-size: 1.625rem; margin-top: 8px; }
 .pix-code { width: 100%; background: var(--card); border: 1.5px solid var(--line); color: var(--cream);
   border-radius: var(--r-m); padding: 12px; font-family: monospace; font-size: var(--fs-xs); resize: none; -webkit-user-select: all; user-select: all; }
@@ -442,11 +448,8 @@ html.bigfont { font-size: 120%; }
 .react-row button { font-size: 2.5rem; background: transparent; border: 0; cursor: pointer; }
 .react-row button:active { transform: scale(1.2); }
 
-/* Escolha de tema (fim do tour) */
+/* Dica leve em sheets (subtítulo/observação) */
 .sheet .hint { color: var(--muted); font-size: var(--fs-m); margin: 2px 0 10px; }
-.theme-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.theme-row .btn { width: 100%; }
-.theme-row .btn:last-child { grid-column: 1 / -1; }
 
 /* Rodada: grid de escolha do item */
 .round-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

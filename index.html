@@ -332,6 +332,13 @@
     </div>
     <div class="bill-bank" id="bill-bankrolls" hidden></div>
     <ul class="bill-list" id="bill-list"></ul>
+    <div id="bill-pix-setup" class="bill-pix-setup" hidden>
+      <label for="bill-pixkey" data-i18n="bill.pixAsk">💠 Receber no PIX?</label>
+      <div class="row">
+        <input id="bill-pixkey" type="text" maxlength="80" data-i18n-ph="bill.pixKeyPh" placeholder="chave PIX (cel/email/aleatória)" />
+        <button class="btn btn-primary" id="btn-bill-pixkey" data-i18n="bill.pixKeySave">Salvar</button>
+      </div>
+    </div>
     <div class="bill-total" id="bill-total"></div>
     <div class="sheet-actions">
       <button class="btn btn-primary" id="btn-bill-share" data-i18n="bill.share">📸 Mandar no grupo</button>
@@ -442,19 +449,6 @@
 </div>
 
 
-<!-- Escolha de tema (1× no fim do tour guiado; sempre disponível nas Configurações) -->
-<div class="overlay" id="overlay-themepick" hidden>
-  <div class="sheet">
-    <button class="sheet-close" data-close>✕</button>
-    <h2 data-i18n="themePick.title">Qual tema você prefere?</h2>
-    <p class="hint" data-i18n="themePick.hint">Um toque aplica. Dá pra trocar depois em ⚙️ Configurações.</p>
-    <div class="theme-row" id="themepick-row">
-      <button class="btn" data-th="light">☀️ <span data-i18n="set.themeLight">Claro (kraft)</span></button>
-      <button class="btn" data-th="dark">🌙 <span data-i18n="set.themeDark">Escuro (lousa)</span></button>
-      <button class="btn" data-th="auto">🌗 <span data-i18n="set.themeAuto">Auto</span></button>
-    </div>
-  </div>
-</div>
 
 <!-- Parear sem internet: handshake WebRTC por QR/código, 100% serverless -->
 <div class="overlay" id="overlay-offline" hidden>

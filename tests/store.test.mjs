@@ -126,4 +126,22 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   ok('renameBoteco só de caixa/acento atualiza o nome sem perder o cardápio');
 }
 
-console.log(`\n${passed} blocos de teste do store (cardápio por boteco) passaram ✅`);
+// ---------- couvert por boteco: save/get + normaliza a chave + entra no backup ----------
+{
+  localStorage.clear();
+  assert.strictEqual(store.getBotecoCouvert('Bar do Zé'), 0); // nada salvo → 0
+  store.saveBotecoCouvert('Bar do Zé', 12);
+  assert.strictEqual(store.getBotecoCouvert('  bar do zé '), 12); // recupera pela MESMA chave normalizada
+  store.saveBotecoCouvert('BAR DO ZE', 8);                        // regrava (mesma chave) → última vence
+  assert.strictEqual(store.getBotecoCouvert('Bar do Zé'), 8);
+  store.saveBotecoCouvert('', 5);                                 // sem nome: não guarda
+  assert.strictEqual(store.getBotecoCouvert(''), 0);
+  assert.strictEqual(store.getBotecoCouvert('Outro Bar'), 0);     // lugar sem couvert salvo → 0
+  store.saveBotecoCouvert('Boteco X', 'lixo');                    // valor inválido → coage pra 0
+  assert.strictEqual(store.getBotecoCouvert('Boteco X'), 0);
+  const dump = store.exportAll();
+  assert.ok(dump.data['botequei.botecocouvert'], 'botequei.botecocouvert entra no exportAll');
+  ok('saveBotecoCouvert/getBotecoCouvert: guarda por boteco (chave normalizada) e entra no backup');
+}
+
+console.log(`\n${passed} blocos de teste do store (cardápio + couvert por boteco) passaram ✅`);

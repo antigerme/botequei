@@ -627,10 +627,14 @@ function maybeSuggestByGps() {
   if (!settings.geo || !navigator.geolocation) return;
   dlog('gps.olhando', {});
   const go = () => geoGet('sugestao', (pos) => {
-    if (!room || state.items.size) return;
+    if (!room || state.items.size || tableInfo(state).title) return; // já tem nome/itens → não atrapalha
     const name = nearestBoteco(store.getCheckins(), pos.coords.latitude, pos.coords.longitude, GPS_RADIUS_M);
     dlog('gps.resultado', { perto: name || '', cardapio: !!(name && store.hasBotecoMenu(name)) });
-    if (name && store.hasBotecoMenu(name)) { gpsBoteco = name; render(); askLoadBoteco(name); }
+    if (!name) return;
+    gpsBoteco = name; render();
+    // Perto de um bar conhecido → oferece dar o NOME dele à mesa (o boteco = o nome da mesa). Com
+    // cardápio salvo, a ação já carrega junto ("carregar" também nomeia); sem cardápio, só nomeia.
+    if (store.hasBotecoMenu(name)) askLoadBoteco(name); else askHereName(name);
   }, geoDeny, GEO_OPTS);
   if (navigator.permissions && navigator.permissions.query) {
     navigator.permissions.query({ name: 'geolocation' }).then((st) => {
@@ -643,22 +647,27 @@ function maybeSuggestByGps() {
 function askLoadBoteco(name) {
   ui.actionToast(t('geo.hereQ', { name }), t('geo.hereGo'), () => handlers.onLoadBoteco(), 9000);
 }
-// Entrou na mesa de alguém (join por QR/código) e ela TEM nome de bar → check-in automático no
-// passaporte (ele se enche sozinho conforme você sai). Sem GPS obrigatório; deduplica por check-in
-// fresco do MESMO lugar. Só quem ENTRA (quem cria a mesa usa o atalho 📍 da home).
+// Bar conhecido SEM cardápio salvo: oferece só dar o NOME dele à mesa (= registrar o boteco).
+// Nomear dispara o check-in (render → maybeAutoCheckin) e "cola" o boteco na sessão pro cardápio
+// de amanhã — o boteco vem do nome da mesa, sem check-in à mão.
+function askHereName(name) {
+  ui.actionToast(t('geo.hereQ', { name }), t('geo.hereName'), () => { if (room && !tableInfo(state).title) setTable({ title: name }); }, 9000);
+}
+// Toda mesa com NOME de bar registra a visita no passaporte — o boteco = o NOME da mesa (fonte
+// única). Vale pra quem CRIA e pra quem ENTRA: o passaporte se enche sozinho, sem check-in à mão.
+// Sem GPS obrigatório; deduplica por check-in fresco do MESMO lugar; o GPS só enriquece depois.
 function freshCheckinFor(name) {
   const key = store.botecoKey(name);
   return store.getCheckins().some((c) => c.name && store.botecoKey(c.name) === key && (Date.now() - (c.at || 0)) < CHECKIN_FRESH_MS);
 }
 function maybeAutoCheckin() {
-  if (autoCheckedIn || !sessionJoined || !room) return;
+  if (autoCheckedIn || !room) return; // criei OU entrei: se a mesa tem nome, a visita entra
   const title = tableInfo(state).title;
-  if (!title) return;          // mesa sem nome → sem check-in fantasma
+  if (!title) return;          // mesa sem nome → sem check-in fantasma (nome é o gatilho)
   autoCheckedIn = true;        // marca ANTES do async (o render pode re-chamar antes de resolver)
   if (freshCheckinFor(title)) return; // já tem check-in fresco desse bar → não duplica
   dlog('checkin.auto', { nome: title });
-  // GRAVA NA HORA (mesmo motivo do onCheckin: o GPS pendurado não pode comer o check-in) e o GPS
-  // só enriquece depois, se vier.
+  // GRAVA NA HORA (o GPS pendurado não pode comer o check-in) e o GPS só enriquece depois, se vier.
   const at = Date.now();
   store.addCheckin({ name: title, at, lat: null, lng: null });
   dlog('checkin.salvo', { nome: title, auto: 1 }); // grava JÁ; o checkin.gps marca o enriquecimento
@@ -677,7 +686,7 @@ function botecoLoadedToast(defs, n) {
 
 function render() {
   if (!room) return;
-  maybeAutoCheckin(); // entrei numa mesa nomeada? check-in automático no passaporte (uma vez)
+  maybeAutoCheckin(); // mesa com nome (criei ou entrei) → registra a visita no passaporte (1×)
   const list = allItems();
   // share mostra o contador DA MESA no número grande (sem contagem pessoal por copo)
   const items = list.filter((it) => !it.off).map((it) => ({
@@ -855,7 +864,7 @@ async function enterTable(code, { create = false, pin = '', joined = false } = {
   render();
   acquireWakeLock(); // tela acesa na mesa (se o usuário quer)
   if (!presTick) presTick = setInterval(scheduleRender, 30000); // relógio do 💤 anda mesmo com a mesa parada
-  if (create) { openInvite(); maybeSuggestByGps(); } // GPS: perto de um boteco conhecido? oferece o cardápio
+  if (create) { openInvite(); maybeSuggestByGps(); } // GPS: perto de um boteco conhecido? oferece dar o NOME dele à mesa
   maybeStartTour(); // 1ª mesa da vida: mostra o caminho das pedras (espera fechar o convite)
 
   const iceServers = await loadIce();
@@ -2964,7 +2973,6 @@ function renderLeagueInfo() {
 function openPassportView() {
   ui.openPassport({
     checkins: store.getCheckins(),
-    suggestName: room ? tableInfo(state).title : '',
     keyOf: store.botecoKey,
     menuKeys: store.listBotecoMenus().map((m) => store.botecoKey(m.name)), // lugares com cardápio salvo
   });
@@ -3264,21 +3272,6 @@ const handlers = {
     let n = 0;
     for (const d of defs) if (d && d.id && emitLocal(makeItem(d))) n++;
     if (n) { render(); botecoLoadedToast(defs, n); }
-  },
-  onCheckin: (name) => {
-    const nm = ((name || '').trim() || (room ? tableInfo(state).title : '') || t('pass.fallback')).slice(0, 40);
-    dlog('checkin.toque', { nome: nm, geo: !!(settings.geo && navigator.geolocation) });
-    // ⚠️ GRAVA NA HORA (nome + horário); o GPS é BÔNUS que enriquece depois, NUNCA porteiro. O bug
-    // antigo salvava só dentro do callback do GPS → prompt de permissão pendente (sem callback NEM
-    // timeout) fazia o check-in evaporar em silêncio. Agora o check-in nasce e o GPS só acrescenta.
-    const at = Date.now();
-    store.addCheckin({ name: nm, at, lat: null, lng: null });
-    dlog('checkin.salvo', { nome: nm }); // grava JÁ (sem GPS); o checkin.gps abaixo marca o enriquecimento
-    openPassportView(); // re-renderiza com os selos 📓 (não o render mínimo de antes)
-    ui.toast(t('toast.checkin', { name: nm })); sound.pop(); // o toast explica o PAYOFF (clareана #1)
-    if (settings.geo && navigator.geolocation) {
-      geoGet('checkin', (pos) => { store.enrichCheckin(at, pos.coords.latitude, pos.coords.longitude); dlog('checkin.gps', { nome: nm }); }, (err) => geoDeny(err), { timeout: 8000 });
-    }
   },
   // Carrega o cardápio salvo do boteco (nome da mesa OU último check-in fresco): re-emite cada
   // item como evento ITEM — aparece na mesa E espalha pra turma pela malha (CRDT). Dá nome à

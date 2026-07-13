@@ -48,8 +48,6 @@
       </div>
 
       <button class="btn btn-ghost btn-offline" id="btn-offline-join" data-i18n="offline">📴 Entrar sem internet</button>
-      <!-- Números e Retrô moram no hub do avatar; o Passaporte tem atalho direto aqui (check-in fica à mão) -->
-      <button class="btn btn-ghost" id="btn-home-checkin" data-i18n="home.checkin">📍 Check-in num boteco</button>
     </div>
 
     <div class="home-history" id="home-history" hidden>
@@ -709,13 +707,7 @@
   <div class="sheet sheet-tall">
     <button class="sheet-close" data-close>✕</button>
     <h2 data-i18n="pass.title">🗺️ Passaporte de botecos</h2>
-    <p class="sheet-sub" id="passport-count">Marque os lugares que você já foi. Fica só no seu aparelho.</p>
-    <label class="field"><span data-i18n="pass.name">Nome do lugar</span>
-      <div class="join-row">
-        <input id="passport-name" type="text" maxlength="30" placeholder="ex: Bar do Zé" data-i18n-ph="pass.namePh" class="code-input" />
-        <button class="btn btn-primary" id="btn-passport-checkin" data-i18n="pass.checkin">📍 Check-in</button>
-      </div>
-    </label>
+    <p class="sheet-sub" id="passport-count">Os bares por onde você passa aparecem aqui. Fica só no seu aparelho.</p>
     <ul class="passport-list" id="passport-list"></ul>
   </div>
 </div>

@@ -13,6 +13,11 @@ padrão Auto segue o navegador).
   num emoji volta pro emoji — não precisa de botão "voltar"). Overlays seguem o padrão
   `.sheet`; o menu "…" é GRADE de tiles 2 colunas (padrão share-sheet — lista empilhada de
   19 itens era um monstro); antes de commitar, pergunte "como isso fica MELHOR pro usuário?".
+  **E pergunte SEMPRE "o que um app profissional faria aqui?"** — e no Botequei a resposta quase
+  sempre **SUBTRAI**: menos conceitos, inferência (GPS/estado) no lugar de trabalho manual, a
+  melhor tela é nenhuma tela, uma fonte de verdade só. "Profissional" aqui **NUNCA** é mais chrome,
+  mais botão, mais enterprise — é o usuário fazendo menos e o app adivinhando mais (ex.: o boteco
+  = o NOME da mesa, o passaporte enche sozinho, sem "check-in" à mão).
 - **i18n sempre**: TODA string de UI (shell, toasts, templates, aria, placeholder) nasce em
   `js/i18n.js` nas TRÊS línguas via `t(chave)`. Removeu UI? Remova as chaves órfãs. A
   auditoria trava paridade no CI — detalhes na seção de convenções.
@@ -407,23 +412,24 @@ padrão Auto segue o navegador).
   prompt); **recusou → o switch volta pra OFF sozinho** (`geoDeny`, só no `code 1` = negou de verdade;
   timeout/indisponível mantêm on) e não insiste; religar tenta de novo (bloqueio de vez no navegador
   não re-pergunta → aviso). O switch é do APP — NÃO revoga a permissão do navegador (a web não deixa;
-  o helper avisa). O **check-in** ganhou atalho na home (`btn-home-checkin` → passaporte); e **entrar
-  numa mesa NOMEADA** (join por QR/código) faz um **check-in automático** com o nome do bar no
-  passaporte (`maybeAutoCheckin` — só quem ENTRA, `sessionJoined`; deduplica por check-in fresco do
-  mesmo lugar; toast transparente). ⚠️ **O check-in GRAVA NA HORA** (nome + horário via
-  `store.addCheckin`); o GPS é BÔNUS que enriquece depois (`store.enrichCheckin(at, lat, lng)`),
-  NUNCA porteiro — o bug antigo salvava só dentro do callback do GPS, então prompt de permissão
-  pendente (sem callback NEM timeout) fazia o check-in **evaporar em silêncio** (`onCheckin` +
-  `maybeAutoCheckin`; `e2e-geo` trava check-in com GPS pendurado salvando na hora). O caminho até o
-  cardápio é EXPLICADO: o toast do check-in diz o payoff ("da próxima vez que abrir mesa aqui,
-  ofereço o cardápio"); o passaporte mostra "cardápio salvo · toque pra carregar" (`pass-sub`) nos
-  lugares com 📓; e montar o 1º item numa sessão com boteco (título OU check-in fresco =
-  `sessionBoteco`) avisa **"vou lembrar o cardápio do {bar} quando você sair"** (`toast.menuRemember`,
-  1× por sessão) — a corrente check-in→montar→sair→salvar deixa de ser invisível. **Sugestão por GPS**: com o switch ON, ao **criar** a mesa perto
-  de um lugar onde já fez check-in COM cardápio salvo, `maybeSuggestByGps` (via `nearestBoteco`, puro/
-  haversine/raio 250m em `lifestats.js`) PERGUNTA "você está no {nome}?" (`askLoadBoteco`, actionToast)
-  além do CTA do empty-state. `e2e-geo` trava o switch default-on + recusou→off; `e2e-boteco` trava o
-  check-in automático no join.
+  o helper avisa). **Boteco = o NOME da mesa (fonte ÚNICA) — NÃO existe "check-in" à mão.** Toda mesa
+  com nome REGISTRA a visita no passaporte, seja você o **dono** (nomeou a mesa) ou o **convidado**
+  (entrou por QR/código numa mesa nomeada): `maybeAutoCheckin` roda no `render()`, sem portão de
+  `sessionJoined` — o nome da mesa é o único gatilho (dedup por check-in fresco do mesmo lugar). O
+  **Passaporte é LEITURA** (no hub 👤 → 🗺️); a home NÃO tem mais botão de check-in e o passaporte não
+  tem input — o passaporte se enche SOZINHO (presença é mostrada, não anunciada). ⚠️ **A visita GRAVA
+  NA HORA** (nome + horário via `store.addCheckin`); o GPS é BÔNUS que enriquece depois
+  (`store.enrichCheckin(at, lat, lng)`), NUNCA porteiro — o bug antigo salvava só dentro do callback do
+  GPS, então prompt pendente (sem callback NEM timeout) fazia o check-in **evaporar** (`e2e-geo` trava
+  nomear a mesa com GPS pendurado salvando na hora). **GPS sugere o NOME ao criar** (o app adivinha,
+  você faz menos): perto de um bar conhecido, `maybeSuggestByGps` (via `nearestBoteco`, puro/haversine/
+  raio 250m em `lifestats.js`) oferece **dar o nome do bar à mesa** — `askHereName` ("Sim, é aqui") pro
+  bar sem cardápio salvo, `askLoadBoteco` ("Carregar cardápio", que também nomeia) pro que tem. Nomear
+  dispara a visita e "cola" o boteco na sessão. O caminho até o cardápio segue EXPLICADO: o passaporte
+  mostra "cardápio salvo · toque pra carregar" (`pass-sub`) nos lugares com 📓; e montar o 1º item numa
+  sessão com boteco (título OU check-in fresco = `sessionBoteco`) avisa **"vou lembrar o cardápio do
+  {bar} quando você sair"** (`toast.menuRemember`, 1× por sessão). `e2e-geo` trava o switch default-on +
+  recusou→off + a visita ao nomear; `e2e-boteco` trava o check-in automático no join.
   **Re-conferir preço**: ao carregar um cardápio COM preço, o toast vira ação **"revisar preços"**
   (`ui.actionToast`) que abre o Cardápio da mesa (os preços são os da última visita — podem ter mudado).
 - **Acessibilidade**: diálogos com `role="dialog"`/foco preso/ESC (`setupA11y` em `ui.js`),

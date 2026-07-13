@@ -46,11 +46,14 @@ async function main() {
   await A.goto(BASE);
   await A.waitForSelector('#screen-home.is-active', { timeout: T });
 
-  await step('atalho 📍 Check-in aparece na home e abre o passaporte', async () => {
-    const visible = await A.evaluate(() => { const b = document.getElementById('btn-home-checkin'); return !!b && b.offsetParent !== null; });
-    if (!visible) throw new Error('o botão 📍 Check-in não aparece na home');
-    await A.click('#btn-home-checkin');
-    await vis('overlay-passport');
+  await step('B1+: a home NÃO tem check-in à mão; o passaporte é LEITURA no hub 👤 → 🗺️', async () => {
+    const gone = await A.evaluate(() => !document.getElementById('btn-home-checkin'));
+    if (!gone) throw new Error('o botão de check-in à mão devia ter saído da home (boteco = nome da mesa)');
+    await A.click('#btn-me'); await vis('overlay-me');
+    await A.click('#me-passport'); await vis('overlay-passport');
+    // passaporte é só LEITURA agora: sem input de nome / botão de check-in
+    const hasInput = await A.evaluate(() => !!document.getElementById('passport-name') || !!document.getElementById('btn-passport-checkin'));
+    if (hasInput) throw new Error('o passaporte devia ser só leitura (sem input/botão de check-in)');
     await A.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
   });
 
@@ -69,7 +72,7 @@ async function main() {
     if (!/"geo":\s*false/.test(saved)) throw new Error('settings.geo devia persistir false após a recusa: ' + saved);
   });
 
-  await step('BUG FIX: check-in com GPS PENDURADO salva NA HORA + toast explica o payoff', async () => {
+  await step('BUG FIX: nomear a mesa com GPS PENDURADO registra a visita NA HORA (passaporte)', async () => {
     const ctx2 = await browser.newContext();
     await ctx2.addInitScript(() => {
       localStorage.setItem('botequei.name', 'André');
@@ -80,18 +83,18 @@ async function main() {
     const p2 = await ctx2.newPage();
     await p2.goto(BASE);
     await p2.waitForSelector('#screen-home.is-active', { timeout: T });
-    await p2.click('#btn-home-checkin');
-    await p2.waitForFunction(() => { const e = document.getElementById('overlay-passport'); return e && !e.hidden; }, null, { timeout: T });
-    await p2.fill('#passport-name', 'Minha Casa');
-    await p2.click('#btn-passport-checkin');
-    // teto de 4s: o GPS aqui NUNCA volta; se o check-in dependesse do callback (bug antigo), estouraria.
-    // Agora grava NA HORA → passa em milissegundos.
+    await p2.click('#btn-create');
+    await p2.waitForSelector('#screen-table.is-active', { timeout: T });
+    // B1+: nomear a mesa = o bar (o convite abre no create; o campo table-name-input está lá) →
+    // dispara a visita no passaporte via maybeAutoCheckin.
+    await p2.fill('#table-name-input', 'Minha Casa');
+    await p2.dispatchEvent('#table-name-input', 'change');
+    // teto de 4s: o GPS aqui NUNCA volta; se a visita dependesse do callback (bug antigo), estouraria.
+    // Agora GRAVA na hora (só enriquece a coordenada depois) → passa em milissegundos.
     await p2.waitForFunction(() => {
       const v = JSON.parse(localStorage.getItem('botequei.passport') || '[]');
-      return v.length && v[0].name === 'Minha Casa';
+      return v.some((c) => c.name === 'Minha Casa');
     }, null, { timeout: 4000 });
-    const toast = await p2.evaluate(() => { const e = document.getElementById('toast'); return e && !e.hidden ? e.textContent : ''; });
-    if (!/cardápio/i.test(toast)) throw new Error('o toast do check-in devia explicar o payoff (o cardápio), veio: ' + toast);
     await ctx2.close();
   });
 

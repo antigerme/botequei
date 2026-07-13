@@ -71,32 +71,13 @@ async function main() {
     await p.waitForFunction(() => (JSON.parse(localStorage.getItem('botequei.devlog') || '[]')).some((e) => e.k === 'dev'), null, { timeout: T });
   });
 
-  await step('um check-in com o diário ligado grava toque + salvo + gps (a trilha do caça-bug)', async () => {
-    await p.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
-    await p.click('#btn-home-checkin'); await vis('overlay-passport');
-    await p.fill('#passport-name', 'Minha Casa');
-    await p.click('#btn-passport-checkin');
-    await p.waitForFunction(() => {
-      const d = JSON.parse(localStorage.getItem('botequei.devlog') || '[]');
-      // fix do check-in: grava NA HORA (checkin.salvo, sem GPS) e o GPS concedido enriquece depois
-      // (checkin.gps). checkin.salvo SEM checkin.gps = GPS pendurou — a nova pista do caça-bug.
-      return d.some((e) => e.k === 'checkin.toque') && d.some((e) => e.k === 'checkin.salvo') && d.some((e) => e.k === 'checkin.gps');
-    }, null, { timeout: T });
-  });
-
-  await step('funis de UI: ação (handler embrulhado), toast e jornada de overlays no diário', async () => {
-    await p.waitForFunction(() => {
-      const d = JSON.parse(localStorage.getItem('botequei.devlog') || '[]');
-      return d.some((e) => e.k === 'acao' && e.h === 'onCheckin')
-        && d.some((e) => e.k === 'toast')
-        && d.some((e) => e.k === 'tela.overlay' && /overlay-passport/.test(e.abertos || ''));
-    }, null, { timeout: T });
-  });
-
-  await step('funil de EVENTOS: criar mesa + item + toque no card grava mesa.entrar/ITEM/ADD', async () => {
+  await step('funis: criar+nomear mesa + item → eventos, ações, tela E a VISITA (B1+) no diário', async () => {
     await p.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
     await p.click('#btn-create');
     await p.waitForSelector('#screen-table.is-active', { timeout: T });
+    // B1+: nomear a mesa = o bar → registra a visita (o convite abre no create; table-name-input está lá)
+    await p.fill('#table-name-input', 'Boteco Teste');
+    await p.dispatchEvent('#table-name-input', 'change');
     await p.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
     await p.click('#btn-empty-custom');
     await p.fill('#add-name', 'Chopp');
@@ -108,7 +89,13 @@ async function main() {
       return d.some((e) => e.k === 'mesa.entrar' && e.criei)
         && d.some((e) => e.k === 'ev' && e.tipo === 'ITEM')
         && d.some((e) => e.k === 'ev' && e.tipo === 'ADD')
-        && d.some((e) => e.k === 'tela.screen' && e.id === 'table');
+        && d.some((e) => e.k === 'tela.screen' && e.id === 'table')
+        // funis de UI: handler embrulhado (onTableName ao nomear) + toast + jornada de overlay (convite)
+        && d.some((e) => e.k === 'acao' && e.h === 'onTableName')
+        && d.some((e) => e.k === 'toast')
+        && d.some((e) => e.k === 'tela.overlay')
+        // B1+: nomear a mesa dispara a VISITA (auto): checkin.salvo (grava na hora) + checkin.gps (geo concedida)
+        && d.some((e) => e.k === 'checkin.salvo') && d.some((e) => e.k === 'checkin.gps');
     }, null, { timeout: T });
   });
 
@@ -143,7 +130,7 @@ async function main() {
     const rep = await p.evaluate(() => window.__devReport);
     if (rep.tipo !== 'botequei-relatorio') throw new Error('tipo errado: ' + rep.tipo);
     if (rep.permissoes.localizacao !== 'granted') throw new Error('permissão de localização devia sair "granted", veio: ' + rep.permissoes.localizacao);
-    if (!rep.checkins.length || rep.checkins[0].name !== 'Minha Casa') throw new Error('o check-in devia estar no relatório');
+    if (!rep.checkins.length || rep.checkins[0].name !== 'Boteco Teste') throw new Error('a visita (nomear a mesa) devia estar no relatório');
     if (!Array.isArray(rep.diario) || !rep.diario.some((e) => e.k === 'checkin.salvo')) throw new Error('o diário devia vir dentro do relatório');
     if (!rep.settings.dev) throw new Error('settings devia mostrar dev ligado');
     if (String(rep.settings.profPhoto).startsWith('data:')) throw new Error('a FOTO vazou no relatório — tinha que ser só o tamanho');

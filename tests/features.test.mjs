@@ -3,7 +3,7 @@
 
 import assert from 'node:assert';
 import { crc16, pixPayload } from '../js/pix.js';
-import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, sharePool, shareSplit, summary, happyHour, paysFor, payerOf, songs, roundTargetIds, cleanItemDef, roundToCents } from '../js/events.js';
+import { emptyState, applyEvent, getProfile, tableInfo, isDriver, userMoney, userTotal, tableTotal, sharePool, shareSplit, summary, paysFor, payerOf, roundTargetIds, cleanItemDef, roundToCents } from '../js/events.js';
 import { badgesFor, mvp, ceremonyAwards } from '../js/achievements.js';
 import { encodeBlob, decodeBlob } from '../js/handshake.js';
 
@@ -182,18 +182,6 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   ok('handshake: código inválido é rejeitado');
 }
 
-// ---------- Happy hour (LWW) ----------
-{
-  const s = emptyState();
-  assert.strictEqual(happyHour(s), null);
-  applyEvent(s, { type: 'HAPPYHOUR', until: 1000, startTotal: 3, startedBy: 'a', ts: 5, eventId: 'h1' });
-  applyEvent(s, { type: 'HAPPYHOUR', until: 2000, startTotal: 9, startedBy: 'b', ts: 2, eventId: 'h0' }); // ts menor, não vence
-  const hh = happyHour(s);
-  assert.strictEqual(hh.until, 1000);
-  assert.strictEqual(hh.startTotal, 3);
-  ok('happy hour: LWW (maior ts vence)');
-}
-
 // ---------- "Eu pago pra fulano" (PAYFOR, LWW) ----------
 {
   const s = emptyState();
@@ -228,19 +216,6 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.strictEqual(byId.driver.name, 'André'); // motorista
   assert.ok(byId.ferro && byId.ferro.name === 'Bia'); // única com destilado
   ok('cerimônia: MVP, motorista, cabeça de ferro');
-}
-
-// ---------- Jukebox (fila de músicas) ----------
-{
-  const s = emptyState();
-  applyEvent(s, { type: 'SONG', user: 'a', name: 'André', title: 'Evidências', url: '', ts: 2, eventId: 's2' });
-  applyEvent(s, { type: 'SONG', user: 'b', name: 'Bia', title: 'Tim Maia', url: 'x', ts: 1, eventId: 's1' });
-  const q = songs(s);
-  assert.strictEqual(q.length, 2);
-  assert.strictEqual(q[0].title, 'Tim Maia'); // ordena por ts do pedido
-  assert.strictEqual(q[1].name, 'André');
-  assert.strictEqual(applyEvent(s, { type: 'SONG', user: 'c', title: '', ts: 3, eventId: 's3' }), false); // sem título é ignorado
-  ok('jukebox: fila acumula e ordena por pedido');
 }
 
 // ---------- Higiene P2P: ITEM com preço envenenado NÃO vaza pra conta (cleanItemDef) ----------
@@ -288,17 +263,6 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   assert.strictEqual(userMoney(s, 'a', resolve), 0);
   assert.strictEqual(userTotal(s, 'a'), 1); // sem resolveItem, share entra — exatamente o bug que a comanda tinha
   ok('comanda: item da mesa (share) fica fora do consumo pessoal de quem tocou');
-}
-
-// ---------- Higiene P2P: jukebox tem teto de fila (flood não estoura memória) ----------
-{
-  const s = emptyState();
-  for (let i = 0; i < 600; i++) applyEvent(s, { type: 'SONG', user: 'z', title: 'm' + i, ts: i, eventId: 'f' + i });
-  assert.strictEqual(songs(s).length, 500); // teto de 500 (o resto do flood é ignorado)
-  const big = emptyState();
-  applyEvent(big, { type: 'SONG', user: 'z', title: 'T'.repeat(9999), ts: 1, eventId: 'b1' });
-  assert.strictEqual(songs(big)[0].title.length, 80); // title gigante ganha teto na ENTRADA
-  ok('higiene P2P: jukebox trava fila em 500 e corta title gigante');
 }
 
 console.log(`\n${passed} testes de features passaram ✅`);

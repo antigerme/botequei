@@ -33,10 +33,10 @@ import { t } from './i18n.js';
 import { VERSION, verLabel } from './version.js';
 import { DEFAULT_ITEMS, itemIdFromName, autoColor, autoAvatar, catOf, isShare, isDefault } from './catalog.js';
 import {
-  emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makeHappyHour, makePayFor, makeSong,
+  emptyState, applyEvent, makeAdd, makeRemove, makeItem, makeProfile, makeTable, makePayFor,
   makePledge, makePledgeOff, settle,
-  getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver, happyHour,
-  paysFor, payerOf, songs, sharePool, shareSplit, roundTargetIds, roundToCents,
+  getCount, itemTotal, userTotal, tableTotal, userMoney, summary, getProfile, tableInfo, isDriver,
+  paysFor, payerOf, sharePool, shareSplit, roundTargetIds, roundToCents,
 } from './events.js';
 import { badgesFor, milestoneLine, ceremonyAwards } from './achievements.js';
 import { lifeStats, lifeBadges, monthlyTrend, weekdayInsight, retro, botecoProfiles, nearestBoteco } from './lifestats.js';
@@ -196,7 +196,6 @@ function armGameStall() {
 }
 let offlineWaiting = false;   // convidado esperando o anfitrião ler a resposta (fecha sozinho ao conectar)
 let lastTableMilestone = 0;   // comemora a cada 10 rodadas da mesa (marco); sincronizado no sync
-let hhEndedFor = 0;           // 'until' do happy hour cujo fechamento já foi comemorado
 let renderScheduled = false;
 let sessionStart = 0;        // quando entrei nesta mesa (p/ duração no histórico)
 let sessionJoined = false;   // entrei na mesa de OUTRO (join/convite)? → "aprendi" o cardápio de alguém
@@ -293,7 +292,7 @@ function ingest(ev) {
   seen.add(ev.eventId); log.push(ev); applyEvent(state, ev); scheduleSave();
   return true;
 }
-function rebuildFrom(events) { log = []; seen = new Set(); state = emptyState(); for (const ev of events) ingest(ev); lastTableMilestone = Math.floor(tableTotal(state) / 10); const hh0 = happyHour(state); hhEndedFor = hh0 && hh0.until <= Date.now() ? hh0.until : 0; }
+function rebuildFrom(events) { log = []; seen = new Set(); state = emptyState(); for (const ev of events) ingest(ev); lastTableMilestone = Math.floor(tableTotal(state) / 10); }
 function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { if (room) store.saveEvents(room, log); }, 400); }
 
 // evento local: registra + propaga
@@ -339,25 +338,6 @@ function checkTableMilestone() {
     lastTableMilestone = m;
   }
 }
-// Happy hour: atualiza o cronômetro compartilhado e comemora quando fecha.
-function tickHappyHour() {
-  const hh = happyHour(state);
-  const now = Date.now();
-  if (hh && hh.until > now) {
-    const r = hh.until - now;
-    const mm = Math.floor(r / 60000), ss = Math.floor((r % 60000) / 1000);
-    const rounds = Math.max(0, tableTotal(state) - hh.startTotal);
-    ui.setHappyHour(t(rounds === 1 ? 'hh.banner1' : 'hh.bannerN', { time: `${mm}:${String(ss).padStart(2, '0')}`, n: rounds }));
-  } else {
-    ui.setHappyHour(null);
-    if (hh && hh.until && hhEndedFor !== hh.until) {
-      hhEndedFor = hh.until;
-      const rounds = Math.max(0, tableTotal(state) - hh.startTotal);
-      if (rounds > 0) { ui.celebrate(['🍺', '🏆', '🎉', '🥂']); ui.toast(t(rounds === 1 ? 'hh.closed1' : 'hh.closedN', { n: rounds })); }
-    }
-  }
-}
-
 function addCustomItem({ emoji, name, price, cat, note, share }) {
   const id = itemIdFromName(name);
   const def = { id, emoji, name, price: price || 0, cat: cat || 'outros', note: (note || '').slice(0, 40) };
@@ -478,7 +458,6 @@ function onFx(fx, fromId) {
   }
   if (fx.kind === 'brinde') ui.brinde();
   else if (fx.kind === 'react') ui.floatReaction(fx.emoji || '🍻');
-  else if (fx.kind === 'poke') { if (fx.to === self) receivePoke(fx); }
   else if (fx.kind === 'challenge') { if (fx.to === self) receiveChallenge(fx); }
   else if (fx.kind === 'ceremony') receiveCeremony(fx);
   else if (fx.kind === 'waiter') receiveWaiter(fx);
@@ -549,11 +528,6 @@ function receiveWaiter(fx) {
   ui.toast(item ? t('toast.waiterOrderFrom', { name, n, item }) : t('toast.waiterFrom', { name }));
   sound.alarm(); ui.vibrate([80, 40, 80]); ui.floatReaction('🔔');
 }
-function receivePoke(fx) {
-  if (!fxAllowed('poke', 900)) return;
-  ui.toast(t('toast.poked', { name: fromNameOf(fx) }));
-  sound.poke(); ui.vibrate([30, 40, 30]); ui.floatReaction('👉');
-}
 function receiveChallenge(fx) {
   if (!fxAllowed('challenge', 900)) return;
   const it = resolveItem(fx.item || 'dose');
@@ -573,10 +547,8 @@ function onRemoteEvent(ev, fromPeer, isSync) {
     if (Math.abs(sk) > 5000) dlog('relogio', { desvioMs: sk, de: String(fromPeer || '').slice(0, 6) });
   }
   if (mesh) mesh.broadcast({ k: 'ev', ev }, fromPeer); // gossip
-  if (ev.type === 'HAPPYHOUR' && Number(ev.until) <= Date.now()) hhEndedFor = Number(ev.until); // happy hour já vencido (veio no sync): não comemora
   if (isSync) { if (ev.type === 'ADD') lastTableMilestone = Math.floor(tableTotal(state) / 10); if (catchupPending) scheduleCatchup(); scheduleRender(); return; }
   if (ev.type === 'ADD') checkTableMilestone();
-  if (ev.type === 'SONG') ui.renderJukebox(songs(state));
   if (ev.type === 'ADD' && ev.user !== self) {
     const p = profOf(ev.user);
     ui.floatPlus(`${p.name || t('common.someoneLow')} ${resolveItem(ev.item).emoji}+1`, p.color);
@@ -720,7 +692,6 @@ function render() {
   if (mp.length === 0) ui.setConn(t('conn.alone'));
   else if (online < mp.length) ui.setConn(t('conn.reconnecting', { on: online, total: mp.length }));
   else ui.setConn(null);
-  tickHappyHour();
 }
 
 function renderPresence() {
@@ -1085,7 +1056,7 @@ function leaveTable() {
   if (mesh) { mesh.close(); mesh = null; }
   store.clearCurrent();
   room = null; roomPin = ''; myDriver = false; offlineWaiting = false; gpsBoteco = '';
-  lastTableMilestone = 0; hhEndedFor = 0; sessionStart = 0; sessionJoined = false; lastAwards = [];
+  lastTableMilestone = 0; sessionStart = 0; sessionJoined = false; lastAwards = [];
   prevOnline = new Set(); presenceSeeded = false; sessionMates = new Set();
   everSeen = new Set(); saidBye = new Set(); leftQuiet = new Set(); awaySince = new Map();
   for (const g of goneAt.values()) clearTimeout(g.tm); goneAt = new Map();
@@ -1095,7 +1066,6 @@ function leaveTable() {
   purr = null; dom = null; dv = null; seenFx.clear(); purrPreFx = [];
   cancelTruco(false); trucoPreFx = [];
   domClearTimers(); gameMinned.clear(); ui.setGameMin('dom', false); ui.setGameMin('purr', false); ui.setGamePill(null);
-  ui.setHappyHour(null);
   location.hash = '';
   ui.closeOverlays(); ui.showScreen('home'); ui.renderHome(store.getHistory(), meAvatar());
 }
@@ -1319,7 +1289,6 @@ function tourTrails() {
     { id: 'diversao', emoji: '🎮', label: t('tour.trail.diversao'), steps: [
       { sel: '#games-grid', pre: () => document.getElementById('btn-games').click(), title: t('tour.td1'), text: t('tour.xd1') },
       { sel: '#btn-react', title: t('tour.td2'), text: t('tour.xd2') },
-      { sel: '#menu-jukebox', pre: openMenuPre, title: t('tour.td3'), text: t('tour.xd3') },
       { sel: '#menu-waiter', pre: openMenuPre, title: t('tour.td4'), text: t('tour.xd4') },
     ] },
     { id: 'mesaviva', emoji: '📊', label: t('tour.trail.mesaviva'), steps: [
@@ -2895,7 +2864,6 @@ function sendPoke(user, kind, item) {
   if (!mesh) { ui.toast(t('toast.aloneTable')); return; }
   const fromName = getName() || t('common.someoneLow');
   if (kind === 'challenge') { mesh.sendFx({ kind: 'challenge', to: user, from: self, fromName, item: item || 'dose' }); sound.challenge(); ui.toast(t('toast.challengeSent')); }
-  else { mesh.sendFx({ kind: 'poke', to: user, from: self, fromName }); sound.poke(); ui.toast(t('toast.pokeSent')); }
 }
 
 // ---- Cerimônia de fim de noite ----
@@ -3229,16 +3197,6 @@ const handlers = {
   onTourMenu: () => { if (room) ui.openTour({ trails: tourTrails().map((tr) => ({ id: tr.id, emoji: tr.emoji, label: tr.label, done: !!store.getFlag('tourDone_' + tr.id) })) }); },
   onTourTrail: (id) => { ui.closeOverlays(); startTrail(id); },
   onRetro: openRetro,
-  onJukebox: () => { if (!room) { ui.toast(t('toast.needTable')); return; } ui.openJukebox({ songs: songs(state) }); },
-  onSongAdd: (title) => {
-    if (!room) return;
-    if (emitLocal(makeSong({ title }))) { ui.renderJukebox(songs(state)); ui.toast(t('jbx.queued')); }
-  },
-  onSongPlay: (song) => {
-    if (!song) return;
-    const url = song.url && /^https?:\/\//.test(song.url) ? song.url : 'https://music.youtube.com/search?q=' + encodeURIComponent(song.title);
-    try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
-  },
   // Passaporte de botecos (check-ins locais, opcionalmente com GPS)
   onPassport: () => openPassportView(),
   onBoteco: (name) => openBotecoFicha(name),
@@ -3286,23 +3244,6 @@ const handlers = {
     let n = 0;
     for (const d of defs) if (d && d.id && emitLocal(makeItem(d))) n++;
     if (n) { render(); botecoLoadedToast(defs, n); }
-  },
-  // Foto da noite: compartilha o arquivo (Web Share) ou baixa (fallback). Fica só local.
-  onPhotoShare: async () => {
-    const ph = ui.currentPhoto();
-    if (!ph) return;
-    try {
-      const blob = await (await fetch(ph.url)).blob();
-      const file = new File([blob], ph.name || 'botequei.jpg', { type: ph.type || blob.type || 'image/jpeg' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Botequei', text: t('photo.shareText') });
-      } else {
-        const a = document.createElement('a');
-        a.href = ph.url; a.download = ph.name || 'botequei.jpg';
-        document.body.appendChild(a); a.click(); a.remove();
-        ui.toast(t('toast.photoSaved'));
-      }
-    } catch { ui.toast(t('toast.shareError')); }
   },
   onShakeToggle: (on) => { settings = setSettings({ shake: !!on }); if (on) enableShake(); else disableShake(); ui.toast(on ? t('toast.shakeOn') : t('toast.shakeOff')); },
   // Switch da localização: desligar = o app para de usar (limpa o boteco por GPS). Ligar = pede a
@@ -3371,20 +3312,8 @@ const handlers = {
     setTimeout(() => location.reload(), 900);
   },
   onSfx: (kind) => { if (typeof sound[kind] === 'function') sound[kind](); },
-  onHappyHour: (minutes) => {
-    if (!room) { ui.toast(t('toast.needTableFirst')); return; }
-    hhEndedFor = 0;
-    emitLocal(makeHappyHour({ minutes, startTotal: tableTotal(state) }));
-    tickHappyHour();
-    ui.toast(t('hh.on', { n: minutes }));
-  },
   onCopyLink: async () => { try { await navigator.clipboard.writeText(inviteUrl()); ui.toast(t('toast.linkCopied')); } catch { ui.toast(inviteUrl()); } },
   onShareInvite: async () => { try { await navigator.share({ title: 'Botequei', text: t('inv.shareText'), url: inviteUrl() }); } catch { /* cancelado */ } },
-  onNfc: async () => {
-    if (!('NDEFReader' in window)) { ui.toast(t('toast.nfcNo')); return; }
-    try { await new window.NDEFReader().write({ records: [{ recordType: 'url', data: inviteUrl() }] }); ui.toast(t('toast.nfcTap')); }
-    catch { ui.toast(t('toast.nfcError')); }
-  },
   onOfflineHost: offlineHost,
   onOfflineJoin: offlineJoin,
   onOfflineGenAnswer: offlineGenAnswer,
@@ -3529,8 +3458,6 @@ function boot() {
     const standalone = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
     if (iOS && !standalone) ui.showInstall(true);
   } catch { /* ignore */ }
-
-  setInterval(() => { if (room) tickHappyHour(); }, 1000);
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then((reg) => {

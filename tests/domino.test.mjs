@@ -214,6 +214,30 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   ok('serpente: âncora (abertura) no meio; retrato mais alto que deitado; vazio e 1 pedra ok');
 }
 
+// ---------- BUCHA NO CANTO: a bucha entra ATRAVESSADA, nunca torta na quina (regressão do André) ----------
+{
+  // André montou o dominó de verdade em casa: a bucha 3/3 tem que ENTRAR ATRAVESSADA (a corrente passa
+  // RETO por ela) — NUNCA no canto da quina, onde uma bucha encaixa TORTA (a linha sairia pelo LADO dela).
+  // Corrente dele: 1-3 3-3 3-4 4-6 6-6(âncora) 6-5 5-0 0-4 4-5 5-1 — o 3-3 vive no braço de trás e, nas
+  // larguras de RETRATO de celular, calhava de canto. "O que está ao lado do 3-3 são o 1-3 e 3-4" (ele):
+  // os três empilham numa COLUNA reta (1-3 · 3-3 · 3-4), não num "L".
+  const chainFrom = (seq) => seq.slice(0, -1).map((v, k) => [v, seq[k + 1]]);
+  const andre = chainFrom([1, 3, 3, 4, 6, 6, 5, 0, 4, 5, 1]);
+  const cxc = (t) => t.x + t.w / 2, cyc = (t) => t.y + t.h / 2;
+  for (const W of [280, 300, 320, 340, 360]) {                 // faixa de retrato (onde ele viu o 3/3 torto)
+    const lay = snakeLayout(andre, { width: W, long: 66, short: 34, pad: 8 });
+    const byIdx = new Map(lay.tiles.map((t) => [t.idx, t]));
+    const b = byIdx.get(1), p = byIdx.get(0), s = byIdx.get(2); // o 3-3 e os vizinhos 1-3 / 3-4
+    assert.ok(b.a === 3 && b.b === 3 && b.vert, `3-3 é bucha em pé (W=${W})`);
+    // ATRAVESSADA: os DOIS vizinhos também EM PÉ, na MESMA coluna (mesmo x) e um ACIMA/outro ABAIXO → a
+    // corrente sobe reto pela bucha. No bug o 3-3 era o CANTO: o 1-3 vinha DEITADO saindo de lado (junta torta).
+    assert.ok(p.vert && s.vert, `vizinhos do 3-3 em pé (não de lado) — o 3-3 não é o canto da quina (W=${W})`);
+    assert.ok(Math.abs(cxc(p) - cxc(b)) < 2 && Math.abs(cxc(s) - cxc(b)) < 2, `1-3 · 3-3 · 3-4 na MESMA coluna (W=${W})`);
+    assert.ok((cyc(p) - cyc(b)) * (cyc(s) - cyc(b)) < 0, `1-3 e 3-4 flanqueiam o 3-3 (um acima, um abaixo) (W=${W})`);
+  }
+  ok('serpente: regressão do André — a bucha 3/3 entra ATRAVESSADA (coluna reta 1-3·3-3·3-4), nunca torta no canto');
+}
+
 // ---------- ESTABILIDADE: jogar numa ponta NÃO move as pedras já postas (regressão do André) ----------
 {
   // a queixa do André: o tabuleiro re-fluía a cada jogada. Ancorado na abertura, cada ponta cresce

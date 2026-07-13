@@ -69,6 +69,32 @@ async function main() {
     if (!/"geo":\s*false/.test(saved)) throw new Error('settings.geo devia persistir false após a recusa: ' + saved);
   });
 
+  await step('BUG FIX: check-in com GPS PENDURADO salva NA HORA + toast explica o payoff', async () => {
+    const ctx2 = await browser.newContext();
+    await ctx2.addInitScript(() => {
+      localStorage.setItem('botequei.name', 'André');
+      localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 }));
+      localStorage.setItem('botequei.settings', JSON.stringify({ lang: 'pt' })); // geo LIGADO de fábrica
+      try { navigator.geolocation.getCurrentPosition = () => {}; } catch { /* PENDURA: nunca chama callback */ }
+    });
+    const p2 = await ctx2.newPage();
+    await p2.goto(BASE);
+    await p2.waitForSelector('#screen-home.is-active', { timeout: T });
+    await p2.click('#btn-home-checkin');
+    await p2.waitForFunction(() => { const e = document.getElementById('overlay-passport'); return e && !e.hidden; }, null, { timeout: T });
+    await p2.fill('#passport-name', 'Minha Casa');
+    await p2.click('#btn-passport-checkin');
+    // teto de 4s: o GPS aqui NUNCA volta; se o check-in dependesse do callback (bug antigo), estouraria.
+    // Agora grava NA HORA → passa em milissegundos.
+    await p2.waitForFunction(() => {
+      const v = JSON.parse(localStorage.getItem('botequei.passport') || '[]');
+      return v.length && v[0].name === 'Minha Casa';
+    }, null, { timeout: 4000 });
+    const toast = await p2.evaluate(() => { const e = document.getElementById('toast'); return e && !e.hidden ? e.textContent : ''; });
+    if (!/cardápio/i.test(toast)) throw new Error('o toast do check-in devia explicar o payoff (o cardápio), veio: ' + toast);
+    await ctx2.close();
+  });
+
   await ctx.close();
   await browser.close();
   console.log(`\n${results.length} verificações de localização & check-in passaram ✅`);

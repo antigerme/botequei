@@ -61,6 +61,9 @@ async function main() {
     const temCta = await pageA.evaluate(() => !document.getElementById('btn-empty-boteco').hidden);
     if (temCta) throw new Error('não devia ter CTA de carregar na 1ª vez (nada salvo ainda)');
     await novoItem('Chopp');
+    // clareана #3: o 1º item numa sessão com boteco (check-in fresco "Bar do Zé") avisa que o
+    // cardápio será lembrado — a corrente check-in→montar→sair→salvar deixa de ser invisível
+    await pageA.waitForFunction(() => { const el = document.getElementById('toast'); return el && !el.hidden && /lembrar/i.test(el.textContent) && /Bar do Z/.test(el.textContent); }, null, { timeout: T });
     await novoItem('Porção');
     await pageA.waitForFunction(() => document.querySelectorAll('.item-card').length === 2, null, { timeout: T });
   });

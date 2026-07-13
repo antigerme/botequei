@@ -713,6 +713,7 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 .pass-name { font-weight: 400; color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pass-menu { font-size: var(--fs-s); opacity: .85; }
 .pass-when { font-size: var(--fs-s); color: var(--muted); }
+.pass-sub { font-size: var(--fs-s); color: var(--gold); }  /* "cardápio salvo · toque pra carregar" */
 .pass-map { text-decoration: none; font-size: var(--fs-xl); flex: none; padding: 4px; }
 
 /* Gerenciar cardápio salvo (na ficha do boteco): renomear o lugar / apagar o cardápio */

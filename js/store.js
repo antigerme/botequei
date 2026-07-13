@@ -88,6 +88,14 @@ export function storageScan() {
 const K_PASS = 'botequei.passport';
 export function getCheckins() { const v = readJSON(K_PASS, []); return Array.isArray(v) ? v : []; }
 export function addCheckin(c) { const list = getCheckins(); list.unshift(c); writeJSON(K_PASS, list.slice(0, 100)); return list; }
+// Enriquece um check-in JÁ salvo com as coordenadas do GPS (que chegam depois): o check-in
+// grava na HORA e o GPS é bônus — nunca porteiro. Casa pelo `at` (carimbo do momento).
+export function enrichCheckin(at, lat, lng) {
+  const list = getCheckins();
+  const c = list.find((x) => x.at === at);
+  if (c) { c.lat = lat; c.lng = lng; writeJSON(K_PASS, list); }
+  return list;
+}
 
 // ---- Cardápio por boteco (lembra os itens de cada lugar pra recarregar quando você volta) ----
 // Chaveado pelo NOME do boteco = o título da mesa (normalizado: minúsculo, sem acento, espaços

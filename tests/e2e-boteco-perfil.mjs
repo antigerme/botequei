@@ -50,14 +50,16 @@ async function main() {
   await pageA.goto(BASE);
   await pageA.waitForSelector('#screen-home.is-active', { timeout: T });
 
-  await step('passaporte: o lugar com cardápio salvo mostra o selo 📓', async () => {
+  await step('passaporte: o lugar com cardápio salvo mostra o selo 📓 + "toque pra carregar"', async () => {
     await pageA.click('#btn-me'); // avatar no canto da home → hub pessoal
     await visible(pageA, 'overlay-me');
     await pageA.click('#me-passport'); // passaporte sempre no hub (não gateado)
     await visible(pageA, 'overlay-passport');
     await pageA.waitForFunction(() => {
       const row = document.querySelector('#passport-list .pass-row');
-      return row && /Bar do Z/.test(row.textContent) && !!row.querySelector('.pass-menu');
+      // clareана #2: além do selo 📓, o subtítulo diz o que fazer (a linha já abre a ficha p/ carregar)
+      return row && /Bar do Z/.test(row.textContent) && !!row.querySelector('.pass-menu')
+        && !!row.querySelector('.pass-sub') && /carregar/i.test(row.querySelector('.pass-sub').textContent);
     }, null, { timeout: T });
   });
 

@@ -1913,8 +1913,10 @@ export function openPassport(vm) {
     const map = (c.lat != null && c.lng != null) ? `https://maps.google.com/?q=${c.lat},${c.lng}` : '';
     const hasMenu = menuSet.has(keyOf(c.name || ''));
     const badge = hasMenu ? ` <span class="pass-menu" title="${esc(t('boteco.menu'))}">📓</span>` : '';
+    // clareана #2: onde tem cardápio salvo, DIZ o que fazer (a linha já abre a ficha c/ "carregar")
+    const sub = hasMenu ? `<span class="pass-sub">📓 ${esc(t('pass.hasMenu'))}</span>` : '';
     return `<li class="pass-row" data-place="${esc(c.name || '')}"><span class="pass-pin">📍</span>
-      <div class="pass-main" role="button" tabindex="0" aria-label="${esc(c.name || t('pass.fallback'))}"><span class="pass-name">${esc(c.name || t('pass.fallback'))}${badge}</span><span class="pass-when">${when}</span></div>
+      <div class="pass-main" role="button" tabindex="0" aria-label="${esc(c.name || t('pass.fallback'))}"><span class="pass-name">${esc(c.name || t('pass.fallback'))}${badge}</span><span class="pass-when">${when}</span>${sub}</div>
       ${map ? `<a class="pass-map" href="${map}" target="_blank" rel="noopener" aria-label="ver no mapa">🗺️</a>` : ''}</li>`;
   }).join('') || `<li class="pass-row">${t('pass.none')}</li>`;
   // tocar num lugar abre a FICHA do boteco (mesmo padrão do placar → comanda)

@@ -52,7 +52,7 @@ const IDS = [
   'overlay-peers', 'mvp-banner', 'peers-list', 'my-badges',
   'overlay-menu',
   'menu-bill', 'menu-prices',
-  'menu-waiter', 'menu-ceremony', 'menu-share', 'menu-tour',
+  'menu-waiter', 'menu-share', 'menu-tour', 'btn-peers-crown', 'btn-bill-crown',
   'overlay-prices', 'price-list',
   'overlay-profile', 'profile-name', 'profile-colors', 'profile-avatars', 'profile-driver', 'btn-profile-save',
   'profile-preview', 'profile-preview-emoji', 'profile-photo-img', 'btn-avatar-webcam', 'btn-avatar-camera', 'btn-avatar-upload', 'avatar-file',
@@ -207,7 +207,10 @@ export function init(handlers) {
   $('menu-bill').addEventListener('click', () => { closeOverlays(); H.onBill(); });
   $('menu-prices').addEventListener('click', () => { closeOverlays(); H.onPrices(); });
   $('menu-waiter').addEventListener('click', () => { closeOverlays(); H.onWaiter(); });
-  $('menu-ceremony').addEventListener('click', () => { closeOverlays(); H.onCeremony(); });
+  // "🏅 Coroar a noite" — a cerimônia agora mora no Placar (casa das conquistas) e no fechar a conta
+  // (o momento natural do fim da noite), não mais num tile do "…". Fecha o overlay atual e abre a cerimônia.
+  el['btn-peers-crown'].addEventListener('click', () => { closeOverlays(); H.onCeremony(); });
+  el['btn-bill-crown'].addEventListener('click', () => { closeOverlays(); H.onCeremony(); });
   $('menu-share').addEventListener('click', () => { closeOverlays(); H.onShareNight(); });
   $('menu-tour').addEventListener('click', () => { closeOverlays(); H.onTourMenu(); });
 
@@ -649,6 +652,7 @@ export function setConn(msg) { const b = el['conn-banner']; if (!msg) { b.hidden
 // ---------- Placar / participantes ----------
 export function renderPeers({ rows, selfId, mvp, myBadges }) {
   el['mvp-banner'].hidden = !mvp;
+  el['btn-peers-crown'].hidden = !mvp; // "coroar a noite" só com consumo (mvp existe ⟺ alguém contou algo)
   if (mvp) el['mvp-banner'].innerHTML = t('peers.mvp', { name: esc(mvp.name || t('common.anon')), n: mvp.total });
   const medals = ['🥇', '🥈', '🥉'];
   let rank = 0;
@@ -1037,6 +1041,7 @@ export function renderBill(vm) {
   const hasReceivable = vm.rows.some((r) => r.amount > 0 && !r.isSelf && !r.coveredByName);
   el['bill-pix-setup'].hidden = !(!vm.canPix && hasReceivable);
   el['bill-total'].textContent = t('bill.total', { v: fmtMoney(vm.total) });
+  el['btn-bill-crown'].hidden = !vm.hasNight; // a conta fechando + houve consumo → oferece coroar a noite
 }
 
 // ---------- PIX ----------

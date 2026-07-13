@@ -1,7 +1,8 @@
-// E2E do "hub do Você" (avatar): junta perfil/números/retrô/passaporte/configurações num lugar só.
+// E2E do "hub do Você" (avatar): junta perfil/números/passaporte/configurações num lugar só
+// (o Retrô/rolê fundiu DENTRO de Números).
 //  1) o avatar no canto da home abre o hub;
-//  2) usuário NOVO (sem histórico): Perfil/Passaporte/Config sempre aparecem; Números/Retrô ficam
-//     escondidos (espelha o antigo gate do #home-extras);
+//  2) usuário NOVO (sem histórico): Perfil/Passaporte/Config sempre aparecem; Números fica
+//     escondido (espelha o antigo gate do #home-extras);
 //  3) dentro do hub, cada item abre o overlay certo (perfil/config/passaporte);
 //  4) na MESA, tocar no SEU rosto na barra de presença abre o MESMO hub (a barra sempre mostra você);
 //  5) faxina: o "…" da mesa NÃO tem mais Perfil/Números/Configurações (regra da casa: não duplica).
@@ -44,16 +45,17 @@ async function main() {
     await vis('overlay-me');
   });
 
-  await step('usuário NOVO (sem histórico): Perfil/Passaporte/Config aparecem; Números/Retrô escondidos', async () => {
+  await step('usuário NOVO (sem histórico): Perfil/Passaporte/Config aparecem; Números escondido (o Retrô fundiu nele)', async () => {
     const st = await p.evaluate(() => ({
       profile: !document.getElementById('me-profile').hidden,
       passport: !document.getElementById('me-passport').hidden,
       settings: !document.getElementById('me-settings').hidden,
       stats: !document.getElementById('me-stats').hidden,
-      retro: !document.getElementById('me-retro').hidden,
+      retro: !!document.getElementById('me-retro'), // o tile Retrô saiu do hub (não existe mais)
     }));
     if (!(st.profile && st.passport && st.settings)) throw new Error('Perfil/Passaporte/Config deviam sempre aparecer: ' + JSON.stringify(st));
-    if (st.stats || st.retro) throw new Error('Números/Retrô deviam ficar escondidos sem histórico: ' + JSON.stringify(st));
+    if (st.stats) throw new Error('Números devia ficar escondido sem histórico: ' + JSON.stringify(st));
+    if (st.retro) throw new Error('o tile Retrô não devia mais existir (fundiu em Números): ' + JSON.stringify(st));
   });
 
   await step('hub → Meu perfil abre o overlay do perfil', async () => {

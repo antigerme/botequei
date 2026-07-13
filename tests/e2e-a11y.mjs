@@ -29,14 +29,29 @@ async function main() {
     localStorage.setItem('botequei.name', 'André');
     localStorage.setItem('botequei.flags', JSON.stringify({ welcomeSeen: 1, tourSeen: 1 }));
     localStorage.setItem('botequei.settings', JSON.stringify({ lang: 'pt', theme: 'dark' }));
+    // forja document.hidden (getter mutável) p/ DIRIGIR o visibilitychange — o headless não
+    // congela a aba de verdade (mesmo truque do e2e-catchup).
+    let _h = false;
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => _h });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (_h ? 'hidden' : 'visible') });
+    window.__setHidden = (v) => { _h = !!v; document.dispatchEvent(new Event('visibilitychange')); };
     // stub do Screen Wake Lock: grava pedidos/solturas. defineProperty é OBRIGATÓRIO —
     // navigator.wakeLock é getter do protótipo (read-only); atribuição direta falha em silêncio.
+    // O SISTEMA solta o lock quando a aba some (Android/iOS): o stub ESPELHA isso — dispara o
+    // 'release' do sentinel no 1º visibilitychange p/ hidden (o app NÃO solta à mão; re-adquire na volta).
     window.__wakes = [];
     Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: {
-      request: async () => { window.__wakes.push('request'); return {
-        addEventListener() { /* release handler */ },
-        release() { window.__wakes.push('release'); return Promise.resolve(); },
-      }; },
+      request: async () => {
+        window.__wakes.push('request');
+        const relHandlers = [];
+        const sentinel = {
+          addEventListener(ev, fn) { if (ev === 'release') relHandlers.push(fn); },
+          release() { window.__wakes.push('release'); relHandlers.splice(0).forEach((h) => { try { h(); } catch { /* ignore */ } }); return Promise.resolve(); },
+        };
+        const onHide = () => { if (document.hidden) { document.removeEventListener('visibilitychange', onHide); sentinel.release(); } };
+        document.addEventListener('visibilitychange', onHide);
+        return sentinel;
+      },
     } });
   });
   const p = await C.newPage();
@@ -67,7 +82,7 @@ async function main() {
     // monta um item pra mesa ter card
     await p.click('#btn-empty-custom');
     await p.fill('#add-name', 'Chopp');
-    await p.selectOption('#add-cat', 'cerveja');
+    // sem campo Categoria: o padrão 🍺 já deriva "cerveja" (EMOJI_CAT) no confirm
     await p.click('#btn-additem-confirm');
     await p.waitForFunction(() => document.getElementById('overlay-additem').hidden, null, { timeout: T });
     await p.waitForTimeout(250);
@@ -94,16 +109,15 @@ async function main() {
     if (ta !== 'manipulation') throw new Error('btn-rodada touch-action=' + ta);
   });
 
-  await step('tela acesa na mesa (wake lock): pede ao entrar, solta no switch, re-pede ao religar', async () => {
+  await step('tela acesa na mesa (wake lock): pede ao ENTRAR; o sistema solta ao ESCONDER a aba; re-pede na volta (sem switch — keepAwake virou default invisível)', async () => {
     const req1 = await p.evaluate(() => (window.__wakes || []).filter((x) => x === 'request').length);
     if (req1 < 1) throw new Error('não pediu wake lock ao entrar na mesa');
-    await p.click('.pres-me'); await visible('overlay-me'); // seu rosto na barra de presença → hub
-    await p.click('#me-settings'); await visible('overlay-settings');
-    await p.uncheck('#set-keepawake');
+    // esconder a aba: no Android/iOS o SO congela e SOLTA o lock (o app não solta à mão)
+    await p.evaluate(() => window.__setHidden(true));
     await p.waitForFunction(() => (window.__wakes || []).includes('release'), null, { timeout: 5000 });
-    await p.check('#set-keepawake');
+    // voltar: o app re-adquire no visibilitychange, sem depender de nenhum switch
+    await p.evaluate(() => window.__setHidden(false));
     await p.waitForFunction((n) => (window.__wakes || []).filter((x) => x === 'request').length > n, req1, { timeout: 5000 });
-    await p.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
   });
 
   await step('sheet: arrastar a alcinha pra baixo FECHA; puxãozinho volta (snap)', async () => {

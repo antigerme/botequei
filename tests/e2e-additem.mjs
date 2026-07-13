@@ -57,13 +57,13 @@ async function main() {
     await A.waitForFunction(() => document.activeElement === document.getElementById('add-name'), null, { timeout: T });
   });
 
-  await step('a categoria já ABRE seguindo o ícone padrão (🍺 → Cervejas, não "Outros")', async () => {
+  await step('o ícone padrão é 🍺 e NÃO há campo Categoria (a categoria deriva do ícone no confirm)', async () => {
     const st = await A.evaluate(() => ({
       sel: (document.querySelector('#emoji-row .emoji-pick.sel') || {}).dataset?.e,
-      cat: document.getElementById('add-cat').value,
+      hasCat: !!document.getElementById('add-cat'), // o <select> Categoria saiu do formulário
     }));
     if (st.sel !== '🍺') throw new Error('o ícone padrão devia ser 🍺, veio ' + st.sel);
-    if (st.cat !== 'cerveja') throw new Error('a categoria devia ABRIR em Cervejas (segue o ícone), veio ' + st.cat);
+    if (st.hasCat) throw new Error('o campo Categoria devia ter saído do formulário (agora deriva do ícone)');
   });
 
   await step('preview começa como placeholder ("seu item")', async () => {
@@ -84,13 +84,9 @@ async function main() {
     }, null, { timeout: T });
   });
 
-  await step('escolher o ícone atualiza o preview E infere a categoria (🍕 → Comida)', async () => {
+  await step('escolher o ícone atualiza o preview ao vivo (🍕 — a categoria segue o ícone no confirm)', async () => {
     await A.click('#emoji-row .emoji-pick[data-e="🍕"]');
-    await A.waitForFunction(() => {
-      const e = document.getElementById('add-prev-emoji').textContent;
-      const cat = document.getElementById('add-cat').value;
-      return e === '🍕' && cat === 'comida';
-    }, null, { timeout: T });
+    await A.waitForFunction(() => document.getElementById('add-prev-emoji').textContent === '🍕', null, { timeout: T });
   });
 
   await step('digitar o preço mostra o valor no preview', async () => {

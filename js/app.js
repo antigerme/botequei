@@ -1324,8 +1324,7 @@ function tourTrails() {
     ] },
     { id: 'canto', emoji: '👤', label: t('tour.trail.canto'), steps: [
       { sel: '#me-profile', pre: openMePre, title: t('tour.tk1'), text: t('tour.xk1') },
-      { sel: '#me-stats', pre: openMePre, title: t('tour.tk2'), text: t('tour.xk2') }, // só com histórico (senão pula)
-      { sel: '#me-retro', pre: openMePre, title: t('tour.tk3'), text: t('tour.xk3') }, // idem
+      { sel: '#me-stats', pre: openMePre, title: t('tour.tk2'), text: t('tour.xk2') }, // Números (rolê/liga dentro); só com histórico
       { sel: '#me-settings', pre: openMePre, title: t('tour.tk4'), text: t('tour.xk4') },
     ] },
   ];
@@ -2896,17 +2895,26 @@ function openCeremony() {
   ui.openCeremony({ awards: lastAwards });
 }
 
-// ---- Meus números ----
+// ---- Meus números (o Retrô/rolê e a Liga fundiram AQUI: célula 🤝 + "compartilhar meu rolê" + liga) ----
 function openStats() {
   const hist = store.getHistory();
   const now = Date.now();
   const s = lifeStats(hist, { now });
-  const favDef = s.favDrink ? resolveItem(s.favDrink) : null;
+  // favorita: o histórico guarda só o ID; item CUSTOM vive nos cardápios salvos — resolve por lá
+  // ANTES do catálogo (espelha o openBotecoFicha), pra não sair como id cru/genérico.
+  const savedFav = (id) => { for (const m of store.listBotecoMenus()) { const d = (m.defs || []).find((x) => x.id === id); if (d) return d; } return null; };
+  const favDef = s.favDrink ? (savedFav(s.favDrink) || resolveItem(s.favDrink)) : null;
+  const favName = favDef ? itemLabel(favDef) : '';
+  // retro() dá o topMate (célula 🤝) E o objeto do card "meu rolê" (o botão de compartilhar reusa este)
+  const r = retro(hist, { now });
+  lastRetro = { ...r, favEmoji: favDef ? favDef.emoji : '', favName };
+  renderLeagueInfo(); // liga/desafios/temporada moraram do Placar pra cá — pinta antes de mostrar
   ui.openStats({
     stats: s, badges: lifeBadges(s), history: hist,
-    favEmoji: favDef ? favDef.emoji : '', favName: favDef ? favDef.name : '',
+    favEmoji: favDef ? favDef.emoji : '', favName,
     trend: monthlyTrend(hist, { now, months: 6 }),
     insight: weekdayInsight(hist),
+    topMate: r.topMate,
   });
 }
 
@@ -2931,29 +2939,14 @@ function openComanda(user) {
   const net = mesh ? mesh.peers().find((x) => x.user === user) : null;
   const since = net && !net.online ? awaySince.get(user) : 0;
   ui.openComanda({ user, name: p.name, emoji: p.emoji, rows, total: userTotal(state, user, resolveItem), money: s.money.get(user) || 0,
-    away: since ? t('comanda.away', { time: new Date(since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }) : '' });
+    away: since ? t('comanda.away', { time: new Date(since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }) : '',
+    // AÇÕES da comanda (cobrar dali): quem sou eu, se já banco essa pessoa (PAYFOR) e se tenho chave PIX
+    isSelf: user === self, iPayThem: paysFor(state, self, user), canPix: !!settings.pixKey });
 }
 
 function myLevel() { return levelFor(lifeStats(store.getHistory(), { now: Date.now() })).level; }
 
-// ---- Retrospectiva "Seu rolê" ----
-function openRetro() {
-  const r = retro(store.getHistory(), { now: Date.now() });
-  const favDef = r.favDrink ? resolveItem(r.favDrink) : null;
-  lastRetro = { ...r, favEmoji: favDef ? favDef.emoji : '', favName: favDef ? favDef.name : '' };
-  const slides = [
-    { emoji: '🍺', big: r.totalDrinks, sub: t('retro.drinks') },
-    { emoji: '📅', big: r.nights, sub: t('retro.nights') },
-    { emoji: '🔥', big: r.streakWeeks, sub: t('retro.weeks') },
-  ];
-  if (r.record) slides.push({ emoji: '👑', big: r.record.total, sub: t('retro.record') });
-  if (favDef) slides.push({ emoji: favDef.emoji, big: favDef.name, sub: t('retro.fav') });
-  if (r.topMate) slides.push({ emoji: '🤝', big: r.topMate.name, sub: t('retro.mate') });
-  if (r.totalSpent > 0) slides.push({ emoji: '💸', big: 'R$ ' + r.totalSpent.toFixed(2), sub: t('retro.spent') });
-  ui.openRetro({ slides });
-}
-
-// ---- Liga & desafios (renderizada dentro do Placar & conquistas) ----
+// ---- Liga & desafios (renderizada DENTRO de Meus Números — o Placar ficou 100% mesa) ----
 function renderLeagueInfo() {
   const now = Date.now();
   const hist = store.getHistory();
@@ -3095,7 +3088,7 @@ const handlers = {
   onRemove: (item) => act('REMOVE', item),
   onAddItemConfirm: addCustomItem,
   onInvite: openInvite,
-  onPeers: () => { renderPeers(); renderLeagueInfo(); ui.openPeers(); },
+  onPeers: () => { renderPeers(); ui.openPeers(); }, // placar = 100% A MESA (a liga mora nos Meus Números)
   onBrinde, onReact,
   onPayRound: () => openPayRound(), // 💸 Rodada do dock: você paga uma rodada pra mesa (picker → paga → chama o garçom)
   onPayPick: (id) => payRoundGo(id),
@@ -3163,6 +3156,7 @@ const handlers = {
   },
   onPix: (user) => {
     if (!settings.pixKey) { ui.toast(t('toast.pixConfig')); return; }
+    if (!lastBill) renderBill(); // cobrar direto da COMANDA: garante o cálculo mesmo sem abrir a conta (espelha onBillShare)
     const r = (lastBill && lastBill.rows || []).find((x) => x.user === user);
     if (!r) return;
     const payload = pixPayload({ key: settings.pixKey, name: getName() || 'Recebedor', city: settings.pixCity || 'BRASIL', amount: r.amount, txid: 'BOTEQUEI' });
@@ -3249,7 +3243,6 @@ const handlers = {
   // "🎓 Tour do Botequei" (menu "…"): índice de trilhas com ✓ nas concluídas
   onTourMenu: () => { if (room) ui.openTour({ trails: tourTrails().map((tr) => ({ id: tr.id, emoji: tr.emoji, label: tr.label, done: !!store.getFlag('tourDone_' + tr.id) })) }); },
   onTourTrail: (id) => { ui.closeOverlays(); startTrail(id); },
-  onRetro: openRetro,
   // Passaporte de botecos (check-ins locais, opcionalmente com GPS)
   onPassport: () => openPassportView(),
   onBoteco: (name) => openBotecoFicha(name),

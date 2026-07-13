@@ -362,7 +362,15 @@ function addCustomItem({ emoji, name, price, cat, note, share }) {
   const id = itemIdFromName(name);
   const def = { id, emoji, name, price: price || 0, cat: cat || 'outros', note: (note || '').slice(0, 40) };
   if (share) def.share = 1; // "da mesa": dinheiro rateado, não entra no corpo de ninguém
-  if (emitLocal(makeItem(def))) { render(); ui.toast(t('toast.itemAdded', { emoji: emoji, name: name })); }
+  if (emitLocal(makeItem(def))) {
+    render();
+    // clareана #3: fechar o loop na cara. Se o cardápio VAI ser lembrado (a mesa tem nome OU há
+    // check-in fresco = sessionBoteco), avisa no 1º item — a corrente check-in→montar→sair→salvar
+    // deixa de ser invisível. 1× por sessão; senão, o toast normal de "item na mesa".
+    const bar = room ? sessionBoteco() : '';
+    if (bar && !menuRememberHinted) { menuRememberHinted = true; ui.toast(t('toast.menuRemember', { name: bar })); }
+    else ui.toast(t('toast.itemAdded', { emoji, name }));
+  }
 }
 
 // ---- Rodada (do item que você escolher). MESMA regra nos dois botões — muda só o dono:
@@ -594,6 +602,7 @@ const CHECKIN_FRESH_MS = 6 * 3600e3; // ~6h: um rolê. Check-in velho não cola 
 const GPS_RADIUS_M = 250;            // "estou nesse boteco" — folga pra imprecisão do GPS.
 let gpsBoteco = '';                  // boteco detectado por perto nesta sessão (some ao sair)
 let autoCheckedIn = false;           // já registrei o check-in automático desta sessão de join?
+let menuRememberHinted = false;      // já avisei "vou lembrar o cardápio" nesta sessão (clareана #3)
 function freshCheckin() {
   const c = store.getCheckins()[0];
   return (c && c.name && (Date.now() - (c.at || 0)) < CHECKIN_FRESH_MS) ? c.name : '';
@@ -648,9 +657,13 @@ function maybeAutoCheckin() {
   autoCheckedIn = true;        // marca ANTES do async (o render pode re-chamar antes de resolver)
   if (freshCheckinFor(title)) return; // já tem check-in fresco desse bar → não duplica
   dlog('checkin.auto', { nome: title });
-  const save = (lat, lng) => { dlog('checkin.salvo', { nome: title, gps: lat != null, auto: 1 }); store.addCheckin({ name: title, at: Date.now(), lat, lng }); ui.toast(t('toast.autoCheckin', { name: title })); sound.pop(); };
-  if (settings.geo && navigator.geolocation) geoGet('autocheckin', (p) => save(p.coords.latitude, p.coords.longitude), () => save(null, null), GEO_OPTS);
-  else save(null, null);
+  // GRAVA NA HORA (mesmo motivo do onCheckin: o GPS pendurado não pode comer o check-in) e o GPS
+  // só enriquece depois, se vier.
+  const at = Date.now();
+  store.addCheckin({ name: title, at, lat: null, lng: null });
+  dlog('checkin.salvo', { nome: title, auto: 1 }); // grava JÁ; o checkin.gps marca o enriquecimento
+  ui.toast(t('toast.autoCheckin', { name: title })); sound.pop();
+  if (settings.geo && navigator.geolocation) geoGet('autocheckin', (p) => { store.enrichCheckin(at, p.coords.latitude, p.coords.longitude); dlog('checkin.gps', { nome: title, auto: 1 }); }, () => {}, GEO_OPTS);
 }
 
 // Toast pós-carregar o cardápio: se tem preço, vira ação "revisar preços" (podem ter mudado
@@ -829,7 +842,7 @@ async function enterTable(code, { create = false, pin = '', joined = false } = {
   dlog('mesa.entrar', { sala: String(code || '').slice(0, 8), criei: !!create, entrei: !!joined });
   room = code; roomPin = pin; sessionStart = Date.now(); sessionMates = new Set();
   sessionJoined = joined; // entrei na mesa de alguém → o cardápio que sincronizar é "aprendido"
-  autoCheckedIn = false; gpsBoteco = ''; // sessão nova: zera o check-in-automático e o boteco por GPS
+  autoCheckedIn = false; gpsBoteco = ''; menuRememberHinted = false; // sessão nova: zera flags de check-in/cardápio
   store.setCurrent(room);
   // A URL reflete a mesa JÁ AQUI, antes de abrir qualquer overlay: atribuir location.hash é
   // NAVEGAÇÃO (dispara popstate), e o "voltar fecha o overlay" (ui.js) entendia esse popstate
@@ -3254,19 +3267,18 @@ const handlers = {
   },
   onCheckin: (name) => {
     const nm = ((name || '').trim() || (room ? tableInfo(state).title : '') || t('pass.fallback')).slice(0, 40);
-    // ⚠️ diagnóstico de campo: 'checkin.toque' SEM um 'checkin.salvo' logo depois = o GPS pendurou
-    // (prompt de permissão sem resposta não dispara callback NEM timeout — o comedor de check-in)
     dlog('checkin.toque', { nome: nm, geo: !!(settings.geo && navigator.geolocation) });
-    const save = (lat, lng) => {
-      dlog('checkin.salvo', { nome: nm, gps: lat != null });
-      store.addCheckin({ name: nm, at: Date.now(), lat, lng });
-      ui.openPassport({ checkins: store.getCheckins() });
-      ui.toast(t('toast.checkin')); sound.pop();
-    };
+    // ⚠️ GRAVA NA HORA (nome + horário); o GPS é BÔNUS que enriquece depois, NUNCA porteiro. O bug
+    // antigo salvava só dentro do callback do GPS → prompt de permissão pendente (sem callback NEM
+    // timeout) fazia o check-in evaporar em silêncio. Agora o check-in nasce e o GPS só acrescenta.
+    const at = Date.now();
+    store.addCheckin({ name: nm, at, lat: null, lng: null });
+    dlog('checkin.salvo', { nome: nm }); // grava JÁ (sem GPS); o checkin.gps abaixo marca o enriquecimento
+    openPassportView(); // re-renderiza com os selos 📓 (não o render mínimo de antes)
+    ui.toast(t('toast.checkin', { name: nm })); sound.pop(); // o toast explica o PAYOFF (clareана #1)
     if (settings.geo && navigator.geolocation) {
-      ui.toast(t('toast.gettingPlace'));
-      geoGet('checkin', (pos) => save(pos.coords.latitude, pos.coords.longitude), (err) => { geoDeny(err); save(null, null); }, { timeout: 8000 });
-    } else save(null, null); // switch off → check-in só com o nome (sem tocar no GPS)
+      geoGet('checkin', (pos) => { store.enrichCheckin(at, pos.coords.latitude, pos.coords.longitude); dlog('checkin.gps', { nome: nm }); }, (err) => geoDeny(err), { timeout: 8000 });
+    }
   },
   // Carrega o cardápio salvo do boteco (nome da mesa OU último check-in fresco): re-emite cada
   // item como evento ITEM — aparece na mesa E espalha pra turma pela malha (CRDT). Dá nome à

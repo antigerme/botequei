@@ -71,14 +71,16 @@ async function main() {
     await p.waitForFunction(() => (JSON.parse(localStorage.getItem('botequei.devlog') || '[]')).some((e) => e.k === 'dev'), null, { timeout: T });
   });
 
-  await step('um check-in com o diário ligado grava toque + salvo (a trilha do caça-bug)', async () => {
+  await step('um check-in com o diário ligado grava toque + salvo + gps (a trilha do caça-bug)', async () => {
     await p.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => (o.hidden = true)));
     await p.click('#btn-home-checkin'); await vis('overlay-passport');
     await p.fill('#passport-name', 'Minha Casa');
     await p.click('#btn-passport-checkin');
     await p.waitForFunction(() => {
       const d = JSON.parse(localStorage.getItem('botequei.devlog') || '[]');
-      return d.some((e) => e.k === 'checkin.toque') && d.some((e) => e.k === 'checkin.salvo' && e.gps === true);
+      // fix do check-in: grava NA HORA (checkin.salvo, sem GPS) e o GPS concedido enriquece depois
+      // (checkin.gps). checkin.salvo SEM checkin.gps = GPS pendurou — a nova pista do caça-bug.
+      return d.some((e) => e.k === 'checkin.toque') && d.some((e) => e.k === 'checkin.salvo') && d.some((e) => e.k === 'checkin.gps');
     }, null, { timeout: T });
   });
 

@@ -238,7 +238,8 @@ padrão Auto segue o navegador).
   `sendTo` + `onFx` pós-dedup → `fx.tx/tx1/rx {k,ph}` — **NUNCA payload: mão/carta privada não
   entra**); presença (`malha` só quando o conjunto online muda), visibilidade (`tela {oculta}`),
   toasts e jornada de telas/overlays (hook `ui.setDevHook` → `toast`/`tela.overlay`/`tela.screen` —
-  o "print" textual), check-in/gps/boteco (`checkin.toque` SEM `checkin.salvo` = GPS pendurou) e
+  o "print" textual), check-in/gps/boteco (`checkin.salvo` SEM `checkin.gps` = GPS pendurou —
+  o check-in agora GRAVA na hora e o GPS só enriquece depois, então a pista virou a ausência do gps) e
   erros globais **com contexto de tela** (`telaCtx`). **Watchdogs de async** (`armWatchdog` +
   a porta única `geoGet` dos 4 pontos de GPS + o `loadIce`): o que NÃO volta no prazo vira
   `pendurada {o}` — o `getCurrentPosition` preso no prompt (comedor de check-in) FLAGRADO. Ainda:
@@ -409,7 +410,16 @@ padrão Auto segue o navegador).
   o helper avisa). O **check-in** ganhou atalho na home (`btn-home-checkin` → passaporte); e **entrar
   numa mesa NOMEADA** (join por QR/código) faz um **check-in automático** com o nome do bar no
   passaporte (`maybeAutoCheckin` — só quem ENTRA, `sessionJoined`; deduplica por check-in fresco do
-  mesmo lugar; toast transparente). **Sugestão por GPS**: com o switch ON, ao **criar** a mesa perto
+  mesmo lugar; toast transparente). ⚠️ **O check-in GRAVA NA HORA** (nome + horário via
+  `store.addCheckin`); o GPS é BÔNUS que enriquece depois (`store.enrichCheckin(at, lat, lng)`),
+  NUNCA porteiro — o bug antigo salvava só dentro do callback do GPS, então prompt de permissão
+  pendente (sem callback NEM timeout) fazia o check-in **evaporar em silêncio** (`onCheckin` +
+  `maybeAutoCheckin`; `e2e-geo` trava check-in com GPS pendurado salvando na hora). O caminho até o
+  cardápio é EXPLICADO: o toast do check-in diz o payoff ("da próxima vez que abrir mesa aqui,
+  ofereço o cardápio"); o passaporte mostra "cardápio salvo · toque pra carregar" (`pass-sub`) nos
+  lugares com 📓; e montar o 1º item numa sessão com boteco (título OU check-in fresco =
+  `sessionBoteco`) avisa **"vou lembrar o cardápio do {bar} quando você sair"** (`toast.menuRemember`,
+  1× por sessão) — a corrente check-in→montar→sair→salvar deixa de ser invisível. **Sugestão por GPS**: com o switch ON, ao **criar** a mesa perto
   de um lugar onde já fez check-in COM cardápio salvo, `maybeSuggestByGps` (via `nearestBoteco`, puro/
   haversine/raio 250m em `lifestats.js`) PERGUNTA "você está no {nome}?" (`askLoadBoteco`, actionToast)
   além do CTA do empty-state. `e2e-geo` trava o switch default-on + recusou→off; `e2e-boteco` trava o

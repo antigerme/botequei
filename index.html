@@ -421,7 +421,6 @@
       <p class="sheet-sub" data-i18n="set.devHelp">Grava um diário técnico do app NESTE aparelho (check-ins, cardápios, erros) pra caçar bugs. Nada é enviado sozinho — só sai daqui se você tocar em compartilhar.</p>
       <div class="sheet-actions">
         <button class="btn btn-ghost" id="btn-dev-report" data-i18n="set.devReport">📤 Compartilhar relatório</button>
-        <button class="btn btn-ghost" id="btn-dev-shot" data-i18n="set.devShot">📸 Registrar a tela</button>
       </div>
       <div class="sheet-actions">
         <button class="btn btn-ghost" id="btn-dev-copy" data-i18n="set.devCopy">📋 Copiar relatório</button>
@@ -822,6 +821,10 @@
   <div class="brinde-count" id="brinde-count">3</div>
   <div class="brinde-word" id="brinde-word" data-i18n="brinde.prep">Preparar…</div>
 </div>
+
+<!-- 📸 flutuante do modo dev: registra a tela ATUAL em contexto (só aparece com o dev ligado; captura
+     onde você está SEM ter que ir às Configurações — lá o botão fechava seus overlays e pegava a tela errada) -->
+<button id="dev-fab" hidden aria-label="Registrar a tela" data-i18n-aria="dev.shotFab">📸</button>
 
 <!-- role=status/aria-live: leitor de tela ANUNCIA o toast (+1, desfazer, garçom…) sem roubar o foco -->
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

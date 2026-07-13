@@ -255,6 +255,9 @@ padrão Auto segue o navegador).
   progresso → snapshot público) e **📸 automática** em fim anormal de jogo (cancel/noshow/trapaça).
   **📸 Registrar a tela** = snapshot manual do ESTADO (tela + overlays + texto do sheet ≤400 +
   `gameSnapshot` público) — página web não tira print de pixels de si no Android; o estado vale mais.
+  O gatilho é um **FAB flutuante** (`#dev-fab`, `ui.setDevFab` no `onDevToggle`/boot) que aparece SÓ com
+  o dev ligado, acima dos overlays (z 55) pra capturar **em contexto** — o botão nas Configurações foi
+  REMOVIDO porque ir até lá roda `closeOverlays()` e capturava a tela das Configs, não a que você via.
   **📤 Compartilhar relatório** (`formatoV:3`) = JSON com **resumo no topo** (erros/penduradas/…),
   versão, aparelho, PERMISSÕES (o 'prompt' pendurado é o comedor de check-in), storage + **tamanho
   por chave `botequei.*` e JSON corrompido**, SW, settings (foto REDIGIDA: só tamanho; **pixKey

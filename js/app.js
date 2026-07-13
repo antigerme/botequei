@@ -3330,6 +3330,7 @@ const handlers = {
   onDevToggle: (on) => {
     settings = setSettings({ dev: !!on });
     ui.setDevHook(on ? (k, d) => dlog(k, d) : null); // liga/desliga o espião da ui junto
+    ui.setDevFab(!!on); // e o 📸 flutuante aparece/some junto
     dlog('dev', { on: on ? 1 : 0 });
     ui.toast(t(on ? 'toast.devOn' : 'toast.devOff'));
   },
@@ -3484,6 +3485,7 @@ function boot() {
   ui.setNameInput(getName());
   ui.renderHome(store.getHistory(), meAvatar());
   ui.showDev(store.getFlag('devUnlocked')); // seção 🐛 já destravada uma vez? aparece desde o boot
+  ui.setDevFab(settings.dev); // 📸 flutuante já no boot se o modo dev estiver ligado
   dlog('boot', { v: VERSION, pwa: window.matchMedia('(display-mode: standalone)').matches });
 
   const inv = parseInvite();

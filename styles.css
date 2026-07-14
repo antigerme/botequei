@@ -738,6 +738,21 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
 .boteco-rename-box input { flex: 1; min-width: 0; }
 .boteco-rename-box .btn { flex: none; }
 
+/* 🗄️ Meus dados: painel de transparência + deleção granular; e o 🗑️ in-context (home/passaporte) */
+.data-list { list-style: none; margin: 12px 0 4px; padding: 0; display: grid; gap: 8px; }
+.data-row { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); padding: 10px 12px; }
+.data-emoji { font-size: var(--fs-xl); flex: none; }
+.data-main { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.data-name { color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.data-sub { font-size: var(--fs-s); color: var(--muted); }
+.data-row .data-clear { flex: none; font-size: var(--fs-s); padding: 8px 12px; }
+.data-danger { color: var(--danger); }
+/* 🗑️ discreto que apaga um item ONDE ele vive (a mesa na home / o check-in no passaporte) */
+.hist-open { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex: 1; min-width: 0; cursor: pointer; }
+.hist-open:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 8px; }
+.hist-del, .pass-del { flex: none; background: none; border: none; cursor: pointer; font-size: var(--fs-l); line-height: 1; padding: 8px; opacity: .5; border-radius: var(--r-s, 6px); }
+.hist-del:hover, .pass-del:hover, .hist-del:focus-visible, .pass-del:focus-visible { opacity: 1; outline: none; }
+
 /* Foto da noite (álbum local) */
 .photo-wrap { border-radius: var(--r-l); overflow: hidden; background: var(--card); min-height: 160px; display: grid; place-items: center; }
 .photo-wrap img { display: block; width: 100%; max-height: 60vh; object-fit: contain; }

@@ -422,6 +422,26 @@ padrão Auto segue o navegador).
 - **Persistência:** só `localStorage` (`js/store.js`; histórico por mesa com meus itens, gasto,
   duração e **`mates`** — quem estava na mesa, p/ o "com quem você mais bebeu"; `exportAll`/
   `importAll` = backup JSON; `getCheckins`/`addCheckin` = passaporte de botecos). Nada central.
+  ⚠️ **Mesa vazia NÃO entra nas recentes**: o `leaveTable` só chama `pushHistory` se `tableTotal > 0`
+  (alguém bebeu) — mesa aberta e fechada sem nada era ruído ("0 · mesa 0") e virava "noite" fantasma
+  nos Meus Números/liga; a visita ao lugar nomeado já mora no passaporte e o cardápio salva sozinho
+  (bloco à parte), então nada se perde. Trava no `e2e-mesa-vazia`.
+- **🗄️ Meus dados (deleção granular + transparência)**: o único "Apagar dados locais" (bomba
+  atômica sem confirmação) virou um **painel** (`ui.openData`, overlay `#overlay-data`, aberto por
+  `#btn-open-data` nas ⚙️) que **mostra contagem + tamanho por categoria** (lê os bytes do mesmo
+  `store.storageScan()` do relatório dev — uma fonte só) e deixa **Limpar por categoria**: Perfil
+  (`name`+`prof*`→anônimo, re-emite PROFILE na mesa), Mesas & Números (`clearHistory` = histórico +
+  TODOS os `log.*` + a mesa aberta → **zera as estatísticas de vida**, o confirm avisa), Passaporte
+  (`clearCheckins`), Cardápios (`clearBotecoMenus` = menus + couverts), Modo dev (`clearDevLog`) e
+  **🎓 Rever boas-vindas/tour** (`resetOnboarding` — apaga as flags de 1ª vez MAS preserva o
+  `devUnlocked`). A régua profissional aqui **SUBTRAI a tela-deus**: cada coisa também se apaga
+  **ONDE vive** — 🗑️ por mesa na home (`removeHistory`), 🗑️ por check-in no passaporte
+  (`removeCheckin`), **apagar um LUGAR inteiro** na ficha do boteco (`deletePlace` = cardápio +
+  couvert + check-ins + histórico do lugar, irmão do `renameBoteco`) e o cardápio já saía dali. Todo
+  delete **confirma** (toque no `actionToast`) e a linha do topo diz a verdade P2P: **"só deste
+  aparelho"** (apagar local não mexe na cópia CRDT dos outros celulares). O `exportar/importar` e a
+  bomba **🧨 Apagar tudo** (agora COM confirmação) moram no mesmo painel. Puro/testável no `store.js`
+  (`tests/store.test.mjs`) + `tests/e2e-meusdados.mjs`.
 - **Cardápio por boteco (local, sem servidor):** o app LEMBRA o cardápio de cada lugar pra
   recarregar quando você volta (`saveBotecoMenu`/`getBotecoMenu`/`hasBotecoMenu`/`botecoKey` em
   `store.js`, chave `botequei.botecomenu`; normaliza pelo nome — minúsculo, sem acento). **Boteco

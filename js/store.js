@@ -178,6 +178,44 @@ export function getBotecoCouvert(name) {
   return Number(all[botecoKey(name)]) || 0;
 }
 
+// ---- Apagar granular ("Meus dados": deleção por categoria + por item + por lugar) ----
+// Tudo é LOCAL — apagar aqui NÃO mexe na cópia dos outros aparelhos (a mesa vive em CRDT em cada
+// um). Cada função some com uma fatia bem definida; o painel "Meus dados" (app.js/ui.js) as chama.
+function logKeys() {
+  const out = [];
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('botequei.log.')) out.push(k); } } catch { /* storage indisponível */ }
+  return out;
+}
+// Passaporte: um check-in (casa pelo carimbo `at`) ou todos.
+export function removeCheckin(at) { writeJSON(K_PASS, getCheckins().filter((c) => c.at !== at)); return getCheckins(); }
+export function clearCheckins() { localStorage.removeItem(K_PASS); }
+// Mesas & Meus Números: histórico + os logs de CADA mesa (inclusive órfãos) + a mesa aberta.
+export function clearHistory() { for (const k of logKeys()) localStorage.removeItem(k); localStorage.removeItem(K_HISTORY); localStorage.removeItem(K_CURRENT); }
+// Cardápios salvos: os cardápios + os couverts lembrados por boteco.
+export function clearBotecoMenus() { localStorage.removeItem(K_BOTECO); localStorage.removeItem(K_COUVERT); }
+// Diário técnico do modo dev.
+export function clearDevLog() { localStorage.removeItem(K_DEVLOG); }
+// Rever boas-vindas/tour: zera as flags de 1ª vez, MAS preserva o `devUnlocked` (senão a seção do
+// modo dev desapareceria de quem já a destravou com os 7 toques).
+export function resetOnboarding() {
+  const v = readJSON(K_FLAGS, {}) || {};
+  const keep = {}; if (v.devUnlocked) keep.devUnlocked = v.devUnlocked;
+  writeJSON(K_FLAGS, keep);
+}
+// Apagar um LUGAR inteiro: cardápio + couvert + check-ins + histórico (e os logs das mesas) do
+// MESMO boteco (chave normalizada). Irmão do renameBoteco — mexe nos mesmos 4 stores.
+export function deletePlace(name) {
+  const key = botecoKey(name);
+  if (!key) return false;
+  const menus = readJSON(K_BOTECO, {}) || {}; if (menus[key]) { delete menus[key]; writeJSON(K_BOTECO, menus); }
+  const couv = readJSON(K_COUVERT, {}) || {}; if (Object.prototype.hasOwnProperty.call(couv, key)) { delete couv[key]; writeJSON(K_COUVERT, couv); }
+  writeJSON(K_PASS, getCheckins().filter((c) => botecoKey(c.name) !== key));
+  const keep = [];
+  for (const e of getHistory()) { if (botecoKey(e.title) === key) localStorage.removeItem(K_LOG(e.room)); else keep.push(e); }
+  writeJSON(K_HISTORY, keep);
+  return true;
+}
+
 // ---- Backup (exportar/importar tudo que é local do Botequei) ----
 export function exportAll() {
   const data = {};

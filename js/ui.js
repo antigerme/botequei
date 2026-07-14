@@ -664,7 +664,21 @@ export function pulse(itemId, kind) {
   const card = el['items-grid'].querySelector(`[data-item="${cssq(itemId)}"]`);
   if (card) { const cls = kind === 'remove' ? 'pop-remove' : 'pop'; card.classList.remove(cls); void card.offsetWidth; card.classList.add(cls); }
 }
-export function setConn(msg) { const b = el['conn-banner']; if (!msg) { b.hidden = true; return; } b.hidden = false; b.textContent = msg; }
+// Banner de conexão. Com `onTap`, vira BOTÃO (P2P travado → tocar pra parear por QR): role/tabindex/
+// teclado + a pele `.tappable` (alvo ≥48px). Sem onTap, é só o texto de status de sempre.
+export function setConn(msg, onTap) {
+  const b = el['conn-banner'];
+  b.onclick = null; b.onkeydown = null;
+  if (!msg) { b.hidden = true; b.classList.remove('tappable'); b.removeAttribute('role'); b.removeAttribute('tabindex'); return; }
+  b.hidden = false; b.textContent = msg;
+  if (onTap) {
+    b.classList.add('tappable'); b.setAttribute('role', 'button'); b.setAttribute('tabindex', '0');
+    b.onclick = () => onTap();
+    b.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap(); } };
+  } else {
+    b.classList.remove('tappable'); b.removeAttribute('role'); b.removeAttribute('tabindex');
+  }
+}
 
 // ---------- Placar / participantes ----------
 export function renderPeers({ rows, selfId, mvp, myBadges }) {

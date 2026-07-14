@@ -151,6 +151,11 @@ body::after {
 
 .conn-banner { margin-top: 10px; background: rgba(244,177,60,.1); border: 1px dashed var(--gold);
   color: var(--gold); border-radius: var(--r-s); padding: 8px 12px; font-size: var(--fs-ml); text-align: center; }
+/* P2P travado: o banner vira AÇÃO (tocar → parear por QR). Alvo ≥48px (M3+HIG) e mais firme. */
+.conn-banner.tappable { cursor: pointer; min-height: 48px; display: flex; align-items: center; justify-content: center;
+  gap: 6px; touch-action: manipulation; background: rgba(244,177,60,.18); border-style: solid; font-weight: 600; }
+.conn-banner.tappable:active { transform: scale(.99); }
+.conn-banner.tappable:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .hh-banner { margin-top: 8px; background: linear-gradient(180deg, rgba(244,177,60,.22), rgba(244,177,60,.07));
   border: 2px dashed var(--gold); color: var(--gold); border-radius: var(--r-m); padding: 9px 12px;
   font-family: var(--num); letter-spacing: .5px; font-size: var(--fs-body); text-align: center;

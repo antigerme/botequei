@@ -84,6 +84,8 @@ const DICT = {
     'pres.away': ' (fora da mesa)', 'pres.aria': 'Quem está na mesa',
     'conn.alone': 'Você está sozinho na mesa — toque em MESA pra chamar a turma 🍻',
     'conn.reconnecting': 'Reconectando… 🟡 ({on}/{total} na mesa)',
+    'conn.stuck': '🔌 {name} está aqui mas não conectou — toque pra parear por QR',
+    'conn.stuckN': '🔌 {name} +{n} sem conectar — toque pra parear por QR',
     'net.off': 'desconectado', 'net.on': 'conectado', 'net.host': 'mesma rede', 'net.inet': 'internet', 'net.relay': 'via relay',
     // ---- toasts avulsos ----
     'toast.nothingHere': 'Nada pra tirar aqui 🙂',
@@ -452,6 +454,8 @@ const DICT = {
     'pres.away': ' (away from the table)', 'pres.aria': 'Who is at the table',
     'conn.alone': 'You’re alone at the table — tap TABLE to bring the crew in 🍻',
     'conn.reconnecting': 'Reconnecting… 🟡 ({on}/{total} at the table)',
+    'conn.stuck': '🔌 {name} is here but won’t connect — tap to pair via QR',
+    'conn.stuckN': '🔌 {name} +{n} can’t connect — tap to pair via QR',
     'net.off': 'offline', 'net.on': 'connected', 'net.host': 'same network', 'net.inet': 'internet', 'net.relay': 'via relay',
     // ---- toasts ----
     'toast.nothingHere': 'Nothing to remove here 🙂',
@@ -820,6 +824,8 @@ const DICT = {
     'pres.away': ' (fuera de la mesa)', 'pres.aria': 'Quién está en la mesa',
     'conn.alone': 'Estás solo en la mesa — toca MESA para llamar a la banda 🍻',
     'conn.reconnecting': 'Reconectando… 🟡 ({on}/{total} en la mesa)',
+    'conn.stuck': '🔌 {name} está aquí pero no conecta — toca para emparejar por QR',
+    'conn.stuckN': '🔌 {name} +{n} sin conectar — toca para emparejar por QR',
     'net.off': 'desconectado', 'net.on': 'conectado', 'net.host': 'misma red', 'net.inet': 'internet', 'net.relay': 'vía relay',
     // ---- toasts ----
     'toast.nothingHere': 'Nada que quitar aquí 🙂',

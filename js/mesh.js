@@ -17,6 +17,10 @@ const TICK_MS = 3000;    // heartbeat + verificacao de saude
 const STALE_MS = 12000;  // sem sinal do peer por tanto tempo -> considera caido
 const RETRY_MS = 3000;   // cooldown entre tentativas de reconexao
 const STUCK_MS = 10000;  // handshake que nunca completou -> tenta de novo
+// Presente no signaling (a gente se VE) mas o P2P NUNCA fechou por tanto tempo -> quase certo
+// que e a rede (NAT simetrico/CGNAT do 4G, firewall). O app SURFACE isso e oferece o QR offline
+// (host candidate na mesma Wi-Fi/hotspot) — zero servidor. So marca depois de varios retries.
+const UNREACHABLE_MS = 18000;
 
 export class Mesh {
   constructor(opts) {
@@ -33,6 +37,8 @@ export class Mesh {
     this.getSyncPayload = opts.getSyncPayload || (() => []);
     this.conns = new Map();     // peerId -> rec
     this._retryAt = new Map();  // peerId -> ts da ultima tentativa de reconexao
+    this._firstTryAt = new Map();   // peerId -> ts da 1a tentativa (SOBREVIVE aos retries; some ao conectar)
+    this._everConnected = new Set(); // peerId que ja fechou o canal alguma vez -> queda vira 💤, nao "travado"
     this._present = null;       // Set de peers vistos no ultimo poll do signaling
     this._timer = null;
     this.sig = new Signaling(this.room, this.self); // signaling nao carrega apelido
@@ -104,6 +110,9 @@ export class Mesh {
       createdAt: Date.now(), lastSeen: Date.now(),
     };
     this.conns.set(peerId, rec);
+    // marca a 1a tentativa (nao reinicia se ja conectou antes: queda pos-conexao e 💤, nao "travado";
+    // e nao reinicia a cada retry — createdAt reseta, este NAO — pra medir o tempo travado de verdade)
+    if (!this._everConnected.has(peerId) && !this._firstTryAt.has(peerId)) this._firstTryAt.set(peerId, Date.now());
 
     pc.onicecandidate = (e) => { if (e.candidate) this.sig.send(peerId, 'ice', e.candidate); };
     pc.onconnectionstatechange = () => {
@@ -257,6 +266,7 @@ export class Mesh {
       rec.everReady = true;
       rec.lastSeen = Date.now();
       this._retryAt.delete(rec.id);
+      this._everConnected.add(rec.id); this._firstTryAt.delete(rec.id); // conectou: nunca mais "travado"
       this._raw(rec.id, { k: 'hello', name: this.name, ver: this.ver });
       // anti-entropy em LOTES: o log cresce a noite toda (e PROFILE pode levar miniatura de
       // foto) — numa mensagem única ele esbarraria no teto de mensagem do DataChannel. O
@@ -311,16 +321,25 @@ export class Mesh {
     try { rec.pc.close(); } catch { /* ignore */ }
     this.conns.delete(user);
     this._retryAt.delete(user);
+    this._firstTryAt.delete(user); this._everConnected.delete(user);
     this.onPeersChange();
     this.onStatus();
   }
 
+  // "travado": presente no signaling (a gente se VE) mas o canal P2P nunca fechou ha muito tempo
+  // -> a rede nao deixa (NAT/firewall). O app oferece o QR offline como saida (zero servidor).
+  _isStuck(rec, now) {
+    const firstTry = this._firstTryAt.get(rec.id);
+    return !rec.manual && !!firstTry && !!(this._present && this._present.has(rec.id)) && (now - firstTry > UNREACHABLE_MS);
+  }
+
   peers() {
     const out = [];
+    const now = Date.now();
     for (const [id, rec] of this.conns) {
       out.push({
         user: id, name: rec.name, online: rec.ready, conn: rec.connType, ver: rec.ver || '',
-        state: rec.pc ? rec.pc.connectionState : 'closed',
+        state: rec.pc ? rec.pc.connectionState : 'closed', stuck: this._isStuck(rec, now),
       });
     }
     return out;
@@ -368,6 +387,7 @@ export class Mesh {
         try { rec.pc.close(); } catch { /* ignore */ }
         this.conns.delete(id);
         this._retryAt.delete(id);
+        this._firstTryAt.delete(id); this._everConnected.delete(id);
         changed = true;
         continue;
       }
@@ -383,6 +403,11 @@ export class Mesh {
         const t = await this._readConnType(rec.pc);
         if (t && t !== rec.connType) { rec.connType = t; changed = true; }
       }
+
+      // "travado" mudou desde o ultimo tick? re-renderiza — o estado vira por TEMPO (nao por evento
+      // de malha), entao e o tick que pega a virada e faz o banner "parear por QR" aparecer/sumir.
+      const stk = this._isStuck(rec, now);
+      if (stk !== rec._stuckSeen) { rec._stuckSeen = stk; changed = true; }
     }
 
     if (changed) { this.onPeersChange(); this.onStatus(); }

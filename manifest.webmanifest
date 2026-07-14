@@ -1,23 +1,30 @@
 {
   "name": "Botequei — contador de boteco",
   "short_name": "Botequei",
+  "id": "/",
   "description": "Registre o consumo da mesa em 1 toque, em tempo real e sem servidor central de dados.",
   "lang": "pt-BR",
   "dir": "ltr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "launch_handler": { "client_mode": "navigate-existing" },
   "orientation": "any",
   "background_color": "#12100b",
   "theme_color": "#12100b",
   "categories": ["lifestyle", "social", "utilities"],
   "shortcuts": [
-    { "name": "Criar mesa", "short_name": "Nova mesa", "description": "Abrir uma mesa nova", "url": "./?nova=1" }
+    { "name": "Criar mesa", "short_name": "Nova mesa", "description": "Abrir uma mesa nova", "url": "./?nova=1" },
+    { "name": "Entrar por código", "short_name": "Entrar", "description": "Entrar numa mesa com o código", "url": "./?entrar=1" }
   ],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "screenshots": [
+    { "src": "screenshots/home.png", "sizes": "1080x2340", "type": "image/png", "form_factor": "narrow", "label": "Suas mesas e o seu canto" },
+    { "src": "screenshots/mesa.png", "sizes": "1080x2340", "type": "image/png", "form_factor": "narrow", "label": "Contador da mesa em tempo real" }
   ]
 }

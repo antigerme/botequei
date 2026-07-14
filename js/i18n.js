@@ -87,6 +87,7 @@ const DICT = {
     'conn.stuck': '🔌 {name} está aqui mas não conectou — toque pra parear por QR',
     'conn.stuckN': '🔌 {name} +{n} sem conectar — toque pra parear por QR',
     'net.off': 'desconectado', 'net.on': 'conectado', 'net.host': 'mesma rede', 'net.inet': 'internet', 'net.relay': 'via relay',
+    'net.stuck': 'não conectou (a rede não deixou) — parear por QR', 'net.stuckShort': 'sem P2P',
     // ---- toasts avulsos ----
     'toast.nothingHere': 'Nada pra tirar aqui 🙂',
     'toast.milestone': '🎉 {n} rodadas na mesa!',
@@ -457,6 +458,7 @@ const DICT = {
     'conn.stuck': '🔌 {name} is here but won’t connect — tap to pair via QR',
     'conn.stuckN': '🔌 {name} +{n} can’t connect — tap to pair via QR',
     'net.off': 'offline', 'net.on': 'connected', 'net.host': 'same network', 'net.inet': 'internet', 'net.relay': 'via relay',
+    'net.stuck': 'couldn’t connect (network blocked it) — pair via QR', 'net.stuckShort': 'no P2P',
     // ---- toasts ----
     'toast.nothingHere': 'Nothing to remove here 🙂',
     'toast.milestone': '🎉 {n} rounds at this table!',
@@ -827,6 +829,7 @@ const DICT = {
     'conn.stuck': '🔌 {name} está aquí pero no conecta — toca para emparejar por QR',
     'conn.stuckN': '🔌 {name} +{n} sin conectar — toca para emparejar por QR',
     'net.off': 'desconectado', 'net.on': 'conectado', 'net.host': 'misma red', 'net.inet': 'internet', 'net.relay': 'vía relay',
+    'net.stuck': 'no conectó (la red no dejó) — emparejar por QR', 'net.stuckShort': 'sin P2P',
     // ---- toasts ----
     'toast.nothingHere': 'Nada que quitar aquí 🙂',
     'toast.milestone': '🎉 ¡{n} rondas en la mesa!',

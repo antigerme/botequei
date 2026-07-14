@@ -744,17 +744,26 @@ function renderPresence() {
 function renderPeers() {
   const base = summary(state, resolveItem); // uma passada só
   const nets = new Map();
-  if (mesh) for (const p of mesh.peers()) nets.set(p.user, { online: p.online, conn: p.conn });
+  if (mesh) for (const p of mesh.peers()) nets.set(p.user, { online: p.online, conn: p.conn, stuck: p.stuck });
   const rows = base.map((r) => {
     const p = profOf(r.user);
     const net = nets.get(r.user);
     return { ...r, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, level: p.level, badges: badgesFor(state, r.user), online: net ? net.online : undefined, conn: net ? net.conn : null,
+      stuck: net ? !!net.stuck : false, // P2P travado: o placar mostra 🔌 (não é 💤 "saiu", é "não fechou")
       away: net && net.online === false ? awayLabel(Date.now() - (awaySince.get(r.user) || Date.now())) : '' };
   });
   // garante que eu apareço mesmo sem ter consumido
   if (!rows.some((r) => r.user === self)) {
     const p = profOf(self);
     rows.push({ user: self, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, driver: p.driver, total: 0, money: 0, badges: badgesFor(state, self) });
+  }
+  // peer TRAVADO aparece no placar mesmo sem consumo (o log dele nem chegou — está travado!):
+  // é a "saúde por link" — você vê "fulano está aqui mas o P2P não fechou" com o 🔌 e a dica de QR
+  for (const [u, net] of nets) {
+    if (net.stuck && !rows.some((r) => r.user === u)) {
+      const p = profOf(u);
+      rows.push({ user: u, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, level: p.level, total: 0, money: 0, badges: [], online: false, stuck: true });
+    }
   }
   const top = base.find((r) => !r.driver && r.total > 0); // MVP derivado (base já vem ordenado)
   ui.renderPeers({ rows, selfId: self, mvp: top ? { name: profOf(top.user).name, total: top.total } : null, myBadges: badgesFor(state, self) });

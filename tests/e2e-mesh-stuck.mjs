@@ -62,10 +62,18 @@ async function main() {
     }, null, { timeout: 8000 });
     ok(true, '(b) banner de conexão vira botão tappável com o aviso de travado');
 
-    // 5) tocar no banner abre o pareamento sem internet (QR/hotspot — zero servidor).
-    //    Criar a mesa abre o convite por cima; o usuário fecha e aí vê/toca o banner (fluxo real).
+    // Criar a mesa abre o convite por cima; o usuário fecha e aí vê a mesa (fluxo real).
     await p.keyboard.press('Escape');
     await p.waitForSelector('#overlay-invite', { state: 'hidden', timeout: 5000 });
+
+    // 5) (3) saúde por link: o PLACAR mostra o peer travado com 🔌 (aparece mesmo sem consumo)
+    await p.click('#btn-peers');
+    await p.waitForFunction(() => { const l = document.getElementById('peers-list'); return !!(l && /🔌/.test(l.textContent || '')); }, null, { timeout: 5000 });
+    ok(true, '(3) placar mostra o peer travado com 🔌 (saúde por link)');
+    await p.keyboard.press('Escape');
+    await p.waitForSelector('#overlay-peers', { state: 'hidden', timeout: 5000 });
+
+    // 6) (b) tocar no banner abre o pareamento sem internet (QR/hotspot — zero servidor)
     await p.click('#conn-banner');
     await p.waitForSelector('#overlay-offline:not([hidden])', { timeout: 5000 });
     ok(true, '(b) tocar no banner abre o overlay de parear sem internet (QR)');

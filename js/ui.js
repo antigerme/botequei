@@ -715,6 +715,8 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
 }
 // Ícone de qualidade de conexão por pessoa (host = LAN/Wi-Fi, srflx = internet, relay = via servidor).
 function netHTML(r) {
+  // travado (presente no signaling, P2P nunca fechou) ≠ 💤 (esteve aqui e saiu): 🔌 + dica de parear
+  if (r.stuck) return `<span class="peer-net off" title="${t('net.stuck')}">🔌<i class="net-away">${t('net.stuckShort')}</i></span>`;
   if (r.online === false) return `<span class="peer-net off" title="${t('net.off')}">💤${r.away ? `<i class="net-away">${esc(r.away)}</i>` : ''}</span>`;
   const map = { host: ['📶', t('net.host')], srflx: ['🌐', t('net.inet')], prflx: ['🌐', t('net.inet')], relay: ['🛰️', t('net.relay')] };
   const m = map[r.conn];

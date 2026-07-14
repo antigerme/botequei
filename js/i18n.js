@@ -160,6 +160,7 @@ const DICT = {
     'toast.badFile': 'Arquivo inválido 😕', 'toast.badBackup': 'Backup inválido 😕',
     'toast.imported': '✅ {n} itens importados. Recarregando…',
     'toast.installHint': 'Toque em Compartilhar e “Adicionar à Tela de Início” 📲',
+    'toast.installed': '🎉 Instalado! Abra o Botequei pela tela inicial pra usar em tela cheia',
     'toast.fileRead': 'Não consegui ler o arquivo 😕', 'toast.itemName': 'Dá um nome pro item 🙂',
     // ---- jogos (pill / atalhos) ----
     'games.title': '🎮 Jogos',
@@ -551,6 +552,7 @@ const DICT = {
     'toast.badFile': 'Invalid file 😕', 'toast.badBackup': 'Invalid backup 😕',
     'toast.imported': '✅ {n} items imported. Reloading…',
     'toast.installHint': 'Tap Share, then “Add to Home Screen” 📲',
+    'toast.installed': '🎉 Installed! Open Botequei from your home screen to use it full-screen',
     'toast.fileRead': 'Couldn’t read the file 😕', 'toast.itemName': 'Give the item a name 🙂',
     // ---- games (pill / shortcuts) ----
     'games.title': '🎮 Games',
@@ -942,6 +944,7 @@ const DICT = {
     'toast.badFile': 'Archivo inválido 😕', 'toast.badBackup': 'Backup inválido 😕',
     'toast.imported': '✅ {n} ítems importados. Recargando…',
     'toast.installHint': 'Toca Compartir y “Añadir a pantalla de inicio” 📲',
+    'toast.installed': '🎉 ¡Instalado! Abre Botequei desde tu pantalla de inicio para usarlo a pantalla completa',
     'toast.fileRead': 'No pude leer el archivo 😕', 'toast.itemName': 'Ponle nombre al ítem 🙂',
     // ---- juegos (pill / atajos) ----
     'games.title': '🎮 Juegos',

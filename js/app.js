@@ -3586,8 +3586,9 @@ function boot() {
   try { window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (settings.theme !== 'light' && settings.theme !== 'dark') ui.applyTheme(settings); }); } catch { /* ignore */ }
 
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; ui.showInstall(true); });
-  // instalou (pelo nosso botão OU pelo menu do navegador) → some com o "📲 Instalar" e larga o prompt guardado
-  window.addEventListener('appinstalled', () => { deferredPrompt = null; ui.showInstall(false); });
+  // instalou (pelo nosso botão OU pelo menu do navegador) → some com o "📲 Instalar", larga o
+  // prompt guardado e dá o empurrãozinho: abrir pela tela inicial roda em tela cheia (standalone)
+  window.addEventListener('appinstalled', () => { deferredPrompt = null; ui.showInstall(false); ui.toast(t('toast.installed')); });
   // iOS não dispara beforeinstallprompt — se ainda não está instalado (standalone), mostra o
   // "📲 Instalar" mesmo assim; tocar explica "Compartilhar → Adicionar à Tela" (sem deferredPrompt
   // cai no toast.installHint). Uma vez instalado, o app roda standalone e o botão some sozinho.

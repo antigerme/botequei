@@ -311,7 +311,7 @@ const DICT = {
     'set.privacy': '🔒 Nada disso é enviado a servidor. Tudo vive no seu navegador.',
     // ---- extras (react/cerimônia) ----
     'react.title': 'Mandar reação',
-    'cer.title': '🏅 Cerimônia da noite', 'cer.sub': 'Os troféus da mesa 🏆', 'cer.empty': 'Ninguém pontuou ainda 🥲',
+    'cer.title': '🏅 Cerimônia da noite', 'cer.sub': 'Os troféus da mesa 🏆', 'cer.empty': 'Ninguém pontuou ainda 🥲', 'cer.crown': '🏅 Coroar a noite',
     // ---- estatísticas / retrô ----
     'stats.trendH': 'Tendência (bebidas/mês)', 'stats.nightsH': 'Suas noites',
     'stats.nights': 'noites', 'stats.drinks': 'rodadas', 'stats.avg': 'média/noite', 'stats.month': 'este mês',
@@ -666,7 +666,7 @@ const DICT = {
     'set.privacy': '🔒 None of this is sent to a server. It all lives in your browser.',
     // ---- extras ----
     'react.title': 'Send a reaction',
-    'cer.title': '🏅 Ceremony of the night', 'cer.sub': 'The table’s trophies 🏆', 'cer.empty': 'Nobody scored yet 🥲',
+    'cer.title': '🏅 Ceremony of the night', 'cer.sub': 'The table’s trophies 🏆', 'cer.empty': 'Nobody scored yet 🥲', 'cer.crown': '🏅 Crown the night',
     // ---- stats / recap ----
     'stats.trendH': 'Trend (drinks/month)', 'stats.nightsH': 'Your nights',
     'stats.nights': 'nights', 'stats.drinks': 'rounds', 'stats.avg': 'avg/night', 'stats.month': 'this month',
@@ -1021,7 +1021,7 @@ const DICT = {
     'set.privacy': '🔒 Nada de esto se envía a un servidor. Todo vive en tu navegador.',
     // ---- extras ----
     'react.title': 'Mandar reacción',
-    'cer.title': '🏅 Ceremonia de la noche', 'cer.sub': 'Los trofeos de la mesa 🏆', 'cer.empty': 'Nadie puntuó todavía 🥲',
+    'cer.title': '🏅 Ceremonia de la noche', 'cer.sub': 'Los trofeos de la mesa 🏆', 'cer.empty': 'Nadie puntuó todavía 🥲', 'cer.crown': '🏅 Coronar la noche',
     // ---- estadísticas / resumen ----
     'stats.trendH': 'Tendencia (bebidas/mes)', 'stats.nightsH': 'Tus noches',
     'stats.nights': 'noches', 'stats.drinks': 'rondas', 'stats.avg': 'media/noche', 'stats.month': 'este mes',

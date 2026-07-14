@@ -171,6 +171,9 @@
     <div class="mvp" id="mvp-banner" hidden></div>
     <ul class="peers-list" id="peers-list"></ul>
     <div class="my-badges" id="my-badges"></div>
+    <!-- coroar a noite: a cerimônia (troféus + confete + mostrar pra mesa) mora AQUI e no fechar a conta,
+         não mais num tile do "…" — o Placar é a casa das conquistas da mesa. Só aparece com consumo. -->
+    <button class="btn btn-ghost" id="btn-peers-crown" hidden data-i18n="cer.crown">🏅 Coroar a noite</button>
   </div>
 </div>
 
@@ -185,7 +188,6 @@
       <button class="menu-item" id="menu-bill" data-i18n="menu.bill">💸 Fechar a conta</button>
       <button class="menu-item" id="menu-prices" data-i18n="menu.prices">💲 Preços do cardápio</button>
       <button class="menu-item" id="menu-waiter" data-i18n="menu.waiter">🔔 Chamar o garçom</button>
-      <button class="menu-item" id="menu-ceremony" data-i18n="cer.title">🏅 Cerimônia da noite</button>
       <button class="menu-item" id="menu-share" data-i18n="menu.shareNight">📸 Compartilhar a noite</button>
       <button class="menu-item" id="menu-tour" data-i18n="tour.replay">🎓 Tour do Botequei</button>
     </div>
@@ -337,6 +339,8 @@
     <div class="bill-total" id="bill-total"></div>
     <div class="sheet-actions">
       <button class="btn btn-primary" id="btn-bill-share" data-i18n="bill.share">📸 Mandar no grupo</button>
+      <!-- a conta fechando = a noite acabando: o app OFERECE coroar a noite aqui (troféus da mesa) -->
+      <button class="btn btn-ghost" id="btn-bill-crown" hidden data-i18n="cer.crown">🏅 Coroar a noite</button>
     </div>
   </div>
 </div>

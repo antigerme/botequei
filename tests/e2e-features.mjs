@@ -172,6 +172,20 @@ async function main() {
     }, null, { timeout: T })));
   });
 
+  await step('🏅 Coroar a noite saiu do "…" e mora no Placar (abre a cerimônia)', async () => {
+    await closeAll(pageA);
+    // o tile da Cerimônia SAIU do menu "…" (virou o "coroar a noite" no Placar + no fechar a conta)
+    await pageA.click('#btn-menu'); await visible(pageA, 'overlay-menu');
+    if (await pageA.evaluate(() => !!document.getElementById('menu-ceremony'))) throw new Error('a Cerimônia ainda está no "…" — devia ter saído');
+    await closeAll(pageA);
+    // no Placar (com consumo na mesa) o "🏅 Coroar a noite" aparece e ABRE a cerimônia
+    await pageA.click('#btn-peers'); await visible(pageA, 'overlay-peers');
+    if (await pageA.evaluate(() => { const b = document.getElementById('btn-peers-crown'); return !b || b.hidden; })) throw new Error('o "🏅 Coroar a noite" não apareceu no Placar com consumo');
+    await pageA.click('#btn-peers-crown');
+    await visible(pageA, 'overlay-ceremony');
+    await closeAll(pageA);
+  });
+
   await step('desafio chega no alvo (B)', async () => {
     await closeAll(pageA);
     await pageA.click('#btn-peers'); await visible(pageA, 'overlay-peers');

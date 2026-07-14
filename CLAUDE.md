@@ -127,7 +127,10 @@ padrão Auto segue o navegador).
   purrinha) levam `mid` e são **repassados com dedup** (gossip via `gameFx`/`seenFx`) pra toda
   jogada chegar em todos mesmo se a malha não estiver completa (4 pessoas = 6 links); os demais
   (reações etc.) são disparo único. Tipos: brinde, reação, **cerimônia** (mostrar troféus
-  pra mesa), **chamar o garçom** (`waiter`, opcionalmente com `item`+`n` da rodada paga) e
+  pra mesa — `ceremonyAwards` + confete + broadcast; **"🏅 Coroar a noite" NÃO é tile do "…"**:
+  mora no **Placar** (a casa das conquistas da mesa, `#btn-peers-crown`, só com consumo) e no
+  **fechar a conta** (`#btn-bill-crown`, o momento natural do fim da noite) — o app oferece no
+  beat certo em vez de você lembrar de um menu), **chamar o garçom** (`waiter`, opcionalmente com `item`+`n` da rodada paga) e
   **tchau** (`bye` — o botão sair anuncia a saída; é a ÚNICA fonte do toast "👋 saiu") e
   **fechou-o-app** (`gone` — pagehide, best-effort e SILENCIOSO: só arruma a barra após a
   graça de 45s). Nada disso persiste. ⚠️ **Higiene P2P nos fx que abrem UI** (`fxAllowed` no

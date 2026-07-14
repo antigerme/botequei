@@ -422,6 +422,10 @@ padrão Auto segue o navegador).
 - **Persistência:** só `localStorage` (`js/store.js`; histórico por mesa com meus itens, gasto,
   duração e **`mates`** — quem estava na mesa, p/ o "com quem você mais bebeu"; `exportAll`/
   `importAll` = backup JSON; `getCheckins`/`addCheckin` = passaporte de botecos). Nada central.
+  ⚠️ **Mesa vazia NÃO entra nas recentes**: o `leaveTable` só chama `pushHistory` se `tableTotal > 0`
+  (alguém bebeu) — mesa aberta e fechada sem nada era ruído ("0 · mesa 0") e virava "noite" fantasma
+  nos Meus Números/liga; a visita ao lugar nomeado já mora no passaporte e o cardápio salva sozinho
+  (bloco à parte), então nada se perde. Trava no `e2e-mesa-vazia`.
 - **🗄️ Meus dados (deleção granular + transparência)**: o único "Apagar dados locais" (bomba
   atômica sem confirmação) virou um **painel** (`ui.openData`, overlay `#overlay-data`, aberto por
   `#btn-open-data` nas ⚙️) que **mostra contagem + tamanho por categoria** (lê os bytes do mesmo

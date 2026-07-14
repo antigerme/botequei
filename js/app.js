@@ -1028,15 +1028,22 @@ function leaveTable() {
     dlog('mesa.sair', { titulo: tableInfo(state).title || '' });
     store.saveEvents(room, log);
     const info = tableInfo(state);
-    store.pushHistory({
-      room, at: Date.now(),
-      myTotal: userTotal(state, self, resolveItem), tableTotal: tableTotal(state),
-      myMoney: userMoney(state, self, resolveItem),
-      title: info.title || '',
-      items: myItems(),
-      mates: [...sessionMates],
-      durationMs: sessionStart ? Date.now() - sessionStart : 0,
-    });
+    const tt = tableTotal(state);
+    // Só LEMBRA a mesa nas "recentes" se rolou consumo de verdade (alguém bebeu, tableTotal > 0).
+    // Mesa aberta e fechada SEM nada é ruído: enchia as recentes com "0 · mesa 0" e virava "noite"
+    // fantasma nos Meus Números/liga. A visita ao lugar NOMEADO já está no passaporte (check-in) e
+    // o cardápio salva sozinho (bloco abaixo, fora deste if) — nada se perde ao não guardar a vazia.
+    if (tt > 0) {
+      store.pushHistory({
+        room, at: Date.now(),
+        myTotal: userTotal(state, self, resolveItem), tableTotal: tt,
+        myMoney: userMoney(state, self, resolveItem),
+        title: info.title || '',
+        items: myItems(),
+        mates: [...sessionMates],
+        durationMs: sessionStart ? Date.now() - sessionStart : 0,
+      });
+    }
     // Lembra o cardápio DESTE boteco (pra recarregar quando você voltar). Mesa NOMEADA guarda
     // sob o nome (captura o cardápio mais completo). Mesa SEM nome semeia sob o check-in fresco
     // só se ainda NÃO tem cardápio lá — nunca sobrescreve um boteco conhecido a partir de uma

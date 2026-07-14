@@ -100,8 +100,14 @@ padrão Auto segue o navegador).
   peer e converge). Peers manuais ficam fora da reconexão via signaling (re-pareia com novo QR).
 - **Estado por eventos (CRDT PN-Counter)** (`js/events.js`): eventos imutáveis
   `{type,user,item,ts,eventId}`. Total = soma (comutativa → converge). Dedup por `eventId`.
-  Anti-entropy no join (troca o log completo, em **lotes de 64 eventos** — mensagem única
-  estouraria o teto do DataChannel com o log grande) + gossip (repassa eventos novos). LWW (ts→eventId)
+  Anti-entropy no join (troca o log completo em **lotes de 64 eventos COMPRIMIDOS** — `_sendSync`
+  no `mesh.js`: cada lote é deflate→binário CRU no DataChannel, sem base64, e o envio tem
+  **BACKPRESSURE** (`bufferedAmountLowThreshold`/`_drain`) pra não estourar o buffer com log grande
+  + foto — send() que lança dropa o lote no catch = divergência silenciosa; o `wake()` também passa
+  por aqui, antes ele mandava o log INTEIRO numa msg só; a ordem dos lotes não importa: reducer é
+  CRDT. Fallback texto `{k:'sync'}` sem CompressionStream/peer antigo; `deflateJSON`/`inflateJSON`
+  reusam o `squeeze` do `handshake.js`, testados em `tests/handshake.test.mjs`) + gossip (repassa
+  eventos novos). LWW (ts→eventId)
   p/ ITEM/PROFILE/TABLE/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
   **Crédito/promessa** (evento `PLEDGE` — "banco uma rodada / N garrafas") é como se banca a mesa:
   o `settle(state)` (FONTE ÚNICA da conta) acerta no ESTADO FINAL — rodada de item pessoal cobre
@@ -540,10 +546,36 @@ padrão Auto segue o navegador).
   tem câmera; o frame cai no MESMO recorte (`startCrop`) e a stream desliga em TODO fechamento (`stopCam`
   no `closeOverlays`, ✕/ESC/voltar — câmera nunca fica zumbi). QR **não** tem equivalente nativo na web
   → segue com o leitor ao vivo do `scan.js`.
-- **TURN opcional** (rota `/turn`, nos dois adaptadores): credenciais efêmeras da Cloudflare,
-  lidas dos envs `CF_TURN_KEY_ID`/`CF_TURN_API_TOKEN`/`CF_TURN_TTL` (VM: `Environment=` do
-  systemd; CF: Secrets do painel/`wrangler secret put`). Token **só no servidor**. Sem config →
-  204 → STUN. A API responde **201** e o `loadIce()` espera 200 → os adaptadores normalizam.
+- **TURN opcional (SEM lock-in)** (rota `/turn`, nos dois adaptadores): **duas fontes, a 1ª
+  configurada vence** (`turnCredentials` PURO no `server/core.mjs`, testado em `tests/turn.test.mjs`;
+  o HMAC entra por injeção — Node `node:crypto` síncrono, Worker WebCrypto assíncrono → MESMA
+  credencial, provado no unit). **(1) coturn self-hosted**: envs `TURN_URL` (ex.:
+  `turn:seu.host:3478`, vírgula separa vários) + `TURN_SECRET` (o `static-auth-secret` do coturn) →
+  o servidor gera a credencial na hora no padrão **use-auth-secret** (`username=<expiração unix>`,
+  `credential=base64(HMAC-SHA1(secret, username))`), sem chamar terceiro — o André pode subir um
+  coturn na PRÓPRIA VM e não depender de TURN nenhum ao sair da Cloudflare. **(2) Cloudflare Calls**:
+  `CF_TURN_KEY_ID`/`CF_TURN_API_TOKEN`/`CF_TURN_TTL` (a API responde 201; o `loadIce()` espera 200 →
+  os adaptadores normalizam). Token/secret **só no servidor** (VM: `Environment=` do systemd; CF: var
+  `TURN_URL`/`TURN_TTL` + secret `TURN_SECRET`/`CF_*` via painel/`wrangler secret put`). Sem nenhuma
+  das duas → 204 → STUN. **TURN é sempre OPCIONAL**: o caminho zero-servidor é o QR offline (abaixo).
+- **Mesh redonda — P2P travado vira ação (zero servidor)** (`js/mesh.js` + `render()`): quando um
+  peer aparece no signaling (a gente se VÊ) mas o canal WebRTC **nunca fecha** por `UNREACHABLE_MS`
+  (**30s** — teto GENEROSO de propósito: reconexão normal fecha bem antes, então não incomoda à toa,
+  E dá tempo do ICE fechar via **TURN** [o relay demora mais que host/srflx] → **QR é o ÚLTIMO
+  recurso, só quando NEM o TURN deu**), o `peers()` marca `stuck` (bookkeeping `_firstTryAt`
+  SOBREVIVE aos retries — `createdAt` reseta, este não — e `_everConnected` faz queda-pós-conexão ser
+  💤, não "travado"; o `_tick` pega a virada por TEMPO e re-renderiza). O `render()` transforma o
+  **banner de conexão numa AÇÃO** (`ui.setConn(msg, onTap)` → `role=button`, alvo ≥48px) **só com a
+  mesa ATIVA** (`tt>0`: sem consumo não há o que dessincronizar → fica quieto): tocar chama
+  `nudgePair`, que oferece o **pareamento por QR** (host candidate na mesma Wi-Fi/hotspot — a saída
+  ZERO servidor que já existia no `handshake.js`). Papel DETERMINÍSTICO (mesma anti-glare da malha:
+  id menor MOSTRA o convite/`offlineHost`, maior ESCANEIA/`offlineJoin` — os dois lados escolhem
+  papéis complementares sem combinar nada). O **Placar mostra a saúde por link**: o peer travado
+  aparece com **🔌** (`net.stuck`, `renderPeers` força a linha mesmo sem consumo — o log dele nem
+  chegou; também gateado por `tableTotal>0`) — 🔌 ≠ 💤 (esteve aqui e saiu). O texto é SEM jargão
+  ("entrou mas não tá aparecendo — toque pra conectar por QR", nada de "P2P"/"parear"). O dev-mode
+  loga `malha.travada` (bug de campo que só mora no aparelho). `e2e-mesh-stuck` trava tudo com um
+  peer-fantasma (join sem responder ao WebRTC).
 
 ## Mapa de arquivos
 - `index.html` — shell (telas via seções `.screen`)

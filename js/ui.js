@@ -664,7 +664,21 @@ export function pulse(itemId, kind) {
   const card = el['items-grid'].querySelector(`[data-item="${cssq(itemId)}"]`);
   if (card) { const cls = kind === 'remove' ? 'pop-remove' : 'pop'; card.classList.remove(cls); void card.offsetWidth; card.classList.add(cls); }
 }
-export function setConn(msg) { const b = el['conn-banner']; if (!msg) { b.hidden = true; return; } b.hidden = false; b.textContent = msg; }
+// Banner de conexão. Com `onTap`, vira BOTÃO (P2P travado → tocar pra parear por QR): role/tabindex/
+// teclado + a pele `.tappable` (alvo ≥48px). Sem onTap, é só o texto de status de sempre.
+export function setConn(msg, onTap) {
+  const b = el['conn-banner'];
+  b.onclick = null; b.onkeydown = null;
+  if (!msg) { b.hidden = true; b.classList.remove('tappable'); b.removeAttribute('role'); b.removeAttribute('tabindex'); return; }
+  b.hidden = false; b.textContent = msg;
+  if (onTap) {
+    b.classList.add('tappable'); b.setAttribute('role', 'button'); b.setAttribute('tabindex', '0');
+    b.onclick = () => onTap();
+    b.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap(); } };
+  } else {
+    b.classList.remove('tappable'); b.removeAttribute('role'); b.removeAttribute('tabindex');
+  }
+}
 
 // ---------- Placar / participantes ----------
 export function renderPeers({ rows, selfId, mvp, myBadges }) {
@@ -701,6 +715,8 @@ export function renderPeers({ rows, selfId, mvp, myBadges }) {
 }
 // Ícone de qualidade de conexão por pessoa (host = LAN/Wi-Fi, srflx = internet, relay = via servidor).
 function netHTML(r) {
+  // travado (presente no signaling, P2P nunca fechou) ≠ 💤 (esteve aqui e saiu): 🔌 + dica de parear
+  if (r.stuck) return `<span class="peer-net off" title="${t('net.stuck')}">🔌<i class="net-away">${t('net.stuckShort')}</i></span>`;
   if (r.online === false) return `<span class="peer-net off" title="${t('net.off')}">💤${r.away ? `<i class="net-away">${esc(r.away)}</i>` : ''}</span>`;
   const map = { host: ['📶', t('net.host')], srflx: ['🌐', t('net.inet')], prflx: ['🌐', t('net.inet')], relay: ['🛰️', t('net.relay')] };
   const m = map[r.conn];

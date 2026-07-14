@@ -114,6 +114,14 @@ antigas e cobre rodada de item que o receptor ainda não tinha.
   zero sync). O bot não bebe, não entra em conta/presença/estatística: existe só dentro do jogo.
 - **A foto de perfil vira miniatura 128px** e viaja DENTRO do evento PROFILE (validada dos
   dois lados do fio) — P2P de verdade, sem upload pra lugar nenhum; o emoji é o fallback.
+- **TURN é sempre OPCIONAL e sem lock-in** — o `/turn` serve credenciais de um **coturn na
+  sua própria máquina** (envs `TURN_URL`/`TURN_SECRET`, padrão use-auth-secret, HMAC gerado no
+  servidor) OU da Cloudflare Calls, a 1ª configurada vencendo; a regra pura mora em
+  `server/core.mjs` (`turnCredentials`) e os dois adaptadores herdam. Mas o caminho **zero
+  servidor** de verdade pra rede fechada é o **QR offline**: quando um peer aparece no signaling
+  mas o WebRTC não fura (NAT/4G), o `mesh.js` marca `stuck` e o banner de conexão vira uma AÇÃO
+  que abre o pareamento por QR (host candidate na mesma Wi-Fi/hotspot). Presença é mostrada, a
+  falha de rede também — com a saída a um toque, sem obrigar TURN nenhum.
 
 ## Onde mexer pra cada tipo de mudança
 

@@ -144,6 +144,7 @@ let lastTransp = null;         // último transporte da sinalização logado (ws
 let lastLongAt = 0;            // throttle das long tasks (não afogar o diário numa rajada de travadas)
 let gameStallTimer = null;     // detector de jogo PARADO (30s sem progresso → snapshot público)
 const peerVersSeen = new Set();// versões de peer já logadas (uma linha por versão nova vista)
+const stuckLogged = new Set(); // peers já logados como P2P travado (uma linha por peer — id é per-sessão)
 // Watchdog de async: arma um alarme; se o `disarm()` não vier no prazo, a operação PENDUROU
 // (o clássico: prompt de permissão sem resposta não dispara callback NEM timeout). Vira `pendurada`.
 function armWatchdog(kind, ms) {
@@ -691,9 +692,27 @@ function render() {
   renderPresence();
   const mp = mesh ? mesh.peers() : [];
   const online = mp.filter((p) => p.online).length;
+  const stuck = mp.filter((p) => p.stuck); // presente no signaling mas o P2P nunca fechou (NAT/4G)
   if (mp.length === 0) ui.setConn(t('conn.alone'));
+  else if (stuck.length && tt > 0) {
+    // só INCOMODA com a mesa ativa (tt>0): sem consumo, nada pra dessincronizar → fica quieto.
+    // banner vira AÇÃO: tocar → conectar por QR (host candidate na mesma Wi-Fi/hotspot, zero servidor)
+    const nm = profOf(stuck[0].user).name || t('common.someoneLow');
+    ui.setConn(stuck.length > 1 ? t('conn.stuckN', { name: nm, n: stuck.length - 1 }) : t('conn.stuck', { name: nm }), nudgePair);
+  }
   else if (online < mp.length) ui.setConn(t('conn.reconnecting', { on: online, total: mp.length }));
   else ui.setConn(null);
+}
+
+// P2P travado (presente no signaling, canal nunca fechou): oferece o pareamento por QR — a saída
+// ZERO servidor (host candidate na mesma Wi-Fi/hotspot). Papel DETERMINÍSTICO (mesma anti-glare da
+// malha: id menor dirige): menor que TODOS os travados → eu MOSTRO o convite (host); senão ESCANEIO.
+// Os dois lados escolhem papéis complementares sem combinar nada. Os dois estão na mesma mesa física.
+function nudgePair() {
+  if (!mesh) return;
+  const stuck = mesh.peers().filter((p) => p.stuck);
+  if (stuck.length && stuck.every((p) => self < p.user)) offlineHost();
+  else offlineJoin();
 }
 
 function renderPresence() {
@@ -726,17 +745,26 @@ function renderPresence() {
 function renderPeers() {
   const base = summary(state, resolveItem); // uma passada só
   const nets = new Map();
-  if (mesh) for (const p of mesh.peers()) nets.set(p.user, { online: p.online, conn: p.conn });
+  if (mesh) for (const p of mesh.peers()) nets.set(p.user, { online: p.online, conn: p.conn, stuck: p.stuck });
   const rows = base.map((r) => {
     const p = profOf(r.user);
     const net = nets.get(r.user);
     return { ...r, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, level: p.level, badges: badgesFor(state, r.user), online: net ? net.online : undefined, conn: net ? net.conn : null,
+      stuck: net ? !!net.stuck : false, // P2P travado: o placar mostra 🔌 (não é 💤 "saiu", é "não fechou")
       away: net && net.online === false ? awayLabel(Date.now() - (awaySince.get(r.user) || Date.now())) : '' };
   });
   // garante que eu apareço mesmo sem ter consumido
   if (!rows.some((r) => r.user === self)) {
     const p = profOf(self);
     rows.push({ user: self, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, driver: p.driver, total: 0, money: 0, badges: badgesFor(state, self) });
+  }
+  // peer TRAVADO aparece no placar (mesmo sem consumo — o log dele nem chegou): a "saúde por
+  // link". Só com a mesa ATIVA (tableTotal>0): mesa vazia não tem o que dessincronizar → sem ruído.
+  if (tableTotal(state) > 0) for (const [u, net] of nets) {
+    if (net.stuck && !rows.some((r) => r.user === u)) {
+      const p = profOf(u);
+      rows.push({ user: u, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, level: p.level, total: 0, money: 0, badges: [], online: false, stuck: true });
+    }
   }
   const top = base.find((r) => !r.driver && r.total > 0); // MVP derivado (base já vem ordenado)
   ui.renderPeers({ rows, selfId: self, mvp: top ? { name: profOf(top.user).name, total: top.total } : null, myBadges: badgesFor(state, self) });
@@ -877,6 +905,8 @@ function onMeshChange() {
       const key = p.user + '@' + p.ver;
       if (p.ver && !peerVersSeen.has(key)) { peerVersSeen.add(key); dlog('versao.peer', { de: String(p.user).slice(0, 6), v: p.ver, igual: p.ver === VERSION }); }
     }
+    // P2P travado (NAT/firewall não deixa fechar o canal) — bug de campo clássico que só mora aqui
+    for (const p of ps) if (p.stuck && !stuckLogged.has(p.user)) { stuckLogged.add(p.user); dlog('malha.travada', { de: String(p.user).slice(0, 6) }); }
   }
   diffPresence();
   render();
@@ -971,7 +1001,7 @@ window.__presDbg = () => ({
   saidBye: [...saidBye], leftQuiet: [...leftQuiet],
   away: [...awaySince.entries()].map(([u, ts]) => ({ u, s: Math.round((Date.now() - ts) / 1000) })),
   gone: [...goneAt.keys()],
-  peers: mesh ? mesh.peers().map((p) => ({ u: p.user, on: p.online, st: p.state })) : null,
+  peers: mesh ? mesh.peers().map((p) => ({ u: p.user, on: p.online, st: p.state, stuck: !!p.stuck })) : null,
 });
 
 function startMesh(iceServers) {

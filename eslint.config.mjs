@@ -100,6 +100,7 @@ export default [
         Response: 'readonly', Request: 'readonly', Headers: 'readonly', URL: 'readonly',
         URLSearchParams: 'readonly', fetch: 'readonly', crypto: 'readonly', console: 'readonly',
         TextEncoder: 'readonly', TextDecoder: 'readonly', AbortSignal: 'readonly',
+        btoa: 'readonly', atob: 'readonly',
         setTimeout: 'readonly', clearTimeout: 'readonly',
         WebSocketPair: 'readonly', WebSocketRequestResponsePair: 'readonly',
       },

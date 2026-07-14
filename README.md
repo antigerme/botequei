@@ -48,7 +48,14 @@ celular, tudo sincroniza direto **entre os navegadores (peer-to-peer via WebRTC)
 - **Persistência**: só **localStorage** no próprio aparelho (retomar sessão + histórico de mesas).
 - **Diagnóstico de conexão**: no placar ("Na mesa"), um ícone por pessoa mostra como cada um
   está ligado — 📶 na mesma rede, 🌐 pela internet (STUN) ou 🛰️ via relay (TURN) — lendo o par
-  de candidatos do `getStats()` em tempo real (💤 se caiu; 📱 é você). Só aparece com gente na mesa.
+  de candidatos do `getStats()` em tempo real (💤 se caiu; **🔌 se está na sala mas o P2P não
+  fechou** — aí o app oferece parear por QR; 📱 é você). Só aparece com gente na mesa.
+- **Sem servidor de relay, mesmo em rede fechada**: se a sinalização estiver fora OU a rede não
+  deixar o P2P fechar (NAT simétrico, CGNAT de 4G, firewall corporativo), dá pra parear **fora de
+  banda por QR** — o `offer`/`answer` viaja num QR/código com os candidatos de host embutidos
+  (mesma Wi-Fi ou o hotspot de alguém). O app **detecta o link travado** (🔌 acima) e transforma
+  o aviso de conexão numa **ação**: toca → mostra o QR. TURN é sempre opcional — este é o caminho
+  zero-servidor de verdade.
 
 ```
 navegador A  ⇄  navegador B          (consumo trafega SÓ aqui, P2P)
@@ -83,7 +90,6 @@ que o estado local dispare o watcher de assets).
 2. Toque em **MESA** pra mostrar o **QR Code** (ou copie o link).
 3. A turma escaneia com a câmera do celular → entra na hora.
 4. **1 toque** no card = +1. **Toque longo** = −1. Vibra e anima na hora.
-5. **🔢 Contador gigante**: tela enorme, um botão só, pra quando a noite avançar.
 
 ## Deploy
 
@@ -105,10 +111,13 @@ exatamente o exigido lá).
 
 **Pela linha de comando:** `npx wrangler deploy` (ele lê o `wrangler.jsonc` e sobe tudo).
 
-**TURN (opcional, pra redes restritas):** no painel do Worker → **Settings → Variables and
-Secrets**, crie os **secrets** `CF_TURN_KEY_ID` e `CF_TURN_API_TOKEN` (ou
-`npx wrangler secret put CF_TURN_KEY_ID` etc.). Sem eles, `/turn` responde `204` e o app
-segue só com STUN — funciona na maioria das redes.
+**TURN (opcional, pra redes restritas):** duas opções, a 1ª configurada vence. Sem nenhuma,
+`/turn` responde `204` e o app segue só com STUN — funciona na maioria das redes.
+- **coturn self-hosted (sem lock-in):** var `TURN_URL` (ex.: `turn:seu.host:3478`) + secret
+  `TURN_SECRET` (`npx wrangler secret put TURN_SECRET`) — veja o passo a passo do coturn na
+  opção VM abaixo; vale igual aqui.
+- **Cloudflare Calls:** no painel do Worker → **Settings → Variables and Secrets**, crie os
+  **secrets** `CF_TURN_KEY_ID` e `CF_TURN_API_TOKEN` (ou `npx wrangler secret put …`).
 
 > Curiosidade anti-lock-in: o runtime dos Workers ([workerd](https://github.com/cloudflare/workerd))
 > é open source — o mesmo `worker/` roda fora da Cloudflare se um dia você quiser.
@@ -143,7 +152,11 @@ WorkingDirectory=/opt/botequei
 ExecStart=/usr/bin/node /opt/botequei/server/node.mjs
 Restart=always
 Environment=PORT=8000
-# TURN opcional (mesmos nomes da Cloudflare):
+# TURN opcional (duas fontes, a 1ª configurada vence):
+#  (a) coturn na SUA máquina — sem depender de terceiro (ver bloco abaixo):
+# Environment=TURN_URL=turn:seu.dominio:3478
+# Environment=TURN_SECRET=o_mesmo_static-auth-secret_do_coturn
+#  (b) Cloudflare Calls (mesmos nomes do painel):
 # Environment=CF_TURN_KEY_ID=seu_key_id
 # Environment=CF_TURN_API_TOKEN=seu_token
 
@@ -155,6 +168,31 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reload
 sudo systemctl enable --now botequei
 ```
+
+**TURN na PRÓPRIA VM com coturn (opcional, sem lock-in).** Se um dia precisar de relay pra redes
+bem fechadas (CGNAT de 4G, firewall corporativo) e não quiser depender de TURN de terceiro, suba
+um [coturn](https://github.com/coturn/coturn) no mesmo servidor:
+
+```bash
+sudo dnf install -y coturn
+SECRET=$(openssl rand -hex 32)          # guarde: é o mesmo que vai no systemd
+sudo tee /etc/coturn/turnserver.conf >/dev/null <<EOF
+listening-port=3478
+fingerprint
+use-auth-secret
+static-auth-secret=$SECRET
+realm=seu.dominio
+# no-udp-relay / total-quota etc. a gosto; TLS (turns:) em 5349 com o mesmo cert do site
+EOF
+sudo systemctl enable --now coturn
+sudo firewall-cmd --add-port=3478/tcp --add-port=3478/udp --permanent && sudo firewall-cmd --reload
+```
+
+Aí no `botequei.service`: `Environment=TURN_URL=turn:seu.dominio:3478` e
+`Environment=TURN_SECRET=<aquele $SECRET>` (o Botequei gera as credenciais efêmeras sozinho, no
+padrão *use-auth-secret* do coturn — nada de token de terceiro). `systemctl restart botequei` e
+confira: `curl -s https://seu.dominio/turn` deve trazer um JSON com `iceServers` (username +
+credential). Pra vários endpoints, separe por vírgula: `TURN_URL=turn:seu.dominio:3478,turns:seu.dominio:5349`.
 
 **HTTPS na frente (nginx + certbot)** — obrigatório em produção (WebRTC/PWA exigem; só
 `localhost` é isento). O detalhe que não pode faltar é o repasse do **upgrade de WebSocket**:

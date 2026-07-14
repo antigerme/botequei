@@ -3463,6 +3463,13 @@ const handlers = {
   // Tudo é LOCAL: apagar aqui NÃO mexe na cópia dos outros aparelhos (a mesa vive em CRDT em cada
   // um) — o painel diz isso na cara. Todo delete confirma (actionToast) e repinta painel+home.
   onOpenData: () => ui.openData(dataVM()),
+  // Sobre o Botequei: monta o "me paga um chopp" (PIX do dev — chave fixa, doação sem valor) e abre.
+  onOpenSobre: () => {
+    const pixKey = 'andre@felicio.com.br';
+    const pixCode = pixPayload({ key: pixKey, name: 'Botequei', city: 'BRASIL', description: 'Chopp pro dev' });
+    let qrNode; try { qrNode = makeQR(pixCode); } catch { qrNode = null; }
+    ui.openSobre({ qrNode, pixCode, pixKey });
+  },
   onDataClear: (cat) => {
     const done = () => { ui.toast(t('data.cleared')); ui.openData(dataVM()); refreshHome(); };
     const ask = (msgKey, doIt) => ui.actionToast(t(msgKey), t('data.confirmDo'), doIt);

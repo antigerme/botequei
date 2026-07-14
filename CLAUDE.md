@@ -448,6 +448,13 @@ padrão Auto segue o navegador).
   aparelho"** (apagar local não mexe na cópia CRDT dos outros celulares). O `exportar/importar` e a
   bomba **🧨 Apagar tudo** (agora COM confirmação) moram no mesmo painel. Puro/testável no `store.js`
   (`tests/store.test.mjs`) + `tests/e2e-meusdados.mjs`.
+- **ℹ️ Sobre o Botequei** (`ui.openSobre`, overlay `#overlay-sobre`, aberto por `#btn-open-sobre` nas
+  ⚙️): a história (combo — origem da "conta que não bateu" + "pega MENOS no celular" + a promessa
+  P2P/privacidade + "feito à mão"/código aberto, em `sobre.p1..p4` via `data-i18n-html`), links do
+  site + GitHub, e o **"🍺 me paga um chopp"** — o **único pedido de grana** do app, e só aqui (pull,
+  nunca empurra). O QR é PIX do dev (chave FIXA `andre@felicio.com.br`, doação sem valor: `onOpenSobre`
+  monta o `pixPayload` → `makeQR` e o botão copia o "copia e cola"). Monetização = cobrir custo + uns
+  trocados, **sem trair o DNA** (sem anúncio, sem dado, sem conta). Trava no `e2e-sobre`.
 - **Cardápio por boteco (local, sem servidor):** o app LEMBRA o cardápio de cada lugar pra
   recarregar quando você volta (`saveBotecoMenu`/`getBotecoMenu`/`hasBotecoMenu`/`botecoKey` em
   `store.js`, chave `botequei.botecomenu`; normaliza pelo nome — minúsculo, sem acento). **Boteco

@@ -11,6 +11,7 @@
 // deterministica). Quando cai, o iniciador RE-oferta e o outro lado RECONSTROI ao receber a offer.
 
 import { Signaling } from './signaling.js';
+import { deflateJSON, inflateJSON } from './handshake.js';
 
 const DEFAULT_ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
 const TICK_MS = 3000;    // heartbeat + verificacao de saude
@@ -57,8 +58,9 @@ export class Mesh {
   wake() {
     this.sig.poke();                       // forca um poll imediato do signaling
     for (const id of [...this.conns.keys()]) this._maybeConnect(id);
-    for (const [id, rec] of this.conns) {  // re-sincroniza o que estiver aberto (catch-up)
-      if (rec.dc && rec.dc.readyState === 'open') this._raw(id, { k: 'sync', events: this.getSyncPayload() });
+    const evs = this.getSyncPayload() || [];
+    for (const rec of this.conns.values()) {  // re-sincroniza o que estiver aberto (catch-up)
+      if (rec.dc && rec.dc.readyState === 'open') this._sendSync(rec, evs); // lotes comprimidos (antes ia o log INTEIRO numa msg só)
     }
     this.onStatus();
   }
@@ -261,6 +263,7 @@ export class Mesh {
   _setupDC(rec, dc) {
     if (!rec) return;
     rec.dc = dc;
+    dc.binaryType = 'arraybuffer'; // lote de sync comprimido chega como ArrayBuffer (ver onmessage)
     dc.onopen = () => {
       rec.ready = true;
       rec.everReady = true;
@@ -268,21 +271,21 @@ export class Mesh {
       this._retryAt.delete(rec.id);
       this._everConnected.add(rec.id); this._firstTryAt.delete(rec.id); // conectou: nunca mais "travado"
       this._raw(rec.id, { k: 'hello', name: this.name, ver: this.ver });
-      // anti-entropy em LOTES: o log cresce a noite toda (e PROFILE pode levar miniatura de
-      // foto) — numa mensagem única ele esbarraria no teto de mensagem do DataChannel. O
-      // receptor já aplica evento a evento, então N mensagens 'sync' menores = mesma coisa.
-      const evs = this.getSyncPayload() || [];
-      for (let i = 0; i < evs.length; i += 64) this._raw(rec.id, { k: 'sync', events: evs.slice(i, i + 64) });
+      this._sendSync(rec, this.getSyncPayload() || []); // anti-entropy: lotes comprimidos, com backpressure
       this.onPeersChange();
       this.onStatus();
     };
     dc.onclose = () => { rec.ready = false; this.onPeersChange(); this.onStatus(); };
     dc.onmessage = (e) => {
       rec.lastSeen = Date.now();
+      if (typeof e.data !== 'string') { // binario = lote de sync COMPRIMIDO (anti-entropy)
+        inflateJSON(e.data).then((arr) => { if (Array.isArray(arr)) for (const ev of arr) this.onEvent(ev, rec.id, true); }).catch(() => { /* lote corrompido: o proximo sync/gossip cobre */ });
+        return;
+      }
       let msg;
       try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.k === 'ev') this.onEvent(msg.ev, rec.id);
-      else if (msg.k === 'sync' && Array.isArray(msg.events)) { for (const ev of msg.events) this.onEvent(ev, rec.id, true); }
+      else if (msg.k === 'sync' && Array.isArray(msg.events)) { for (const ev of msg.events) this.onEvent(ev, rec.id, true); } // fallback texto (sem CompressionStream ou peer antigo)
       else if (msg.k === 'hello') { rec.name = msg.name || rec.name; if (msg.ver) rec.ver = msg.ver; this.onPeersChange(); }
       else if (msg.k === 'fx') this.onFx(msg.fx, rec.id);
       // 'ping' so serve pra atualizar lastSeen (feito acima)
@@ -294,6 +297,38 @@ export class Mesh {
     if (rec && rec.dc && rec.dc.readyState === 'open') {
       try { rec.dc.send(JSON.stringify(obj)); } catch { /* ignore */ }
     }
+  }
+
+  // Anti-entropy com BACKPRESSURE + compressao: o log da noite (com fotos de PROFILE) pode ser
+  // grande; mandar tudo de uma vez estoura o buffer do DataChannel (send() lanca -> o lote morre
+  // no catch -> DIVERGENCIA silenciosa). Fatia em 64, COMPRIME cada lote (binario cru, sem base64
+  // -> -33% vs texto) e ESPERA o buffer drenar antes do proximo. Ordem nao importa: o reducer e
+  // CRDT (soma comutativa + LWW -> converge), entao aplicar os lotes fora de ordem e seguro.
+  async _sendSync(rec, evs) {
+    const dc = rec && rec.dc;
+    if (!dc || !evs.length) return;
+    try { dc.bufferedAmountLowThreshold = 64 * 1024; } catch { /* nem todo browser deixa setar */ }
+    for (let i = 0; i < evs.length; i += 64) {
+      if (dc.readyState !== 'open') return;                 // canal caiu no meio: a reconexao re-sincroniza
+      if (dc.bufferedAmount > 256 * 1024) await this._drain(dc);
+      if (dc.readyState !== 'open') return;
+      const batch = evs.slice(i, i + 64);
+      let z = null;
+      try { z = await deflateJSON(batch); } catch { z = null; } // sem CompressionStream -> texto puro
+      if (dc.readyState !== 'open') return;                 // o await do deflate pode ter demorado
+      try { dc.send(z || JSON.stringify({ k: 'sync', events: batch })); } catch { return; }
+    }
+  }
+
+  // Espera o buffer de envio baixar (bufferedamountlow) antes de empurrar mais — com teto de tempo
+  // pra nunca travar pra sempre se o evento nao vier (socket zumbi pos-sono).
+  _drain(dc) {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => { if (done) return; done = true; dc.removeEventListener('bufferedamountlow', finish); resolve(); };
+      dc.addEventListener('bufferedamountlow', finish);
+      setTimeout(finish, 2000);
+    });
   }
 
   // Envia para todos os canais abertos (opcionalmente exceto um) — usado no gossip.

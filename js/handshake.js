@@ -67,6 +67,19 @@ export async function encodeBlob(obj) {
   return MAGIC + '0' + b64urlEncode(raw);
 }
 
+// ---- Sync do anti-entropy comprimido (reusa o mesmo `squeeze`) ----
+// O log da noite é JSON repetitivo (ADD/REMOVE/ITEM…) → deflate encolhe MUITO. Vai binário CRU
+// pelo DataChannel (sem base64: -33% vs texto). `deflateJSON` devolve os bytes ou null (ambiente
+// sem CompressionStream → o chamador manda texto puro). Isomórfico/testável (round-trip em Node).
+export async function deflateJSON(obj) {
+  if (typeof CompressionStream !== 'function') return null;
+  return squeeze(enc.encode(JSON.stringify(obj)), true);
+}
+export async function inflateJSON(data) {
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  return JSON.parse(dec.decode(await squeeze(bytes, false)));
+}
+
 // string -> objeto. Lanca se o texto nao for um código válido do Botequei.
 export async function decodeBlob(str) {
   const s = String(str || '').trim();

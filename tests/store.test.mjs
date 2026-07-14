@@ -15,6 +15,10 @@ Object.defineProperties(ls, {
   setItem: { value: (k, v) => { ls[k] = String(v); } },
   removeItem: { value: (k) => { delete ls[k]; } },
   clear: { value: () => { for (const k of Object.keys(ls)) delete ls[k]; } },
+  // length/key: os métodos ficam NÃO-enumeráveis → Object.keys(ls) devolve só as chaves de DADO
+  // (o que o logKeys()/storageScan() varrem pra achar botequei.log.* etc.)
+  length: { get: () => Object.keys(ls).length },
+  key: { value: (i) => Object.keys(ls)[i] ?? null },
 });
 globalThis.localStorage = ls;
 
@@ -144,4 +148,82 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   ok('saveBotecoCouvert/getBotecoCouvert: guarda por boteco (chave normalizada) e entra no backup');
 }
 
-console.log(`\n${passed} blocos de teste do store (cardápio + couvert por boteco) passaram ✅`);
+// ---------- Apagar granular: passaporte (um check-in / todos) ----------
+{
+  localStorage.clear();
+  store.addCheckin({ name: 'Bar A', at: 1 });
+  store.addCheckin({ name: 'Bar B', at: 2 });
+  store.addCheckin({ name: 'Bar C', at: 3 });
+  assert.strictEqual(store.getCheckins().length, 3);
+  store.removeCheckin(2);                                   // some só o do meio (casa pelo `at`)
+  assert.deepStrictEqual(store.getCheckins().map((c) => c.at).sort(), [1, 3]);
+  store.clearCheckins();
+  assert.strictEqual(store.getCheckins().length, 0);
+  ok('removeCheckin apaga um check-in pelo `at`; clearCheckins zera o passaporte');
+}
+
+// ---------- Apagar granular: mesas & números (histórico + logs + mesa aberta) ----------
+{
+  localStorage.clear();
+  store.saveEvents('R1', [{ eventId: 'a' }]);
+  store.saveEvents('R2', [{ eventId: 'b' }]);
+  store.pushHistory({ room: 'R1', title: 'Bar', at: 1, items: [] });
+  store.setCurrent('R2');
+  assert.strictEqual(store.getEvents('R1').length, 1);
+  store.clearHistory();
+  assert.strictEqual(store.getHistory().length, 0);        // histórico some
+  assert.strictEqual(store.getEvents('R1').length, 0);     // o log de cada mesa some junto
+  assert.strictEqual(store.getEvents('R2').length, 0);     // inclusive log órfão (sem entrada no histórico)
+  assert.strictEqual(store.getCurrent(), null);            // a mesa aberta some
+  ok('clearHistory apaga histórico + TODOS os logs de mesa (inclusive órfãos) + a mesa aberta');
+}
+
+// ---------- Apagar granular: cardápios (menus + couverts) e diário do modo dev ----------
+{
+  localStorage.clear();
+  store.saveBotecoMenu('Bar', [{ id: 'a', name: 'A' }]);
+  store.saveBotecoCouvert('Bar', 12);
+  store.addDevLog({ k: 'x', t: 1 });
+  store.clearBotecoMenus();
+  assert.strictEqual(store.hasBotecoMenu('Bar'), false);
+  assert.strictEqual(store.getBotecoCouvert('Bar'), 0);    // couvert lembrado some junto
+  assert.strictEqual(store.getDevLog().length, 1);         // diário do dev NÃO é afetado por isso
+  store.clearDevLog();
+  assert.strictEqual(store.getDevLog().length, 0);
+  ok('clearBotecoMenus apaga cardápios + couverts; clearDevLog zera o diário técnico');
+}
+
+// ---------- Apagar granular: rever tour PRESERVA o devUnlocked ----------
+{
+  localStorage.clear();
+  store.setFlag('welcomeSeen'); store.setFlag('tourSeen'); store.setFlag('tourDone_basico'); store.setFlag('devUnlocked');
+  store.resetOnboarding();
+  assert.strictEqual(store.getFlag('welcomeSeen'), false); // boas-vindas voltam a aparecer
+  assert.strictEqual(store.getFlag('tourSeen'), false);
+  assert.strictEqual(store.getFlag('tourDone_basico'), false);
+  assert.strictEqual(store.getFlag('devUnlocked'), true);  // MAS o modo dev segue destravado
+  ok('resetOnboarding zera welcome/tour e PRESERVA o devUnlocked');
+}
+
+// ---------- Apagar granular: um LUGAR inteiro (cardápio + couvert + check-ins + histórico) ----------
+{
+  localStorage.clear();
+  store.saveBotecoMenu('Bar do Zé', [{ id: 'a', name: 'A' }]);
+  store.saveBotecoCouvert('Bar do Zé', 10);
+  store.addCheckin({ name: 'Bar do Zé', at: 1 });
+  store.addCheckin({ name: 'Outro Lugar', at: 2 });
+  store.pushHistory({ room: 'R1', title: 'Bar do Zé', at: 3, items: [] });
+  store.pushHistory({ room: 'R2', title: 'Outro Lugar', at: 4, items: [] });
+  store.saveEvents('R1', [{ eventId: 'x' }]);
+
+  assert.strictEqual(store.deletePlace('bar do ze'), true); // pela chave normalizada
+  assert.strictEqual(store.hasBotecoMenu('Bar do Zé'), false);
+  assert.strictEqual(store.getBotecoCouvert('Bar do Zé'), 0);
+  assert.strictEqual(store.getEvents('R1').length, 0);      // o log da mesa daquele lugar some
+  assert.deepStrictEqual(store.getCheckins().map((c) => c.name), ['Outro Lugar']); // só o do lugar saiu
+  assert.deepStrictEqual(store.getHistory().map((e) => e.title), ['Outro Lugar']);
+  assert.strictEqual(store.deletePlace(''), false);
+  ok('deletePlace apaga cardápio + couvert + check-ins + histórico (e logs) de um lugar só');
+}
+
+console.log(`\n${passed} blocos de teste do store (cardápio + couvert + apagar granular) passaram ✅`);

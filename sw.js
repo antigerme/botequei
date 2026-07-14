@@ -2,7 +2,7 @@
 // Importante: nunca intercepta a sinalizacao (/signaling, /turn) nem o que nao for GET.
 // CACHE = 'botequei-' + serial da versão (padrão de zona DNS, YYYYMMDDnn — js/version.js é a
 // fonte única; a auditoria trava a paridade). Serial novo = shell novo = ciclo de atualização.
-const CACHE = 'botequei-2026071309';
+const CACHE = 'botequei-2026071401';
 const SHELL = [
   './',
   'index.html',

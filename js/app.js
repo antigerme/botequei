@@ -3068,6 +3068,26 @@ async function shareDevReport() {
   ui.toast(t('toast.reportSaved'));
 }
 
+// ---- "Meus dados": raio-x (contagem+tamanho por categoria) + refresh da home sob o painel ----
+// Tudo LOCAL. O painel LÊ os tamanhos do mesmo storageScan() do relatório do modo dev e conta
+// dos getters — nenhuma fonte de verdade nova (regra da casa: uma fonte só).
+function dataVM() {
+  const { sizes } = store.storageScan();
+  const bytesOf = (pred) => Object.keys(sizes).reduce((a, k) => a + (pred(k) ? sizes[k] : 0), 0);
+  const hist = store.getHistory(), checks = store.getCheckins(), menus = store.listBotecoMenus(), dev = store.getDevLog();
+  return {
+    perfil: { name: getName(), set: !!(getName() || settings.profPhoto || settings.profColor || settings.profEmoji), bytes: (getName() || '').length + (settings.profPhoto || '').length },
+    mesas: { count: hist.length, bytes: bytesOf((k) => k === 'botequei.history' || k === 'botequei.current' || k.startsWith('botequei.log.')) },
+    passaporte: { count: checks.length, bytes: sizes['botequei.passport'] || 0 },
+    cardapios: { count: menus.length, bytes: (sizes['botequei.botecomenu'] || 0) + (sizes['botequei.botecocouvert'] || 0) },
+    dev: { count: dev.length, bytes: sizes['botequei.devlog'] || 0, show: !!store.getFlag('devUnlocked') || dev.length > 0 },
+    totalBytes: bytesOf((k) => k.startsWith('botequei.')),
+  };
+}
+// repinta a home (contadores/atalhos/avatar) por baixo do painel aberto — os deletes granulares
+// mexem no histórico/perfil que a home mostra; sem reload (só a bomba atômica recarrega).
+function refreshHome() { ui.renderHome(store.getHistory(), meAvatar(), !!store.getFlag('tourSeen') || store.getHistory().length > 0); }
+
 const handlers = {
   onName: (v) => setName(v),
   onCreate: () => { if (!getName()) { ui.toast(t('toast.needName')); return; } enterTable(newRoomCode(), { create: true }); },
@@ -3402,10 +3422,35 @@ const handlers = {
       ui.toast(t('ver.offline', { v: verLabel(VERSION) }));
     }
   },
-  onClearData: () => {
+  // ---- 🗄️ Meus dados: painel de transparência + deleção GRANULAR (por categoria/item/lugar) ----
+  // Tudo é LOCAL: apagar aqui NÃO mexe na cópia dos outros aparelhos (a mesa vive em CRDT em cada
+  // um) — o painel diz isso na cara. Todo delete confirma (actionToast) e repinta painel+home.
+  onOpenData: () => ui.openData(dataVM()),
+  onDataClear: (cat) => {
+    const done = () => { ui.toast(t('data.cleared')); ui.openData(dataVM()); refreshHome(); };
+    const ask = (msgKey, doIt) => ui.actionToast(t(msgKey), t('data.confirmDo'), doIt);
+    if (cat === 'perfil') return ask('data.confPerfil', () => {
+      setName(''); ui.setNameInput('');
+      settings = setSettings({ profColor: '', profEmoji: '', profPhoto: '' });
+      // na mesa, re-emite um PROFILE anônimo (cor/emoji automáticos) pra a turma ver a mudança na hora
+      if (room) { emitLocal(makeProfile({ color: autoColor(self), emoji: autoAvatar(self), driver: myDriver, level: myLevel(), photo: '' })); render(); }
+      done();
+    });
+    if (cat === 'mesas') return ask('data.confMesas', () => { store.clearHistory(); done(); });
+    if (cat === 'passaporte') return ask('data.confPass', () => { store.clearCheckins(); done(); });
+    if (cat === 'cardapios') return ask('data.confMenus', () => { store.clearBotecoMenus(); done(); });
+    if (cat === 'dev') return ask('data.confDev', () => { store.clearDevLog(); done(); });
+    if (cat === 'tour') return ask('data.confTour', () => { store.resetOnboarding(); done(); });
+  },
+  // in-context: apagar UMA mesa (na home) / UM check-in (no passaporte) / um LUGAR inteiro (na ficha)
+  onDeleteMesa: (r) => ui.actionToast(t('data.confDelMesa'), t('data.confirmDo'), () => { store.removeHistory(r); refreshHome(); ui.toast(t('data.deleted')); }),
+  onDeleteCheckin: (at) => ui.actionToast(t('data.confDelCheckin'), t('data.confirmDo'), () => { store.removeCheckin(Number(at)); openPassportView(); ui.toast(t('data.deleted')); }),
+  onDeletePlaceAll: (name) => ui.actionToast(t('data.confDelPlace', { name: name }), t('data.confirmDo'), () => { store.deletePlace(name); ui.closeOverlays(); ui.toast(t('data.placeGone')); openPassportView(); }),
+  // 🧨 a bomba atômica (agora COM confirmação — antes apagava direto): tudo deste aparelho, reload.
+  onClearData: () => ui.actionToast(t('data.confAll'), t('data.confAllDo'), () => {
     for (const k of Object.keys(localStorage)) if (k.startsWith('botequei.')) localStorage.removeItem(k);
     location.reload();
-  },
+  }),
   onInstall: async () => {
     if (!deferredPrompt) { ui.toast(t('toast.installHint')); return; }
     deferredPrompt.prompt(); deferredPrompt = null; ui.showInstall(false);

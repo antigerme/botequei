@@ -401,14 +401,9 @@
       <input id="set-pixkey" type="text" maxlength="77" placeholder="email, telefone, CPF ou aleatória" data-i18n-ph="set.pixKeyPh" /></label>
     <label class="field"><span data-i18n="set.pixCity">Cidade</span>
       <input id="set-pixcity" type="text" maxlength="15" placeholder="ex: São Paulo" data-i18n-ph="set.pixCityPh" /></label>
-    <p class="menu-sec">💾 Backup &amp; dados</p>
+    <p class="menu-sec" data-i18n="data.secData">🗄️ Meus dados</p>
     <div class="sheet-actions">
-      <button class="btn btn-ghost" id="btn-export-data" data-i18n="set.export">⬇️ Exportar</button>
-      <button class="btn btn-ghost" id="btn-import-data" data-i18n="set.import">⬆️ Importar</button>
-    </div>
-    <input id="import-file" type="file" accept="application/json,.json" hidden />
-    <div class="sheet-actions">
-      <button class="btn btn-ghost" id="btn-clear-data" data-i18n="set.clear">🗑️ Apagar dados locais</button>
+      <button class="btn btn-ghost" id="btn-open-data" data-i18n="data.open">🗄️ Ver e gerenciar meus dados</button>
     </div>
     <p class="seal" data-i18n="set.privacy">🔒 Nada disso é enviado a servidor. Tudo vive no seu navegador.</p>
     <!-- 🐛 Desenvolvedor: escondido de fábrica; 7 toques na versão (à la Android) destravam -->
@@ -674,12 +669,33 @@
     <div class="boteco-manage">
       <button class="btn btn-ghost" id="btn-boteco-rename" data-i18n="boteco.rename">✏️ Renomear lugar</button>
       <button class="btn btn-ghost" id="btn-boteco-del" data-i18n="boteco.del" hidden>🗑️ Apagar cardápio</button>
+      <button class="btn btn-ghost data-danger" id="btn-boteco-delall" data-i18n="boteco.delAll">🗑️ Apagar este lugar</button>
     </div>
     <div class="boteco-rename-box" id="boteco-rename-box" hidden>
       <label class="field-lbl" for="boteco-rename" data-i18n="boteco.renameLbl">Novo nome do lugar</label>
       <input type="text" id="boteco-rename" maxlength="40" data-i18n-ph="boteco.renamePh" placeholder="ex: Bar do João">
       <button class="btn btn-primary" id="btn-boteco-rename-go" data-i18n="boteco.renameGo">✓ Salvar</button>
     </div>
+  </div>
+</div>
+
+<!-- 🗄️ Meus dados: transparência (contagem + tamanho por categoria) + deleção GRANULAR. Absorve o
+     antigo "Backup & dados" (exportar/importar/apagar-tudo). Tudo LOCAL — só deste aparelho. -->
+<div class="overlay" id="overlay-data" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2 data-i18n="data.title">🗄️ Meus dados</h2>
+    <p class="sheet-sub" data-i18n="data.sub">Tudo vive só neste aparelho. Apagar aqui não mexe nos outros celulares da mesa — cada um guarda a própria cópia.</p>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="btn-export-data" data-i18n="set.export">⬇️ Exportar</button>
+      <button class="btn btn-ghost" id="btn-import-data" data-i18n="set.import">⬆️ Importar</button>
+    </div>
+    <input id="import-file" type="file" accept="application/json,.json" hidden />
+    <ul class="data-list" id="data-list"></ul>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost data-danger" id="btn-clear-data" data-i18n="data.clearAll">🧨 Apagar tudo deste aparelho</button>
+    </div>
+    <p class="seal" data-i18n="set.privacy">🔒 Nada disso é enviado a servidor. Tudo vive no seu navegador.</p>
   </div>
 </div>
 

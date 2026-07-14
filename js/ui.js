@@ -90,7 +90,8 @@ const IDS = [
   'tru-hand', 'tru-actions', 'tru-result', 'tru-audit',
   'overlay-passport', 'passport-count', 'passport-list',
   'overlay-boteco', 'boteco-title', 'boteco-stats', 'boteco-menu', 'btn-boteco-load',
-  'btn-boteco-rename', 'btn-boteco-del', 'boteco-rename-box', 'boteco-rename', 'btn-boteco-rename-go',
+  'btn-boteco-rename', 'btn-boteco-del', 'btn-boteco-delall', 'boteco-rename-box', 'boteco-rename', 'btn-boteco-rename-go',
+  'btn-open-data', 'overlay-data', 'data-list',
   'overlay-welcome', 'btn-welcome-go', 'welcome-demo', 'welcome-demo-n',
   'league-level', 'league-challenges', 'league-season',
   'btn-offline-join', 'btn-offline-host',
@@ -257,6 +258,7 @@ export function init(handlers) {
   el['btn-boteco-rename-go'].addEventListener('click', doRename);
   el['boteco-rename'].addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doRename(); } });
   el['btn-boteco-del'].addEventListener('click', () => H.onBotecoDelMenu(el['overlay-boteco'].dataset.place || ''));
+  el['btn-boteco-delall'].addEventListener('click', () => H.onDeletePlaceAll(el['overlay-boteco'].dataset.place || ''));
   el['btn-welcome-go'].addEventListener('click', () => { closeOverlays(); focusNameSoft(); }); // solta na HOME (apelido/criar moram lá) e foca o apelido
   { // demo do bem-vindo: o GESTO do app pra treinar antes da 1ª mesa (toque = +1, segurar = −1)
     let n = 0, tm = null, held = false;
@@ -312,6 +314,7 @@ export function init(handlers) {
   el['btn-version'].addEventListener('click', () => H.onCheckUpdate());
   el['set-pixkey'].addEventListener('change', () => H.onSetting({ pixKey: el['set-pixkey'].value.trim() }));
   el['set-pixcity'].addEventListener('change', () => H.onSetting({ pixCity: el['set-pixcity'].value.trim() }));
+  el['btn-open-data'].addEventListener('click', () => H.onOpenData());
   $('btn-clear-data').addEventListener('click', () => H.onClearData());
   el['btn-export-data'].addEventListener('click', () => H.onExportData());
   el['btn-import-data'].addEventListener('click', () => el['import-file'].click());
@@ -551,10 +554,18 @@ export function renderHome(history, me, returning = false) {
     const d = new Date(h.at);
     const when = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     return `<li class="hist-item" data-room="${esc(h.room)}">
-      <span><strong>${esc(h.room)}</strong> <small>· ${when}</small></span>
-      <small>${t('home.histLine', { me: h.myTotal || 0, tt: h.tableTotal || 0 })}</small></li>`;
+      <div class="hist-open" role="button" tabindex="0" aria-label="${esc(h.title || h.room)}">
+        <span><strong>${esc(h.room)}</strong> <small>· ${when}</small></span>
+        <small>${t('home.histLine', { me: h.myTotal || 0, tt: h.tableTotal || 0 })}</small></div>
+      <button class="hist-del" aria-label="${esc(t('data.delMesaAria'))}" title="${esc(t('data.delMesaAria'))}">🗑️</button></li>`;
   }).join('');
-  ul.querySelectorAll('.hist-item').forEach((li) => li.addEventListener('click', () => H.onOpenHistory(li.dataset.room)));
+  ul.querySelectorAll('.hist-item').forEach((li) => {
+    const r = li.dataset.room;
+    const open = li.querySelector('.hist-open');
+    open.addEventListener('click', () => H.onOpenHistory(r));
+    open.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); H.onOpenHistory(r); } });
+    li.querySelector('.hist-del').addEventListener('click', (e) => { e.stopPropagation(); H.onDeleteMesa(r); });
+  });
 }
 
 // ---------- Mesa ----------
@@ -1916,9 +1927,10 @@ export function openPassport(vm) {
     const badge = hasMenu ? ` <span class="pass-menu" title="${esc(t('boteco.menu'))}">📓</span>` : '';
     // clareана #2: onde tem cardápio salvo, DIZ o que fazer (a linha já abre a ficha c/ "carregar")
     const sub = hasMenu ? `<span class="pass-sub">📓 ${esc(t('pass.hasMenu'))}</span>` : '';
-    return `<li class="pass-row" data-place="${esc(c.name || '')}"><span class="pass-pin">📍</span>
+    return `<li class="pass-row" data-place="${esc(c.name || '')}" data-at="${c.at}"><span class="pass-pin">📍</span>
       <div class="pass-main" role="button" tabindex="0" aria-label="${esc(c.name || t('pass.fallback'))}"><span class="pass-name">${esc(c.name || t('pass.fallback'))}${badge}</span><span class="pass-when">${when}</span>${sub}</div>
-      ${map ? `<a class="pass-map" href="${map}" target="_blank" rel="noopener" aria-label="ver no mapa">🗺️</a>` : ''}</li>`;
+      ${map ? `<a class="pass-map" href="${map}" target="_blank" rel="noopener" aria-label="ver no mapa">🗺️</a>` : ''}
+      <button class="pass-del" aria-label="${esc(t('data.delCheckinAria'))}" title="${esc(t('data.delCheckinAria'))}">🗑️</button></li>`;
   }).join('') || `<li class="pass-row">${t('pass.none')}</li>`;
   // tocar num lugar abre a FICHA do boteco (mesmo padrão do placar → comanda)
   el['passport-list'].querySelectorAll('.pass-main').forEach((b) => {
@@ -1926,6 +1938,10 @@ export function openPassport(vm) {
     b.addEventListener('click', open);
     b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
   });
+  // 🗑️ apagar UM check-in in-context (no lugar onde ele vive) — não trava o toque que abre a ficha
+  el['passport-list'].querySelectorAll('.pass-del').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation(); const li = b.closest('.pass-row'); if (li && li.dataset.at) H.onDeleteCheckin(li.dataset.at);
+  }));
   el['overlay-passport'].hidden = false;
 }
 
@@ -1952,6 +1968,28 @@ export function openBoteco(vm) {
   el['boteco-rename-box'].hidden = true;   // renomear abre fechado (progressive disclosure)
   el['boteco-rename'].value = vm.name || '';
   el['overlay-boteco'].hidden = false;
+}
+
+// 🗄️ Meus dados: painel de TRANSPARÊNCIA (contagem + tamanho por categoria) + deleção GRANULAR.
+// Cada linha é uma categoria com um botão de ação (Limpar / → anônimo / Rever). A honestidade P2P
+// ("só deste aparelho") mora no topo do sheet (markup). Reusa .btn-ghost — nada de CSS de botão novo.
+export function openData(vm) {
+  const kb = (b) => (b < 1024 ? `${b} B` : `${(b / 1024).toFixed(b < 10240 ? 1 : 0)} KB`);
+  const row = (cat, emoji, name, sub, act) => `<li class="data-row">
+    <span class="data-emoji" aria-hidden="true">${emoji}</span>
+    <div class="data-main"><span class="data-name">${esc(name)}</span><span class="data-sub">${esc(sub)}</span></div>
+    <button class="btn btn-ghost data-clear" data-cat="${cat}">${esc(act)}</button></li>`;
+  const rows = [
+    row('perfil', '👤', t('data.perfil'), vm.perfil.set ? (vm.perfil.name || t('data.perfilSet')) : t('data.perfilNone'), t('data.toAnon')),
+    row('mesas', '🍺', t('data.mesas'), `${vm.mesas.count} · ${kb(vm.mesas.bytes)}`, t('data.clear')),
+    row('passaporte', '🗺️', t('data.pass'), `${vm.passaporte.count} · ${kb(vm.passaporte.bytes)}`, t('data.clear')),
+    row('cardapios', '📓', t('data.menus'), `${vm.cardapios.count} · ${kb(vm.cardapios.bytes)}`, t('data.clear')),
+  ];
+  if (vm.dev.show) rows.push(row('dev', '🐛', t('data.dev'), `${vm.dev.count} · ${kb(vm.dev.bytes)}`, t('data.clear')));
+  rows.push(row('tour', '🎓', t('data.tour'), t('data.tourSub'), t('data.tourDo')));
+  el['data-list'].innerHTML = rows.join('');
+  el['data-list'].querySelectorAll('.data-clear').forEach((b) => b.addEventListener('click', () => H.onDataClear(b.dataset.cat)));
+  el['overlay-data'].hidden = false;
 }
 
 // ---------- Guia de boas-vindas (primeira vez) ----------

@@ -722,7 +722,7 @@
     <h2 data-i18n="sobre.title">🍺 Sobre o Botequei</h2>
     <p class="sheet-sub" data-i18n-html="sobre.p1">—</p>
     <p class="sheet-sub" data-i18n-html="sobre.p2">—</p>
-    <p class="seal" data-i18n-html="sobre.p3">—</p>
+    <p class="sobre-promise" data-i18n-html="sobre.p3">—</p>
     <p class="sheet-sub" data-i18n-html="sobre.p4">—</p>
     <div class="sheet-actions">
       <a class="btn btn-ghost" id="sobre-site" href="https://botequei.com.br" target="_blank" rel="noopener" data-i18n="sobre.site">🌐 botequei.com.br</a>
@@ -730,9 +730,17 @@
     </div>
     <p class="menu-sec" data-i18n="sobre.chopp">🍺 Me paga um chopp</p>
     <p class="sheet-sub" data-i18n="sobre.choppSub">O Botequei é grátis e sem anúncios. Se te ajudou, me paga um chopp. 🍺</p>
-    <div class="qr-wrap" id="sobre-pix-qr"></div>
+    <!-- Ação PRINCIPAL no mesmo celular: copiar o "copia e cola" e colar no banco (o QR não
+         serve na própria tela). O QR desce pra secundário — "escaneie de OUTRO celular". -->
+    <button class="btn btn-primary btn-lg" id="btn-sobre-pixcopy" data-i18n="sobre.pixCopy">📋 Copiar código PIX</button>
+    <p class="sheet-sub" data-i18n="sobre.pixHow">Cole no seu banco em Pix › Copia e Cola.</p>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="btn-sobre-pixkey" data-i18n="sobre.pixKeyCopy">🔑 Copiar chave</button>
+      <button class="btn btn-ghost" id="btn-sobre-share" data-i18n="sobre.pixShare">📤 Compartilhar</button>
+    </div>
     <p class="sheet-sub"><span data-i18n="sobre.pixKeyLabel">Chave PIX:</span> <b id="sobre-pixkey"></b></p>
-    <button class="btn btn-ghost" id="btn-sobre-pixcopy" data-i18n="sobre.pixCopy">📋 Copiar código PIX</button>
+    <p class="sheet-sub sobre-qr-cap" data-i18n="sobre.qrOther">▸ ou escaneie de outro celular:</p>
+    <div class="qr-wrap qr-small" id="sobre-pix-qr"></div>
     <p class="set-version" id="sobre-version">🍺 Botequei</p>
     <p class="seal" data-i18n="sobre.credits">Feito com 🍺 e código aberto · libs sob licença MIT</p>
   </div>

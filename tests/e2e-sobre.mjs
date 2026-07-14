@@ -44,12 +44,15 @@ async function main() {
   ok(/conta que não bateu/.test(txt), 'a história (origem) aparece');
   ok(/direto entre os celulares/.test(txt), 'a promessa P2P/privacidade aparece');
 
-  // "me paga um chopp": QR do PIX desenhou + a chave do dev + botão de copiar
+  // "me paga um chopp": no MESMO celular a ação é COPIAR (o QR é secundário, pra outro aparelho)
+  ok(await p.$('#btn-sobre-pixcopy.btn-primary') !== null, 'copiar o código PIX é a ação PRINCIPAL (btn-primary)');
+  ok(/Copia e Cola/.test(txt), 'a instrução "cole no banco (Pix › Copia e Cola)" aparece');
+  ok(await p.$('#btn-sobre-pixkey') !== null, 'tem o botão de copiar só a chave');
+  ok(/outro celular/.test(txt), 'o QR é reendereçado como "escaneie de outro celular"');
   const qrKids = await p.evaluate(() => document.getElementById('sobre-pix-qr').childElementCount);
-  ok(qrKids > 0, 'o QR do PIX (me paga um chopp) foi desenhado');
+  ok(qrKids > 0, 'o QR (secundário) ainda foi desenhado');
   const pixKey = (await p.textContent('#sobre-pixkey') || '').trim();
   ok(pixKey === 'andre@felicio.com.br', 'a chave PIX do dev aparece');
-  ok(await p.$('#btn-sobre-pixcopy') !== null, 'tem o botão de copiar o código PIX');
   const ver = (await p.textContent('#sobre-version') || '').trim();
   ok(/^🍺 Botequei \d/.test(ver), 'o rodapé mostra a versão');
 

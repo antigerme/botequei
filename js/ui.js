@@ -92,7 +92,7 @@ const IDS = [
   'overlay-boteco', 'boteco-title', 'boteco-stats', 'boteco-menu', 'btn-boteco-load',
   'btn-boteco-rename', 'btn-boteco-del', 'btn-boteco-delall', 'boteco-rename-box', 'boteco-rename', 'btn-boteco-rename-go',
   'btn-open-data', 'overlay-data', 'data-list',
-  'btn-open-sobre', 'overlay-sobre', 'sobre-pix-qr', 'sobre-pixkey', 'btn-sobre-pixcopy', 'sobre-version',
+  'btn-open-sobre', 'overlay-sobre', 'sobre-pix-qr', 'sobre-pixkey', 'btn-sobre-pixcopy', 'btn-sobre-pixkey', 'btn-sobre-share', 'sobre-version',
   'overlay-welcome', 'btn-welcome-go', 'welcome-demo', 'welcome-demo-n',
   'league-level', 'league-challenges', 'league-season',
   'btn-offline-join', 'btn-offline-host',
@@ -2022,9 +2022,13 @@ export function openSobre(vm) {
   el['sobre-version'].textContent = '🍺 Botequei ' + verLabel(VERSION);
   el['sobre-pixkey'].textContent = vm.pixKey || '';
   el['sobre-pix-qr'].innerHTML = ''; if (vm.qrNode) el['sobre-pix-qr'].appendChild(vm.qrNode);
-  el['btn-sobre-pixcopy'].onclick = () => {
-    if (vm.pixCode && navigator.clipboard) navigator.clipboard.writeText(vm.pixCode).then(() => toast(t('sobre.pixCopied'))).catch(() => { /* clipboard negado: sem toast */ });
-  };
+  // No MESMO celular o QR não serve (você olha a tela dele): a AÇÃO é copiar o "copia e cola"
+  // e colar no banco. O QR fica pra OUTRO aparelho escanear. "Compartilhar" só onde há Web Share.
+  const copy = (text, msg) => { if (text && navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast(t(msg))).catch(() => { /* clipboard negado */ }); };
+  el['btn-sobre-pixcopy'].onclick = () => copy(vm.pixCode, 'sobre.pixCopied'); // o copia-e-cola (principal)
+  el['btn-sobre-pixkey'].onclick = () => copy(vm.pixKey, 'sobre.keyCopied');   // só a chave
+  el['btn-sobre-share'].hidden = !navigator.share;
+  el['btn-sobre-share'].onclick = () => { if (navigator.share) navigator.share({ text: t('sobre.shareText', { key: vm.pixKey }) }).catch(() => { /* cancelou */ }); };
   el['overlay-sobre'].hidden = false;
 }
 

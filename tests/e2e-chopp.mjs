@@ -1,6 +1,6 @@
-// E2E do cutucão "🍺 me paga um chopp" no fechar a conta: aparece SÓ pra ASSÍDUO (Liga prata OU
-// 8+ noites), "já paguei" desliga PRA SEMPRE, e novato NUNCA vê. É pull raro, não empurra — o gate
-// mora no app.js (Liga + 1×/temporada). Zero rede: é UI local + histórico semeado.
+// E2E do cutucão "🍺 me paga um chopp" no fechar a conta: aparece SÓ pra ASSÍDUO (8+ noites —
+// frequência pura), "já paguei" desliga PRA SEMPRE, e novato NUNCA vê. É pull raro, não empurra — o
+// gate mora no app.js (8+ noites + 1×/trimestre). Zero rede: é UI local + histórico semeado.
 //
 //   node server/node.mjs &
 //   node tests/e2e-chopp.mjs
@@ -69,7 +69,7 @@ async function main() {
   ok(/rolês/.test(txt), 'a mensagem é gratidão-primeiro ("já foram N rolês…")');
   ok(await pa.$('#btn-chopp-copy') !== null, 'copiar o PIX é a ação principal (copiar-primeiro)');
   ok(await pa.$('#btn-chopp-off') !== null, 'tem o "já paguei" (kill-switch)');
-  ok(typeof (await stg(pa)).choppSeason === 'number', 'marca a temporada ao abrir (teto de 1×/mês)');
+  ok(typeof (await stg(pa)).choppSeason === 'number', 'marca o trimestre ao abrir (teto de 1×/trimestre)');
   await pa.click('#btn-chopp-off');
   await pa.waitForFunction(() => document.getElementById('bill-chopp').hidden, null, { timeout: T });
   ok(!!(await stg(pa)).choppOff, '"já paguei" grava o desligar-pra-sempre (choppOff)');
@@ -83,8 +83,8 @@ async function main() {
   const pc = await C.newPage();
   await tableWithNight(pc);
   await openBill(pc);
-  ok(!(await shown(pc)), 'novato (0 noites): o cutucão NÃO aparece (gate na Liga)');
-  ok(typeof (await stg(pc)).choppSeason === 'undefined', 'novato nem marca a temporada (o gate curto-circuita antes)');
+  ok(!(await shown(pc)), 'novato (0 noites): o cutucão NÃO aparece (gate de 8+ noites)');
+  ok(typeof (await stg(pc)).choppSeason === 'undefined', 'novato nem marca o trimestre (o gate curto-circuita antes)');
 
   await A.close(); await C.close();
   await browser.close();

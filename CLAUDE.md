@@ -458,10 +458,10 @@ padrão Auto segue o navegador).
   **sem trair o DNA** (sem anúncio, sem dado, sem conta). Trava no `e2e-sobre`.
 - **🍺 Cutucão "me paga um chopp" no fechar a conta** (`choppNudge`/`onChoppOff` no `app.js`,
   `#bill-chopp` no `renderBill`): um lembrete GENTIL do chopp, do jeito Botequei — **pull raro, NÃO
-  empurra**. Regras anti-NAG (decisão de produto do André): aparece **só pra ASSÍDUO** (Liga nível ≥3
-  prata OU **8+ noites** no histórico — `myLevel()`/`getHistory().length`), no **MÁXIMO 1×/temporada**
-  (`settings.choppSeason` = mês, casando com a `seasonAward` da Liga; marcado AO abrir a conta pra não
-  repetir no mês) e **só com consumo** (`tableTotal>0` — a noite valeu algo). Enquadramento **gratidão
+  empurra**. Regras anti-NAG (decisão de produto do André): aparece **só pra ASSÍDUO** (**8+ noites**
+  no histórico — FREQUÊNCIA pura, sem misturar volume/nível: `getHistory().length`), no **MÁXIMO
+  1×/TRIMESTRE** (`settings.choppSeason` = ano+trimestre; marcado AO abrir a conta pra não repetir no
+  período) e **só com consumo** (`tableTotal>0` — a noite valeu algo). Enquadramento **gratidão
   primeiro** (`chopp.msg` "já foram N rolês…"), copiar-primeiro (mesmo padrão do Sobre, reusa
   `sobre.pixCopied`). O **"já paguei 🍺" (`onChoppOff` → `settings.choppOff`) DESLIGA PRA SEMPRE** —
   honra, sem servidor pra conferir (combina com o DNA). Decidido UMA vez ao abrir (`billChopp` estável

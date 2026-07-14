@@ -1254,18 +1254,19 @@ function computeBill() {
   return { rows: out, total: out.reduce((a, r) => a + r.amount, 0), equal: o.equal, hasPrices: allItems().some((i) => i.price > 0), pool: poolVm, bankrolls };
 }
 // 🍺 "me paga um chopp" — cutucão GENTIL no fechar a conta, do jeito Botequei (pull raro, não empurra).
-// Regras anti-NAG: SÓ pra assíduo (Liga prata OU 8+ noites), no MÁXIMO 1×/temporada (mês) e "já paguei"
+// Regras anti-NAG: SÓ pra assíduo (8+ noites — FREQUÊNCIA pura, sem misturar quanto se bebe: pedir grana
+// justo pro que mais bebe seria torto), no MÁXIMO 1×/TRIMESTRE (mensal soava assinatura) e "já paguei"
 // desliga PRA SEMPRE (honra — sem servidor pra conferir). A chave é a do dev (fixa, doação sem valor),
-// a mesmíssima do Sobre. `choppSeasonKey` casa com a temporada da Liga (seasonAward), pra bater 1×/mês.
+// a mesmíssima do Sobre. `choppSeasonKey` = ano+trimestre (1..4) — o balde do teto de 1×/trimestre.
 const CHOPP_PIX_KEY = 'andre@felicio.com.br';
 function choppPixCode() { return pixPayload({ key: CHOPP_PIX_KEY, name: 'Botequei', city: 'BRASIL', description: 'Chopp pro dev' }); }
-function choppSeasonKey() { const d = new Date(); return d.getUTCFullYear() * 100 + (d.getUTCMonth() + 1); }
+function choppSeasonKey() { const d = new Date(); return d.getUTCFullYear() * 10 + (Math.floor(d.getUTCMonth() / 3) + 1); }
 function choppNudge() {
   if (settings.choppOff) return null;                              // "já paguei": desligou pra sempre
   if (tableTotal(state) <= 0) return null;                          // só se a noite valeu algo (houve consumo)
   const hist = store.getHistory();
-  if (!(myLevel() >= 3 || hist.length >= 8)) return null;           // assíduo: nível prata OU 8+ noites
-  if (settings.choppSeason === choppSeasonKey()) return null;       // já cutucado nesta temporada
+  if (hist.length < 8) return null;                                 // assíduo = 8+ noites (frequência, não volume)
+  if (settings.choppSeason === choppSeasonKey()) return null;       // já cutucado neste trimestre
   return { nights: hist.length, pixCode: choppPixCode() };
 }
 function renderBill() {
@@ -3189,7 +3190,7 @@ const handlers = {
     const bn = sessionBoteco();
     ui.openBill({ tipPct: settings.tipPct, equalDefault: noPrices, couvert: bn ? store.getBotecoCouvert(bn) : 0 });
     // 🍺 decide o cutucão do chopp UMA vez, ao abrir — estável enquanto mexe na conta (rachar igual etc.)
-    // e marca a temporada JÁ, pra não repetir no mês mesmo que reabra a conta hoje.
+    // e marca o trimestre JÁ, pra não repetir no período mesmo que reabra a conta hoje.
     billChopp = choppNudge();
     if (billChopp) settings = setSettings({ choppSeason: choppSeasonKey() });
     renderBill();

@@ -48,7 +48,14 @@ celular, tudo sincroniza direto **entre os navegadores (peer-to-peer via WebRTC)
 - **Persistência**: só **localStorage** no próprio aparelho (retomar sessão + histórico de mesas).
 - **Diagnóstico de conexão**: no placar ("Na mesa"), um ícone por pessoa mostra como cada um
   está ligado — 📶 na mesma rede, 🌐 pela internet (STUN) ou 🛰️ via relay (TURN) — lendo o par
-  de candidatos do `getStats()` em tempo real (💤 se caiu; 📱 é você). Só aparece com gente na mesa.
+  de candidatos do `getStats()` em tempo real (💤 se caiu; **🔌 se está na sala mas o P2P não
+  fechou** — aí o app oferece parear por QR; 📱 é você). Só aparece com gente na mesa.
+- **Sem servidor de relay, mesmo em rede fechada**: se a sinalização estiver fora OU a rede não
+  deixar o P2P fechar (NAT simétrico, CGNAT de 4G, firewall corporativo), dá pra parear **fora de
+  banda por QR** — o `offer`/`answer` viaja num QR/código com os candidatos de host embutidos
+  (mesma Wi-Fi ou o hotspot de alguém). O app **detecta o link travado** (🔌 acima) e transforma
+  o aviso de conexão numa **ação**: toca → mostra o QR. TURN é sempre opcional — este é o caminho
+  zero-servidor de verdade.
 
 ```
 navegador A  ⇄  navegador B          (consumo trafega SÓ aqui, P2P)
@@ -83,7 +90,6 @@ que o estado local dispare o watcher de assets).
 2. Toque em **MESA** pra mostrar o **QR Code** (ou copie o link).
 3. A turma escaneia com a câmera do celular → entra na hora.
 4. **1 toque** no card = +1. **Toque longo** = −1. Vibra e anima na hora.
-5. **🔢 Contador gigante**: tela enorme, um botão só, pra quando a noite avançar.
 
 ## Deploy
 

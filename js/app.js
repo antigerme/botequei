@@ -3511,10 +3511,17 @@ function boot() {
   dlog('boot', { v: VERSION, pwa: window.matchMedia('(display-mode: standalone)').matches });
 
   const inv = parseInvite();
+  const q = new URLSearchParams(location.search); // atalhos do PWA (long-press no ícone do app)
   if (inv) {
     pendingJoin = inv.room; pendingPin = inv.needPin;
     if (getName() && !inv.needPin) enterTable(inv.room, { joined: true });
     else ui.openJoin(inv.room, inv.needPin);
+  } else if (q.has('nova') || q.has('entrar')) {
+    // shortcuts do manifest: "Criar mesa" (?nova=1) abre criar; "Entrar por código" (?entrar=1)
+    // foca o campo de código. Limpa o param na hora pra um reload não re-disparar.
+    const nova = q.has('nova');
+    history.replaceState(null, '', location.pathname);
+    if (nova) handlers.onCreate(); else ui.focusCode();
   } else if (!getName() && !store.getHistory().length && !store.getFlag('welcomeSeen')) {
     store.setFlag('welcomeSeen'); // marca AO MOSTRAR: reload (ex.: troca de SW) não repete o guia
     ui.openWelcome(); // primeiro uso: guia rápido (sem convite pendente)

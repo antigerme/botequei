@@ -514,6 +514,18 @@ padrão Auto segue o navegador).
   que piscava e fechava sozinho ao criar a mesa; o e2e-plataforma trava a regressão). **iOS
   não dispara `beforeinstallprompt`** → o `boot` mostra o "📲 Instalar" quando é iPhone e não está
   standalone; tocar cai no `toast.installHint` ("Compartilhar → Adicionar à Tela").
+  **PWA redondo (manifest + shell)**: `launch_handler: navigate-existing` (tocar num link de convite
+  com o app já aberto REAPROVEITA a janela, não duplica); `id` estável; **shortcuts VIVOS** —
+  long-press no ícone → "Criar mesa" (`?nova=1`) e "Entrar por código" (`?entrar=1`); o `boot` lê o
+  param (`URLSearchParams`) e dispara `onCreate`/`focusCode`, limpando o param na hora (reload não
+  re-dispara). **Favicon TEMÁTICO**: o `icons/icon.svg` tem `@media (prefers-color-scheme)` interno →
+  a aba do navegador segue claro/escuro (o ícone INSTALADO é estático — não há API PWA pra trocá-lo
+  por tema). **`screenshots`** no manifest → diálogo de instalação rico (`screenshots/home.png` +
+  `mesa.png`). **Splash do iOS**: `apple-touch-startup-image` por device (`icons/splash/*`, set
+  curado de iPhones em retrato) mata o flash branco ao abrir o PWA — o Android monta o splash sozinho
+  (name+icon+background_color); o iOS ignora e precisa das imagens. Splashes/screenshots ficam FORA
+  do shell do `sw.js` (o SO/navegador busca no install/launch; não precisam de offline). Trava no
+  `e2e-pwa` (atalhos + campos do manifest).
   **Foto de perfil = câmera OU galeria, botão POR fonte**: o perfil tem `📷 Câmera` + `🖼️ Galeria`
   (+ `📸 Webcam` no desktop), os três caindo no MESMO `#avatar-file` → mesmo recorte. NÃO se confia
   mais num único `<input accept=image/*>` SEM capture pra o SO oferecer câmera+galeria: o **Android

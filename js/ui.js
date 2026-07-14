@@ -534,6 +534,12 @@ export function focusNameSoft() {
   if (!el['input-name'] || el['input-name'].value.trim()) return;
   try { el['input-name'].focus({ preventScroll: true }); } catch { el['input-name'].focus(); }
 }
+// atalho "Entrar por código" (?entrar=1 do PWA): foca o campo de código na home (self-guarded)
+export function focusCode() {
+  if (!el['screen-home'] || !el['screen-home'].classList.contains('is-active')) return;
+  if (document.querySelector('.overlay:not([hidden])') || !el['input-code']) return;
+  try { el['input-code'].scrollIntoView({ block: 'center' }); el['input-code'].focus(); } catch { /* ignore */ }
+}
 export function showInstall(v) { el['btn-install'].hidden = !v; }
 
 let homeReturning = false; // "já usou o app antes?" — pra revelar o 📴 sem internet (setado no renderHome)

@@ -8,8 +8,18 @@
       <stop offset="0" stop-color="#241d12"/>
       <stop offset="1" stop-color="#12100b"/>
     </linearGradient>
+    <linearGradient id="bgLight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f3e8cf"/>
+      <stop offset="1" stop-color="#e6d3a8"/>
+    </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- favicon TEMÁTICO: o fundo segue o tema do navegador (a aba claro/escuro); a caneca âmbar
+       fica legível nos dois. OS que renderiza o ícone estático cai no fundo escuro (default). -->
+  <style>
+    .bg { fill: url(#bg); }
+    @media (prefers-color-scheme: light) { .bg { fill: url(#bgLight); } }
+  </style>
+  <rect class="bg" width="512" height="512" rx="112"/>
   <!-- alça -->
   <path d="M356 214 h34 a56 56 0 0 1 0 112 h-34" fill="none" stroke="#f2b02a" stroke-width="34" stroke-linecap="round"/>
   <!-- corpo -->

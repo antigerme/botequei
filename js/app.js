@@ -83,6 +83,7 @@ let pendingPin = false;   // o convite pediu PIN?
 let saveTimer = null;
 let lastAction = null;    // { type, item } para o "desfazer"
 let lastBill = null;
+let billChopp = null;     // { nights, pixCode } do cutucão "me paga um chopp" (decidido ao abrir a conta)
 let lastAwards = [];      // troféus da última cerimônia (p/ compartilhar / mostrar pra mesa)
 let myDriver = false;
 let deferredPrompt = null;
@@ -1252,10 +1253,25 @@ function computeBill() {
   const bankrolls = [...byFrom].map(([from, items]) => ({ from, name: profOf(from).name || t('common.someoneLow'), items, total: items.reduce((a, x) => a + x.amount, 0) }));
   return { rows: out, total: out.reduce((a, r) => a + r.amount, 0), equal: o.equal, hasPrices: allItems().some((i) => i.price > 0), pool: poolVm, bankrolls };
 }
+// 🍺 "me paga um chopp" — cutucão GENTIL no fechar a conta, do jeito Botequei (pull raro, não empurra).
+// Regras anti-NAG: SÓ pra assíduo (Liga prata OU 8+ noites), no MÁXIMO 1×/temporada (mês) e "já paguei"
+// desliga PRA SEMPRE (honra — sem servidor pra conferir). A chave é a do dev (fixa, doação sem valor),
+// a mesmíssima do Sobre. `choppSeasonKey` casa com a temporada da Liga (seasonAward), pra bater 1×/mês.
+const CHOPP_PIX_KEY = 'andre@felicio.com.br';
+function choppPixCode() { return pixPayload({ key: CHOPP_PIX_KEY, name: 'Botequei', city: 'BRASIL', description: 'Chopp pro dev' }); }
+function choppSeasonKey() { const d = new Date(); return d.getUTCFullYear() * 100 + (d.getUTCMonth() + 1); }
+function choppNudge() {
+  if (settings.choppOff) return null;                              // "já paguei": desligou pra sempre
+  if (tableTotal(state) <= 0) return null;                          // só se a noite valeu algo (houve consumo)
+  const hist = store.getHistory();
+  if (!(myLevel() >= 3 || hist.length >= 8)) return null;           // assíduo: nível prata OU 8+ noites
+  if (settings.choppSeason === choppSeasonKey()) return null;       // já cutucado nesta temporada
+  return { nights: hist.length, pixCode: choppPixCode() };
+}
 function renderBill() {
   const b = computeBill(); lastBill = b;
   const note = b.hasPrices ? t('bill.noteCons') : t('bill.notePriceless');
-  ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self, pool: b.pool, bankrolls: b.bankrolls, hasNight: tableTotal(state) > 0 });
+  ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self, pool: b.pool, bankrolls: b.bankrolls, hasNight: tableTotal(state) > 0, chopp: billChopp });
 }
 
 // ---- Jogo minimizado (✕ = minimizar; encerrar pra mesa toda é ação explícita) ----
@@ -3172,6 +3188,10 @@ const handlers = {
     const noPrices = !allItems().some((i) => i.price > 0);
     const bn = sessionBoteco();
     ui.openBill({ tipPct: settings.tipPct, equalDefault: noPrices, couvert: bn ? store.getBotecoCouvert(bn) : 0 });
+    // 🍺 decide o cutucão do chopp UMA vez, ao abrir — estável enquanto mexe na conta (rachar igual etc.)
+    // e marca a temporada JÁ, pra não repetir no mês mesmo que reabra a conta hoje.
+    billChopp = choppNudge();
+    if (billChopp) settings = setSettings({ choppSeason: choppSeasonKey() });
     renderBill();
   },
   onBillChange: renderBill,
@@ -3185,6 +3205,8 @@ const handlers = {
   // captura a chave PIX no fechar a conta (quando não estava configurada): grava e re-renderiza →
   // agora canPix é true → os botões PIX por linha aparecem e o bloco de captura some.
   onBillSetPix: (key) => { if (!key) return; settings = setSettings({ pixKey: key }); renderBill(); ui.toast(t('bill.pixSaved')); },
+  // "já paguei / não mostrar": desliga o cutucão do chopp PRA SEMPRE (honra, sem servidor) e agradece.
+  onChoppOff: () => { settings = setSettings({ choppOff: 1 }); billChopp = null; renderBill(); ui.toast(t('chopp.thanks')); },
   onPrices: () => ui.openPrices(menuEditorItems()),
   onItemToggle: (id) => {
     const it = resolveItem(id);
@@ -3465,10 +3487,9 @@ const handlers = {
   onOpenData: () => ui.openData(dataVM()),
   // Sobre o Botequei: monta o "me paga um chopp" (PIX do dev — chave fixa, doação sem valor) e abre.
   onOpenSobre: () => {
-    const pixKey = 'andre@felicio.com.br';
-    const pixCode = pixPayload({ key: pixKey, name: 'Botequei', city: 'BRASIL', description: 'Chopp pro dev' });
+    const pixCode = choppPixCode(); // mesma chave/doação do cutucão da conta (fonte única)
     let qrNode; try { qrNode = makeQR(pixCode); } catch { qrNode = null; }
-    ui.openSobre({ qrNode, pixCode, pixKey });
+    ui.openSobre({ qrNode, pixCode, pixKey: CHOPP_PIX_KEY });
   },
   onDataClear: (cat) => {
     const done = () => { ui.toast(t('data.cleared')); ui.openData(dataVM()); refreshHome(); };

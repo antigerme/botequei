@@ -354,6 +354,16 @@
       <!-- a conta fechando = a noite acabando: o app OFERECE coroar a noite aqui (troféus da mesa) -->
       <button class="btn btn-ghost" id="btn-bill-crown" hidden data-i18n="cer.crown">🏅 Coroar a noite</button>
     </div>
+    <!-- 🍺 "me paga um chopp": cutucão GENTIL no fim da noite. A visibilidade é decidida no app.js
+         (só assíduo, no máx 1×/temporada, e "já paguei" desliga pra sempre) — aqui é só a casca. -->
+    <div class="bill-chopp" id="bill-chopp" hidden>
+      <p class="bc-msg" id="bill-chopp-msg"></p>
+      <p class="bc-sub" data-i18n="chopp.sub">Ele é grátis, sem anúncio e sem vender seu dado. Se te ajuda, me paga um chopp?</p>
+      <div class="sheet-actions">
+        <button class="btn btn-primary" id="btn-chopp-copy" data-i18n="chopp.copy">📋 Copiar PIX</button>
+        <button class="btn btn-ghost" id="btn-chopp-off" data-i18n="chopp.off">Já paguei 🍺</button>
+      </div>
+    </div>
   </div>
 </div>
 

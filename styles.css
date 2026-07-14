@@ -288,6 +288,12 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 /* Sobre: a promessa de privacidade em DESTAQUE (callout com borda âmbar), não mais o "selo" dim. */
 .sobre-promise { margin: 4px 0 16px; padding: 12px 14px; border: 1px solid var(--gold);
   border-radius: var(--r-m); background: rgba(244,177,60,.1); font-size: var(--fs-body); }
+/* 🍺 cutucão "me paga um chopp" no fim da conta — cartão DISCRETO (borda tracejada), gratidão primeiro */
+.bill-chopp { margin-top: 16px; padding: 12px 14px; border: 1px dashed var(--gold);
+  border-radius: var(--r-m); background: rgba(244,177,60,.08); }
+.bill-chopp .bc-msg { margin: 0 0 3px; font-size: var(--fs-body); font-weight: 600; }
+.bill-chopp .bc-sub { margin: 0 0 10px; font-size: var(--fs-ml); color: var(--muted); }
+.bill-chopp .sheet-actions { margin: 0; }
 .qr-wrap svg, .qr-wrap canvas { display: block; width: 220px; height: 220px; }
 .big-code { text-align: center; font-family: var(--num); font-size: min(2.875rem, 11vw); letter-spacing: 8px; color: var(--gold); margin-bottom: 6px; }
 

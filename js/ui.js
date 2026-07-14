@@ -93,6 +93,7 @@ const IDS = [
   'btn-boteco-rename', 'btn-boteco-del', 'btn-boteco-delall', 'boteco-rename-box', 'boteco-rename', 'btn-boteco-rename-go',
   'btn-open-data', 'overlay-data', 'data-list',
   'btn-open-sobre', 'overlay-sobre', 'sobre-pix-qr', 'sobre-pixkey', 'btn-sobre-pixcopy', 'btn-sobre-pixkey', 'btn-sobre-share', 'sobre-version',
+  'bill-chopp', 'bill-chopp-msg', 'btn-chopp-copy', 'btn-chopp-off',
   'overlay-welcome', 'btn-welcome-go', 'welcome-demo', 'welcome-demo-n',
   'league-level', 'league-challenges', 'league-season',
   'btn-offline-join', 'btn-offline-host',
@@ -1077,6 +1078,15 @@ export function renderBill(vm) {
   el['bill-pix-setup'].hidden = !(!vm.canPix && hasReceivable);
   el['bill-total'].textContent = t('bill.total', { v: fmtMoney(vm.total) });
   el['btn-bill-crown'].hidden = !vm.hasNight; // a conta fechando + houve consumo → oferece coroar a noite
+  // 🍺 cutucão do chopp — só aparece quando o app.js manda vm.chopp (gate na Liga: assíduo,
+  // 1×/temporada, não-desligado). Copiar-primeiro (mesmo padrão do Sobre); "já paguei" via H.
+  const cp = vm.chopp;
+  el['bill-chopp'].hidden = !cp;
+  if (cp) {
+    el['bill-chopp-msg'].textContent = t('chopp.msg', { n: cp.nights });
+    el['btn-chopp-copy'].onclick = () => { if (cp.pixCode && navigator.clipboard) navigator.clipboard.writeText(cp.pixCode).then(() => toast(t('sobre.pixCopied'))).catch(() => { /* clipboard negado */ }); };
+    el['btn-chopp-off'].onclick = () => H.onChoppOff();
+  }
 }
 
 // ---------- PIX ----------

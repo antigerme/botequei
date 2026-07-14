@@ -451,10 +451,21 @@ padrão Auto segue o navegador).
 - **ℹ️ Sobre o Botequei** (`ui.openSobre`, overlay `#overlay-sobre`, aberto por `#btn-open-sobre` nas
   ⚙️): a história (combo — origem da "conta que não bateu" + "pega MENOS no celular" + a promessa
   P2P/privacidade + "feito à mão"/código aberto, em `sobre.p1..p4` via `data-i18n-html`), links do
-  site + GitHub, e o **"🍺 me paga um chopp"** — o **único pedido de grana** do app, e só aqui (pull,
-  nunca empurra). O QR é PIX do dev (chave FIXA `andre@felicio.com.br`, doação sem valor: `onOpenSobre`
-  monta o `pixPayload` → `makeQR` e o botão copia o "copia e cola"). Monetização = cobrir custo + uns
-  trocados, **sem trair o DNA** (sem anúncio, sem dado, sem conta). Trava no `e2e-sobre`.
+  site + GitHub, e o **"🍺 me paga um chopp"** — o **pedido de grana** do app. O QR é PIX do dev
+  (chave FIXA `andre@felicio.com.br`, doação sem valor: `onOpenSobre` monta o `pixPayload` → `makeQR`
+  e o botão copia o "copia e cola"; `choppPixCode`/`CHOPP_PIX_KEY` no `app.js` são a FONTE ÚNICA da
+  chave — o Sobre e o cutucão da conta leem daqui). Monetização = cobrir custo + uns trocados,
+  **sem trair o DNA** (sem anúncio, sem dado, sem conta). Trava no `e2e-sobre`.
+- **🍺 Cutucão "me paga um chopp" no fechar a conta** (`choppNudge`/`onChoppOff` no `app.js`,
+  `#bill-chopp` no `renderBill`): um lembrete GENTIL do chopp, do jeito Botequei — **pull raro, NÃO
+  empurra**. Regras anti-NAG (decisão de produto do André): aparece **só pra ASSÍDUO** (**8+ noites**
+  no histórico — FREQUÊNCIA pura, sem misturar volume/nível: `getHistory().length`), no **MÁXIMO
+  1×/TRIMESTRE** (`settings.choppSeason` = ano+trimestre; marcado AO abrir a conta pra não repetir no
+  período) e **só com consumo** (`tableTotal>0` — a noite valeu algo). Enquadramento **gratidão
+  primeiro** (`chopp.msg` "já foram N rolês…"), copiar-primeiro (mesmo padrão do Sobre, reusa
+  `sobre.pixCopied`). O **"já paguei 🍺" (`onChoppOff` → `settings.choppOff`) DESLIGA PRA SEMPRE** —
+  honra, sem servidor pra conferir (combina com o DNA). Decidido UMA vez ao abrir (`billChopp` estável
+  enquanto mexe na conta). Trava no `e2e-chopp` (assíduo vê · desligou some pra sempre · novato não vê).
 - **Cardápio por boteco (local, sem servidor):** o app LEMBRA o cardápio de cada lugar pra
   recarregar quando você volta (`saveBotecoMenu`/`getBotecoMenu`/`hasBotecoMenu`/`botecoKey` em
   `store.js`, chave `botequei.botecomenu`; normaliza pelo nome — minúsculo, sem acento). **Boteco

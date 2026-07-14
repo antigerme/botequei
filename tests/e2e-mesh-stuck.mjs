@@ -35,6 +35,17 @@ async function main() {
   const code = await p.evaluate(() => { const m = location.hash.match(/room=([^&]+)/); return m ? m[1] : null; });
   if (!code) throw new Error('não achei o código da sala no hash');
 
+  // registra 1 consumo → tt>0: o aviso de travado (banner/placar) SÓ surge com a mesa ATIVA.
+  // (mesa nasce limpa; criar abriu o convite por cima — fecha, monta 1 item no ➕ e dá +1)
+  await p.click('#overlay-invite .sheet-close').catch(() => {});
+  await p.waitForSelector('#overlay-invite', { state: 'hidden', timeout: 5000 }).catch(() => {});
+  const vazio = await p.evaluate(() => !document.getElementById('menu-empty').hidden);
+  await p.click(vazio ? '#btn-empty-custom' : '#btn-additem');
+  await p.fill('#add-name', 'Chopp');
+  await p.click('#btn-additem-confirm');
+  await p.waitForFunction(() => document.getElementById('overlay-additem').hidden, null, { timeout: 20000 });
+  await p.click('.item-card[data-item="x-chopp"]');
+
   // 2) peer FANTASMA: só faz join (fica "presente" pro signaling) e NUNCA responde ao WebRTC.
   //    Re-join a cada 7s pra não vencer o TTL de presença (15s).
   const ghost = 'ghostpeer99';
@@ -48,25 +59,22 @@ async function main() {
   const ok = (cond, msg) => { if (!cond) throw new Error('✗ ' + msg); console.log('  ✓ ' + msg); n++; };
 
   try {
-    // 3) (a) passados ~UNREACHABLE_MS (18s), o fantasma vira "travado" em mesh.peers() (via __presDbg)
+    // 3) (a) passados ~UNREACHABLE_MS (30s: teto generoso, dá tempo do TURN ganhar antes do QR),
+    //    o fantasma vira "travado" em mesh.peers() (via __presDbg)
     await p.waitForFunction((g) => {
       const d = window.__presDbg && window.__presDbg();
       return !!(d && d.peers && d.peers.some((x) => x.u === g && x.stuck));
-    }, ghost, { timeout: 30000 });
+    }, ghost, { timeout: 50000 });
     ok(true, '(a) peer presente no signaling mas sem fechar o P2P vira stuck em mesh.peers()');
 
-    // 4) (b) o banner de conexão vira AÇÃO: role=button + o aviso 🔌 (apontando pro parear por QR)
+    // 4) (b) o banner de conexão vira AÇÃO: role=button + o aviso 🔌 (só com a mesa ativa, tt>0)
     await p.waitForFunction(() => {
       const b = document.getElementById('conn-banner');
       return !!(b && !b.hidden && b.getAttribute('role') === 'button' && /🔌/.test(b.textContent || ''));
     }, null, { timeout: 8000 });
     ok(true, '(b) banner de conexão vira botão tappável com o aviso de travado');
 
-    // Criar a mesa abre o convite por cima; o usuário fecha e aí vê a mesa (fluxo real).
-    await p.keyboard.press('Escape');
-    await p.waitForSelector('#overlay-invite', { state: 'hidden', timeout: 5000 });
-
-    // 5) (3) saúde por link: o PLACAR mostra o peer travado com 🔌 (aparece mesmo sem consumo)
+    // 5) (3) saúde por link: o PLACAR mostra o peer travado com 🔌
     await p.click('#btn-peers');
     await p.waitForFunction(() => { const l = document.getElementById('peers-list'); return !!(l && /🔌/.test(l.textContent || '')); }, null, { timeout: 5000 });
     ok(true, '(3) placar mostra o peer travado com 🔌 (saúde por link)');

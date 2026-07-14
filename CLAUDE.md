@@ -560,17 +560,22 @@ padrão Auto segue o navegador).
   das duas → 204 → STUN. **TURN é sempre OPCIONAL**: o caminho zero-servidor é o QR offline (abaixo).
 - **Mesh redonda — P2P travado vira ação (zero servidor)** (`js/mesh.js` + `render()`): quando um
   peer aparece no signaling (a gente se VÊ) mas o canal WebRTC **nunca fecha** por `UNREACHABLE_MS`
-  (18s — NAT simétrico/CGNAT do 4G, firewall), o `peers()` marca `stuck` (bookkeeping `_firstTryAt`
+  (**30s** — teto GENEROSO de propósito: reconexão normal fecha bem antes, então não incomoda à toa,
+  E dá tempo do ICE fechar via **TURN** [o relay demora mais que host/srflx] → **QR é o ÚLTIMO
+  recurso, só quando NEM o TURN deu**), o `peers()` marca `stuck` (bookkeeping `_firstTryAt`
   SOBREVIVE aos retries — `createdAt` reseta, este não — e `_everConnected` faz queda-pós-conexão ser
   💤, não "travado"; o `_tick` pega a virada por TEMPO e re-renderiza). O `render()` transforma o
-  **banner de conexão numa AÇÃO** (`ui.setConn(msg, onTap)` → `role=button`, alvo ≥48px): tocar chama
+  **banner de conexão numa AÇÃO** (`ui.setConn(msg, onTap)` → `role=button`, alvo ≥48px) **só com a
+  mesa ATIVA** (`tt>0`: sem consumo não há o que dessincronizar → fica quieto): tocar chama
   `nudgePair`, que oferece o **pareamento por QR** (host candidate na mesma Wi-Fi/hotspot — a saída
   ZERO servidor que já existia no `handshake.js`). Papel DETERMINÍSTICO (mesma anti-glare da malha:
   id menor MOSTRA o convite/`offlineHost`, maior ESCANEIA/`offlineJoin` — os dois lados escolhem
   papéis complementares sem combinar nada). O **Placar mostra a saúde por link**: o peer travado
   aparece com **🔌** (`net.stuck`, `renderPeers` força a linha mesmo sem consumo — o log dele nem
-  chegou) — 🔌 ≠ 💤 (esteve aqui e saiu). O dev-mode loga `malha.travada` (bug de campo que só mora
-  no aparelho). `e2e-mesh-stuck` trava tudo com um peer-fantasma (join sem responder ao WebRTC).
+  chegou; também gateado por `tableTotal>0`) — 🔌 ≠ 💤 (esteve aqui e saiu). O texto é SEM jargão
+  ("entrou mas não tá aparecendo — toque pra conectar por QR", nada de "P2P"/"parear"). O dev-mode
+  loga `malha.travada` (bug de campo que só mora no aparelho). `e2e-mesh-stuck` trava tudo com um
+  peer-fantasma (join sem responder ao WebRTC).
 
 ## Mapa de arquivos
 - `index.html` — shell (telas via seções `.screen`)

@@ -694,8 +694,9 @@ function render() {
   const online = mp.filter((p) => p.online).length;
   const stuck = mp.filter((p) => p.stuck); // presente no signaling mas o P2P nunca fechou (NAT/4G)
   if (mp.length === 0) ui.setConn(t('conn.alone'));
-  else if (stuck.length) {
-    // banner vira AÇÃO: tocar → parear por QR (host candidate na mesma Wi-Fi/hotspot, zero servidor)
+  else if (stuck.length && tt > 0) {
+    // só INCOMODA com a mesa ativa (tt>0): sem consumo, nada pra dessincronizar → fica quieto.
+    // banner vira AÇÃO: tocar → conectar por QR (host candidate na mesma Wi-Fi/hotspot, zero servidor)
     const nm = profOf(stuck[0].user).name || t('common.someoneLow');
     ui.setConn(stuck.length > 1 ? t('conn.stuckN', { name: nm, n: stuck.length - 1 }) : t('conn.stuck', { name: nm }), nudgePair);
   }
@@ -757,9 +758,9 @@ function renderPeers() {
     const p = profOf(self);
     rows.push({ user: self, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, driver: p.driver, total: 0, money: 0, badges: badgesFor(state, self) });
   }
-  // peer TRAVADO aparece no placar mesmo sem consumo (o log dele nem chegou — está travado!):
-  // é a "saúde por link" — você vê "fulano está aqui mas o P2P não fechou" com o 🔌 e a dica de QR
-  for (const [u, net] of nets) {
+  // peer TRAVADO aparece no placar (mesmo sem consumo — o log dele nem chegou): a "saúde por
+  // link". Só com a mesa ATIVA (tableTotal>0): mesa vazia não tem o que dessincronizar → sem ruído.
+  if (tableTotal(state) > 0) for (const [u, net] of nets) {
     if (net.stuck && !rows.some((r) => r.user === u)) {
       const p = profOf(u);
       rows.push({ user: u, name: p.name, color: p.color, emoji: p.emoji, photo: p.photo, level: p.level, total: 0, money: 0, badges: [], online: false, stuck: true });

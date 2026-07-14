@@ -20,8 +20,10 @@ const RETRY_MS = 3000;   // cooldown entre tentativas de reconexao
 const STUCK_MS = 10000;  // handshake que nunca completou -> tenta de novo
 // Presente no signaling (a gente se VE) mas o P2P NUNCA fechou por tanto tempo -> quase certo
 // que e a rede (NAT simetrico/CGNAT do 4G, firewall). O app SURFACE isso e oferece o QR offline
-// (host candidate na mesma Wi-Fi/hotspot) — zero servidor. So marca depois de varios retries.
-const UNREACHABLE_MS = 18000;
+// (host candidate na mesma Wi-Fi/hotspot) — zero servidor. Teto GENEROSO (30s) de proposito: (a)
+// reconexao normal fecha bem antes, entao nao incomoda a toa; (b) da tempo do ICE fechar via TURN
+// (relay demora mais que host/srflx) -> o QR so e oferecido quando NEM o TURN deu. QR = ultimo recurso.
+const UNREACHABLE_MS = 30000;
 
 export class Mesh {
   constructor(opts) {

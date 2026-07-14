@@ -377,6 +377,12 @@ padrão Auto segue o navegador).
   `getBotecoCouvert`, chave `botequei.botecocouvert` — igual à gorjeta; mesa anônima não salva nem prefila);
   e **sem chave PIX mas com dinheiro a receber, a própria conta CAPTURA a chave** (bloco `#bill-pix-setup`
   → `onBillSetPix` grava → os botões PIX por linha aparecem; antes o caminho de receber era inalcançável).
+  **Adivinha o estado, some com a bobagem** (o "profissional SUBTRAI"): o **"…" só mostra tile que FAZ
+  algo** (`onMenu` → `ui.openMenu`: 💸 Fechar a conta e 📸 Compartilhar pedem `tableTotal>0`; 💲 Preços pede
+  cardápio com item; 🔔 garçom e 🎓 tour valem sempre) — nada de abrir conta R$0 / recap vazio / editor
+  vazio numa mesa nova; e **sozinho na mesa a conta vira RECIBO** (`solo = rows.length<=1` → some o switch
+  "rachar igual" + o checkbox de seleção: rachar entre 1 = seu total). Volta tudo quando entra a 2ª pessoa.
+  Trava no `e2e-conta-estado`.
   **Cardápio da mesa** (ex-"Preços", `menu-prices`): cada item aceita **marca/apelido**
   (`brand` no def, LWW — `itemLabel` prioriza), **descrição** (`note` no def, LWW — nasce
   no ➕ como "Descrição (opcional)" e é editável aqui; o card mostra como legenda — caso

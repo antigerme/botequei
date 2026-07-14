@@ -60,7 +60,7 @@ const IDS = [
   'overlay-camera', 'cam-video', 'btn-cam-shoot',
   'overlay-additem', 'emoji-row', 'add-name', 'add-price', 'add-note', 'add-share', 'btn-additem-confirm',
   'add-prev-emoji', 'add-prev-name', 'add-prev-sub',
-  'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-list', 'bill-total', 'btn-bill-share',
+  'overlay-bill', 'bill-note', 'bill-tips', 'bill-couvert', 'bill-equal', 'bill-equal-wrap', 'bill-list', 'bill-total', 'btn-bill-share',
   'bill-pool', 'bill-pool-line', 'bill-shareall-wrap', 'bill-shareall', 'bill-bankrolls',
   'bill-pix-setup', 'bill-pixkey', 'btn-bill-pixkey',
   'overlay-pix', 'pix-title', 'pix-qr', 'pix-code', 'btn-pix-copy',
@@ -187,7 +187,7 @@ export function init(handlers) {
   $('btn-invite').addEventListener('click', () => H.onInvite());
   $('btn-peers').addEventListener('click', () => H.onPeers());
   $('money-block').addEventListener('click', () => H.onBill()); // tocar na conta abre "Fechar a conta"
-  $('btn-menu').addEventListener('click', () => { el['overlay-menu'].hidden = false; });
+  $('btn-menu').addEventListener('click', () => H.onMenu());
   $('btn-games').addEventListener('click', () => openGames());
   $('btn-additem').addEventListener('click', () => openAddItem());      // "+ item" da mesa montada
   $('btn-empty-custom').addEventListener('click', () => openAddItem()); // mesa limpa: mesmo overlay, catálogo primeiro
@@ -1008,6 +1008,15 @@ let billExcluded = new Set();     // quem ficou de fora do "rachar igual"
 function markTip() {
   el['bill-tips'].querySelectorAll('button[data-tip]').forEach((b) => b.classList.toggle('sel', Number(b.dataset.tip) === billTip));
 }
+// "…" da MESA: tiles que só fazem algo com estado aparecem SÓ quando fazem — conta/compartilhar
+// pedem consumo (hasNight), preços pedem cardápio (hasItems); garçom/tour valem sempre. Não oferecer
+// um beco sem saída (conta R$0, recap vazio, editor vazio) é o "adivinha mais, subtrai".
+export function openMenu(vm) {
+  el['menu-bill'].hidden = !vm.hasNight;
+  el['menu-share'].hidden = !vm.hasNight;
+  el['menu-prices'].hidden = !vm.hasItems;
+  el['overlay-menu'].hidden = false;
+}
 export function openBill(vm) {
   billExcluded = new Set();
   el['bill-shareall'].checked = false; // cada fechamento começa no padrão: motorista fora do bolo
@@ -1028,7 +1037,7 @@ export function billOptions() {
   };
 }
 export function renderBill(vm) {
-  el['bill-note'].textContent = vm.note || '';
+  el['bill-note'].textContent = vm.solo ? t('bill.soloNote') : (vm.note || ''); // solo = recibo, sem "rache igual"
   // bolo da mesa (garrafas/torres compartilhadas): resumo + fatia; toggle do motorista quando muda algo
   const pool = vm.pool;
   el['bill-pool'].hidden = !pool;
@@ -1047,9 +1056,11 @@ export function renderBill(vm) {
     }).join('');
   }
   const equal = !!vm.equal;
+  // solo (só você na mesa): rachar entre 1 = seu total → a conta vira RECIBO, sem maquinaria de racha
+  el['bill-equal-wrap'].hidden = !!vm.solo;
   el['bill-list'].innerHTML = vm.rows.map((r) => {
     const items = (r.items || []).map((it) => `${esc(it.emoji)}${it.n}`).join(' ');
-    const sel = equal ? `<input type="checkbox" class="b-sel" ${r.included ? 'checked' : ''} aria-label="${t('bill.selAria')}" />` : '';
+    const sel = (equal && !vm.solo) ? `<input type="checkbox" class="b-sel" ${r.included ? 'checked' : ''} aria-label="${t('bill.selAria')}" />` : '';
     const right = r.coveredByName
       ? `<span class="b-covered">🙌 ${esc(r.coveredByName)}</span>`
       : `<span class="b-amt">${fmtMoney(r.amount)}</span>`;

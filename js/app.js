@@ -1272,7 +1272,7 @@ function choppNudge() {
 function renderBill() {
   const b = computeBill(); lastBill = b;
   const note = b.hasPrices ? t('bill.noteCons') : t('bill.notePriceless');
-  ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self, pool: b.pool, bankrolls: b.bankrolls, hasNight: tableTotal(state) > 0, chopp: billChopp });
+  ui.renderBill({ rows: b.rows, total: b.total, equal: b.equal, note, canPix: !!settings.pixKey, selfId: self, pool: b.pool, bankrolls: b.bankrolls, hasNight: tableTotal(state) > 0, chopp: billChopp, solo: b.rows.length <= 1 });
 }
 
 // ---- Jogo minimizado (✕ = minimizar; encerrar pra mesa toda é ação explícita) ----
@@ -3184,6 +3184,9 @@ const handlers = {
     roomPin = pin; restartMesh(); openInvite();
     ui.toast(pin ? t('toast.pinOn') : t('toast.pinOff'));
   },
+  // "…" da mesa: os tiles que dependem de estado só aparecem quando fazem algo (não oferecer beco sem
+  // saída). conta/compartilhar pedem consumo; preços pedem cardápio; garçom/tour valem sempre.
+  onMenu: () => ui.openMenu({ hasNight: tableTotal(state) > 0, hasItems: allItems().length > 0 }),
   onBill: () => {
     // sem NENHUM preço no cardápio, por-consumo dá tudo R$0 → abre JÁ no "rachar igual" (default útil).
     const noPrices = !allItems().some((i) => i.price > 0);

@@ -4,7 +4,7 @@
 // pela própria Cloudflare — com run_worker_first, só as duas rotas acordam o Worker).
 // O contrato é IDÊNTICO ao do adaptador Node (server/node.mjs): mesmo cliente, mesma resposta.
 
-import { clean } from '../server/core.mjs';
+import { clean, turnCredentials } from '../server/core.mjs';
 import { RoomDO } from './room-do.mjs';
 export { RoomDO };
 
@@ -35,9 +35,28 @@ export default {
   },
 };
 
-// TURN: credenciais efêmeras da Cloudflare Calls. Sem os secrets → 204 → o app cai pro STUN.
-// A API responde 201; o cliente espera 200 → normaliza (mesmo ajuste do adaptador Node).
+// HMAC-SHA1 → base64 via WebCrypto (o Worker não tem node:crypto; o adaptador Node usa createHmac).
+async function hmacBase64(secret, msg) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(msg)));
+  let s = ''; for (let i = 0; i < sig.length; i++) s += String.fromCharCode(sig[i]);
+  return btoa(s);
+}
+
+// TURN: credenciais efêmeras. Duas fontes, nesta ORDEM (a 1ª configurada vence):
+//   1) coturn SELF-HOSTED (sem lock-in): TURN_URL (var pública) + TURN_SECRET (secret) — a
+//      credencial (HMAC-SHA1) sai daqui mesmo, sem chamar terceiro. TURN_TTL opcional.
+//   2) Cloudflare Calls: CF_TURN_KEY_ID + CF_TURN_API_TOKEN (a API responde 201; o cliente
+//      espera 200 → normaliza, mesmo ajuste do adaptador Node).
+// Nenhuma configurada → 204 → o app cai pro STUN.
 async function turn(env) {
+  // 1) coturn no próprio servidor do André: mesmo padrão use-auth-secret do adaptador Node.
+  if (env.TURN_URL && env.TURN_SECRET) {
+    const creds = await turnCredentials(env.TURN_URL, env.TURN_SECRET, parseInt(env.TURN_TTL, 10), Date.now(), hmacBase64);
+    return new Response(JSON.stringify(creds), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+  }
+  // 2) Cloudflare Calls.
   const keyId = env.CF_TURN_KEY_ID, token = env.CF_TURN_API_TOKEN;
   if (!keyId || !token) return new Response(null, { status: 204 });
   const ttl = parseInt(env.CF_TURN_TTL, 10) > 0 ? parseInt(env.CF_TURN_TTL, 10) : 86400;

@@ -20,6 +20,24 @@ export const MAX_BODY = 65536;      // teto de corpo/frame (SDP grande cabe com 
 // (quem cria e quem entra) mandam a MESMA string, então o namespace continua batendo.
 export const clean = (s) => String(s || '').replace(/[^A-Za-z0-9_-]/g, '');
 
+// Credenciais TURN efêmeras no padrão coturn "use-auth-secret" (a REST API de TURN,
+// draft-uberti-behave-turn-rest / RFC 8489): username = <expiração unix em segundos> e
+// credential = base64(HMAC-SHA1(segredo, username)). O coturn valida o HMAC com o MESMO
+// static-auth-secret — SEM lista de usuários, e a credencial só vale até expirar. Assim o
+// André pode subir um coturn no PRÓPRIO servidor (Red Hat/CentOS, o mesmo da VM) e não
+// depender de TURN de terceiro nenhum (nem Cloudflare) — self-host de ponta a ponta.
+// O HMAC entra por INJEÇÃO porque os dois adaptadores têm crypto diferente (Node = node:crypto
+// SÍNCRONO; Worker = WebCrypto ASSÍNCRONO); esta função fica pura e testável (tests/turn.test.mjs).
+export async function turnCredentials(urls, secret, ttlSec, now, hmacBase64) {
+  const ttl = Number.isFinite(ttlSec) && ttlSec > 0 ? Math.floor(ttlSec) : 86400;
+  const username = String(Math.floor(now / 1000) + ttl);
+  const credential = await hmacBase64(secret, username);
+  // TURN_URL pode listar vários (turn: e turns:) separados por vírgula — coturn faz STUN E TURN
+  // no mesmo host, então isto basta pra srflx + relay sem terceiro nenhum.
+  const list = Array.isArray(urls) ? urls.filter(Boolean) : String(urls || '').split(',').map((u) => u.trim()).filter(Boolean);
+  return { iceServers: [{ urls: list, username, credential }] };
+}
+
 export class Room {
   constructor() {
     this.pres = new Map(); // peer -> lastSeen (ms) — presença de quem usa polling

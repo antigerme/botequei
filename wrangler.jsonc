@@ -28,8 +28,12 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomDO"] }],
 
-  // TURN (opcional): defina os SECRETS CF_TURN_KEY_ID e CF_TURN_API_TOKEN no painel
-  // (Settings → Variables and Secrets) ou via `npx wrangler secret put …`. Sem eles o
-  // /turn responde 204 e o app segue só com STUN. O TTL não é segredo, então fica aqui.
-  "vars": { "CF_TURN_TTL": "86400" }
+  // TURN (opcional): duas fontes, a 1ª configurada vence. Sem nenhuma, /turn responde 204 e o
+  // app segue só com STUN. Os TTLs não são segredo, então ficam aqui; o resto entra por Secret.
+  //  1) coturn SELF-HOSTED (sem lock-in): TURN_URL (ex.: "turn:seu.host:3478" — pode listar
+  //     turn:/turns: por vírgula) como var, e TURN_SECRET (o static-auth-secret do coturn) por
+  //     `npx wrangler secret put TURN_SECRET`. A credencial (HMAC-SHA1) sai do próprio Worker.
+  //  2) Cloudflare Calls: SECRETS CF_TURN_KEY_ID + CF_TURN_API_TOKEN (painel Settings →
+  //     Variables and Secrets, ou `npx wrangler secret put …`).
+  "vars": { "CF_TURN_TTL": "86400", "TURN_TTL": "86400" }
 }

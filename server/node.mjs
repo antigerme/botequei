@@ -15,11 +15,11 @@
 // que o Durable Object da Cloudflare usa. Mudou regra de protocolo? Muda lá, os dois herdam.
 
 import { createServer } from 'node:http';
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { join, normalize, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Room, clean, MAX_BODY } from './core.mjs';
+import { Room, clean, MAX_BODY, turnCredentials } from './core.mjs';
 
 const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..'));
 const PORT = Number(process.env.PORT) || 8000;
@@ -116,9 +116,20 @@ async function signaling(req, res, url) {
   return sendJSON(res, { error: 'acao desconhecida' }, 400);
 }
 
-// TURN: credenciais efêmeras da Cloudflare (a API é um HTTPS público — a VM chama igual).
-// Sem os envs → 204 → o app cai pro STUN. A API responde 201; o cliente espera 200 → normaliza.
+// TURN: credenciais efêmeras. Duas fontes, nesta ORDEM de precedência (a 1ª configurada vence):
+//   1) coturn SELF-HOSTED (sem lock-in): envs TURN_URL + TURN_SECRET (o static-auth-secret do
+//      coturn). As credenciais saem daqui mesmo, com HMAC local — nada de terceiro. TURN_TTL opcional.
+//   2) Cloudflare Calls: CF_TURN_KEY_ID + CF_TURN_API_TOKEN (a API é HTTPS público — a VM chama igual).
+// Nenhuma das duas configurada → 204 → o app cai pro STUN (comportamento preservado).
 async function turn(res) {
+  // 1) coturn no próprio servidor: gera a credencial na hora (HMAC-SHA1), sem chamar ninguém.
+  const turnUrl = process.env.TURN_URL, turnSecret = process.env.TURN_SECRET;
+  if (turnUrl && turnSecret) {
+    const creds = await turnCredentials(turnUrl, turnSecret, parseInt(process.env.TURN_TTL, 10), Date.now(),
+      (s, m) => createHmac('sha1', s).update(m).digest('base64'));
+    return res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify(creds));
+  }
+  // 2) Cloudflare Calls. A API responde 201; o cliente espera 200 → normaliza.
   const keyId = process.env.CF_TURN_KEY_ID, token = process.env.CF_TURN_API_TOKEN;
   if (!keyId || !token) return res.writeHead(204).end();
   const ttl = parseInt(process.env.CF_TURN_TTL, 10) > 0 ? parseInt(process.env.CF_TURN_TTL, 10) : 86400;

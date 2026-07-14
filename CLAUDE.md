@@ -100,8 +100,14 @@ padrão Auto segue o navegador).
   peer e converge). Peers manuais ficam fora da reconexão via signaling (re-pareia com novo QR).
 - **Estado por eventos (CRDT PN-Counter)** (`js/events.js`): eventos imutáveis
   `{type,user,item,ts,eventId}`. Total = soma (comutativa → converge). Dedup por `eventId`.
-  Anti-entropy no join (troca o log completo, em **lotes de 64 eventos** — mensagem única
-  estouraria o teto do DataChannel com o log grande) + gossip (repassa eventos novos). LWW (ts→eventId)
+  Anti-entropy no join (troca o log completo em **lotes de 64 eventos COMPRIMIDOS** — `_sendSync`
+  no `mesh.js`: cada lote é deflate→binário CRU no DataChannel, sem base64, e o envio tem
+  **BACKPRESSURE** (`bufferedAmountLowThreshold`/`_drain`) pra não estourar o buffer com log grande
+  + foto — send() que lança dropa o lote no catch = divergência silenciosa; o `wake()` também passa
+  por aqui, antes ele mandava o log INTEIRO numa msg só; a ordem dos lotes não importa: reducer é
+  CRDT. Fallback texto `{k:'sync'}` sem CompressionStream/peer antigo; `deflateJSON`/`inflateJSON`
+  reusam o `squeeze` do `handshake.js`, testados em `tests/handshake.test.mjs`) + gossip (repassa
+  eventos novos). LWW (ts→eventId)
   p/ ITEM/PROFILE/TABLE/nomes e **PAYFOR** ("eu pago pra fulano", chave `from\x00to`).
   **Crédito/promessa** (evento `PLEDGE` — "banco uma rodada / N garrafas") é como se banca a mesa:
   o `settle(state)` (FONTE ÚNICA da conta) acerta no ESTADO FINAL — rodada de item pessoal cobre
@@ -561,7 +567,9 @@ padrão Auto segue o navegador).
   `nudgePair`, que oferece o **pareamento por QR** (host candidate na mesma Wi-Fi/hotspot — a saída
   ZERO servidor que já existia no `handshake.js`). Papel DETERMINÍSTICO (mesma anti-glare da malha:
   id menor MOSTRA o convite/`offlineHost`, maior ESCANEIA/`offlineJoin` — os dois lados escolhem
-  papéis complementares sem combinar nada). O dev-mode loga `malha.travada` (bug de campo que só mora
+  papéis complementares sem combinar nada). O **Placar mostra a saúde por link**: o peer travado
+  aparece com **🔌** (`net.stuck`, `renderPeers` força a linha mesmo sem consumo — o log dele nem
+  chegou) — 🔌 ≠ 💤 (esteve aqui e saiu). O dev-mode loga `malha.travada` (bug de campo que só mora
   no aparelho). `e2e-mesh-stuck` trava tudo com um peer-fantasma (join sem responder ao WebRTC).
 
 ## Mapa de arquivos

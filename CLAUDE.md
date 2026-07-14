@@ -540,10 +540,29 @@ padrão Auto segue o navegador).
   tem câmera; o frame cai no MESMO recorte (`startCrop`) e a stream desliga em TODO fechamento (`stopCam`
   no `closeOverlays`, ✕/ESC/voltar — câmera nunca fica zumbi). QR **não** tem equivalente nativo na web
   → segue com o leitor ao vivo do `scan.js`.
-- **TURN opcional** (rota `/turn`, nos dois adaptadores): credenciais efêmeras da Cloudflare,
-  lidas dos envs `CF_TURN_KEY_ID`/`CF_TURN_API_TOKEN`/`CF_TURN_TTL` (VM: `Environment=` do
-  systemd; CF: Secrets do painel/`wrangler secret put`). Token **só no servidor**. Sem config →
-  204 → STUN. A API responde **201** e o `loadIce()` espera 200 → os adaptadores normalizam.
+- **TURN opcional (SEM lock-in)** (rota `/turn`, nos dois adaptadores): **duas fontes, a 1ª
+  configurada vence** (`turnCredentials` PURO no `server/core.mjs`, testado em `tests/turn.test.mjs`;
+  o HMAC entra por injeção — Node `node:crypto` síncrono, Worker WebCrypto assíncrono → MESMA
+  credencial, provado no unit). **(1) coturn self-hosted**: envs `TURN_URL` (ex.:
+  `turn:seu.host:3478`, vírgula separa vários) + `TURN_SECRET` (o `static-auth-secret` do coturn) →
+  o servidor gera a credencial na hora no padrão **use-auth-secret** (`username=<expiração unix>`,
+  `credential=base64(HMAC-SHA1(secret, username))`), sem chamar terceiro — o André pode subir um
+  coturn na PRÓPRIA VM e não depender de TURN nenhum ao sair da Cloudflare. **(2) Cloudflare Calls**:
+  `CF_TURN_KEY_ID`/`CF_TURN_API_TOKEN`/`CF_TURN_TTL` (a API responde 201; o `loadIce()` espera 200 →
+  os adaptadores normalizam). Token/secret **só no servidor** (VM: `Environment=` do systemd; CF: var
+  `TURN_URL`/`TURN_TTL` + secret `TURN_SECRET`/`CF_*` via painel/`wrangler secret put`). Sem nenhuma
+  das duas → 204 → STUN. **TURN é sempre OPCIONAL**: o caminho zero-servidor é o QR offline (abaixo).
+- **Mesh redonda — P2P travado vira ação (zero servidor)** (`js/mesh.js` + `render()`): quando um
+  peer aparece no signaling (a gente se VÊ) mas o canal WebRTC **nunca fecha** por `UNREACHABLE_MS`
+  (18s — NAT simétrico/CGNAT do 4G, firewall), o `peers()` marca `stuck` (bookkeeping `_firstTryAt`
+  SOBREVIVE aos retries — `createdAt` reseta, este não — e `_everConnected` faz queda-pós-conexão ser
+  💤, não "travado"; o `_tick` pega a virada por TEMPO e re-renderiza). O `render()` transforma o
+  **banner de conexão numa AÇÃO** (`ui.setConn(msg, onTap)` → `role=button`, alvo ≥48px): tocar chama
+  `nudgePair`, que oferece o **pareamento por QR** (host candidate na mesma Wi-Fi/hotspot — a saída
+  ZERO servidor que já existia no `handshake.js`). Papel DETERMINÍSTICO (mesma anti-glare da malha:
+  id menor MOSTRA o convite/`offlineHost`, maior ESCANEIA/`offlineJoin` — os dois lados escolhem
+  papéis complementares sem combinar nada). O dev-mode loga `malha.travada` (bug de campo que só mora
+  no aparelho). `e2e-mesh-stuck` trava tudo com um peer-fantasma (join sem responder ao WebRTC).
 
 ## Mapa de arquivos
 - `index.html` — shell (telas via seções `.screen`)

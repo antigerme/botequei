@@ -92,6 +92,7 @@ const IDS = [
   'overlay-boteco', 'boteco-title', 'boteco-stats', 'boteco-menu', 'btn-boteco-load',
   'btn-boteco-rename', 'btn-boteco-del', 'btn-boteco-delall', 'boteco-rename-box', 'boteco-rename', 'btn-boteco-rename-go',
   'btn-open-data', 'overlay-data', 'data-list',
+  'btn-open-sobre', 'overlay-sobre', 'sobre-pix-qr', 'sobre-pixkey', 'btn-sobre-pixcopy', 'btn-sobre-pixkey', 'btn-sobre-share', 'sobre-version',
   'overlay-welcome', 'btn-welcome-go', 'welcome-demo', 'welcome-demo-n',
   'league-level', 'league-challenges', 'league-season',
   'btn-offline-join', 'btn-offline-host',
@@ -315,6 +316,7 @@ export function init(handlers) {
   el['set-pixkey'].addEventListener('change', () => H.onSetting({ pixKey: el['set-pixkey'].value.trim() }));
   el['set-pixcity'].addEventListener('change', () => H.onSetting({ pixCity: el['set-pixcity'].value.trim() }));
   el['btn-open-data'].addEventListener('click', () => H.onOpenData());
+  el['btn-open-sobre'].addEventListener('click', () => H.onOpenSobre());
   $('btn-clear-data').addEventListener('click', () => H.onClearData());
   el['btn-export-data'].addEventListener('click', () => H.onExportData());
   el['btn-import-data'].addEventListener('click', () => el['import-file'].click());
@@ -2012,6 +2014,22 @@ export function openData(vm) {
   el['data-list'].innerHTML = rows.join('');
   el['data-list'].querySelectorAll('.data-clear').forEach((b) => b.addEventListener('click', () => H.onDataClear(b.dataset.cat)));
   el['overlay-data'].hidden = false;
+}
+
+// Sobre o Botequei: história + promessa P2P + código aberto + "me paga um chopp" (QR do PIX).
+// A história e a versão vêm do app; o QR do PIX (`vm.qrNode`) já vem pronto (makeQR no app.js).
+export function openSobre(vm) {
+  el['sobre-version'].textContent = '🍺 Botequei ' + verLabel(VERSION);
+  el['sobre-pixkey'].textContent = vm.pixKey || '';
+  el['sobre-pix-qr'].innerHTML = ''; if (vm.qrNode) el['sobre-pix-qr'].appendChild(vm.qrNode);
+  // No MESMO celular o QR não serve (você olha a tela dele): a AÇÃO é copiar o "copia e cola"
+  // e colar no banco. O QR fica pra OUTRO aparelho escanear. "Compartilhar" só onde há Web Share.
+  const copy = (text, msg) => { if (text && navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast(t(msg))).catch(() => { /* clipboard negado */ }); };
+  el['btn-sobre-pixcopy'].onclick = () => copy(vm.pixCode, 'sobre.pixCopied'); // o copia-e-cola (principal)
+  el['btn-sobre-pixkey'].onclick = () => copy(vm.pixKey, 'sobre.keyCopied');   // só a chave
+  el['btn-sobre-share'].hidden = !navigator.share;
+  el['btn-sobre-share'].onclick = () => { if (navigator.share) navigator.share({ text: t('sobre.shareText', { key: vm.pixKey }) }).catch(() => { /* cancelou */ }); };
+  el['overlay-sobre'].hidden = false;
 }
 
 // ---------- Guia de boas-vindas (primeira vez) ----------

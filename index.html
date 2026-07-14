@@ -432,6 +432,9 @@
       </div>
       <pre id="dev-log-view" class="dev-log" hidden></pre>
     </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="btn-open-sobre" data-i18n="sobre.open">ℹ️ Sobre o Botequei</button>
+    </div>
     <!-- RODAPÉ de verdade: o ÚLTIMO elemento do sheet — versão discreta; tocar confere atualização -->
     <button class="set-version" id="btn-version" title="Conferir se há versão nova" data-i18n-title="ver.checkT" aria-label="Conferir se há versão nova" data-i18n-aria="ver.checkT">🍺 Botequei</button>
   </div>
@@ -708,6 +711,38 @@
       <button class="btn btn-ghost data-danger" id="btn-clear-data" data-i18n="data.clearAll">🧨 Apagar tudo deste aparelho</button>
     </div>
     <p class="seal" data-i18n="set.privacy">🔒 Nada disso é enviado a servidor. Tudo vive no seu navegador.</p>
+  </div>
+</div>
+
+<!-- Sobre o Botequei: a história, a promessa P2P, código aberto e o "me paga um chopp" (PIX).
+     Aberto pelas ⚙️ Configurações — pull, nunca empurra (o pedido de grana fica só aqui). -->
+<div class="overlay" id="overlay-sobre" hidden>
+  <div class="sheet sheet-tall">
+    <button class="sheet-close" data-close>✕</button>
+    <h2 data-i18n="sobre.title">🍺 Sobre o Botequei</h2>
+    <p class="sheet-sub" data-i18n-html="sobre.p1">—</p>
+    <p class="sheet-sub" data-i18n-html="sobre.p2">—</p>
+    <p class="sobre-promise" data-i18n-html="sobre.p3">—</p>
+    <p class="sheet-sub" data-i18n-html="sobre.p4">—</p>
+    <div class="sheet-actions">
+      <a class="btn btn-ghost" id="sobre-site" href="https://botequei.com.br" target="_blank" rel="noopener" data-i18n="sobre.site">🌐 botequei.com.br</a>
+      <a class="btn btn-ghost" id="sobre-code" href="https://github.com/antigerme/botequei" target="_blank" rel="noopener" data-i18n="sobre.code">💻 Código aberto</a>
+    </div>
+    <p class="menu-sec" data-i18n="sobre.chopp">🍺 Me paga um chopp</p>
+    <p class="sheet-sub" data-i18n="sobre.choppSub">O Botequei é grátis e sem anúncios. Se te ajudou, me paga um chopp. 🍺</p>
+    <!-- Ação PRINCIPAL no mesmo celular: copiar o "copia e cola" e colar no banco (o QR não
+         serve na própria tela). O QR desce pra secundário — "escaneie de OUTRO celular". -->
+    <button class="btn btn-primary btn-lg" id="btn-sobre-pixcopy" data-i18n="sobre.pixCopy">📋 Copiar código PIX</button>
+    <p class="sheet-sub" data-i18n="sobre.pixHow">Cole no seu banco em Pix › Copia e Cola.</p>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="btn-sobre-pixkey" data-i18n="sobre.pixKeyCopy">🔑 Copiar chave</button>
+      <button class="btn btn-ghost" id="btn-sobre-share" data-i18n="sobre.pixShare">📤 Compartilhar</button>
+    </div>
+    <p class="sheet-sub"><span data-i18n="sobre.pixKeyLabel">Chave PIX:</span> <b id="sobre-pixkey"></b></p>
+    <p class="sheet-sub sobre-qr-cap" data-i18n="sobre.qrOther">▸ ou escaneie de outro celular:</p>
+    <div class="qr-wrap qr-small" id="sobre-pix-qr"></div>
+    <p class="set-version" id="sobre-version">🍺 Botequei</p>
+    <p class="seal" data-i18n="sobre.credits">Feito com 🍺 e código aberto · libs sob licença MIT</p>
   </div>
 </div>
 

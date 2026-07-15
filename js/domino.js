@@ -41,13 +41,15 @@ export function shuffle(arr, rnd) {
   return a;
 }
 
-// quantas pedras por jogador (boteco, sem compra): 2 jogadores → 7; 3–4 → 6
-export function handSizeFor(players) { return players <= 2 ? 7 : 6; }
+// quantas pedras por jogador — SEMPRE 7 (dominó de boteco distribui a mão cheia). 2p: 14 dormem ·
+// 3p: 7 dormem · 4p: as 28 pedras, ZERO dorme (o padrão da mesa). O setup trava em 2–4 jogadores
+// (app.js), então 7×4=28 nunca estoura o baralho.
+export function handSizeFor() { return 7; }
 
 // distribui: { hands:[[tile]...], buried:[...] }
 export function dealHands(players, rnd) {
   const deck = shuffle(FULL_SET, rnd || Math.random);
-  const hs = handSizeFor(players);
+  const hs = handSizeFor();
   const hands = [];
   let k = 0;
   for (let p = 0; p < players; p++) hands.push(deck.slice(k, k += hs));
@@ -258,7 +260,7 @@ const sameSet = (a, b) => {
   return true;
 };
 export function dealFromDeck(deck, players) {
-  const hs = handSizeFor(players); const hands = []; let k = 0;
+  const hs = handSizeFor(); const hands = []; let k = 0;
   for (let p = 0; p < players; p++) hands.push(deck.slice(k, k += hs));
   return { hands, buried: deck.slice(k) };
 }

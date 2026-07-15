@@ -161,7 +161,9 @@ padrão Auto segue o navegador).
   (tela apaga, wifi↔4G), então o portão da rodada usa `purrOnline` com **graça** (`PURR_GRACE_MS`,
   `purrSeenAt`) — presente-mas-piscou segura o portão (senão avançava sem o lacre dele e as pontas
   divergiam); saiu de verdade cai depois da graça (`armPurrGrace` re-checa quando ela vence).
-- **Dominó (jogo P2P)** (`js/domino.js`, puro): dobra-seis de boteco (sem compra). As **mãos são
+- **Dominó (jogo P2P)** (`js/domino.js`, puro): dobra-seis de boteco (sem compra). **Mão cheia SEMPRE:
+  7 pedras por jogador** (`handSizeFor`, constante — o setup trava 2–4 jogadores, então 4×7 usa as 28
+  sem dorme; 2p → 14 dormem, 3p → 7). As **mãos são
   privadas** — o dono da mesa embaralha e entrega a mão de cada um **só pra ele** via canal direto
   (`mesh.sendTo(id, {k:'fx',fx})`, não pelo broadcast); as **jogadas são públicas** (`kind:'domino'`,
   fases `deal`/`play`/`pass`/`skip`/`reveal`/`noshow`/`cancel`) e **todo peer valida** com

@@ -28,15 +28,18 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
 // ---------- distribuição ----------
 {
   assert.strictEqual(handSizeFor(2), 7);
-  assert.strictEqual(handSizeFor(4), 6);
+  assert.strictEqual(handSizeFor(4), 7); // SEMPRE 7 — a mão cheia do boteco (era 6 pra 3–4)
   const { hands, buried } = dealHands(4, rngFrom(123));
   assert.strictEqual(hands.length, 4);
-  assert.ok(hands.every((h) => h.length === 6));
-  assert.strictEqual(buried.length, 4);
+  assert.ok(hands.every((h) => h.length === 7)); // 4 jogadores = mão cheia
+  assert.strictEqual(buried.length, 0);          // 4×7 = as 28, ZERO dorme
   const all = [...hands.flat(), ...buried];
   assert.strictEqual(all.length, 28);
   assert.strictEqual(new Set(all.map(tileKey)).size, 28); // ninguém recebe pedra repetida
-  ok('distribuição: mãos e enterradas somam 28 pedras, sem repetição');
+  // 2 e 3 jogadores TAMBÉM saem com 7 (o resto dorme): 2p → 14 dormem, 3p → 7 dormem
+  { const d = dealHands(2, rngFrom(9)); assert.ok(d.hands.every((h) => h.length === 7)); assert.strictEqual(d.buried.length, 14); }
+  { const d = dealHands(3, rngFrom(9)); assert.ok(d.hands.every((h) => h.length === 7)); assert.strictEqual(d.buried.length, 7); }
+  ok('distribuição: SEMPRE 7 por jogador (4p usa as 28, 0 dorme); somam 28 sem repetição');
 }
 {
   // shuffle é determinístico por semente e não perde pedras

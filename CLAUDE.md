@@ -192,7 +192,10 @@ padrão Auto segue o navegador).
   bucha-comum não tem junção comum-comum e segue RETA, o feltro **ROLA** também na horizontal,
   `safe center` no wrap). Cresce em **altura** e o `ui.js` (`domFitBoard`) deixa o feltro **ROLAR**
   por dentro (`overflow:auto`, a mão fica sempre embaixo, rola até a última jogada) — mede a caixa de
-  **conteúdo** real do feltro (desconta o padding, não o `clientWidth` cru), passa a **âncora**
+  **conteúdo** real do feltro (desconta o padding, não o `clientWidth` cru) **na largura E na altura**
+  (`box-sizing: border-box`: a altura do wrap soma padding/borda + a barra horizontal quando o T
+  esticou; o "+6" antigo dava ~16px de **scroll fantasma** em TODO tabuleiro — o e2e trava: só rola
+  na vertical quando o teto `maxHeight` clampou), passa a **âncora**
   (índice da abertura) pro layout e respeita a orientação do layout no render (`flat:!vert` — bucha
   deitada NÃO pode auto-levantar no `domTileHTML`). O unit trava geometria (pip casa em toda junta,
   sem sobrepor, cabe na largura cheia, **T em toda bucha** — `assertT`, âncora no meio, escada de

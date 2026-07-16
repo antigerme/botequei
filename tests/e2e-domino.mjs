@@ -61,12 +61,17 @@ async function main() {
         // pode passar do wrap um tiquinho quando honrar o T estica a corrida (regra de ouro: T >
         // largura exata) — aí o feltro ROLA (overflow:auto), não é vazamento.
         overflow: tiles.some((t) => Math.round(t.getBoundingClientRect().right) > Math.round(Math.max(wr.right, br.right)) + 2),
+        // scroll vertical SÓ quando o teto (maxHeight) clampou — tabuleiro que cabe não pode rolar
+        // (o "+6" antigo não cobria padding+borda e TODO feltro nascia com ~16px de barra fantasma)
+        vscroll: wrap.scrollHeight - wrap.clientHeight,
+        clamped: parseFloat(wrap.style.height || '0') >= parseFloat(wrap.style.maxHeight || '0') - 1,
         scale, h: br.height,
       };
     });
     if (port.n < 2) throw new Error('serpentina: tabuleiro vazio');
     if (!port.abs) throw new Error('serpentina não ativou (pedras sem posição absoluta)');
     if (port.overflow) throw new Error('serpentina: pedra vazou a largura do tabuleiro');
+    if (port.vscroll > 1 && !port.clamped) throw new Error(`scroll FANTASMA no feltro (cabe mas rola ${port.vscroll}px)`);
     if (port.scale < 0.99) throw new Error(`serpentina ENCOLHEU a pedra (scale ${port.scale}) — devia serpentear/rolar em tamanho cheio`);
     if (port.n >= 6 && port.rows < 2) throw new Error(`serpentina: a cobra não virou a quina (uma linha só com ${port.n} pedras num celular)`);
     await page.setViewportSize({ width: 820, height: 380 });
@@ -78,6 +83,11 @@ async function main() {
       }, port.h, { timeout: 8000 }).then(() => true).catch(() => false);
       if (!reflowed) throw new Error('serpentina: não re-fluiu ao girar (paisagem não ficou mais baixa que o retrato)');
     } else await page.waitForTimeout(300);
+    const land = await page.evaluate(() => {                      // paisagem: mesmo invariante do scroll
+      const wrap = document.getElementById('dom-board').parentElement;
+      return { vscroll: wrap.scrollHeight - wrap.clientHeight, clamped: parseFloat(wrap.style.height || '0') >= parseFloat(wrap.style.maxHeight || '0') - 1 };
+    });
+    if (land.vscroll > 1 && !land.clamped) throw new Error(`scroll FANTASMA no feltro em paisagem (cabe mas rola ${land.vscroll}px)`);
   };
 
   async function playGame(N) {

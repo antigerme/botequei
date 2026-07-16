@@ -1775,10 +1775,17 @@ function domFitBoard() {
   }).join('');
   const landscape = window.innerWidth > window.innerHeight;
   const maxH = Math.max(140, Math.round(window.innerHeight * (landscape ? 0.6 : 0.46)));
+  // altura EXTERNA do wrap (box-sizing: border-box): tabuleiro + padding/borda VERTICAIS de
+  // verdade + a barra horizontal quando o T esticou a corrente além da largura. O "+6" antigo
+  // não cobria os ~22px de moldura → TODO tabuleiro nascia com ~16px de scroll fantasma (a
+  // barra que o André viu no desktop; no celular clipava o pé do feltro em silêncio).
+  const chromeY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
+    + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+  const need = lay.height + chromeY + (lay.width > availW ? 16 : 0);
   wrap.style.maxHeight = maxH + 'px';
-  wrap.style.height = Math.min(lay.height + 6, maxH) + 'px';
+  wrap.style.height = Math.min(need, maxH) + 'px';
   const just = lay.tiles.find((t) => t.idx === st.lastPlayIdx);   // rola pra deixar a última peça à vista
-  if (just && lay.height + 6 > maxH) wrap.scrollTop = Math.max(0, Math.min(just.y + just.h / 2 - wrap.clientHeight / 2, lay.height + 6 - wrap.clientHeight));
+  if (just && need > maxH) wrap.scrollTop = Math.max(0, just.y + just.h / 2 - wrap.clientHeight / 2);
 }
 let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolha de ponta
 export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }

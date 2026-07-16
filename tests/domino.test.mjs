@@ -183,10 +183,29 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
 }
 
 // ---------- layout serpentina: âncora no meio, cabe na largura em tamanho cheio, pip casa ----------
+// REGRA DE OURO DO T (do André): a bucha fica SEMPRE atravessada em relação à linha — as DUAS
+// vizinhas chegam pelo MEIO dos lados compridos dela (T dos dois lados; a linha passa RETO).
+// Consequências verificáveis: vizinha de bucha é sempre PERPENDICULAR a ela (nunca paralela),
+// chega alinhada ao CENTRO dela, e as duas vizinhas flanqueiam por lados OPOSTOS (nunca dobra).
+const assertT = (lay, label) => {
+  const byIdx = new Map(lay.tiles.map((t) => [t.idx, t]));
+  for (const t of lay.tiles) {
+    if (t.a !== t.b) continue;
+    const nb = [byIdx.get(t.idx - 1), byIdx.get(t.idx + 1)].filter(Boolean);
+    const cAxis = (u) => (t.vert ? u.y + u.h / 2 : u.x + u.w / 2);            // eixo do fluxo (cruza a bucha)
+    const cPerp = (u) => (t.vert ? u.x + u.w / 2 : u.y + u.h / 2);            // eixo perpendicular
+    for (const u of nb) {
+      assert.notStrictEqual(u.vert, t.vert, `${label}: vizinha ${u.idx} PARALELA à bucha ${t.idx} (não é T)`);
+      assert.ok(Math.abs(cAxis(u) - cAxis(t)) < 2, `${label}: vizinha ${u.idx} não chega pelo MEIO da bucha ${t.idx} (T torto)`);
+    }
+    if (nb.length === 2) assert.ok((cPerp(nb[0]) - cPerp(t)) * (cPerp(nb[1]) - cPerp(t)) < 0,
+      `${label}: a linha DOBRA na bucha ${t.idx} (vizinhas do mesmo lado)`);
+  }
+};
+const chainFrom = (seq) => seq.slice(0, -1).map((v, k) => [v, seq[k + 1]]);   // consecutivas casam
+const touch = (A, B) => { const gx = Math.max(A.x, B.x) - Math.min(A.x + A.w, B.x + B.w); const gy = Math.max(A.y, B.y) - Math.min(A.y + A.h, B.y + B.h); return Math.min(gx, gy) <= 0 && Math.max(gx, gy) <= 2; };
+const overlaps = (T) => { for (let a = 0; a < T.length; a++) for (let b = a + 1; b < T.length; b++) { const P = T[a], Q = T[b]; const ox = Math.min(P.x + P.w, Q.x + Q.w) - Math.max(P.x, Q.x); const oy = Math.min(P.y + P.h, Q.y + Q.h) - Math.max(P.y, Q.y); if (ox > 2 && oy > 2) return `${P.idx}×${Q.idx}`; } return null; };
 {
-  const chainFrom = (seq) => seq.slice(0, -1).map((v, k) => [v, seq[k + 1]]); // consecutivas casam
-  const touch = (A, B) => { const gx = Math.max(A.x, B.x) - Math.min(A.x + A.w, B.x + B.w); const gy = Math.max(A.y, B.y) - Math.min(A.y + A.h, B.y + B.h); return Math.min(gx, gy) <= 0 && Math.max(gx, gy) <= 2; };
-  const overlaps = (T) => { for (let a = 0; a < T.length; a++) for (let b = a + 1; b < T.length; b++) { const P = T[a], Q = T[b]; const ox = Math.min(P.x + P.w, Q.x + Q.w) - Math.max(P.x, Q.x); const oy = Math.min(P.y + P.h, Q.y + Q.h) - Math.max(P.y, Q.y); if (ox > 2 && oy > 2) return `${P.idx}×${Q.idx}`; } return null; };
   const seq = [6, 6, 2, 5, 5, 3, 1, 1, 4, 0, 0, 4, 2, 6, 3, 3, 5, 1, 0, 0, 6, 4, 4, 2, 3]; // 24 pedras COM buchas
   const chain = chainFrom(seq);
   assert.strictEqual(chain.length, 24);
@@ -195,13 +214,13 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   const lay = snakeLayout(chain, { width: 360, long: 66, short: 34, pad: 8 });
   assert.strictEqual(lay.tiles.length, 24);                                   // toda pedra desenhada
   assert.deepStrictEqual(lay.tiles.map((t) => t.idx).sort((a, b) => a - b), Array.from({ length: 24 }, (_, k) => k));
-  for (const t of lay.tiles) if (t.a === t.b) assert.strictEqual(t.vert, true, 'bucha é sempre EM PÉ');
+  assertT(lay, 'W=360');                                                      // regra de ouro: T sempre
   for (const t of lay.tiles) { assert.ok(t.x >= -1 && t.y >= -1); assert.ok(t.x + t.w <= lay.width + 1 && t.y + t.h <= lay.height + 1, 'pedra vaza os limites'); }
   assert.ok(lay.width <= 360 + 1, 'serpenteia pra caber na largura em TAMANHO CHEIO (não estoura)');
   assert.strictEqual(overlaps(lay.tiles), null, 'pedras não se sobrepõem');
   const byIdx = new Map(lay.tiles.map((t) => [t.idx, t]));                    // continuidade: vizinhas se encostam
   for (let k = 0; k + 1 < 24; k++) assert.ok(touch(byIdx.get(k), byIdx.get(k + 1)), `pedras ${k} e ${k + 1} não se encostam (junta torta)`);
-  ok('serpente: 24 pedras 1×, buchas em pé, cabe na largura cheia, sem sobrepor, pip casa em toda junta');
+  ok('serpente: 24 pedras 1×, bucha SEMPRE em T, cabe na largura cheia, sem sobrepor, pip casa em toda junta');
 
   // âncora = a maior carroça no MEIO (corrente com o 6|6 no centro → os dois braços crescem pra fora)
   const midSeq = [2, 0, 0, 3, 3, 5, 6, 6, 4, 1, 1, 2];
@@ -217,35 +236,54 @@ const ok = (n) => { console.log('  ✓ ' + n); passed++; };
   ok('serpente: âncora (abertura) no meio; retrato mais alto que deitado; vazio e 1 pedra ok');
 }
 
-// ---------- BUCHA NO CANTO: a bucha entra ATRAVESSADA, nunca torta na quina (regressão do André) ----------
+// ---------- BUCHA NA COLUNA: entra DEITADA, em T com as vizinhas em pé (regressão do André) ----------
 {
-  // André montou o dominó de verdade em casa: a bucha 3/3 tem que ENTRAR ATRAVESSADA (a corrente passa
-  // RETO por ela) — NUNCA no canto da quina, onde uma bucha encaixa TORTA (a linha sairia pelo LADO dela).
-  // Corrente dele: 1-3 3-3 3-4 4-6 6-6(âncora) 6-5 5-0 0-4 4-5 5-1 — o 3-3 vive no braço de trás e, nas
-  // larguras de RETRATO de celular, calhava de canto. "O que está ao lado do 3-3 são o 1-3 e 3-4" (ele):
-  // os três empilham numa COLUNA reta (1-3 · 3-3 · 3-4), não num "L".
-  const chainFrom = (seq) => seq.slice(0, -1).map((v, k) => [v, seq[k + 1]]);
+  // André montou o dominó de verdade em casa: a bucha 3/3 tem que ficar em T com o 1-3 e o 3-4 —
+  // a linha passa RETO por ela, e as vizinhas chegam pelo MEIO dos lados compridos. No trecho
+  // VERTICAL (a coluna da quina) isso quer dizer bucha DEITADA cruzando a coluna (em pé colada
+  // ponta-com-ponta ficava PARALELA às vizinhas — era o "torto" que ele viu no boteco).
   const andre = chainFrom([1, 3, 3, 4, 6, 6, 5, 0, 4, 5, 1]);
   const cxc = (t) => t.x + t.w / 2, cyc = (t) => t.y + t.h / 2;
   for (const W of [280, 300, 320, 340, 360]) {                 // faixa de retrato (onde ele viu o 3/3 torto)
     const lay = snakeLayout(andre, { width: W, long: 66, short: 34, pad: 8 });
+    assertT(lay, `andre W=${W}`);                               // regra de ouro em TODA bucha da corrente
     const byIdx = new Map(lay.tiles.map((t) => [t.idx, t]));
     const b = byIdx.get(1), p = byIdx.get(0), s = byIdx.get(2); // o 3-3 e os vizinhos 1-3 / 3-4
-    assert.ok(b.a === 3 && b.b === 3 && b.vert, `3-3 é bucha em pé (W=${W})`);
-    // ATRAVESSADA: os DOIS vizinhos também EM PÉ, na MESMA coluna (mesmo x) e um ACIMA/outro ABAIXO → a
-    // corrente sobe reto pela bucha. No bug o 3-3 era o CANTO: o 1-3 vinha DEITADO saindo de lado (junta torta).
-    assert.ok(p.vert && s.vert, `vizinhos do 3-3 em pé (não de lado) — o 3-3 não é o canto da quina (W=${W})`);
-    assert.ok(Math.abs(cxc(p) - cxc(b)) < 2 && Math.abs(cxc(s) - cxc(b)) < 2, `1-3 · 3-3 · 3-4 na MESMA coluna (W=${W})`);
+    assert.ok(b.a === 3 && b.b === 3, `3-3 achado (W=${W})`);
+    // nesta faixa o 3-3 calha na COLUNA da quina → DEITADO cruzando, vizinhos EM PÉ chegando pelo
+    // meio (T em cima e T embaixo); a corrente sobe RETA por ele — nunca dobra na bucha.
+    assert.ok(!b.vert, `3-3 na coluna fica DEITADO — atravessado no fluxo vertical (W=${W})`);
+    assert.ok(p.vert && s.vert, `vizinhos do 3-3 em pé (perpendiculares à bucha = T) (W=${W})`);
+    assert.ok(Math.abs(cxc(p) - cxc(b)) < 2 && Math.abs(cxc(s) - cxc(b)) < 2, `1-3 · 3-3 · 3-4 no MESMO eixo da coluna (W=${W})`);
     assert.ok((cyc(p) - cyc(b)) * (cyc(s) - cyc(b)) < 0, `1-3 e 3-4 flanqueiam o 3-3 (um acima, um abaixo) (W=${W})`);
   }
-  ok('serpente: regressão do André — a bucha 3/3 entra ATRAVESSADA (coluna reta 1-3·3-3·3-4), nunca torta no canto');
+  ok('serpente: regressão do André — 3/3 na coluna DEITADO em T (1-3·3-3·3-4 retos, vizinhas pelo meio)');
+}
+
+// ---------- corrente ALTERNADA (bucha-comum-bucha…): sem junção comum-comum, não há onde dobrar ----------
+{
+  // Consequência geométrica da regra de ouro: só se dobra entre DUAS comuns (dobrar numa bucha, ou
+  // numa comum imprensada entre buchas, quebraria um T). Uma corrente que alterna bucha-comum não
+  // tem essa junção → segue RETA e o tabuleiro ESTICA além da largura (decisão do André: o T vale
+  // mais que a largura exata — o feltro rola). O T e as juntas continuam perfeitos.
+  const ladder = chainFrom([6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0]); // 13 pedras, TODAS as buchas
+  for (const W of [320, 820]) {
+    const lay = snakeLayout(ladder, { width: W, long: 66, short: 34, pad: 8 });
+    assert.strictEqual(lay.tiles.length, 13);
+    assertT(lay, `escada W=${W}`);
+    assert.strictEqual(overlaps(lay.tiles), null, `escada W=${W}: pedras não se sobrepõem`);
+    const byIdx = new Map(lay.tiles.map((t) => [t.idx, t]));
+    for (let k = 0; k + 1 < 13; k++) assert.ok(touch(byIdx.get(k), byIdx.get(k + 1)), `escada W=${W}: junta ${k}-${k + 1} solta`);
+    const cy0 = lay.tiles[0].y + lay.tiles[0].h / 2;             // linha RETA: todo mundo no mesmo eixo
+    assert.ok(lay.tiles.every((t) => Math.abs((t.y + t.h / 2) - cy0) < 2), `escada W=${W}: a corrente alternada segue RETA`);
+  }
+  ok('serpente: corrente alternada (todas as buchas) segue RETA — T sagrado, largura cede (feltro rola)');
 }
 
 // ---------- ESTABILIDADE: jogar numa ponta NÃO move as pedras já postas (regressão do André) ----------
 {
   // a queixa do André: o tabuleiro re-fluía a cada jogada. Ancorado na abertura, cada ponta cresce
   // pra fora e pedra colocada NÃO sai do lugar (relativo à âncora). Só girar o aparelho re-arruma.
-  const chainFrom = (seq) => seq.slice(0, -1).map((v, k) => [v, seq[k + 1]]);
   const key = (t) => Math.min(t.a, t.b) + '|' + Math.max(t.a, t.b);
   const isD = (t) => t[0] === t[1];
   // corAentes VÁLIDAS (cada pedra 1×), com a abertura (6|6) no MEIO → crescem pros dois lados:

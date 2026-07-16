@@ -179,18 +179,26 @@ padrão Auto segue o navegador).
   desce serpenteando, o de índice menor sobe. Assim jogar numa ponta **NÃO re-flui** o tabuleiro
   (pedra colocada fica **PARADA** — relativo à âncora); só **girar** o aparelho (muda a largura)
   re-arruma (foi o pedido do André: "não ficar movendo as peças", "só refluir ao girar"). Regras da
-  mesa: pedras **coladas** casando pip (deitadas), **buchas ATRAVESSADAS** (em pé, a linha passa reto)
-  quando cabem na corrida; vira a **quina com 2 pedras EM PÉ**. A corrida **NUNCA termina numa bucha**
-  (a bucha deitada é alta e encaixaria **torta** na quina — era o "6/5 na bucha errado") — a bucha da
-  fronteira vira a **1ª pedra em pé da quina** (aí **ALINHA**); decisão de virar é **estável** (reserva
-  L pra próxima, exista-ou-não). **Serpenteia pra caber na LARGURA em tamanho CHEIO — NUNCA encolhe a
-  pedra** (só serpenteia mais); cresce em **altura** e o `ui.js` (`domFitBoard`) deixa o feltro
-  **ROLAR** por dentro (`overflow:auto`, a mão fica sempre embaixo, rola até a última jogada) — mede a
-  caixa de **conteúdo** real do feltro (desconta o padding, não o `clientWidth` cru) e passa a **âncora**
-  (índice da abertura) pro layout. O unit trava geometria (pip casa em toda junta, sem sobrepor, cabe
-  na largura cheia, buchas em pé, âncora no meio) **+ ESTABILIDADE** (crescer a corrente numa ponta não
-  move nenhuma pedra já posta — regressão do André) e o e2e confere serpentina + **não-encolhe** (scale
-  1) + re-fluxo ao girar.
+  mesa — **REGRA DE OURO DO T (do André)**: a bucha fica **SEMPRE em T** com as duas vizinhas — elas
+  chegam pelo **MEIO dos lados compridos** dela, a linha passa **RETO** ("atravessada" é RELATIVO:
+  corrida horizontal → bucha **EM PÉ**; coluna da quina → bucha **DEITADA** cruzando a coluna).
+  Corolários (tudo no `layArm`): a linha **NUNCA dobra numa bucha** — as duas dobras da quina são
+  sempre de pedra COMUM (a quina só corta em junção **comum-comum**, e só vira quando a pedra DEPOIS
+  do canto também é comum); vizinha de bucha nunca fica **PARALELA** a ela (depois de bucha a linha
+  segue RETA por mais uma pedra — `lockFlat`; duas buchas nunca são vizinhas no dominó, então a trava
+  resolve); pedra normal deitada **colada** casando pip. **Serpenteia pra caber na LARGURA em tamanho
+  CHEIO — NUNCA encolhe a pedra** (só serpenteia mais); honrar o T pode **ESTICAR** a corrida um
+  tiquinho além do limite (raro; decisão do André: T > largura exata — corrente que alterna
+  bucha-comum não tem junção comum-comum e segue RETA, o feltro **ROLA** também na horizontal,
+  `safe center` no wrap). Cresce em **altura** e o `ui.js` (`domFitBoard`) deixa o feltro **ROLAR**
+  por dentro (`overflow:auto`, a mão fica sempre embaixo, rola até a última jogada) — mede a caixa de
+  **conteúdo** real do feltro (desconta o padding, não o `clientWidth` cru), passa a **âncora**
+  (índice da abertura) pro layout e respeita a orientação do layout no render (`flat:!vert` — bucha
+  deitada NÃO pode auto-levantar no `domTileHTML`). O unit trava geometria (pip casa em toda junta,
+  sem sobrepor, cabe na largura cheia, **T em toda bucha** — `assertT`, âncora no meio, escada de
+  buchas segue reta) **+ ESTABILIDADE** (crescer a corrente numa ponta não move nenhuma pedra já
+  posta — regressão do André) e o e2e confere serpentina + **não-encolhe** (scale 1) + re-fluxo ao
+  girar.
   Efêmero, não entra no log. **Entrar/voltar/repetir**: tocar no grid "🎮 Jogos" num jogo que JÁ
   está rolando **VOLTA pra ele** (`reopenGame`, não destrói a partida — mesma regra do pill);
   **dominó com ≥2 humanos começa DIRETO** (a "tela de espera" É o handshake — o picker de bots só

@@ -104,59 +104,74 @@ export function place(chain, ends, tile, side) {
 // lugar; os DOIS braços crescem pra fora dela — o de índice maior desce serpenteando, o de índice
 // menor sobe. Assim uma jogada numa ponta NÃO re-flui o tabuleiro (pedra colocada fica PARADA);
 // só girar o aparelho (muda a largura) re-arruma. Regras da mesa (dominó de bloco/dobra-seis):
-//   • pedra normal: DEITADA, encostada na anterior (o pip casa); indo pra ESQUERDA vai `flip` (b|a).
-//   • BUCHA (a===b): ATRAVESSADA (em pé) quando cabe numa corrida reta — a linha passa RETO por ela.
-//   • vira a QUINA com pedras EM PÉ (≥2); a pedra do CANTO (de onde a próxima corrida sai de lado) é
-//     sempre COMUM — BUCHA no canto encaixaria TORTA (a linha sairia pelo LADO dela). A bucha da
-//     fronteira/coluna fica ATRAVESSADA em pé (a linha passa RETO por ela); se calharia no canto,
-//     empilha +1 pedra até uma comum fechar a dobra (o "3/3 torto" do André).
+//   • REGRA DE OURO DO T (do André): a BUCHA (a===b) fica SEMPRE ATRAVESSADA em relação à linha —
+//     as DUAS vizinhas chegam pelo MEIO dos lados compridos dela (T dos dois lados; a linha passa
+//     RETO). "Atravessada" é RELATIVO ao trecho: corrida horizontal → bucha EM PÉ; coluna da quina
+//     (trecho vertical) → bucha DEITADA cruzando a coluna.
+//   • Corolários: a linha NUNCA dobra numa bucha (as DUAS dobras da quina são sempre de pedra
+//     COMUM — a quina só corta em junção comum-comum, e só vira quando a pedra DEPOIS do canto
+//     também é comum); e vizinha de bucha nunca fica PARALELA a ela — depois de bucha a linha
+//     segue RETA por mais uma pedra (`lockFlat`). Duas buchas nunca são vizinhas (não existe a
+//     pedra que ligaria a-a em b-b), então a trava sempre resolve.
+//   • pedra normal: DEITADA na corrida (o pip casa na anterior); indo pra ESQUERDA vai `flip` (b|a).
 //   • serpenteia pra caber na LARGURA em tamanho cheio (nunca encolhe a pedra) e cresce em ALTURA.
+//     Honrar o T pode ESTICAR a corrida um tiquinho além do limite (raro; decisão do André: o T
+//     vale mais que a largura exata — o feltro rola). O bounding box final re-enquadra tudo.
 // Devolve { tiles:[{a,b,x,y,w,h,vert,flip,idx,open,bucha}], width, height, anchor }.
 //
 // um braço (boustrophedon) a partir de um ponto/direção; empurra as pedras posicionadas em `out`.
 // items: [{entry,exit,dbl,idx}] JÁ orientadas (entry casa com a de trás, rumo à âncora).
 // vdir = +1 (a quina desce) ou -1 (sobe). loX/hiX = limites úteis (a corrida serpenteia dentro deles).
-function layArm(items, out, { startX, startYc, dir0, vdir, L, S, loX, hiX }) {
+// lockFlat0 = braço saindo de âncora-bucha: a 1ª pedra é obrigada a seguir RETA (T na âncora).
+function layArm(items, out, { startX, startYc, dir0, vdir, L, S, loX, hiX, lockFlat0 }) {
   let i = 0, dir = dir0, x = startX, yc = startYc;
   const N = items.length;
-  let last = null;                                         // última pedra DESTE braço (não espia o `out`)
+  const C = (L + S) / 2;                                   // reserva de largura da coluna: bucha DEITADA
+  let last = null;                                         // cruza a coluna e sobra (L-S)/2 de cada lado
+  let lockFlat = !!lockFlat0;                              // pedra logo após bucha: segue RETA (T)
   const flat = (it) => {                                   // deitada, ou BUCHA atravessada (em pé no yc)
     if (it.dbl) { last = { a: it.entry, b: it.exit, x: dir > 0 ? x : x - S, y: yc - L / 2, w: S, h: L, vert: true, flip: false, idx: it.idx, bucha: true }; x += dir * S; }
     else { const a = dir > 0 ? it.entry : it.exit, b = dir > 0 ? it.exit : it.entry; last = { a, b, x: dir > 0 ? x : x - L, y: yc - S / 2, w: L, h: S, vert: false, flip: false, idx: it.idx, bucha: false }; x += dir * L; }
-    out.push(last);
-  };
-  const stand = (it, px, py) => {                          // em pé (quina): entra pela corrida, sai vertical
-    const a = vdir > 0 ? it.entry : it.exit, b = vdir > 0 ? it.exit : it.entry;
-    out.push(last = { a, b, x: px, y: py, w: S, h: L, vert: true, flip: false, idx: it.idx, bucha: it.dbl });
+    lockFlat = it.dbl; out.push(last);
   };
   while (i < N) {
-    while (i < N) {                                        // enche a corrida (reserva S pra coluna da quina)
-      const it = items[i], w = it.dbl ? S : L;
-      const room = dir > 0 ? (hiX - S - x) : (x - (loX + S));
-      if (room < w) break;
-      if (it.dbl) {                                        // bucha só entra na corrida se sobrar p/ a PRÓXIMA
-        const after = dir > 0 ? (hiX - S - (x + w)) : (x - w - (loX + S)); // (reserva L exista-ou-não a próxima
-        if (after < L) break;                              // → decisão estável); senão vira a 1ª em pé da quina.
-      }
+    while (i < N) {                                        // enche a corrida (reserva C pra coluna da quina)
+      const it = items[i];
+      const room = dir > 0 ? (hiX - C - x) : (x - (loX + C));
+      // Só pedra COMUM destravada corta pra quina (junção da dobra = comum-comum). BUCHA vai SEMPRE
+      // reta na corrida (jamais na dobra), e a comum logo depois dela também (lockFlat) — mesmo que
+      // estique um tiquinho além do limite (T > largura exata). O teto 2L reserva folga pra uma
+      // bucha+comum forçadas caberem sem estourar (reserva vale exista-ou-não → decisão ESTÁVEL).
+      if (!it.dbl && !lockFlat && room < 2 * L) break;
       flat(it); i++;
     }
     if (i >= N) break;
-    const colX = dir > 0 ? x : x - S;                      // coluna da quina, encostada na última da corrida
-    const y0 = vdir > 0 ? yc - S / 2 : yc + S / 2 - L;
-    // Empilha em pé descendo/subindo a coluna. A pedra do CANTO (a última, de onde a próxima corrida
-    // sai DE LADO) TEM que ser COMUM: BUCHA no canto encaixa TORTO (a linha sairia pelo LADO dela, não
-    // pela ponta — foi o "3/3 torto" do André). Então só vira DEPOIS de uma comum (≥2 em pé pra fechar a
-    // dobra) E havendo pedra a seguir; a bucha da fronteira segue ATRAVESSADA na coluna (a linha passa
-    // RETO por ela) — vira a 1ª/interior em pé, nunca o canto.
+    // COLUNA da quina — a 1ª pedra (dobra de ENTRADA) é sempre COMUM (o corte acima garante).
+    // Comum vai EM PÉ (ponta com ponta); BUCHA vai DEITADA cruzando a coluna: T com a de cima e a
+    // de baixo, a linha passa RETO por ela (regra de ouro — era o "4/4 torto": bucha em pé colada
+    // na coluna ficava PARALELA às vizinhas, sem T). A dobra de SAÍDA (o canto de onde a próxima
+    // corrida sai DE LADO) também é sempre comum: só vira DEPOIS de uma comum E quando a PRÓXIMA
+    // pedra também é comum (senão a bucha nasceria colada+paralela ao canto — sem T).
+    const colX = dir > 0 ? x : x - S;                      // coluna encostada na última da corrida
+    let edge = vdir > 0 ? yc - S / 2 : yc + S / 2;         // frente de avanço (alturas variam: L ou S)
     let m = 0, turned = false;
     while (i < N) {
-      stand(items[i], colX, vdir > 0 ? y0 + m * L : y0 - m * L);
-      const wasDbl = items[i].dbl; i++; m++;
-      if (m >= 2 && !wasDbl && i < N) { turned = true; break; }
+      const it = items[i];
+      if (it.dbl) {                                        // bucha DEITADA, centrada na coluna
+        out.push(last = { a: it.entry, b: it.exit, x: colX + S / 2 - L / 2, y: vdir > 0 ? edge : edge - S, w: L, h: S, vert: false, flip: false, idx: it.idx, bucha: true });
+        edge += vdir * S;
+      } else {                                             // comum EM PÉ, ponta com ponta
+        const a = vdir > 0 ? it.entry : it.exit, b = vdir > 0 ? it.exit : it.entry;
+        out.push(last = { a, b, x: colX, y: vdir > 0 ? edge : edge - L, w: S, h: L, vert: true, flip: false, idx: it.idx, bucha: false });
+        edge += vdir * L;
+      }
+      const wasDbl = it.dbl; i++; m++;
+      if (m >= 2 && !wasDbl && i < N && !items[i].dbl) { turned = true; break; }
     }
     if (!turned) break;                                    // braço acabou dentro da coluna → rabo RETO
-    yc = vdir > 0 ? yc + m * L - S : yc - m * L + S;        // nova corrida: desloca pela ALTURA real da coluna
+    yc = vdir > 0 ? edge - S / 2 : edge + S / 2;           // nova corrida alinhada ao quadrado de SAÍDA
     dir = -dir;
+    lockFlat = false;                                      // a dobra saiu de comum-comum (o peek garante)
   }
 }
 
@@ -179,10 +194,10 @@ export function snakeLayout(chain, opts = {}) {
   const aRight = aDbl ? cx + S / 2 : cx + L / 2, aLeft = aDbl ? cx - S / 2 : cx - L / 2;
   // braço "pra frente" (idx > âncora): entra por chain[k][0]; desce serpenteando
   const fwd = []; for (let k = anchor + 1; k < N; k++) fwd.push({ entry: chain[k][0], exit: chain[k][1], dbl: isD(chain[k]), idx: k });
-  layArm(fwd, out, { startX: aRight, startYc: cy, dir0: 1, vdir: 1, L, S, loX, hiX });
+  layArm(fwd, out, { startX: aRight, startYc: cy, dir0: 1, vdir: 1, L, S, loX, hiX, lockFlat0: aDbl });
   // braço "pra trás" (idx < âncora): entra por chain[k][1]; sobe serpenteando
   const bwd = []; for (let k = anchor - 1; k >= 0; k--) bwd.push({ entry: chain[k][1], exit: chain[k][0], dbl: isD(chain[k]), idx: k });
-  layArm(bwd, out, { startX: aLeft, startYc: cy, dir0: -1, vdir: -1, L, S, loX, hiX });
+  layArm(bwd, out, { startX: aLeft, startYc: cy, dir0: -1, vdir: -1, L, S, loX, hiX, lockFlat0: aDbl });
   for (const t of out) t.open = (t.idx === 0 || t.idx === N - 1);
   out.sort((p, q) => p.idx - q.idx);                       // ordem da corrente (render estável)
   // bounding-box → normaliza tudo pra começar em `pad` (translação UNIFORME: não re-flui, só re-enquadra)

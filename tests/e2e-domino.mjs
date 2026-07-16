@@ -50,15 +50,18 @@ async function main() {
     const port = await page.evaluate(() => {
       const board = document.getElementById('dom-board'), wrap = board.parentElement;
       const tiles = [...board.querySelectorAll('.dom-tile')];
-      const wr = wrap.getBoundingClientRect();
+      const wr = wrap.getBoundingClientRect(), br = board.getBoundingClientRect();
       const tr = getComputedStyle(board).transform; // fator de escala do tabuleiro (deve ser 1 = tamanho cheio)
       const scale = (!tr || tr === 'none') ? 1 : (tr.match(/matrix\(([^)]+)\)/) ? parseFloat(tr.match(/matrix\(([^)]+)\)/)[1].split(',')[0]) : 1);
       return {
         n: tiles.length,
         abs: tiles.every((t) => t.style.position === 'absolute' && t.style.left !== '' && t.style.top !== ''),
         rows: new Set(tiles.map((t) => Math.round(parseFloat(t.style.top)))).size,
-        overflow: tiles.some((t) => Math.round(t.getBoundingClientRect().right) > Math.round(wr.right) + 2),
-        scale, h: board.getBoundingClientRect().height,
+        // pedra tem que viver DENTRO do tabuleiro (bounding box do snakeLayout). O tabuleiro em si
+        // pode passar do wrap um tiquinho quando honrar o T estica a corrida (regra de ouro: T >
+        // largura exata) — aí o feltro ROLA (overflow:auto), não é vazamento.
+        overflow: tiles.some((t) => Math.round(t.getBoundingClientRect().right) > Math.round(Math.max(wr.right, br.right)) + 2),
+        scale, h: br.height,
       };
     });
     if (port.n < 2) throw new Error('serpentina: tabuleiro vazio');

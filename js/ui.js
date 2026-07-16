@@ -1750,8 +1750,8 @@ function domTileHTML(a, b, { flat = false, cls = '', chip = '', vert = false, fl
 const DOM_L = 66, DOM_S = 34;
 let domBoardState = null; // guarda o último tabuleiro pra re-layout no resize/rotação
 // desenha o tabuleiro como SERPENTINA de mesa real (domino.js/snakeLayout): pedras coladas casando
-// pip; buchas atravessadas; vira a quina descendo com 2 pedras em pé; cresce ↓ no retrato / → no
-// deitado. Escala só como último recurso (mesa cheíssima) — nunca volta pro tamanho ilegível.
+// pip; bucha SEMPRE em T com as vizinhas (em pé na corrida, DEITADA na coluna da quina); a quina
+// vira só entre comuns; cresce ↓ no retrato / → no deitado, sem nunca encolher a pedra.
 function domFitBoard() {
   if (!domBoardState) return;
   const boardEl = el['dom-board'], wrap = boardEl.parentElement;
@@ -1770,7 +1770,8 @@ function domFitBoard() {
   boardEl.innerHTML = lay.tiles.map((tile) => {
     const isJust = tile.idx === st.lastPlayIdx;
     const chip = (isJust && st.lastPlayAvatar) ? `<span class="dom-played-av" title="${esc(st.lastPlayName || '')}">${avInner(st.lastPlayPhoto, st.lastPlayAvatar)}</span>` : '';
-    return domTileHTML(tile.a, tile.b, { vert: tile.vert, flip: tile.flip, pos: tile, cls: (tile.open ? 'open' : '') + (isJust ? ' just' : ''), chip });
+    // flat:!vert — a orientação é 100% do layout (bucha DEITADA na coluna NÃO pode auto-levantar)
+    return domTileHTML(tile.a, tile.b, { vert: tile.vert, flat: !tile.vert, flip: tile.flip, pos: tile, cls: (tile.open ? 'open' : '') + (isJust ? ' just' : ''), chip });
   }).join('');
   const landscape = window.innerWidth > window.innerHeight;
   const maxH = Math.max(140, Math.round(window.innerHeight * (landscape ? 0.6 : 0.46)));

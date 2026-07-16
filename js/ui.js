@@ -1746,8 +1746,10 @@ function domTileHTML(a, b, { flat = false, cls = '', chip = '', vert = false, fl
   const style = pos ? ` style="position:absolute;left:${pos.x}px;top:${pos.y}px"` : '';
   return `<span class="dom-tile${stand ? ' dbl' : ''}${cls ? ' ' + cls : ''}"${style}>${domHalf(h1, stand)}${domHalf(h2, stand)}${chip}</span>`;
 }
-// tamanho natural da pedra (bate com o CSS: metade 32 + borda 1 = 66×34 deitada, 34×66 em pé)
-const DOM_L = 66, DOM_S = 34;
+// tamanho natural da pedra (bate com o CSS: metade 24+8 de padding = 32, divisor 2 SOMA no eixo
+// longo — content-box deliberado — + borda 1 de cada lado = 68×34 deitada, 34×68 em pé; o 66
+// antigo esquecia o divisor e toda junção sobrepunha 2px)
+const DOM_L = 68, DOM_S = 34;
 let domBoardState = null; // guarda o último tabuleiro pra re-layout no resize/rotação
 // desenha o tabuleiro como SERPENTINA de mesa real (domino.js/snakeLayout): pedras coladas casando
 // pip; bucha SEMPRE em T com as vizinhas (em pé na corrida, DEITADA na coluna da quina); a quina
@@ -1763,7 +1765,9 @@ function domFitBoard() {
   // SERPENTINA ancorada na ABERTURA (fica no meio): cabe na largura em TAMANHO CHEIO — não encolhe a
   // pedra, serpenteia pra caber (pedido do André). Cresce em ALTURA; o feltro ROLA por dentro quando
   // passa do teto (a mão fica sempre embaixo à mão) e acompanha a última jogada. Só GIRAR re-arruma.
-  const lay = snakeLayout(st.board.map((t) => [t.a, t.b]), { width: availW, long: DOM_L, short: DOM_S, pad: 6, anchor: st.anchor });
+  // pad 12 = respiro DENTRO da caixa pros enfeites (chip de avatar right:-9 fica inteiro; o
+  // tabuleiro tem overflow:clip sem margem, então o que passar da caixa é cortado, nunca rolado)
+  const lay = snakeLayout(st.board.map((t) => [t.a, t.b]), { width: availW, long: DOM_L, short: DOM_S, pad: 12, anchor: st.anchor });
   boardEl.style.transform = '';
   boardEl.style.width = lay.width + 'px';
   boardEl.style.height = lay.height + 'px';
@@ -1776,14 +1780,18 @@ function domFitBoard() {
   const landscape = window.innerWidth > window.innerHeight;
   const maxH = Math.max(140, Math.round(window.innerHeight * (landscape ? 0.6 : 0.46)));
   // altura EXTERNA do wrap (box-sizing: border-box): tabuleiro + padding/borda VERTICAIS de
-  // verdade + a barra horizontal quando o T esticou a corrente além da largura. O "+6" antigo
-  // não cobria os ~22px de moldura → TODO tabuleiro nascia com ~16px de scroll fantasma (a
-  // barra que o André viu no desktop; no celular clipava o pé do feltro em silêncio).
+  // verdade. O "+6" antigo não cobria os ~22px de moldura → TODO tabuleiro nascia com ~16px de
+  // scroll fantasma (a barra que o André viu no desktop; no celular clipava o pé em silêncio).
   const chromeY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
     + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
-  const need = lay.height + chromeY + (lay.width > availW ? 16 : 0);
+  const need = lay.height + chromeY;
   wrap.style.maxHeight = maxH + 'px';
   wrap.style.height = Math.min(need, maxH) + 'px';
+  // barra HORIZONTAL (T esticou a corrente além da largura → o feltro rola de lado): ela ROUBA
+  // altura e re-criaria o fantasma. MEDE o roubo real (espessura varia por plataforma — chutar
+  // 16px deixava 1-3px de barra) e devolve na altura.
+  const stolen = wrap.scrollWidth > wrap.clientWidth ? Math.max(0, wrap.scrollHeight - wrap.clientHeight) : 0;
+  if (stolen > 0) wrap.style.height = Math.min(need + stolen, maxH) + 'px';
   const just = lay.tiles.find((t) => t.idx === st.lastPlayIdx);   // rola pra deixar a última peça à vista
   if (just && need > maxH) wrap.scrollTop = Math.max(0, just.y + just.h / 2 - wrap.clientHeight / 2);
 }

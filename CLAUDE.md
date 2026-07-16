@@ -52,7 +52,12 @@ padrão Auto segue o navegador).
   (transporte: default asserta WebSocket; `EXPECT_POLL=1` contra servidor `NO_WS=1` asserta o
   fallback; inclui interop socket↔polling), `tests/e2e-reconnect.mjs` (reconexão),
   `tests/e2e-offline.mjs` (pareamento por QR/código com o signaling desligado) e
-  `tests/e2e-features.mjs` (cardápio da mesa, PAYFOR e estatísticas).
+  `tests/e2e-features.mjs` (cardápio da mesa, PAYFOR e estatísticas) e `tests/e2e-responsive.mjs`
+  (**geometria em toda a jornada**: 21 superfícies reais × tamanhos de tela — página não rola de
+  lado, nada vaza a viewport fora de área rolável, alvo de toque ≥40px com input medindo o LABEL;
+  no CI roda 5 tamanhos SENTINELA — 344 é o preset mais estreito do toolbar do Chrome, 1280 cobre
+  o breakpoint 900 — e `FULL=1` liga os 21 presets do device toolbar + relatório dos alvos <48,
+  a auditoria profunda sob demanda. Estética a máquina NÃO pega — segue no olho + screenshot).
 - **CI (GitHub Actions, `.github/workflows/ci.yml`):** roda 1× por leva, **no PR** (a main não
   re-roda: a proteção de branch — require up to date + status checks — garante que todo squash
   que entra é a MESMA árvore que o PR testou; `workflow_dispatch` roda sob demanda). Roda **lint**
@@ -192,7 +197,16 @@ padrão Auto segue o navegador).
   bucha-comum não tem junção comum-comum e segue RETA, o feltro **ROLA** também na horizontal,
   `safe center` no wrap). Cresce em **altura** e o `ui.js` (`domFitBoard`) deixa o feltro **ROLAR**
   por dentro (`overflow:auto`, a mão fica sempre embaixo, rola até a última jogada) — mede a caixa de
-  **conteúdo** real do feltro (desconta o padding, não o `clientWidth` cru), passa a **âncora**
+  **conteúdo** real do feltro (desconta o padding, não o `clientWidth` cru) **na largura E na altura**
+  (`box-sizing: border-box`: a altura do wrap soma padding/borda + o roubo da barra horizontal
+  **MEDIDO** de verdade quando o T esticou — espessura de barra varia por plataforma, chutar deixava
+  fantasma de 1-3px; o "+6" antigo dava ~16px de **scroll fantasma** em TODO tabuleiro — o e2e trava:
+  só rola na vertical quando o teto `maxHeight` clampou). A pedra REAL é **68×34** (`DOM_L=68`: o
+  divisor de 2px é content-box e SOMA no eixo longo — o 66 antigo sobrepunha toda junção). O
+  `.dom-board` é **`flex:none`** (corrente esticada não pode ser espremida pelo flex-shrink — as
+  pedras absolutas "vazavam") **+ `overflow:clip` SEM clip-margin** (enfeite — chip de avatar
+  `right:-9` / pulso `domplace` scale 1.55 — JAMAIS vira conteúdo rolável; com margem >0 o Chrome
+  conta e a barra fantasma volta; o respiro visual mora DENTRO da caixa: `pad:12` no layout), passa a **âncora**
   (índice da abertura) pro layout e respeita a orientação do layout no render (`flat:!vert` — bucha
   deitada NÃO pode auto-levantar no `domTileHTML`). O unit trava geometria (pip casa em toda junta,
   sem sobrepor, cabe na largura cheia, **T em toda bucha** — `assertT`, âncora no meio, escada de
@@ -668,6 +682,9 @@ padrão Auto segue o navegador).
   sólida do body de um tema? Atualize `THEME_CHROME` no `ui.js` (meta `theme-color` +
   `color-scheme` acompanham o tema). Toast é `role=status` (leitor de tela anuncia); alvos têm
   `touch-action: manipulation`; números-herói usam `min(Xrem, Yvw)` pra escalar sem estourar.
+  **O alvo ≥48 tem TRAVA no CI** (`tests/e2e-responsive.mjs`, piso 40 anti-flake, CSS mira 44+):
+  a família `.btn` tem `min-height: 44px` de chão — override compacto não desce disso; checkbox
+  dentro de `.check` conta o LABEL como alvo (o `.check` tem `min-height: 44px`).
   "Fonte grande" escala a RAIZ (`html.bigfont`) — não estilize tamanho por elemento pra ela.
   **Sheets têm alcinha + arrastar-pra-fechar** (`setupSheetSwipe` no `ui.js` cria a `.sheet-grab`
   em todo sheet — JOGOS ficam fora via `NO_SWIPE`: o ✕ deles minimiza; desktop ≥900px esconde).

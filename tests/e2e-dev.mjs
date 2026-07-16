@@ -55,7 +55,11 @@ async function main() {
   });
 
   await step('7 toques na versão destravam a seção (à la Android, com contagem)', async () => {
-    for (let i = 0; i < 7; i++) await p.click('#btn-version', { delay: 20 });
+    // rajada SÍNCRONA: a regra é <1,6s ENTRE toques — o clique real do Playwright (scroll +
+    // stability por clique) estourava a janela em runner FRIO e o contador resetava (flake
+    // que virou vermelho quando as fileiras .check cresceram pra 44px e o sheet passou a rolar).
+    // Burst no mesmo tick = exatamente "7 toques seguidos", determinístico em qualquer máquina.
+    await p.evaluate(() => { const b = document.getElementById('btn-version'); for (let i = 0; i < 7; i++) b.click(); });
     await vis('dev-section');
   });
 

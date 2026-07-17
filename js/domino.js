@@ -208,6 +208,24 @@ export function snakeLayout(chain, opts = {}) {
   return { tiles: out, width: Math.round(maxX - minX + 2 * pad), height: Math.round(maxY - minY + 2 * pad), anchor };
 }
 
+// ---- Duplas (2x2): parceiros CRUZADOS — assentos 0&2 = dupla 0; 1&3 = dupla 1 ----
+// Só existe em 4 jogadores (a mesa trava 2–4; 4 = as 28 pedras, ninguém dorme). O parceiro senta
+// na frente (assento +2) e a ordem natural 0→1→2→3 já INTERCALA as duplas (você joga, um adversário,
+// seu parceiro, o outro adversário). Puro/testável; o app.js conduz a mão e usa isto pra decidir a
+// batida (a dupla de quem bateu ganha) e o trancado (menor SOMA de pips da dupla).
+export const domTeamOf = (seat) => seat & 1;              // par → dupla 0, ímpar → dupla 1
+export const domPartner = (seat) => (seat + 2) % 4;       // quem senta na sua frente
+// Vencedor do TRANCADO em duplas: menor SOMA de pips por dupla. `seats` = [{team, pips}] de quem
+// REVELOU a mão (dropout: quem caiu sem abrir fica de fora; dupla inteira sem revelar perde).
+// Empate de soma → dupla 0 (determinístico → converge; raríssimo, e a auditoria do fim abre igual).
+export function blockWinnerTeam(seats) {
+  const sum = [0, 0], has = [false, false];
+  for (const s of seats) { sum[s.team] += s.pips; has[s.team] = true; }
+  if (has[0] && !has[1]) return 0;
+  if (has[1] && !has[0]) return 1;
+  return sum[0] <= sum[1] ? 0 : 1;
+}
+
 // ---- Partida completa (usada nos testes; no app as mãos ocultas viram contagem) ----
 export function newGame(players, rnd) {
   const { hands, buried } = dealHands(players, rnd);

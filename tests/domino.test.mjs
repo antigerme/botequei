@@ -5,7 +5,7 @@ import {
   FULL_SET, isDouble, pips, tileKey, pipCount, rngFrom, shuffle, handSizeFor, dealHands,
   opening, legalMoves, canPlay, place, newGame, playTile, pass,
   serializeTiles, deckCommit, combineSeeds, cutDeck, isFullSet, dealFromDeck, verifyDeal,
-  snakeLayout,
+  snakeLayout, domTeamOf, domPartner, blockWinnerTeam,
 } from '../js/domino.js';
 import { sha256Hex } from '../js/purrinha.js';
 
@@ -311,6 +311,31 @@ const overlaps = (T) => { for (let a = 0; a < T.length; a++) for (let b = a + 1;
     }
   }
   ok('serpente: ESTÁVEL — jogar numa ponta não move nenhuma pedra já posta (só girar re-arruma)');
+}
+
+// ---------- DUPLAS (2x2): parceiros cruzados + trancado por soma da dupla ----------
+{
+  // assentos: 0&2 = dupla 0; 1&3 = dupla 1 (o parceiro senta na frente, +2)
+  assert.strictEqual(domTeamOf(0), 0); assert.strictEqual(domTeamOf(2), 0);
+  assert.strictEqual(domTeamOf(1), 1); assert.strictEqual(domTeamOf(3), 1);
+  assert.strictEqual(domPartner(0), 2); assert.strictEqual(domPartner(2), 0);
+  assert.strictEqual(domPartner(1), 3); assert.strictEqual(domPartner(3), 1);
+  // a ordem natural 0→1→2→3 INTERCALA as duplas (você, adversário, parceiro, adversário)
+  assert.notStrictEqual(domTeamOf(0), domTeamOf(1));
+  assert.strictEqual(domTeamOf(0), domTeamOf(2));
+  ok('duplas: assentos cruzados (0&2 vs 1&3), parceiro na frente, ordem intercala os times');
+}
+{
+  // trancado: menor SOMA de pips por dupla ganha
+  assert.strictEqual(blockWinnerTeam([{ team: 0, pips: 3 }, { team: 1, pips: 5 }, { team: 0, pips: 4 }, { team: 1, pips: 1 }]), 1); // 0=7 > 1=6 → dupla 1
+  assert.strictEqual(blockWinnerTeam([{ team: 0, pips: 3 }, { team: 1, pips: 9 }, { team: 0, pips: 4 }, { team: 1, pips: 2 }]), 0); // 0=7 < 1=11 → dupla 0
+  assert.strictEqual(blockWinnerTeam([{ team: 0, pips: 10 }, { team: 1, pips: 1 }, { team: 0, pips: 10 }, { team: 1, pips: 1 }]), 1); // 0=20 > 1=2
+  // empate de soma → dupla 0 (determinístico, converge)
+  assert.strictEqual(blockWinnerTeam([{ team: 0, pips: 6 }, { team: 1, pips: 6 }]), 0);
+  // dropout: uma dupla não revelou (caiu) → a outra ganha, não importa a soma
+  assert.strictEqual(blockWinnerTeam([{ team: 1, pips: 99 }]), 1);
+  assert.strictEqual(blockWinnerTeam([{ team: 0, pips: 50 }]), 0);
+  ok('duplas: trancado ganha a menor SOMA da dupla (empate→0; dupla que não revelou perde)');
 }
 
 console.log(`\n${passed} testes de dominó passaram ✅`);

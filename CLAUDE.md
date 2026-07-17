@@ -217,6 +217,17 @@ padrão Auto segue o navegador).
   buchas segue reta) **+ ESTABILIDADE** (crescer a corrente numa ponta não move nenhuma pedra já
   posta — regressão do André) e o e2e confere serpentina + **não-encolhe** (scale 1) + re-fluxo ao
   girar.
+  A abertura nasce **CENTRADA no feltro** (`align-items:safe center` — âncora no meio, braços pros
+  dois lados; corrente grande volta pro início sem clipar e ROLA).
+  **DUPLAS (MVP, 1 mão)**: 4 jogadores = **parceiros CRUZADOS 2×2** (assentos 0&2 vs 1&3), o app
+  INFERE (dominó a 4 é sempre em dupla — sem toggle; 2–3 seguem individual). Puro/testável no
+  `domino.js` (`domTeamOf`/`domPartner`/`blockWinnerTeam`): a **batida** dá a mão pra dupla de quem
+  bateu; o **trancado** ganha a menor **SOMA de pips da DUPLA** (empate→dupla 0; dupla que não
+  revelou perde). O `teams` viaja no `vdeal` (todos herdam); o resultado é da dupla ("Sua dupla
+  bateu!" / "A dupla de Zé fechou!"), o parceiro leva selo **🤝** + moldura verde na barra, e a
+  **rodada** é oferecida à dupla PERDEDORA. A contagem "3>5>peça" da turma do André (partida corrida
+  em peças) é a versão **Completa**, pendente do `/deep-research` — não entra aqui (bot de parceiro
+  joga a mesma estratégia gulosa; parceria "esperta" fica pro Completo).
   Efêmero, não entra no log. **Entrar/voltar/repetir**: tocar no grid "🎮 Jogos" num jogo que JÁ
   está rolando **VOLTA pra ele** (`reopenGame`, não destrói a partida — mesma regra do pill);
   **dominó com ≥2 humanos começa DIRETO** (a "tela de espera" É o handshake — o picker de bots só

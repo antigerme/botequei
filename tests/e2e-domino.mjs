@@ -148,13 +148,16 @@ async function main() {
       if (!over) throw new Error('a partida não terminou em todos os aparelhos');
     });
 
-    await step(`${N}p: fim coerente — mesmo motivo e exatamente um vencedor ("Você")`, async () => {
+    await step(`${N}p: fim coerente — mesmo motivo; ${N === 4 ? 'a DUPLA vencedora são 2 aparelhos' : 'exatamente um vencedor ("Você")'}`, async () => {
       const res = await Promise.all(pages.map((p) => p.textContent('#dom-result').then((s) => s.trim())));
       const reason = (s) => (/bateu/.test(s) ? 'batida' : (/[Tt]rancou/.test(s) ? 'trancou' : '?'));
       const reasons = res.map(reason);
       if (reasons.some((r) => r === '?') || new Set(reasons).size !== 1) throw new Error(`motivo divergente: ${JSON.stringify(res)}`);
-      const winners = res.filter((s) => /Você/.test(s)).length;
-      if (winners !== 1) throw new Error(`esperava exatamente 1 vencedor, vi ${winners}: ${JSON.stringify(res)}`);
+      // 4 jogadores = DUPLAS (2x2): "Sua dupla" aparece nos 2 aparelhos do time vencedor; os outros 2
+      // nomeiam a mesma dupla. 2 jogadores = individual: 1 diz "Você". Prova coerência do lado que ganhou.
+      const mine = res.filter((s) => /Você|Sua dupla/.test(s)).length;
+      const expected = N === 4 ? 2 : 1;
+      if (mine !== expected) throw new Error(`esperava ${expected} vencedor(es), vi ${mine}: ${JSON.stringify(res)}`);
     });
 
     await step(`${N}p: tabuleiro serpentina — pedras coladas, vira a quina no celular e re-flui ao girar`, async () => {

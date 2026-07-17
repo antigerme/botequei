@@ -1820,8 +1820,9 @@ export function renderDomino(vm) {
     el['dom-verified'].textContent = vm.verified.text;
     el['dom-verified'].className = 'dom-verified' + (vm.verified.ok === true ? ' ok' : vm.verified.ok === false ? ' bad' : '');
   } else { el['dom-verified'].hidden = true; }
-  el['dom-opps'].innerHTML = (vm.opponents || []).map((o) => `<span class="dom-opp${o.isTurn ? ' turn' : ''}${o.justPlayed ? ' played' : ''}">
-    <span class="dom-oav">${avInner(o.photo, o.avatar, false)}</span><span class="dom-oname">${esc(o.name)}</span><span class="dom-ocount">🁫 ${o.count}</span></span>`).join('');
+  // duplas: o parceiro (mesma dupla) ganha selo 🤝 + moldura de destaque — você vê quem é o seu na mesa
+  el['dom-opps'].innerHTML = (vm.opponents || []).map((o) => `<span class="dom-opp${o.isTurn ? ' turn' : ''}${o.justPlayed ? ' played' : ''}${o.partner ? ' partner' : ''}">
+    <span class="dom-oav">${avInner(o.photo, o.avatar, false)}</span><span class="dom-oname">${o.partner ? '🤝 ' : ''}${esc(o.name)}</span><span class="dom-ocount">🁫 ${o.count}</span></span>`).join('');
   el['dom-turn'].textContent = vm.turn || '';
   el['dom-turn'].className = 'dom-turn' + (vm.myTurn ? ' mine' : '');
   // tabuleiro: SERPENTINA de mesa real (domSnakeLayout) — pontas abertas brilham; a peça recém-jogada

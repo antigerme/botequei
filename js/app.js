@@ -49,6 +49,7 @@ import {
 import {
   opening, legalMoves, place, pipCount, tileKey as domKey, rngFrom, shuffle, FULL_SET,
   deckCommit, handCommit, combineSeeds, cutDeck, dealFromDeck, verifyDeal,
+  domTeamOf, blockWinnerTeam,
 } from './domino.js';
 import {
   deckFor as truDeckFor, cardStr as truStr, raiseLabel, nextStake as truNext, canRaise as truCanRaise,
@@ -1917,10 +1918,14 @@ function domEntrants() { const out = [self]; if (mesh) for (const p of mesh.peer
 function domName(id) { return id === self ? (getName() || t('common.you')) : (profOf(id).name || t('common.someoneLow')); }
 function cryptoSeed() { try { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0]; } catch { return Date.now() >>> 0; } }
 
+// dupla de um id (parceiro cruzado por assento) — só vale quando dom.teams (4 jogadores)
+function domTeamOfId(id) { return domTeamOf(dom.idxOf.get(id)); }
 function beginDomino(d) {
   const order = d.order;
   dom = {
     gameId: d.gameId, players: order.length, order, idxOf: new Map(order.map((id, i) => [id, i])),
+    // DUPLAS (só em 4): parceiros cruzados 0&2 vs 1&3 — o app infere (dominó a 4 é sempre em dupla)
+    teams: !!d.teams, winnerTeam: null,
     chain: [], ends: [null, null], counts: { ...d.counts }, myHand: (d.hand || []).map((t) => t.slice()),
     turnIdx: 0, passes: 0, over: false, winner: null, reason: null, phase: 'play', reveals: new Map(),
     // mesa verificada (só preenchido no modo verificado)
@@ -1941,7 +1946,7 @@ function domApplyPlay(fromId, tile, side) {
   dom.lastBy = fromId; dom.lastSide = side; // quem jogou a última peça (e em que ponta) → feedback
   dom.counts[fromId] = Math.max(0, (dom.counts[fromId] || 0) - 1);
   if (fromId === self) { const k = domKey(tile); const i = dom.myHand.findIndex((t) => domKey(t) === k); if (i >= 0) dom.myHand.splice(i, 1); }
-  if (dom.counts[fromId] <= 0) { dom.over = true; dom.winner = fromId; dom.reason = 'batida'; }
+  if (dom.counts[fromId] <= 0) { dom.over = true; dom.winner = fromId; dom.reason = 'batida'; dom.winnerTeam = dom.teams ? domTeamOfId(fromId) : null; }
   else dom.turnIdx = (dom.idxOf.get(fromId) + 1) % dom.players;
   return true;
 }
@@ -1968,14 +1973,19 @@ function domResolveBlock() {
   const missing = dom.order.filter((id) => !dom.reveals.has(id));
   if (missing.length) { armDomNoshow(missing); return; } // espera as mãos (com teto pra quem caiu)
   if (domNoshow) { clearTimeout(domNoshow); domNoshow = null; }
-  let winner = null, best = Infinity;
-  for (const id of dom.order) {
-    const h = dom.reveals.get(id);
-    if (!h) continue; // 'noshow': quem caiu sem abrir a mão fica de fora da apuração
-    const c = pipCount(h);
-    if (c < best) { best = c; winner = id; }
+  // mãos reveladas ordenadas pela menor soma de pips (a "melhor"). Serve pro modo individual (menor
+  // mão ganha) E como REPRESENTANTE da dupla vencedora (pra nomear/festejar) — o resultado é da DUPLA.
+  const byPips = dom.order.filter((id) => dom.reveals.has(id))
+    .map((id) => ({ id, pips: pipCount(dom.reveals.get(id)) }))
+    .sort((a, b) => a.pips - b.pips);
+  if (dom.teams) {
+    // DUPLAS: menor SOMA de pips por dupla ganha; o vencedor "nomeado" é a menor mão da dupla campeã.
+    dom.winnerTeam = blockWinnerTeam(byPips.map((x) => ({ team: domTeamOfId(x.id), pips: x.pips })));
+    dom.winner = (byPips.find((x) => domTeamOfId(x.id) === dom.winnerTeam) || byPips[0] || {}).id || null;
+  } else {
+    dom.winner = byPips.length ? byPips[0].id : null;
   }
-  dom.over = true; dom.winner = winner; dom.reason = 'trancou';
+  dom.over = true; dom.reason = 'trancou';
   renderDom(); domCelebrate();
 }
 function onDomPlay(fx) { if (!dom || fx.gameId !== dom.gameId) return; domApplyPlay(fx.from, fx.tile, fx.side); renderDom(); domCelebrate(); if (fx.from !== self) sound.pop(); }
@@ -2000,8 +2010,11 @@ function domCelebrate() {
   if (dom.verified) domStartAudit(); // mesa verificada: dispara a auditoria no fim
   if (dom.cheered) return;
   dom.cheered = true;
-  if (dom.winner === self) { sound.cheers(); ui.celebrate(['🁫', '🎉', '🍻', '🏆']); }
-  else { sound.alarm(); ui.vibrate([80, 40, 80]); if (dom.winner && dom.order.length === 2) offerLoserPay(dom.order); } // 2p: perdedor único
+  // em DUPLAS, "eu ganhei" = a MINHA dupla ganhou (parceiro bateu conta pra mim); senão é individual
+  const iWon = dom.teams ? (domTeamOfId(self) === dom.winnerTeam) : (dom.winner === self);
+  if (iWon) { sound.cheers(); ui.celebrate(['🁫', '🎉', '🍻', '🏆']); }
+  // perdeu → oferece pagar a rodada pra mesa (2p: perdedor único; duplas: cada um da dupla perdedora vê)
+  else { sound.alarm(); ui.vibrate([80, 40, 80]); if (dom.winner && (dom.order.length === 2 || dom.teams)) offerLoserPay(dom.order); }
 }
 function renderDom() {
   if (!dom) return;
@@ -2010,14 +2023,21 @@ function renderDom() {
   const sidesByKey = new Map();
   for (const m of moves) { const k = domKey(m.tile); if (!sidesByKey.has(k)) sidesByKey.set(k, []); sidesByKey.get(k).push(m.side); }
   const hand = dom.myHand.map((t) => ({ key: domKey(t), a: t[0], b: t[1], sides: sidesByKey.get(domKey(t)) || [] }));
-  const opponents = dom.order.filter((id) => id !== self).map((id) => ({ name: domName(id), avatar: profOf(id).emoji, photo: profOf(id).photo, count: dom.counts[id] || 0, isTurn: !dom.over && dom.order[dom.turnIdx] === id, justPlayed: id === dom.lastBy }));
+  const myTeam = dom.teams ? domTeamOfId(self) : -1;
+  const opponents = dom.order.filter((id) => id !== self).map((id) => ({ name: domName(id), avatar: profOf(id).emoji, photo: profOf(id).photo, count: dom.counts[id] || 0, isTurn: !dom.over && dom.order[dom.turnIdx] === id, justPlayed: id === dom.lastBy, partner: dom.teams && domTeamOfId(id) === myTeam }));
   // feedback de quem jogou a última peça: índice da peça no tabuleiro (ponta L=0, R=última) + avatar
   const lastPlayIdx = (dom.lastBy && dom.chain.length) ? (dom.lastSide === 'L' ? 0 : dom.chain.length - 1) : -1;
   const lastPlayAvatar = dom.lastBy ? profOf(dom.lastBy).emoji : '';
   const lastPlayPhoto = dom.lastBy ? profOf(dom.lastBy).photo : '';
   const lastPlayName = dom.lastBy ? (dom.lastBy === self ? t('common.youCap') : domName(dom.lastBy)) : '';
   let result = null;
-  if (dom.over) { const wn = dom.winner === self ? t('common.youCap') : domName(dom.winner); result = dom.reason === 'batida' ? t('dom.won', { name: wn }) : t('dom.blockedWin', { name: wn }); }
+  if (dom.over) {
+    // DUPLAS: o resultado é da DUPLA ("Sua dupla bateu!" / "A dupla de Zé fechou!"); individual usa o nome
+    let wn;
+    if (dom.teams) wn = (myTeam === dom.winnerTeam) ? t('dom.yourTeam') : t('dom.teamOf', { name: domName(dom.winner) });
+    else wn = dom.winner === self ? t('common.youCap') : domName(dom.winner);
+    result = dom.reason === 'batida' ? t('dom.won', { name: wn }) : t('dom.blockedWin', { name: wn });
+  }
   let verified = null;
   if (dom.verified) {
     if (dom.audit && dom.audit.ok === true) verified = { ok: true, text: t('dom.vOk') };
@@ -2258,7 +2278,9 @@ async function hostDealVerified() {
   for (let k = 0; k < dv.order.length; k++) { counts[dv.order[k]] = hands[k].length; salts[k] = randomNonce(); handCommits[dv.order[k]] = await handCommit(hands[k], salts[k]); }
   // vdeal carrega os seeds/lacres (autoritativo, completo) — a auditoria fica auto-contida e não
   // depende do que cada peer juntou do gossip; o cross-check vs o que o peer coletou pega adulteração.
-  const pub = { kind: 'domino', ph: 'vdeal', gameId: dv.gameId, order: dv.order, starter: dv.order[op.player], firstTile: op.tile, counts, deckCommit: dv.deckCommit, handCommits, seeds: dv.seeds, seedCommits: dv.seedCommits };
+  // DUPLAS automáticas em 4 jogadores (dominó a 4 é sempre em dupla — o app infere, não pergunta):
+  // parceiros cruzados 0&2 vs 1&3. 2–3 jogadores seguem individual. Viaja no deal → todos herdam.
+  const pub = { kind: 'domino', ph: 'vdeal', gameId: dv.gameId, order: dv.order, starter: dv.order[op.player], firstTile: op.tile, counts, teams: dv.order.length === 4, deckCommit: dv.deckCommit, handCommits, seeds: dv.seeds, seedCommits: dv.seedCommits };
   gameFx(pub);
   const botHands = {}, botSalts = {};
   for (let k = 0; k < dv.order.length; k++) {

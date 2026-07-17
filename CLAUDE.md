@@ -195,13 +195,17 @@ padrão Auto segue o navegador).
   CHEIO — NUNCA encolhe a pedra** (só serpenteia mais); honrar o T pode **ESTICAR** a corrida um
   tiquinho além do limite (raro; decisão do André: T > largura exata — corrente que alterna
   bucha-comum não tem junção comum-comum e segue RETA, o feltro **ROLA** também na horizontal,
-  `safe center` no wrap). Cresce em **altura** e o `ui.js` (`domFitBoard`) deixa o feltro **ROLAR**
-  por dentro (`overflow:auto`, a mão fica sempre embaixo, rola até a última jogada) — mede a caixa de
-  **conteúdo** real do feltro (desconta o padding, não o `clientWidth` cru) **na largura E na altura**
-  (`box-sizing: border-box`: a altura do wrap soma padding/borda + o roubo da barra horizontal
-  **MEDIDO** de verdade quando o T esticou — espessura de barra varia por plataforma, chutar deixava
-  fantasma de 1-3px; o "+6" antigo dava ~16px de **scroll fantasma** em TODO tabuleiro — o e2e trava:
-  só rola na vertical quando o teto `maxHeight` clampou). A pedra REAL é **68×34** (`DOM_L=68`: o
+  `safe center` no wrap). Cresce em **altura** dentro do feltro, que **ROLA** por dentro
+  (`overflow:auto`, a mão sempre embaixo, rola até a última jogada). **A altura do feltro NÃO é mais
+  conta do JS**: os overlays de MESA (dominó/truco, classe `.overlay-game`) viram **TELA CHEIA** no
+  celular — coluna flex, o feltro/tapete é `flex:1` e ganha **tudo que o cabeçalho/mão/resultado não
+  usam** (ORÇAMENTO DINÂMICO: fim de jogo esvazia a mão e o tabuleiro cresce na hora certa; o teto
+  cego de 46%/60% da janela morreu). No desktop (≥900px) vira cartão ALTO centrado. A **purrinha fica
+  FORA** (é compacta, sem mesa — tela cheia só criaria vazio; segue sheet que abraça o conteúdo — a
+  moldura segue a NECESSIDADE, como o M3 separa full-screen dialog de dialog compacto). O
+  `domFitBoard` só computa a **largura** (e rola até a última jogada); o `e2e-domino` trava: o feltro
+  só rola quando o tabuleiro de fato não cabe (`fits`), e o refit ao girar é sondado por
+  `dataset.fitW`. A pedra REAL é **68×34** (`DOM_L=68`: o
   divisor de 2px é content-box e SOMA no eixo longo — o 66 antigo sobrepunha toda junção). O
   `.dom-board` é **`flex:none`** (corrente esticada não pode ser espremida pelo flex-shrink — as
   pedras absolutas "vazavam") **+ `overflow:clip` SEM clip-margin** (enfeite — chip de avatar

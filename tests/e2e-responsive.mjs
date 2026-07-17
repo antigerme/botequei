@@ -164,6 +164,10 @@ async function main() {
   await page.click('#btn-games'); await page.waitForTimeout(350);
   await page.evaluate(() => { [...document.querySelectorAll('#games-grid .game-pick')].find((b) => /Truco/.test(b.textContent))?.click(); });
   await page.waitForTimeout(450); await sweep(page, 'truco (setup)'); await esc(page);
+  // A moldura de tela cheia dos jogos (overlay-game) EM JOGO é geometria de partida viva — o
+  // e2e-domino já a cobre (retrato/paisagem, 2p+4p). Abrir uma partida solo de truco AQUI, com
+  // bots agindo por timer enquanto a viewport redimensiona 5×, deixava o job pesado/instável no
+  // runner — fora do escopo da varredura estática de superfícies. Fica de sonda só o SETUP.
 
   await page.click('#btn-menu'); await page.waitForSelector('#overlay-menu:not([hidden])', { timeout: T });
   await sweep(page, 'menu …');

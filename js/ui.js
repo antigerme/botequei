@@ -1762,9 +1762,11 @@ function domFitBoard() {
   const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
   const availW = Math.max(160, wrap.clientWidth - padX - 4); // -4: respiro anti-arredondamento
   const st = domBoardState;
-  // SERPENTINA ancorada na ABERTURA (fica no meio): cabe na largura em TAMANHO CHEIO — não encolhe a
-  // pedra, serpenteia pra caber (pedido do André). Cresce em ALTURA; o feltro ROLA por dentro quando
-  // passa do teto (a mão fica sempre embaixo à mão) e acompanha a última jogada. Só GIRAR re-arruma.
+  // SERPENTINA ancorada na ABERTURA (fica no meio): cabe na largura em TAMANHO CHEIO — não encolhe
+  // a pedra, serpenteia pra caber (pedido do André). A ALTURA do feltro não é mais conta do JS:
+  // o overlay do jogo é tela cheia em COLUNA flex e o feltro (flex:1) ganha TUDO que o cabeçalho/
+  // mão/resultado não usam — orçamento DINÂMICO (fim de jogo esvazia a mão e o tabuleiro cresce
+  // na hora certa). Tabuleiro maior que o feltro ROLA por dentro, já posicionado na última jogada.
   // pad 12 = respiro DENTRO da caixa pros enfeites (chip de avatar right:-9 fica inteiro; o
   // tabuleiro tem overflow:clip sem margem, então o que passar da caixa é cortado, nunca rolado)
   const lay = snakeLayout(st.board.map((t) => [t.a, t.b]), { width: availW, long: DOM_L, short: DOM_S, pad: 12, anchor: st.anchor });
@@ -1777,23 +1779,11 @@ function domFitBoard() {
     // flat:!vert — a orientação é 100% do layout (bucha DEITADA na coluna NÃO pode auto-levantar)
     return domTileHTML(tile.a, tile.b, { vert: tile.vert, flat: !tile.vert, flip: tile.flip, pos: tile, cls: (tile.open ? 'open' : '') + (isJust ? ' just' : ''), chip });
   }).join('');
-  const landscape = window.innerWidth > window.innerHeight;
-  const maxH = Math.max(140, Math.round(window.innerHeight * (landscape ? 0.6 : 0.46)));
-  // altura EXTERNA do wrap (box-sizing: border-box): tabuleiro + padding/borda VERTICAIS de
-  // verdade. O "+6" antigo não cobria os ~22px de moldura → TODO tabuleiro nascia com ~16px de
-  // scroll fantasma (a barra que o André viu no desktop; no celular clipava o pé em silêncio).
+  wrap.dataset.fitW = String(Math.round(availW));                 // sonda do e2e: refit rodou com ESTA largura
   const chromeY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
     + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
-  const need = lay.height + chromeY;
-  wrap.style.maxHeight = maxH + 'px';
-  wrap.style.height = Math.min(need, maxH) + 'px';
-  // barra HORIZONTAL (T esticou a corrente além da largura → o feltro rola de lado): ela ROUBA
-  // altura e re-criaria o fantasma. MEDE o roubo real (espessura varia por plataforma — chutar
-  // 16px deixava 1-3px de barra) e devolve na altura.
-  const stolen = wrap.scrollWidth > wrap.clientWidth ? Math.max(0, wrap.scrollHeight - wrap.clientHeight) : 0;
-  if (stolen > 0) wrap.style.height = Math.min(need + stolen, maxH) + 'px';
   const just = lay.tiles.find((t) => t.idx === st.lastPlayIdx);   // rola pra deixar a última peça à vista
-  if (just && need > maxH) wrap.scrollTop = Math.max(0, just.y + just.h / 2 - wrap.clientHeight / 2);
+  if (just && lay.height + chromeY > wrap.clientHeight) wrap.scrollTop = Math.max(0, just.y + just.h / 2 - wrap.clientHeight / 2);
 }
 let domArmed = null; // key da pedra que casa nas duas pontas, aguardando escolha de ponta
 export function openDomino() { domArmed = null; el['overlay-domino'].hidden = false; }

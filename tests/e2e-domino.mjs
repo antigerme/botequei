@@ -50,6 +50,7 @@ async function main() {
     const port = await page.evaluate(() => {
       const board = document.getElementById('dom-board'), wrap = board.parentElement;
       const tiles = [...board.querySelectorAll('.dom-tile')];
+      const padY = (el) => { const s = getComputedStyle(el); return (parseFloat(s.paddingTop) || 0) + (parseFloat(s.paddingBottom) || 0); };
       const br = board.getBoundingClientRect();
       const tr = getComputedStyle(board).transform; // fator de escala do tabuleiro (deve ser 1 = tamanho cheio)
       const scale = (!tr || tr === 'none') ? 1 : (tr.match(/matrix\(([^)]+)\)/) ? parseFloat(tr.match(/matrix\(([^)]+)\)/)[1].split(',')[0]) : 1);
@@ -64,41 +65,44 @@ async function main() {
         // pode passar do wrap quando honrar o T estica a corrida — aí o feltro ROLA, não é vazamento.
         overflow: tiles.filter((t) => t.offsetLeft < -2 || t.offsetLeft + t.offsetWidth > board.offsetWidth + 2)
           .map((t) => `${t.className}[${t.textContent.length}] x=${t.offsetLeft} w=${t.offsetWidth} > board=${board.offsetWidth} (style.w=${board.style.width})`),
-        // scroll vertical SÓ quando o teto (maxHeight) clampou — tabuleiro que cabe não pode rolar
-        // (o "+6" antigo não cobria padding+borda e TODO feltro nascia com ~16px de barra fantasma)
+        // o feltro é FLEX (ganha o que sobrar do overlay): rolar SÓ quando o tabuleiro realmente
+        // não cabe. "Cabe mas rola" = fantasma (enfeite/animação virando conteúdo rolável).
         vscroll: wrap.scrollHeight - wrap.clientHeight,
-        clamped: parseFloat(wrap.style.height || '0') >= parseFloat(wrap.style.maxHeight || '0') - 1,
+        fits: board.offsetHeight + padY(wrap) <= wrap.clientHeight + 1,
+        fitW: wrap.dataset.fitW || '',
         scale, h: br.height,
       };
     });
     if (port.n < 2) throw new Error('serpentina: tabuleiro vazio');
     if (!port.abs) throw new Error('serpentina não ativou (pedras sem posição absoluta)');
     if (port.overflow.length) throw new Error('serpentina: pedra vazou a largura do tabuleiro — ' + port.overflow.join(' · '));
-    if (port.vscroll > 1 && !port.clamped) throw new Error(`scroll FANTASMA no feltro (cabe mas rola ${port.vscroll}px)`);
+    if (port.vscroll > 1 && port.fits) throw new Error(`scroll FANTASMA no feltro (cabe mas rola ${port.vscroll}px)`);
     if (port.scale < 0.99) throw new Error(`serpentina ENCOLHEU a pedra (scale ${port.scale}) — devia serpentear/rolar em tamanho cheio`);
     if (port.n >= 6 && port.rows < 2) throw new Error(`serpentina: a cobra não virou a quina (uma linha só com ${port.n} pedras num celular)`);
     await page.setViewportSize({ width: 820, height: 380 });
-    // sonda DETERMINÍSTICA de que o refit rodou com os números da PAISAGEM: o teto (maxHeight do
-    // wrap) é função da ALTURA da janela (0.46×820 ≈ 377 no retrato → 0.6×380 = 228 na paisagem)
-    // e vale pra QUALQUER corrente. "Altura menor" era proxy furado: corrente que coube RETA (ou
-    // com as mesmas bandas) no retrato fica LEGITIMAMENTE igual na paisagem — só não pode CRESCER.
+    // sonda DETERMINÍSTICA de que o refit rodou com os números da PAISAGEM: o domFitBoard estampa
+    // a largura útil usada (dataset.fitW) — 380 de retrato → 820 de paisagem SEMPRE muda, pra
+    // QUALQUER corrente. "Altura menor" era proxy furado: corrente que coube RETA (ou com as
+    // mesmas bandas) no retrato fica LEGITIMAMENTE igual na paisagem — só não pode CRESCER.
     if (port.n >= 6) {
-      const refit = await page.waitForFunction(() => {
+      const refit = await page.waitForFunction((old) => {
         const wrap = document.getElementById('dom-board').parentElement;
-        return parseFloat(wrap.style.maxHeight || '1e9') < 300;
-      }, null, { timeout: 8000 }).then(() => true).catch(() => false);
+        return (wrap.dataset.fitW || '') !== old;
+      }, port.fitW, { timeout: 8000 }).then(() => true).catch(() => false);
       if (!refit) throw new Error('serpentina: não re-arrumou ao girar (refit não rodou com a janela nova)');
       const lh = await page.evaluate(() => document.getElementById('dom-board').getBoundingClientRect().height);
       if (lh > port.h + 2) throw new Error(`serpentina: paisagem ficou MAIS ALTA que o retrato (${lh} > ${port.h})`);
     } else await page.waitForTimeout(300);
     const land = await page.evaluate(() => {                      // paisagem: mesmo invariante do scroll
       const board = document.getElementById('dom-board'), wrap = board.parentElement;
+      const s = getComputedStyle(wrap);
+      const padY = (parseFloat(s.paddingTop) || 0) + (parseFloat(s.paddingBottom) || 0);
       return {
-        vscroll: wrap.scrollHeight - wrap.clientHeight, clamped: parseFloat(wrap.style.height || '0') >= parseFloat(wrap.style.maxHeight || '0') - 1,
-        dbg: `wrap sh=${wrap.scrollHeight} ch=${wrap.clientHeight} sw=${wrap.scrollWidth} cw=${wrap.clientWidth} h=${wrap.style.height}/${wrap.style.maxHeight} · board=${board.style.width}×${board.style.height}`,
+        vscroll: wrap.scrollHeight - wrap.clientHeight, fits: board.offsetHeight + padY <= wrap.clientHeight + 1,
+        dbg: `wrap sh=${wrap.scrollHeight} ch=${wrap.clientHeight} sw=${wrap.scrollWidth} cw=${wrap.clientWidth} · board=${board.style.width}×${board.style.height}`,
       };
     });
-    if (land.vscroll > 1 && !land.clamped) throw new Error(`scroll FANTASMA no feltro em paisagem (cabe mas rola ${land.vscroll}px) — ${land.dbg}`);
+    if (land.vscroll > 1 && land.fits) throw new Error(`scroll FANTASMA no feltro em paisagem (cabe mas rola ${land.vscroll}px) — ${land.dbg}`);
   };
 
   async function playGame(N) {

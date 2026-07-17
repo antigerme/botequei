@@ -433,6 +433,29 @@ html.bigfont { font-size: 120%; }
 
 /* Conta */
 .sheet-tall { max-height: 88vh; overflow-y: auto; }
+/* ---------- Jogo de MESA em TELA CHEIA (M3 full-screen dialog: jogar é o momento imersivo) -------
+   Só DOMINÓ e TRUCO — têm uma MESA (feltro/tapete) que vira protagonista e absorve o espaço.
+   A purrinha NÃO entra: é compacta (lacrar/revelar), sem mesa, e tela cheia só criaria vazio —
+   segue como sheet que abraça o conteúdo (a consistência que importa — sair do grid, ✕ minimiza
+   pro pill — fica; a moldura segue a NECESSIDADE, como o M3 separa full-screen de dialog compacto).
+   No celular a moldura de sheet SOME (borda/raio/margem) e o miolo vira COLUNA flex — a mesa ganha
+   TUDO que o resto não usa (orçamento dinâmico: o teto cego de 46%/60% morreu; no fim do jogo a
+   mão esvazia e o tabuleiro cresce exatamente quando mais precisa). No desktop (≥900) vira cartão
+   ALTO centrado: largura capada pra leitura, altura quase toda — tela cheia literal numa FHD ficaria deserta. */
+.overlay-game { align-items: stretch; }
+.overlay-game .sheet { max-width: none; max-height: none; height: 100dvh; border: 0; border-radius: 0;
+  box-shadow: none; padding: calc(10px + var(--safe-t)) 14px calc(10px + var(--safe-b));
+  display: flex; flex-direction: column; }
+/* setups (picker de bots, handshake da mesa verificada) flutuam no MEIO do vão — margem auto na coluna */
+.overlay-game #dom-setup:not([hidden]), .overlay-game #tru-setup:not([hidden]) { margin-block: auto; }
+/* o corpo do jogo flexiona e a ÁREA DE MESA (feltro/tapete) absorve a sobra */
+#dom-game:not([hidden]), #tru-game:not([hidden]) { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+#tru-game:not([hidden]) .tru-table { flex: 1 1 auto; min-height: 96px; }
+@media (min-width: 900px) {
+  .overlay-game { align-items: center; }
+  .overlay-game .sheet { width: min(940px, 96vw); height: min(96vh, 1080px); border: 2px dashed var(--chalk-line);
+    border-radius: var(--r-2xl); padding: 22px 22px 18px; box-shadow: 0 10px 60px rgba(0,0,0,.55); }
+}
 .bill-opts { display: grid; gap: 4px; margin-bottom: 10px; }
 .field-inline { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
 .field-inline span { flex: 1; }
@@ -879,8 +902,10 @@ select { background: var(--card); border: 1.5px solid var(--line); color: var(--
    (o JS seta) e aí o feltro ROLA por dentro — a mão fica sempre embaixo. Só girar re-arruma. */
 .dom-board-wrap { background: linear-gradient(180deg, #23492f, #1a3623); border: 1px solid rgba(0,0,0,.35);
   border-radius: var(--r-l); padding: 10px; margin-bottom: 14px; box-shadow: inset 0 2px 10px rgba(0,0,0,.35);
-  /* safe center: tabuleiro mais largo que o feltro (T estica a corrida) ROLA inteiro — center puro clipa a esquerda */
-  display: flex; align-items: flex-start; justify-content: center; justify-content: safe center; overflow: auto; overscroll-behavior: contain; min-height: 92px; }
+  /* safe center: tabuleiro mais largo que o feltro (T estica a corrida) ROLA inteiro — center puro clipa a esquerda.
+     flex:1 = ORÇAMENTO DINÂMICO: o feltro ganha tudo que o overlay não usa (a altura não vem mais do JS) */
+  display: flex; align-items: flex-start; justify-content: center; justify-content: safe center; overflow: auto;
+  overscroll-behavior: contain; min-height: 92px; flex: 1 1 auto; }
 body.light .dom-board-wrap { background: linear-gradient(180deg, #2f6b45, #245536); }
 /* flex:none: o tabuleiro NÃO encolhe dentro do feltro-flex — quando o T estica a corrente além da
    largura (escada de buchas), a largura verdadeira fica e o feltro ROLA (sem isso o flex-shrink
@@ -930,11 +955,9 @@ body.light .dom-board-wrap { background: linear-gradient(180deg, #2f6b45, #24553
 @media (prefers-reduced-motion: reduce) {
   .dom-tile.open, .dom-tile.just, .dom-played-av, .dom-opp.played { animation: none; }
 }
-/* PAISAGEM (celular deitado, não desktop): o tabuleiro vira o protagonista */
+/* PAISAGEM (celular deitado): a moldura já é tela cheia (overlay-game) — aqui só o aperto fino */
 @media (orientation: landscape) and (max-height: 600px) {
-  #overlay-domino .sheet { max-width: 96vw; width: 96vw; height: 96vh; max-height: 96vh; }
-  #dom-game { flex: 1; }
-  .dom-board-wrap { flex: none; min-height: 0; margin-bottom: 8px; } /* altura vem do JS (serpentina) */
+  .dom-board-wrap { margin-bottom: 8px; }
   .dom-opps { margin-bottom: 4px; }
   .dom-turn { margin: 2px 0 4px; }
   .dom-hand { max-height: 26vh; overflow-y: auto; }
